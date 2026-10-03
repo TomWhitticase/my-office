@@ -268,7 +268,7 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos }) {
       if (p.root.scale.x < 0.5 || !near(pos.x, pos.z)) { Object.assign(s, { walking, pose, stepN: null }); continue; }
       if (walking) {
         const n = Math.floor((p.walkPhase - Math.PI / 2) / Math.PI);
-        if (s.stepN !== null && n !== s.stepN) { const soft = onRug(pos.x, pos.z); play(pick(soft ? B.soft : B.step), pos.x, 0.05, pos.z, soft ? 0.3 : 0.45, rnd(0.9, 1.1)); }
+        if (s.stepN !== null && n !== s.stepN) { const soft = onRug(pos.x, pos.z); play(pick(soft ? B.soft : B.step), pos.x, 0.05, pos.z, soft ? 0.07 : 0.11, rnd(0.9, 1.1)); }
         s.stepN = n;
       } else s.stepN = null;
       if (walking !== s.walking) {
@@ -297,7 +297,7 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos }) {
     lastCam.copy(L);
     if (free && moved > 1.5 && moved < 15) {
       stepAcc += dt;
-      if (stepAcc > (moved > 6 ? 0.3 : 0.42)) { stepAcc = 0; const soft = onRug(L.x, L.z); play(pick(soft ? B.soft : B.step), L.x, 0.05, L.z - 0.01, soft ? 0.12 : 0.18, rnd(0.95, 1.1)); }
+      if (stepAcc > (moved > 6 ? 0.3 : 0.42)) { stepAcc = 0; const soft = onRug(L.x, L.z); play(pick(soft ? B.soft : B.step), L.x, 0.05, L.z - 0.01, soft ? 0.03 : 0.045, rnd(0.95, 1.1)); }
     } else stepAcc = 0.3;
     // Door and blinds: a sound whenever their target changes (clicks here or anywhere else).
     if (lastDoor !== null && door.to !== lastDoor) play(B.swish, doorPos.x, 1.1, doorPos.z, 0.4, door.to ? 1 : 0.9);

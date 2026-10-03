@@ -1906,16 +1906,16 @@ export function mountOffice(container) {
   }
 
   // ----- meeting rooms -----
-  // Glass rooms like my office (tint, frosted band, mullions) with doorways instead of doors: Opus and Sonnet along the
-  // east windows either side of a solid partition, Haiku by the north windows. All panes, frames and frost are three meshes.
+  // Glass rooms like my office (tint, frosted band, mullions) with doorways instead of doors: two along the east windows
+  // either side of a solid partition, one by the north windows. All panes, frames and frost are three meshes.
   // Seats: `xs` along both long sides of a table at (tx, tz); idle sessions walk in by `entry`, then the south or north corridor.
   const MR = [
-    { name: 'Opus', note: '6 seats · screen', tx: 17.2, tz: 5, len: 2.8, dep: 1.1, co: 0.85, xs: [16.3, 17.2, 18.1],
-      entry: [[13.4, AISLE], [13.4, 3.55], [14.6, 3.55]], south: 3.55, north: 6.6, around: 14.6, plate: [13.97, 4.75, -Math.PI / 2] },
-    { name: 'Sonnet', note: '4 seats · whiteboard', tx: 17.2, tz: 10.2, len: 2.2, dep: 1.1, co: 0.85, xs: [16.7, 17.7],
-      entry: [[13.4, AISLE], [13.4, 8.55], [14.6, 8.55]], south: 8.55, north: 11.85, around: 14.6, plate: [13.97, 9.75, -Math.PI / 2] },
-    { name: 'Haiku', note: '4 seats · quick chats', tx: 0.8, tz: 13.3, len: 1.8, dep: 0.9, co: 0.75, xs: [0.35, 1.25],
-      entry: [[-0.75, AISLE], [-0.75, 11.9]], south: 11.9, north: 14.55, around: -0.75, plate: [0.45, 11.17, Math.PI] },
+    { tx: 17.2, tz: 5, len: 2.8, dep: 1.1, co: 0.85, xs: [16.3, 17.2, 18.1],
+      entry: [[13.4, AISLE], [13.4, 3.55], [14.6, 3.55]], south: 3.55, north: 6.6, around: 14.6 },
+    { tx: 17.2, tz: 10.2, len: 2.2, dep: 1.1, co: 0.85, xs: [16.7, 17.7],
+      entry: [[13.4, AISLE], [13.4, 8.55], [14.6, 8.55]], south: 8.55, north: 11.85, around: 14.6 },
+    { tx: 0.8, tz: 13.3, len: 1.8, dep: 0.9, co: 0.75, xs: [0.35, 1.25],
+      entry: [[-0.75, AISLE], [-0.75, 11.9]], south: 11.9, north: 14.55, around: -0.75 },
   ];
   {
     const panes = [], frames = [], frost = [];
@@ -1947,7 +1947,7 @@ export function mountOffice(container) {
       return g.translate(x, y, z);
     })), frostM);
     world.add(glassMesh, frostMesh, mergedBoxes(frames, frameM));
-    // Solid partition between Opus and Sonnet: Opus's screen on one side, Sonnet's whiteboard on the other.
+    // Solid partition between the two east rooms: a wall screen on one side, a whiteboard on the other.
     box(world, 6, ROOM.h, 0.12, '', 17, ROOM.h / 2, 7.5, { material: wallM });
     solid(17, 7.5, 6, 0.12);
   }
@@ -1962,12 +1962,6 @@ export function mountOffice(container) {
     box(world, r.len * 0.6, 0.035, 0.09, '', r.tx, 2.6, r.tz, { material: barM, shadow: false });
     for (const dx of [-1, 1]) cyl(world, 0.004, 0.004, ROOM.h - 2.6, '#222', r.tx + dx * r.len * 0.25, (ROOM.h + 2.6) / 2, r.tz, { shadow: false });
     addLamp(r.tx, 2.4, r.tz, 8);
-    const [px, pz, rot] = r.plate, plate = makeScreen(world, 0.62, 0.2, 310, 100, px, 1.75, pz), c = plate.ctx;
-    plate.mesh.rotation.y = rot;
-    c.fillStyle = 'rgba(20,20,22,.85)'; c.beginPath(); c.roundRect(0, 0, 310, 100, 14); c.fill();
-    c.font = `600 42px ${FONT}`; c.fillStyle = '#fff'; c.fillText(r.name, 22, 52);
-    c.font = `400 22px ${FONT}`; c.fillStyle = '#c3c2b7'; c.fillText(r.note, 22, 84);
-    plate.mesh.material.transparent = true; plate.tex.needsUpdate = true;
   }
   // Whiteboards drawn once: marker writing in a few colours.
   function markerBoard(scr, draw) {
@@ -1979,7 +1973,7 @@ export function mountOffice(container) {
     scr.tex.needsUpdate = true;
   }
   {
-    // Opus: a wall screen with a slide up.
+    // South east room: a wall screen with a slide up.
     const scr = makeScreen(world, 2.4, 1.35, 1024, 576, 17.2, 1.6, 7.4);
     scr.mesh.rotation.y = Math.PI;
     box(world, 2.48, 1.43, 0.03, '#111214', 17.2, 1.6, 7.425, { shadow: false });
@@ -1987,7 +1981,7 @@ export function mountOffice(container) {
     ctx.fillStyle = '#1b1d22'; ctx.fillRect(0, 0, 1024, 576);
     ctx.fillStyle = '#d97757'; ctx.fillRect(64, 70, 8, 64);
     ctx.font = `700 52px ${FONT}`; ctx.fillStyle = '#f2efe8'; ctx.fillText('Q4 roadmap', 92, 122);
-    ctx.font = `400 26px ${FONT}`; ctx.fillStyle = '#9a9890'; ctx.fillText('Opus room · weekly sync', 94, 164);
+    ctx.font = `400 26px ${FONT}`; ctx.fillStyle = '#9a9890'; ctx.fillText('Weekly sync', 94, 164);
     [0.45, 0.62, 0.58, 0.8, 0.92].forEach((v, i) => {
       ctx.fillStyle = i === 4 ? '#d97757' : '#3987e5'; ctx.fillRect(96 + i * 118, 500 - v * 270, 80, v * 270);
       ctx.font = `400 22px ${FONT}`; ctx.fillStyle = '#9a9890'; ctx.fillText(['Jun', 'Jul', 'Aug', 'Sep', 'Oct'][i], 112 + i * 118, 536);
@@ -1995,7 +1989,7 @@ export function mountOffice(container) {
     ctx.font = `400 28px ${FONT}`; ctx.fillStyle = '#e8e6df';
     ['✓ Ship the office', '✓ Meeting rooms', '→ More plants', '→ Fewer meetings'].forEach((t, i) => ctx.fillText(t, 720, 260 + i * 56));
     scr.tex.needsUpdate = true;
-    // Sonnet: whiteboard on the other face of the partition.
+    // North east room: whiteboard on the other face of the partition.
     const wb = makeScreen(world, 2.4, 1.2, 1024, 512, 17.2, 1.55, 7.6);
     box(world, 2.48, 1.28, 0.03, '#b9bcc0', 17.2, 1.55, 7.575, { shadow: false });
     box(world, 1.2, 0.03, 0.07, '#b9bcc0', 17.2, 0.93, 7.62, { shadow: false });
@@ -2009,7 +2003,7 @@ export function mountOffice(container) {
       c.strokeStyle = '#c0392b'; c.beginPath(); c.ellipse(790, 400, 150, 70, -0.1, 0, Math.PI * 2); c.stroke();
       c.fillStyle = '#c0392b'; c.fillText('demo Fri!', 712, 410);
     });
-    // Haiku: a rolling whiteboard by the east glass, facing the table.
+    // North room: a rolling whiteboard by the east glass, facing the table.
     const g = new THREE.Group(); g.position.set(2.95, 0, 13.3); g.rotation.y = -Math.PI / 2; world.add(g);
     g.add(mergedBoxes([[1.36, 0.92, 0.04, 0, 1.4, -0.01, '#b9bcc0'], [0.04, 1.85, 0.04, -0.66, 0.93, -0.03, '#8d9399'], [0.04, 1.85, 0.04, 0.66, 0.93, -0.03, '#8d9399'],
       [0.06, 0.04, 0.5, -0.66, 0.08, -0.03, '#5a5f66'], [0.06, 0.04, 0.5, 0.66, 0.08, -0.03, '#5a5f66'], [1.3, 0.03, 0.06, 0, 0.92, 0.03, '#b9bcc0']],
@@ -2017,8 +2011,8 @@ export function mountOffice(container) {
     const hb = makeScreen(g, 1.3, 0.86, 640, 424, 0, 1.4, 0.012);
     markerBoard(hb, (c) => {
       c.fillStyle = '#1f2a44'; c.font = `400 38px "Marker Felt", "Comic Sans MS", ${FONT}`;
-      ['green tests at midnight', 'the diff is small and tidy', 'ship it, then sleep well'].forEach((t, i) => c.fillText(t, 40, 110 + i * 92));
-      c.fillStyle = '#c0392b'; c.font = `400 28px "Marker Felt", "Comic Sans MS", ${FONT}`; c.fillText('— a haiku', 400, 390);
+      ['standup notes', '- review open PRs', '- fix flaky test'].forEach((t, i) => c.fillText(t, 40, 110 + i * 92));
+      c.strokeStyle = '#c0392b'; c.beginPath(); c.moveTo(40, 128); c.lineTo(330, 128); c.stroke();
     });
     solid(2.95, 13.3, 0.5, 1.4);
   }
@@ -2132,7 +2126,7 @@ export function mountOffice(container) {
   wallClock(-3.3, 2.45, -14.86, 0);             // desk floor
   wallClock(3.74, 2.65, 8, -Math.PI / 2);       // pillar over the ping pong TV, facing the breakroom
   wallClock(10.55, 2.35, -14.9, 0, 0.18);       // my office
-  wallClock(17.2, 2.8, 7.44, Math.PI, 0.17);    // Opus, over the screen
+  wallClock(17.2, 2.8, 7.44, Math.PI, 0.17);    // south east meeting room, over the screen
 
   // ----- wall TVs -----
   // Each is a live tab in a browser the server runs (set from its panel or the Admin tab, /api/tvs). Frames arrive over
@@ -2320,14 +2314,14 @@ export function mountOffice(container) {
   const bean = [7.6, 9.6].map((z, i) => spot(`bean${i}`, -17.9, z, Math.PI / 2, 'beanbag', R([-11.6, AISLE], [-11.6, 10.7], [-16.9, 10.7], [-16.9, z])));
   const meet = [8.8, 10, 11.2].map((x, i) => spot(`meet${i}`, x, 7.55, 0, 'chat', R([x, AISLE])));
   // Meeting rooms: a seat each side of the table per `xs`, south side facing +z; filled in facing pairs.
-  const mrSeats = MR.map((r) => r.xs.flatMap((x, i) => {
+  const mrSeats = MR.map((r, ri) => r.xs.flatMap((x, i) => {
     const via = R(...r.entry), s = r.tz - r.co + 0.06, n = r.tz + r.co - 0.06;
-    return [spot(`${r.name}S${i}`, x, s, 0, 'meeting', [...via, { x, z: r.south }]),
-      spot(`${r.name}N${i}`, x, n, Math.PI, 'meeting', [...via, ...R([r.around, r.north], [x, r.north])])];
+    return [spot(`mr${ri}S${i}`, x, s, 0, 'meeting', [...via, { x, z: r.south }]),
+      spot(`mr${ri}N${i}`, x, n, Math.PI, 'meeting', [...via, ...R([r.around, r.north], [x, r.north])])];
   }));
-  const [opus, sonnet, haiku] = mrSeats;
+  const [mrSouth, mrNorth, mrSmall] = mrSeats;
   const IDLE_ORDER = [sofaA[1], coffee[0], pp[0], pp[1], sofaA[0], chat[0], chat[1], bean[0], sofaA[2], coffee[1], bean[1], chat[2],
-    haiku[0], haiku[1], sofaB[0], sofaB[1], sofaB[2], ...meet, ...opus, ...sonnet, ...haiku.slice(2)];
+    mrSmall[0], mrSmall[1], sofaB[0], sofaB[1], sofaB[2], ...meet, ...mrSouth, ...mrNorth, ...mrSmall.slice(2)];
   const LOBBY = { key: 'lobby', kind: 'idle', pos: LIFT, rotY: -Math.PI / 2, pose: 'chat', route: [{ x: LIFT.x - 1, z: AISLE }, LIFT] };
 
   // ----- sounds (see sounds.js; M mutes) -----
@@ -2858,8 +2852,6 @@ export function mountOffice(container) {
     for (const b of colliders) c.fillRect(sx(b.minX), sz(b.minZ), Math.max(2, sx(b.maxX) - sx(b.minX)), Math.max(2, sz(b.maxZ) - sz(b.minZ)));
     c.font = '600 20px system-ui'; c.fillStyle = 'rgba(255,255,255,.55)';
     c.fillText('Desks', sx(-12), sz(-0.6)); c.fillText('Breakroom', sx(-12), sz(13.6)); c.fillText('My office', sx(9), sz(-13.4)); c.fillText('Lounge', sx(8), sz(13.6));
-    c.font = '600 15px system-ui';
-    for (const r of MR) c.fillText(r.name, sx(r.tx - 1.1), sz(r.name === 'Haiku' ? 12.3 : r.tz + (r.name === 'Opus' ? -1.4 : 1.9)));
     for (const p of people.values()) {
       c.fillStyle = p.color; c.beginPath(); c.arc(sx(p.root.position.x), sz(p.root.position.z), 7, 0, Math.PI * 2); c.fill();
       if (p.session?.status === 'working') { c.strokeStyle = '#22c55e'; c.lineWidth = 3; c.stroke(); }
