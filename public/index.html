@@ -252,11 +252,14 @@ tr.click:hover td { background: var(--surface-2); }
     <div class="adm-row"><span class="lbl">Door</span><span class="seg" id="adm-door"><button data-v="0">Closed</button><button data-v="1">Open</button></span></div>
   </section>
   <section class="panel">
-    <h2>Window blinds <small>the outside windows</small></h2>
+    <h2>Window blinds <small>the outside windows and meeting rooms</small></h2>
     <div class="adm-row"><span class="lbl">North wall</span><span class="seg" data-blind="north"><button data-v="0">Raised</button><button data-v="1">Lowered</button></span></div>
     <div class="adm-row"><span class="lbl">East wall</span><span class="seg" data-blind="east"><button data-v="0">Raised</button><button data-v="1">Lowered</button></span></div>
     <div class="adm-row"><span class="lbl">West wall</span><span class="seg" data-blind="west"><button data-v="0">Raised</button><button data-v="1">Lowered</button></span></div>
     <div class="adm-row"><span class="lbl">My office</span><span class="seg" data-blind="office"><button data-v="0">Raised</button><button data-v="1">Lowered</button></span></div>
+    <div class="adm-row"><span class="lbl">Meeting room (south)</span><span class="seg" data-blind="meetSouth"><button data-v="0">Raised</button><button data-v="1">Lowered</button></span></div>
+    <div class="adm-row"><span class="lbl">Meeting room (north)</span><span class="seg" data-blind="meetNorth"><button data-v="0">Raised</button><button data-v="1">Lowered</button></span></div>
+    <div class="adm-row"><span class="lbl">Small meeting room</span><span class="seg" data-blind="meetSmall"><button data-v="0">Raised</button><button data-v="1">Lowered</button></span></div>
     <div class="adm-row"><span class="lbl">Every blind</span><span style="display:flex;gap:6px"><button data-all="0">Raise all</button><button data-all="1">Lower all</button></span></div>
   </section>
   <section class="panel">
@@ -638,7 +641,7 @@ window.dash = {
   },
   normUrl: (s) => { s = s.trim(); return !s ? '' : s.startsWith('/') ? location.origin + s : /^[a-z][\w+.-]*:/i.test(s) ? s : (/^(localhost|127\.)/.test(s) ? 'http://' : 'https://') + s; },
   // Lights, blinds and door (server-side, /api/office). putOffice applies locally at once, then saves.
-  office: { lights: 'auto', brightness: 1, blinds: { side: 0, front: 0, north: 0, east: 0, west: 0, office: 0 }, door: 0 }, officeListeners: new Set(),
+  office: { lights: 'auto', brightness: 1, blinds: { side: 0, front: 0, north: 0, east: 0, west: 0, office: 0, meetSouth: 0, meetNorth: 0, meetSmall: 0 }, door: 0 }, officeListeners: new Set(),
   putOffice(patch) {
     const o = dash.office;
     dash.office = { ...o, ...patch, blinds: { ...o.blinds, ...patch.blinds } };
