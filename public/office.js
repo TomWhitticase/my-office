@@ -1779,9 +1779,10 @@ export function mountOffice(container) {
     ['meetSouth', 'Meeting room (south) blinds'], ['meetNorth', 'Meeting room (north) blinds'], ['meetSmall', 'Small meeting room blinds']]) blinds[key] = { key, name, k: 0, to: 0, runs: [] };
   const BL = { top: ROOM.h - 0.12, sp: 0.05, stack: 0.008, slatG: new THREE.BoxGeometry(1, 0.004, 0.058), railG: new THREE.BoxGeometry(1, 0.02, 0.06) };
   const _m4 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _q0 = new THREE.Quaternion(), _e = new THREE.Euler(), _v = new THREE.Vector3(), _s = new THREE.Vector3(1, 1, 1);
-  const blindShut = (k) => clamp(k * 1.35, 0, 1) * 0.55 + clamp((k - 0.72) / 0.28, 0, 1) * 0.35;
+  // States: 0 raised, 0.5 lowered with the slats open, 1 closed. The first half drops the blind, the second tilts the slats.
+  const blindShut = (k) => clamp(k * 2, 0, 1) * 0.3 + clamp(k * 2 - 1, 0, 1) * 0.6;
   function layBlind(r, k) {
-    const drop = clamp(k * 1.35, 0, 1), tilt = clamp((k - 0.72) / 0.28, 0, 1) * 1.0;
+    const drop = clamp(k * 2, 0, 1), tilt = clamp(k * 2 - 1, 0, 1) * 1.0;
     const railY = lerp(r.top - r.n * BL.stack - 0.02, r.bot, drop);
     _q.setFromEuler(_e.set(tilt, 0, 0));
     r.cells.forEach(([x, w], c) => {
@@ -1860,7 +1861,7 @@ export function mountOffice(container) {
   }
   function officeFx(dt) {
     for (const b of Object.values(blinds)) if (b.k !== b.to) {
-      b.k = b.to > b.k ? Math.min(b.to, b.k + dt / 1.6) : Math.max(b.to, b.k - dt / 1.6);
+      b.k = b.to > b.k ? Math.min(b.to, b.k + dt / 2.2) : Math.max(b.to, b.k - dt / 2.2);
       for (const r of b.runs) layBlind(r, b.k);
       if (WIN.includes(b.key)) shaftU.shut.value[WIN.indexOf(b.key)] = blindShut(b.k);
     }
@@ -2548,7 +2549,7 @@ export function mountOffice(container) {
     if (hover.action === 'computer') { document.exitPointerLock(); dash.setView('overview'); }
     else if (hover.sessionId && hover.screen) { document.exitPointerLock(); dash.openDrawer(hover.sessionId); }
     else if (hover.sessionId) openChat(hover.sessionId);
-    else if (hover.action === 'blinds') { hover.blind.to = hover.blind.to ? 0 : 1; dash.putOffice({ blinds: { [hover.blind.key]: hover.blind.to } }); }
+    else if (hover.action === 'blinds') { hover.blind.to = hover.blind.to === 1 ? 0 : hover.blind.to + 0.5; dash.putOffice({ blinds: { [hover.blind.key]: hover.blind.to } }); }
     else if (hover.action === 'door') { door.to = door.to ? 0 : 1; dash.putOffice({ door: door.to }); }
     else if (hover.seat) sitIn(hover.seat);
     else if (hover.tv) {
@@ -2866,7 +2867,7 @@ export function mountOffice(container) {
       return;
     }
     if (hover.action === 'blinds' || hover.action === 'door') {
-      targetEl.innerHTML = hover.action === 'door' ? `<b>Office door</b><div class="k">Click to ${door.to ? 'close' : 'open'}</div>` : `<b>${hover.blind.name}</b><div class="k">Click to ${hover.blind.to ? 'raise' : 'lower'} the blinds</div>`;
+      targetEl.innerHTML = hover.action === 'door' ? `<b>Office door</b><div class="k">Click to ${door.to ? 'close' : 'open'}</div>` : `<b>${hover.blind.name}</b><div class="k">Click to ${['lower the blinds', 'close the slats', 'raise the blinds'][hover.blind.to * 2]}</div>`;
       return;
     }
     if (hover.seat) {
