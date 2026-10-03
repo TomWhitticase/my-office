@@ -11,8 +11,8 @@ const pick = (a) => a[Math.floor(Math.random() * a.length)];
 const noise = () => Math.random() * 2 - 1;
 const clampLook = (d) => Math.max(0, Math.min(d, 0.25));
 const env = (t, a, b, att, rel) => (t < a || t > b ? 0 : Math.min(1, (t - a) / att, (b - t) / rel));
-const SEATED = new Set(['type', 'wait', 'sofa', 'beanbag']);
-const TALK = new Set(['chat', 'sofa', 'beanbag']);
+const SEATED = new Set(['type', 'wait', 'sofa', 'beanbag', 'meeting']);
+const TALK = new Set(['chat', 'sofa', 'beanbag', 'meeting']);
 // Vowel formants (F1, F2, F3) for the babble.
 const VOWELS = [[730, 1090, 2440], [530, 1840, 2480], [270, 2290, 3010], [570, 840, 2410], [300, 870, 2240], [660, 1720, 2410], [490, 1350, 1690]];
 

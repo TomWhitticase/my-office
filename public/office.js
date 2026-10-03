@@ -627,6 +627,11 @@ class Person {
         Object.assign(j, { sh0: -0.35 - 0.25 * (0.5 + 0.5 * Math.sin(t * 2.1 + ph)), el0: -1.2 + 0.3 * Math.sin(t * 3.3 + ph),
           sh1: -0.05, el1: -0.25, headX: 0.08 * Math.sin(t * 1.7 + ph), headY: 0.2 * Math.sin(t * 0.5 + ph) });
         break;
+      case 'meeting':   // seated round a meeting-room table, forearms on it, one hand gesturing
+        sit(0.47);
+        Object.assign(j, { lean: 0.06, sh0: -0.55 - 0.25 * (0.5 + 0.5 * Math.sin(t * 1.9 + ph)), el0: -1.2 + 0.25 * Math.sin(t * 2.7 + ph), sh1: -0.5, el1: -1.0,
+          shz0: -0.1, shz1: 0.12, headX: 0.04 * Math.sin(t * 1.3 + ph), headY: 0.35 * Math.sin(t * 0.35 + ph) });
+        break;
       case 'pingpong': {
         this.paddle.visible = true;
         const swing = this.swing || 0;
@@ -792,7 +797,7 @@ export function mountOffice(container) {
   hud.innerHTML = `<div class="of-cross"></div><div class="of-target"></div><canvas class="of-map" width="440" height="330" style="width:220px;height:165px"></canvas>
     <div class="of-count"></div>
     <div class="of-time"><span class="of-clock"></span><button data-speed="1">Live</button><button data-speed="120">×120</button><button data-speed="1200">×1200</button><button data-speed="7200">×7200</button></div>
-    <div class="of-legend"><kbd>W A S D</kbd> move · <kbd>Shift</kbd> run · <kbd>Click</kbd> talk to someone or use a TV · <kbd>E</kbd> details / set up a TV · <kbd>1</kbd> desks <kbd>2</kbd> breakroom <kbd>3</kbd> my office <kbd>4</kbd> lobby · <kbd>T</kbd> time speed · <kbd>G</kbd> graphics · <kbd>H</kbd> hide overlays · <kbd>M</kbd> sounds · <kbd>Esc</kbd> release mouse</div>
+    <div class="of-legend"><kbd>W A S D</kbd> move · <kbd>Shift</kbd> run · <kbd>Click</kbd> talk to someone or use a TV · <kbd>E</kbd> details / set up a TV · <kbd>1</kbd> desks <kbd>2</kbd> breakroom <kbd>3</kbd> my office <kbd>4</kbd> lobby <kbd>5</kbd> meeting rooms · <kbd>T</kbd> time speed · <kbd>G</kbd> graphics · <kbd>H</kbd> hide overlays · <kbd>M</kbd> sounds · <kbd>Esc</kbd> release mouse</div>
     <div class="of-toast"></div>
     <div class="of-start"><b>Click to look around</b><span>Walk up to anyone and click to talk to them, or click their screen for details.<br>Click your own monitor to go back to the dashboard.</span></div>
     <div class="of-tvhint">Using the <b class="of-tvname"></b> TV · click and type into the page · <kbd>${ALT}M</kbd> mute · <kbd>${ALT}−</kbd> <kbd>${ALT}=</kbd> or <kbd>${ALT}scroll</kbd> volume · <kbd>Esc</kbd> back to walking</div>
@@ -1411,7 +1416,7 @@ export function mountOffice(container) {
     const shade = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.22, 0.3, 24, 1, true), glowMat(0.9, '#efe2c8'));
     shade.position.set(x, 1.56, z);
     world.add(shade);
-    addLamp(x, 1.45, z, light);
+    if (light) addLamp(x, 1.45, z, light);   // 0: shade glows, no light
     solid(x, z, 0.35, 0.35);
   }
   function bookshelf(x, z, rotY, w, h, rows) {
@@ -1900,6 +1905,235 @@ export function mountOffice(container) {
     cssObj.scale.setScalar(center.w / pxW);
   }
 
+  // ----- meeting rooms -----
+  // Glass rooms like my office (tint, frosted band, mullions) with doorways instead of doors: Opus and Sonnet along the
+  // east windows either side of a solid partition, Haiku by the north windows. All panes, frames and frost are three meshes.
+  // Seats: `xs` along both long sides of a table at (tx, tz); idle sessions walk in by `entry`, then the south or north corridor.
+  const MR = [
+    { name: 'Opus', note: '6 seats · screen', tx: 17.2, tz: 5, len: 2.8, dep: 1.1, co: 0.85, xs: [16.3, 17.2, 18.1],
+      entry: [[13.4, AISLE], [13.4, 3.55], [14.6, 3.55]], south: 3.55, north: 6.6, around: 14.6, plate: [13.97, 4.75, -Math.PI / 2] },
+    { name: 'Sonnet', note: '4 seats · whiteboard', tx: 17.2, tz: 10.2, len: 2.2, dep: 1.1, co: 0.85, xs: [16.7, 17.7],
+      entry: [[13.4, AISLE], [13.4, 8.55], [14.6, 8.55]], south: 8.55, north: 11.85, around: 14.6, plate: [13.97, 9.75, -Math.PI / 2] },
+    { name: 'Haiku', note: '4 seats · quick chats', tx: 0.8, tz: 13.3, len: 1.8, dep: 0.9, co: 0.75, xs: [0.35, 1.25],
+      entry: [[-0.75, AISLE], [-0.75, 11.9]], south: 11.9, north: 14.55, around: -0.75, plate: [0.45, 11.17, Math.PI] },
+  ];
+  {
+    const panes = [], frames = [], frost = [];
+    // A glass wall along x (z fixed) or z (x fixed), with optional doorway [a, b]: posts, header and a glass transom over it.
+    const mrWall = (axis, fixed, from, to, gap) => {
+      const X = axis === 'x', at = (list, u, w, h, d, y) => list.push(X ? [w, h, d, u, y, fixed] : [d, h, w, fixed, y, u]);
+      for (const [a, b] of gap ? [[from, gap[0]], [gap[1], to]] : [[from, to]]) {
+        const len = b - a, mid = (a + b) / 2, n = Math.max(1, Math.round(len / 1.5));
+        at(panes, mid, len, ROOM.h, 0.03, ROOM.h / 2);
+        at(frames, mid, len, 0.06, 0.06, 0.03); at(frames, mid, len, 0.06, 0.06, ROOM.h - 0.03);
+        for (let i = 0; i <= n; i++) at(frames, a + (i * len) / n, 0.05, ROOM.h, 0.07, ROOM.h / 2);
+        at(frost, mid, len, 0.16, 0.036, 1.46); frost[frost.length - 1].len = len;
+        solid(X ? mid : fixed, X ? fixed : mid, X ? len : 0.08, X ? 0.08 : len);
+      }
+      if (gap) {
+        const mid = (gap[0] + gap[1]) / 2, len = gap[1] - gap[0];
+        at(frames, mid, len + 0.06, 0.08, 0.08, 2.24);
+        at(panes, mid, len, ROOM.h - 2.28, 0.03, (ROOM.h + 2.28) / 2);
+      }
+    };
+    mrWall('x', 2.5, 14, 20); mrWall('z', 14, 2.5, 7.5, [3.0, 4.1]); mrWall('z', 14, 7.5, 12.5, [8.0, 9.1]); mrWall('x', 12.5, 14, 20);
+    mrWall('z', -1.8, 11.2, 15); mrWall('z', 3.4, 11.2, 15); mrWall('x', 11.2, -1.8, 3.4, [-1.3, -0.2]);
+    const glassMesh = mergedBoxes(panes, glassM); glassMesh.castShadow = false;
+    // Frost bands share one material; their UVs are stretched per wall so the dot pattern keeps its spacing.
+    const frostM = new THREE.MeshStandardMaterial({ map: frostTex, transparent: true, roughness: 0.9, depthWrite: false });
+    const frostMesh = new THREE.Mesh(mergeGeometries(frost.map(([w, h, d, x, y, z], i) => {
+      const g = new THREE.BoxGeometry(w, h, d), uv = g.attributes.uv;
+      for (let k = 0; k < uv.count; k++) uv.setX(k, uv.getX(k) * frost[i].len / 0.32);
+      return g.translate(x, y, z);
+    })), frostM);
+    world.add(glassMesh, frostMesh, mergedBoxes(frames, frameM));
+    // Solid partition between Opus and Sonnet: Opus's screen on one side, Sonnet's whiteboard on the other.
+    box(world, 6, ROOM.h, 0.12, '', 17, ROOM.h / 2, 7.5, { material: wallM });
+    solid(17, 7.5, 6, 0.12);
+  }
+  for (const r of MR) {
+    box(world, r.len, 0.05, r.dep, '', r.tx, 0.74, r.tz, { material: deskTopM });
+    for (const dx of [-1, 1]) box(world, 0.06, 0.72, r.dep - 0.2, '', r.tx + dx * (r.len / 2 - 0.25), 0.36, r.tz, { material: legM });
+    solid(r.tx, r.tz, r.len, r.dep);
+    for (const x of r.xs) { officeChair(x, r.tz - r.co, 0, '#3f4a5a'); officeChair(x, r.tz + r.co, Math.PI, '#3f4a5a'); }
+    cyl(world, 0.04, 0.035, 0.1, '#f4f1ea', r.xs[0] + 0.2, 0.815, r.tz - 0.25);
+    box(world, 0.3, 0.012, 0.22, '#e8e4dc', r.xs[r.xs.length - 1] - 0.1, 0.771, r.tz + 0.2, { shadow: false });
+    // A light bar over the table: glows by the lamps rule and has one (lamp-controlled) light.
+    box(world, r.len * 0.6, 0.035, 0.09, '', r.tx, 2.6, r.tz, { material: barM, shadow: false });
+    for (const dx of [-1, 1]) cyl(world, 0.004, 0.004, ROOM.h - 2.6, '#222', r.tx + dx * r.len * 0.25, (ROOM.h + 2.6) / 2, r.tz, { shadow: false });
+    addLamp(r.tx, 2.4, r.tz, 8);
+    const [px, pz, rot] = r.plate, plate = makeScreen(world, 0.62, 0.2, 310, 100, px, 1.75, pz), c = plate.ctx;
+    plate.mesh.rotation.y = rot;
+    c.fillStyle = 'rgba(20,20,22,.85)'; c.beginPath(); c.roundRect(0, 0, 310, 100, 14); c.fill();
+    c.font = `600 42px ${FONT}`; c.fillStyle = '#fff'; c.fillText(r.name, 22, 52);
+    c.font = `400 22px ${FONT}`; c.fillStyle = '#c3c2b7'; c.fillText(r.note, 22, 84);
+    plate.mesh.material.transparent = true; plate.tex.needsUpdate = true;
+  }
+  // Whiteboards drawn once: marker writing in a few colours.
+  function markerBoard(scr, draw) {
+    const { ctx, W, H } = scr;
+    ctx.fillStyle = '#f7f7f4'; ctx.fillRect(0, 0, W, H);
+    ctx.lineCap = ctx.lineJoin = 'round'; ctx.lineWidth = 5;
+    draw(ctx, W, H);
+    scr.mesh.material = new THREE.MeshStandardMaterial({ map: scr.tex, roughness: 0.6 });
+    scr.tex.needsUpdate = true;
+  }
+  {
+    // Opus: a wall screen with a slide up.
+    const scr = makeScreen(world, 2.4, 1.35, 1024, 576, 17.2, 1.6, 7.4);
+    scr.mesh.rotation.y = Math.PI;
+    box(world, 2.48, 1.43, 0.03, '#111214', 17.2, 1.6, 7.425, { shadow: false });
+    const { ctx } = scr;
+    ctx.fillStyle = '#1b1d22'; ctx.fillRect(0, 0, 1024, 576);
+    ctx.fillStyle = '#d97757'; ctx.fillRect(64, 70, 8, 64);
+    ctx.font = `700 52px ${FONT}`; ctx.fillStyle = '#f2efe8'; ctx.fillText('Q4 roadmap', 92, 122);
+    ctx.font = `400 26px ${FONT}`; ctx.fillStyle = '#9a9890'; ctx.fillText('Opus room · weekly sync', 94, 164);
+    [0.45, 0.62, 0.58, 0.8, 0.92].forEach((v, i) => {
+      ctx.fillStyle = i === 4 ? '#d97757' : '#3987e5'; ctx.fillRect(96 + i * 118, 500 - v * 270, 80, v * 270);
+      ctx.font = `400 22px ${FONT}`; ctx.fillStyle = '#9a9890'; ctx.fillText(['Jun', 'Jul', 'Aug', 'Sep', 'Oct'][i], 112 + i * 118, 536);
+    });
+    ctx.font = `400 28px ${FONT}`; ctx.fillStyle = '#e8e6df';
+    ['✓ Ship the office', '✓ Meeting rooms', '→ More plants', '→ Fewer meetings'].forEach((t, i) => ctx.fillText(t, 720, 260 + i * 56));
+    scr.tex.needsUpdate = true;
+    // Sonnet: whiteboard on the other face of the partition.
+    const wb = makeScreen(world, 2.4, 1.2, 1024, 512, 17.2, 1.55, 7.6);
+    box(world, 2.48, 1.28, 0.03, '#b9bcc0', 17.2, 1.55, 7.575, { shadow: false });
+    box(world, 1.2, 0.03, 0.07, '#b9bcc0', 17.2, 0.93, 7.62, { shadow: false });
+    markerBoard(wb, (c) => {
+      const node = (x, y, t, col) => { c.strokeStyle = col; c.strokeRect(x - 105, y - 42, 210, 84); c.fillStyle = col; c.font = `600 34px "Marker Felt", "Comic Sans MS", ${FONT}`; c.textAlign = 'center'; c.fillText(t, x, y + 12); };
+      const arrow = (x0, x1, y) => { c.strokeStyle = '#333'; c.beginPath(); c.moveTo(x0, y); c.lineTo(x1, y); c.lineTo(x1 - 16, y - 12); c.moveTo(x1, y); c.lineTo(x1 - 16, y + 12); c.stroke(); };
+      node(170, 150, 'idea', '#1f6fd1'); node(512, 150, 'plan', '#2e8b57'); node(854, 150, 'ship ✦', '#c0392b');
+      arrow(282, 400, 150); arrow(624, 742, 150);
+      c.textAlign = 'left'; c.fillStyle = '#333'; c.font = `400 30px "Marker Felt", "Comic Sans MS", ${FONT}`;
+      ['- write the test first', '- keep diffs small', '- ask before force-pushing'].forEach((t, i) => c.fillText(t, 90, 300 + i * 52));
+      c.strokeStyle = '#c0392b'; c.beginPath(); c.ellipse(790, 400, 150, 70, -0.1, 0, Math.PI * 2); c.stroke();
+      c.fillStyle = '#c0392b'; c.fillText('demo Fri!', 712, 410);
+    });
+    // Haiku: a rolling whiteboard by the east glass, facing the table.
+    const g = new THREE.Group(); g.position.set(2.95, 0, 13.3); g.rotation.y = -Math.PI / 2; world.add(g);
+    g.add(mergedBoxes([[1.36, 0.92, 0.04, 0, 1.4, -0.01, '#b9bcc0'], [0.04, 1.85, 0.04, -0.66, 0.93, -0.03, '#8d9399'], [0.04, 1.85, 0.04, 0.66, 0.93, -0.03, '#8d9399'],
+      [0.06, 0.04, 0.5, -0.66, 0.08, -0.03, '#5a5f66'], [0.06, 0.04, 0.5, 0.66, 0.08, -0.03, '#5a5f66'], [1.3, 0.03, 0.06, 0, 0.92, 0.03, '#b9bcc0']],
+    mat('#ffffff', { vertexColors: true, roughness: 0.5, metalness: 0.3 })));
+    const hb = makeScreen(g, 1.3, 0.86, 640, 424, 0, 1.4, 0.012);
+    markerBoard(hb, (c) => {
+      c.fillStyle = '#1f2a44'; c.font = `400 38px "Marker Felt", "Comic Sans MS", ${FONT}`;
+      ['green tests at midnight', 'the diff is small and tidy', 'ship it, then sleep well'].forEach((t, i) => c.fillText(t, 40, 110 + i * 92));
+      c.fillStyle = '#c0392b'; c.font = `400 28px "Marker Felt", "Comic Sans MS", ${FONT}`; c.fillText('— a haiku', 400, 390);
+    });
+    solid(2.95, 13.3, 0.5, 1.4);
+  }
+  plant(19.3, 12, 1); plant(2.9, 14.5, 0.75);
+
+  // ----- more furniture -----
+  // Desk floor, along my office's glass: a low binder credenza, filing cabinets, a copier with recycling bins, a water cooler.
+  const metalM = mat('#ffffff', { vertexColors: true, roughness: 0.5, metalness: 0.3 }), plainM = mat('#ffffff', { vertexColors: true, roughness: 0.8 });
+  bookshelf(5.78, -6.2, -Math.PI / 2, 2.2, 1.1, 2);
+  smallPlant(world, 5.78, 1.1, -6.9);
+  {
+    const fc = [];
+    for (const z of [-9.7, -10.25]) {
+      fc.push([0.62, 1.0, 0.52, 5.66, 0.5, z, '#8d9399']);
+      for (let i = 0; i < 3; i++) fc.push([0.012, 0.29, 0.47, 5.345, 0.2 + i * 0.32, z, '#9ba1a7'], [0.02, 0.02, 0.14, 5.33, 0.3 + i * 0.32, z, '#d6d9dd']);
+    }
+    world.add(mergedBoxes(fc, metalM));
+    solid(5.66, -9.975, 0.62, 1.07);
+    cyl(world, 0.04, 0.035, 0.1, '#2f6f8f', 5.6, 1.05, -9.6);
+    // Copier: body, scanner lid, control panel, paper trays, output tray.
+    world.add(mergedBoxes([[1.0, 0.92, 0.66, 4.5, 0.46, -14.15, '#dcdcd8'], [1.0, 0.08, 0.66, 4.5, 0.96, -14.15, '#3a3c40'],
+      [0.32, 0.06, 0.16, 4.82, 0.95, -13.78, '#2a2c30'], [0.9, 0.012, 0.01, 4.5, 0.3, -13.815, '#9a9a96'], [0.9, 0.012, 0.01, 4.5, 0.55, -13.815, '#9a9a96'],
+      [0.4, 0.03, 0.3, 4.05, 0.75, -13.98, '#f4f4f0']], metalM));
+    const panel = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 0.08), new THREE.MeshBasicMaterial({ color: '#7fc3ff' }));
+    panel.rotation.x = -Math.PI / 2 + 0.5; panel.position.set(4.82, 0.985, -13.78); world.add(panel);
+    solid(4.5, -14.15, 1.0, 0.66);
+  }
+  // Recycling bins: paper, plastic, general.
+  function bins(x, z) {
+    const l = [];
+    ['#2f6fd1', '#e0a63a', '#5a5f66'].forEach((c, i) => l.push([0.3, 0.62, 0.32, x + i * 0.34, 0.31, z, c], [0.28, 0.02, 0.3, x + i * 0.34, 0.63, z, '#e9e7e2']));
+    world.add(mergedBoxes(l, plainM));
+    solid(x + 0.34, z, 1.04, 0.34);
+  }
+  bins(3.0, -14.6);
+  function waterCooler(x, z) {
+    world.add(mergedBoxes([[0.32, 0.95, 0.32, x, 0.475, z, '#eceae4'], [0.2, 0.08, 0.03, x, 0.82, z - 0.17, '#2a2c30'], [0.22, 0.02, 0.1, x, 0.36, z - 0.2, '#9a9a96']], plainM));
+    cyl(world, 0.15, 0.15, 0.38, '#7fb4e0', x, 1.15, z, { mat: { transparent: true, opacity: 0.55, roughness: 0.1 } });
+    cyl(world, 0.035, 0.035, 0.24, '#f4f4f0', x + 0.2, 0.75, z, { seg: 10 });   // cup dispenser
+    solid(x, z, 0.4, 0.4);
+  }
+  waterCooler(5.55, -1.7);
+  // Lobby: a waiting sofa against my office's glass, a side table, a coat stand and an umbrella stand by the lift.
+  sofa(14.6, -2.95, 0, 1.9, '#4b5a6a');
+  cyl(world, 0.26, 0.26, 0.03, '#2a2724', 13.15, 0.55, -3.0, { seg: 24 }); cyl(world, 0.03, 0.03, 0.54, '#2f3236', 13.15, 0.27, -3.0); cyl(world, 0.18, 0.18, 0.02, '#2f3236', 13.15, 0.01, -3.0);
+  smallPlant(world, 13.15, 0.565, -3.0); solid(13.15, -3.0, 0.5, 0.5);
+  {
+    const x = 19.4, z = 1.55;
+    cyl(world, 0.22, 0.24, 0.03, '#2a2a2a', x, 0.015, z, { seg: 20 }); cyl(world, 0.02, 0.025, 1.8, '#5a3d28', x, 0.9, z);
+    for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + 0.4; box(world, 0.16, 0.02, 0.02, '#2a2a2a', x + Math.cos(a) * 0.07, 1.72, z + Math.sin(a) * 0.07).rotation.y = -a; }
+    box(world, 0.34, 0.75, 0.16, '#6b4f3a', x - 0.02, 1.32, z + 0.09).rotation.z = 0.05;   // a coat
+    box(world, 0.06, 0.6, 0.05, '#c0392b', x + 0.1, 1.35, z - 0.08);                       // a scarf
+    cyl(world, 0.13, 0.12, 0.5, '#3a3c40', 18.85, 0.25, 2.05, { mat: { metalness: 0.5, roughness: 0.4 } });
+    for (const [dx, c] of [[-0.04, '#1f2a44'], [0.05, '#2f6f8f']]) { cyl(world, 0.012, 0.012, 0.85, c, 18.85 + dx, 0.62, 2.05 + dx, { seg: 8 }); cyl(world, 0.02, 0.02, 0.1, '#5a3d28', 18.85 + dx, 1.07, 2.05 + dx, { seg: 8 }); }
+    solid(x, z, 0.4, 0.4); solid(18.85, 2.05, 0.3, 0.3);
+  }
+  // Lounge, by the brick wall: a vending machine with a lit front, recycling bins, some art.
+  {
+    const x = 7.1, z = 14.42;
+    world.add(mergedBoxes([[0.95, 1.85, 0.8, x, 0.925, z, '#1f2a33'], [0.6, 0.12, 0.04, x - 0.12, 0.3, z - 0.41, '#0d1114'], [0.2, 0.5, 0.03, x + 0.33, 1.1, z - 0.41, '#2a3540']], metalM));
+    const v = makeScreen(world, 0.56, 1.2, 280, 600, x - 0.12, 1.15, z - 0.415), c = v.ctx;
+    v.mesh.rotation.y = Math.PI;
+    c.fillStyle = '#0e1a22'; c.fillRect(0, 0, 280, 600);
+    const DR = ['#e0245e', '#7ed321', '#1f6fd1', '#ffb000', '#f4f1ea', '#d97757'], R = rng(77);
+    for (let r = 0; r < 6; r++) {
+      c.fillStyle = 'rgba(255,255,255,.18)'; c.fillRect(10, 92 + r * 96, 260, 4);
+      for (let k = 0; k < 5; k++) { c.fillStyle = DR[Math.floor(R() * DR.length)]; c.fillRect(18 + k * 52, 30 + r * 96, 36, 60); c.fillStyle = 'rgba(255,255,255,.35)'; c.fillRect(22 + k * 52, 34 + r * 96, 6, 52); }
+    }
+    v.tex.needsUpdate = true;
+    solid(x, z, 0.95, 0.8);
+  }
+  bins(8.0, 14.6);
+  art(14.4, 1.85, 14.82, Math.PI, 1.2, 0.9);
+  art(-12.65, 1.95, -14.84, 0, 1.5, 1.0);
+  // A reading nook between the pillar and the lounge: two armchairs, a side table, a standing lamp (glow only, no light).
+  rug(4.5, 7.4, 3.6, 5.7, '#3f4a6b', '#d9a441');
+  sofa(5.0, 4.6, Math.PI / 2, 1.05, '#6b8e4e');
+  sofa(6.9, 4.6, -Math.PI / 2, 1.05, '#b5654a');
+  cyl(world, 0.24, 0.24, 0.03, '#8a6a4a', 5.95, 0.5, 4.6, { seg: 24 }); cyl(world, 0.03, 0.03, 0.5, '#2f3236', 5.95, 0.25, 4.6); solid(5.95, 4.6, 0.5, 0.5);
+  cyl(world, 0.04, 0.035, 0.1, '#f4f1ea', 5.88, 0.565, 4.55);
+  floorLamp(5.95, 5.55, 0);
+
+  // ----- wall clocks -----
+  // Hands follow the office's simulated time (the clock driving the sky, sped up with T); one shared face canvas.
+  const clocks = [];
+  const clockFaceM = (() => {
+    const t = makeCanvas(256, 256), { ctx } = t;
+    ctx.fillStyle = '#f7f5f0'; ctx.beginPath(); ctx.arc(128, 128, 128, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#1c1c1e'; ctx.textAlign = 'center'; ctx.font = `500 30px ${FONT}`;
+    for (let i = 0; i < 60; i++) {
+      const a = i / 60 * Math.PI * 2, big = i % 5 === 0;
+      ctx.save(); ctx.translate(128, 128); ctx.rotate(a); ctx.fillRect(big ? -3 : -1, -122, big ? 6 : 2, big ? 18 : 8); ctx.restore();
+      if (big) ctx.fillText(String(i / 5 || 12), 128 + Math.sin(a) * 84, 139 - Math.cos(a) * 84);
+    }
+    t.tex.needsUpdate = true;
+    return new THREE.MeshStandardMaterial({ map: t.tex, roughness: 0.6 });
+  })();
+  const handM = mat('#1c1c1e', { roughness: 0.5 }), secM = mat('#d0402b', { roughness: 0.5 });
+  function wallClock(x, y, z, rotY, r = 0.2) {
+    const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = rotY; world.add(g);
+    cyl(g, r + 0.02, r + 0.02, 0.05, '#2a2b2e', 0, 0, 0.025, { seg: 40 }).rotation.x = Math.PI / 2;
+    const face = new THREE.Mesh(new THREE.CircleGeometry(r, 40), clockFaceM); face.position.z = 0.051; g.add(face);
+    const hand = (len, w, m, z) => { const p = new THREE.Group(); p.position.z = z; g.add(p); box(p, w, len, 0.005, '', 0, len * 0.4, 0, { material: m, shadow: false }); return p; };
+    clocks.push({ h: hand(r * 0.55, r * 0.1, handM, 0.056), m: hand(r * 0.85, r * 0.065, handM, 0.061), s: hand(r * 0.92, r * 0.025, secM, 0.066) });
+    cyl(g, r * 0.06, r * 0.06, 0.02, '#d0402b', 0, 0, 0.068, { seg: 12 }).rotation.x = Math.PI / 2;
+  }
+  function updateClocks(d) {
+    const s = d.getSeconds() + d.getMilliseconds() / 1000, m = d.getMinutes() + s / 60, h = (d.getHours() % 12) + m / 60, T = -Math.PI * 2;
+    for (const c of clocks) { c.h.rotation.z = (h / 12) * T; c.m.rotation.z = (m / 60) * T; c.s.rotation.z = (s / 60) * T; c.s.visible = clockState.speed <= 120; }   // faster, the second hand just blurs
+  }
+  wallClock(-3.3, 2.45, -14.86, 0);             // desk floor
+  wallClock(3.74, 2.65, 8, -Math.PI / 2);       // pillar over the ping pong TV, facing the breakroom
+  wallClock(10.55, 2.35, -14.9, 0, 0.18);       // my office
+  wallClock(17.2, 2.8, 7.44, Math.PI, 0.17);    // Opus, over the screen
+
   // ----- wall TVs -----
   // Each is a live tab in a browser the server runs (set from its panel or the Admin tab, /api/tvs). Frames arrive over
   // one socket and are drawn into the screen's canvas; only the nearest few in view stream, the rest keep their last frame.
@@ -2085,8 +2319,15 @@ export function mountOffice(container) {
   ];
   const bean = [7.6, 9.6].map((z, i) => spot(`bean${i}`, -17.9, z, Math.PI / 2, 'beanbag', R([-11.6, AISLE], [-11.6, 10.7], [-16.9, 10.7], [-16.9, z])));
   const meet = [8.8, 10, 11.2].map((x, i) => spot(`meet${i}`, x, 7.55, 0, 'chat', R([x, AISLE])));
+  // Meeting rooms: a seat each side of the table per `xs`, south side facing +z; filled in facing pairs.
+  const mrSeats = MR.map((r) => r.xs.flatMap((x, i) => {
+    const via = R(...r.entry), s = r.tz - r.co + 0.06, n = r.tz + r.co - 0.06;
+    return [spot(`${r.name}S${i}`, x, s, 0, 'meeting', [...via, { x, z: r.south }]),
+      spot(`${r.name}N${i}`, x, n, Math.PI, 'meeting', [...via, ...R([r.around, r.north], [x, r.north])])];
+  }));
+  const [opus, sonnet, haiku] = mrSeats;
   const IDLE_ORDER = [sofaA[1], coffee[0], pp[0], pp[1], sofaA[0], chat[0], chat[1], bean[0], sofaA[2], coffee[1], bean[1], chat[2],
-    sofaB[0], sofaB[1], sofaB[2], ...meet];
+    haiku[0], haiku[1], sofaB[0], sofaB[1], sofaB[2], ...meet, ...opus, ...sonnet, ...haiku.slice(2)];
   const LOBBY = { key: 'lobby', kind: 'idle', pos: LIFT, rotY: -Math.PI / 2, pose: 'chat', route: [{ x: LIFT.x - 1, z: AISLE }, LIFT] };
 
   // ----- sounds (see sounds.js; M mutes) -----
@@ -2294,6 +2535,7 @@ export function mountOffice(container) {
     Digit2: () => teleport(-6.5, 2.2, { x: -13, y: 1.0, z: 8 }),
     Digit3: () => { const p = seatedPose(); teleport(p.x, p.z, { x: screenWorld.x, y: screenWorld.y, z: screenWorld.z }, true); },
     Digit4: () => teleport(18.2, AISLE, { x: 0, y: 1.5, z: AISLE }),
+    Digit5: () => teleport(12.4, 1.4, { x: 17, y: 1.2, z: 6.5 }),
   };
   document.addEventListener('keydown', (e) => {
     if (!active || mode !== 'free' || e.metaKey || e.ctrlKey || e.target.closest?.('input, select, textarea')) return;
@@ -2610,10 +2852,14 @@ export function mountOffice(container) {
     c.clearRect(0, 0, W, H);
     c.fillStyle = 'rgba(181,138,95,.35)'; c.fillRect(sx(-19.9), sz(2.6), sx(-2) - sx(-19.9), sz(14.9) - sz(2.6));
     c.fillStyle = 'rgba(86,98,115,.55)'; c.fillRect(sx(6), sz(-15), sx(20) - sx(6), sz(-3.5) - sz(-15));
+    c.fillStyle = 'rgba(120,160,185,.4)';
+    for (const r of [[14, 20, 2.5, 12.5], [-1.8, 3.4, 11.2, 15]]) c.fillRect(sx(r[0]), sz(r[2]), sx(r[1]) - sx(r[0]), sz(r[3]) - sz(r[2]));
     c.fillStyle = 'rgba(255,255,255,.22)';
     for (const b of colliders) c.fillRect(sx(b.minX), sz(b.minZ), Math.max(2, sx(b.maxX) - sx(b.minX)), Math.max(2, sz(b.maxZ) - sz(b.minZ)));
     c.font = '600 20px system-ui'; c.fillStyle = 'rgba(255,255,255,.55)';
     c.fillText('Desks', sx(-12), sz(-0.6)); c.fillText('Breakroom', sx(-12), sz(13.6)); c.fillText('My office', sx(9), sz(-13.4)); c.fillText('Lounge', sx(8), sz(13.6));
+    c.font = '600 15px system-ui';
+    for (const r of MR) c.fillText(r.name, sx(r.tx - 1.1), sz(r.name === 'Haiku' ? 12.3 : r.tz + (r.name === 'Opus' ? -1.4 : 1.9)));
     for (const p of people.values()) {
       c.fillStyle = p.color; c.beginPath(); c.arc(sx(p.root.position.x), sz(p.root.position.z), 7, 0, Math.PI * 2); c.fill();
       if (p.session?.status === 'working') { c.strokeStyle = '#22c55e'; c.lineWidth = 3; c.stroke(); }
@@ -2753,6 +2999,7 @@ export function mountOffice(container) {
     const simDate = new Date(simNow());
     updateSky(simDate, t);
     updateClock(simDate);
+    updateClocks(simDate);
     officeFx(dt);
     if (mode === 'free') movePlayer(dt);
     stepTween(now);
