@@ -1760,7 +1760,8 @@ export function mountOffice(container) {
     fr.referrerPolicy = 'strict-origin-when-cross-origin';
     fr.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups allow-forms allow-presentation');   // no top navigation: frame-busters can't hijack the office
     fr.tabIndex = -1;
-    fr.src = t.cfg.src;
+    fr.src = tvSrc(t);
+    fr.addEventListener('load', () => { tvPost(t, { event: 'listening' }); t.vol = -1; });
     el.appendChild(fr);
     t.obj = new CSS3DObject(el);
     t.anchor.matrixWorld.decompose(t.obj.position, t.obj.quaternion, new THREE.Vector3());
@@ -1781,17 +1782,34 @@ export function mountOffice(container) {
     img.onload = () => { if (t.cfg?.src === src) { t.snap = img; paintTv(t); } };
     img.src = `/api/tvs/${t.id}/snap?${fresh ? 'fresh&' : ''}v=${Date.now()}`;
   }
+  // YouTube TVs get sound that fades with distance: full within AUDIO.near, silent by AUDIO.far (inside the 25 m live
+  // range). Volume goes through the YouTube iframe API by postMessage; other sites can't be turned up or down from here.
+  const AUDIO = { near: 3, far: 20 };
+  const isYt = (t) => /^https:\/\/www\.youtube-nocookie\.com\/embed\//.test(t.cfg?.src || '');
+  const tvSrc = (t) => isYt(t) ? `${t.cfg.src}&enablejsapi=1&origin=${encodeURIComponent(location.origin)}` : t.cfg.src;
+  const tvPost = (t, msg) => t.frame?.contentWindow?.postMessage(JSON.stringify(msg), '*');
+  function tvVolume(t, now) {
+    const v = Math.round(100 * (1 - sstep(AUDIO.near, AUDIO.far, t.dist)));
+    if (v === t.vol && now - t.volAt < 1000) return;   // resend each second: commands sent before the player is ready are dropped
+    tvPost(t, { event: 'command', func: 'setVolume', args: [v] });
+    tvPost(t, { event: 'command', func: v ? 'unMute' : 'mute', args: [] });
+    t.vol = v; t.volAt = now;
+  }
   const tvFrustum = new THREE.Frustum(), tvProj = new THREE.Matrix4(), toCam = new THREE.Vector3();
   function updateTVs(now) {
     camera.updateMatrixWorld();
     tvFrustum.setFromProjectionMatrix(tvProj.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
-    const want = tvs.filter((t) => t.cfg?.src && !t.cfg.blocked && (t.dist = toCam.subVectors(camera.position, t.center).length()) < 25
-      && toCam.dot(t.normal) > 0 && tvFrustum.intersectsSphere(t.sphere)).sort((a, b) => a.dist - b.dist).slice(0, 3);
+    for (const t of tvs) t.dist = toCam.subVectors(camera.position, t.center).length();
+    const want = tvs.filter((t) => t.cfg?.src && !t.cfg.blocked && t.dist < 25
+      && toCam.subVectors(camera.position, t.center).dot(t.normal) > 0 && tvFrustum.intersectsSphere(t.sphere)).sort((a, b) => a.dist - b.dist).slice(0, 3);
     for (const t of tvs) {
-      if (!want.includes(t)) { if (t.obj && now - t.seen > 3000) unmountTv(t, true); continue; }
+      // A playing YouTube TV stays mounted while it's still audible, so turning your back on it doesn't cut the sound.
+      const audible = t.obj && isYt(t) && t.dist < AUDIO.far;
+      if (!want.includes(t) && !audible) { if (t.obj && now - t.seen > 3000) unmountTv(t, true); continue; }
       t.seen = now;
       if (!t.obj) mountTv(t, now);
-      else if (t.cfg.refresh && now - t.loadedAt > t.cfg.refresh * 1000) { t.frame.src = t.cfg.src; t.loadedAt = now; }
+      else if (t.cfg.refresh && now - t.loadedAt > t.cfg.refresh * 1000) { t.frame.src = tvSrc(t); t.loadedAt = now; }
+      if (isYt(t)) tvVolume(t, now);
     }
   }
   function applyTvs(map) {
