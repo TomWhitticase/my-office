@@ -1563,12 +1563,12 @@ export function mountOffice(container) {
     t.tex.wrapS = THREE.RepeatWrapping; t.tex.needsUpdate = true;
     return t.tex;
   })();
-  // Venetian blinds: k 0 = raised, 1 = lowered with slats tilted shut. Instanced slats per glass run.
+  // Venetian blinds: k 0 = raised, 1 = lowered with slats tilted ~57°, leaving thin slits of light. Instanced slats per glass run.
   const slatM = mat('#e6e1d6', { roughness: 0.95, envMapIntensity: 0.25 }), blinds = { side: { k: 0, to: 0, runs: [] }, front: { k: 0, to: 0, runs: [] } };
   const BL = { top: ROOM.h - 0.12, sp: 0.05, stack: 0.008 }, _m4 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _v = new THREE.Vector3(), _s = new THREE.Vector3(1, 1, 1);
   BL.n = Math.floor((BL.top - 0.08) / BL.sp);
   function layBlind(r, k) {
-    const drop = clamp(k * 1.35, 0, 1), tilt = clamp((k - 0.72) / 0.28, 0, 1) * 1.42;
+    const drop = clamp(k * 1.35, 0, 1), tilt = clamp((k - 0.72) / 0.28, 0, 1) * 1.0;
     const railY = lerp(BL.top - BL.n * BL.stack - 0.02, 0.06, drop);
     r.rail.position.y = railY;
     _q.setFromEuler(_e.set(tilt, 0, 0));
