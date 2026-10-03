@@ -1874,7 +1874,7 @@ export function mountOffice(container) {
   {
     const plate = makeScreen(world, 0.9, 0.22, 360, 88, 9.4, 1.75, -3.47);
     plate.ctx.fillStyle = 'rgba(20,20,22,.85)'; plate.ctx.beginPath(); plate.ctx.roundRect(0, 0, 360, 88, 14); plate.ctx.fill();
-    plate.ctx.font = `600 40px ${FONT}`; plate.ctx.fillStyle = '#fff'; plate.ctx.fillText(fit(plate.ctx, dash.config?.owner ? `${dash.config.owner}'s office` : 'My office', 310), 26, 58);
+    plate.ctx.font = `600 40px ${FONT}`; plate.ctx.fillStyle = '#fff'; plate.ctx.fillText(fit(plate.ctx, dash.officeName(), 310), 26, 58);
     plate.mesh.material.transparent = true; plate.tex.needsUpdate = true;
   }
   const OWNER = { x: 13, z: -11.6 };
@@ -2900,7 +2900,7 @@ export function mountOffice(container) {
     c.fillStyle = 'rgba(255,255,255,.22)';
     for (const b of colliders) c.fillRect(sx(b.minX), sz(b.minZ), Math.max(2, sx(b.maxX) - sx(b.minX)), Math.max(2, sz(b.maxZ) - sz(b.minZ)));
     c.font = '600 20px system-ui'; c.fillStyle = 'rgba(255,255,255,.55)';
-    c.fillText('Desks', sx(-12), sz(-0.6)); c.fillText('Breakroom', sx(-12), sz(13.6)); c.fillText('My office', sx(9), sz(-13.4)); c.fillText('Lounge', sx(8), sz(13.6));
+    c.fillText('Desks', sx(-12), sz(-0.6)); c.fillText('Breakroom', sx(-12), sz(13.6)); c.fillText(dash.officeName(), sx(9), sz(-13.4)); c.fillText('Lounge', sx(8), sz(13.6));
     for (const p of people.values()) {
       c.fillStyle = p.color; c.beginPath(); c.arc(sx(p.root.position.x), sz(p.root.position.z), 7, 0, Math.PI * 2); c.fill();
       if (p.session?.status === 'working') { c.strokeStyle = '#22c55e'; c.lineWidth = 3; c.stroke(); }
