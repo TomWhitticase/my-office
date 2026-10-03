@@ -1735,11 +1735,16 @@ export function mountOffice(container) {
   solid(10, 9, 3, 1.2);
   for (const dx of [-1, 0, 1]) { officeChair(10 + dx, 8.15, 0, '#7a8796'); officeChair(10 + dx, 9.85, Math.PI, '#7a8796'); }
   plant(3.5, 3.4); plant(19.2, 14.2, 1.2); plant(5.4, -2.9, 0.9);
-  sofa(16.5, 13.9, Math.PI, 2.6, '#8a6f5a');
+  // Corner nook: two armchairs turned slightly towards each other, a low table between them.
+  sofa(15.75, 13.95, Math.PI - 0.25, 1.05, '#8a6f5a'); sofa(17.65, 13.95, Math.PI + 0.25, 1.05, '#8a6f5a');
+  box(world, 0.6, 0.04, 0.5, '#8a6a4a', 16.7, 0.38, 14.05, { mat: { roughness: 0.6 } });
+  for (const [dx, dz] of [[-0.25, -0.2], [0.25, -0.2], [-0.25, 0.2], [0.25, 0.2]]) box(world, 0.035, 0.36, 0.035, '', 16.7 + dx, 0.18, 14.05 + dz, { material: legM });
+  box(world, 0.22, 0.03, 0.16, '#3f4a6b', 16.6, 0.415, 14.1).rotation.y = 0.3; cyl(world, 0.04, 0.035, 0.1, '#f4f1ea', 16.88, 0.45, 13.95);
+  solid(16.7, 14.05, 0.6, 0.5);
 
   pendant(9.3, 9, { light: 14, shade: '#2f463b' }); pendant(10.7, 9, { shade: '#2f463b' });
-  floorLamp(18.4, 14.3, 10);
-  plant(15, 14.4, 0.9);
+  floorLamp(18.55, 14.3, 10);
+  plant(14.7, 14.4, 0.9);
 
   // ----- my office -----
   // Tinted glass that gets more opaque and reflective at grazing angles, so the walls read as solid.
@@ -1757,7 +1762,8 @@ export function mountOffice(container) {
   // Venetian blinds: k 0 = raised, 1 = lowered with slats tilted ~57°, leaving thin slits of light.
   // A run is one InstancedMesh of slats (and one of bottom rails) for a row of [x, width] cells hanging from `top` down to `bot`.
   const slatM = mat('#e6e1d6', { roughness: 0.95, envMapIntensity: 0.25 }), railM = mat('#cfc9bd'), blinds = {};
-  for (const [key, name] of [['side', 'Blinds'], ['front', 'Blinds'], ['north', 'North window blinds'], ['east', 'East window blinds'], ['west', 'West window blinds'], ['office', 'Window blinds']]) blinds[key] = { key, name, k: 0, to: 0, runs: [] };
+  for (const [key, name] of [['side', 'Blinds'], ['front', 'Blinds'], ['north', 'North window blinds'], ['east', 'East window blinds'], ['west', 'West window blinds'], ['office', 'Window blinds'],
+    ['meetSouth', 'Meeting room (south) blinds'], ['meetNorth', 'Meeting room (north) blinds'], ['meetSmall', 'Small meeting room blinds']]) blinds[key] = { key, name, k: 0, to: 0, runs: [] };
   const BL = { top: ROOM.h - 0.12, sp: 0.05, stack: 0.008, slatG: new THREE.BoxGeometry(1, 0.004, 0.058), railG: new THREE.BoxGeometry(1, 0.02, 0.06) };
   const _m4 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _q0 = new THREE.Quaternion(), _e = new THREE.Euler(), _v = new THREE.Vector3(), _s = new THREE.Vector3(1, 1, 1);
   const blindShut = (k) => clamp(k * 1.35, 0, 1) * 0.55 + clamp((k - 0.72) / 0.28, 0, 1) * 0.35;
@@ -1777,6 +1783,13 @@ export function mountOffice(container) {
     g.add(mergedBoxes(cells.map(([x, w]) => [w, 0.05, 0.07, x, top + 0.03, z]), mat('#d9d4c9')));
     for (const m of [r.slats, r.rails]) { m.position.z = z; m.castShadow = true; m.userData = { action: 'blinds', blind: bl, reach: 6 }; g.add(m); }
     bl.runs.push(r); layBlind(r, 0);
+  }
+  // A group on the `inward` side of a wall along x (z fixed) or z (x fixed), centred at `mid`; ux maps a wall coordinate to its local x.
+  function wallGroup(axis, fixed, inward, mid) {
+    const X = axis === 'x', g = new THREE.Group();
+    g.position.set(X ? mid : fixed, 0, X ? fixed : mid); g.rotation.y = X ? (inward > 0 ? 0 : Math.PI) : inward * Math.PI / 2; world.add(g);
+    const sx = X ? Math.cos(g.rotation.y) : -Math.sin(g.rotation.y);
+    return { g, ux: (u) => (u - mid) * sx };
   }
   function glass(axis, fixed, from, to, bl) {
     const len = to - from, mid = (from + to) / 2, X = axis === 'x';
@@ -1800,10 +1813,8 @@ export function mountOffice(container) {
   glass('x', -3.5, 8.4, 20, blinds.front);
   // Outside windows: a blind per pane just inside the glass, above the sill. One run per wall stretch and group.
   for (const w of winRuns) {
-    const X = w.axis === 'x', mid = (w.a + w.b) / 2, g = new THREE.Group(), cells = {};
-    g.position.set(X ? mid : w.fixed, 0, X ? w.fixed : mid); g.rotation.y = X ? (w.inward > 0 ? 0 : Math.PI) : w.inward * Math.PI / 2; world.add(g);
-    const sx = X ? Math.cos(g.rotation.y) : -Math.sin(g.rotation.y);
-    const cell = (a, b) => (cells[winKey(w.axis, w.fixed, (a + b) / 2)] ||= []).push([((a + b) / 2 - mid) * sx, b - a]);
+    const X = w.axis === 'x', { g, ux } = wallGroup(w.axis, w.fixed, w.inward, (w.a + w.b) / 2), cells = {};
+    const cell = (a, b) => (cells[winKey(w.axis, w.fixed, (a + b) / 2)] ||= []).push([ux((a + b) / 2), b - a]);
     for (let q = 0; q < w.n; q++) {
       const a = w.a + q * w.step + 0.07, b = w.a + (q + 1) * w.step - 0.07;
       if (!X && w.fixed > 0 && a < -3.5 && b > -3.5) { cell(a, -3.56); cell(-3.44, b); } else cell(a, b);   // my office's glass meets the east wall here
@@ -1920,7 +1931,9 @@ export function mountOffice(container) {
   {
     const panes = [], frames = [], frost = [];
     // A glass wall along x (z fixed) or z (x fixed), with optional doorway [a, b]: posts, header and a glass transom over it.
-    const mrWall = (axis, fixed, from, to, gap) => {
+    // Blinds (group `bl`) hang full height on the room's side (`inward`), either side of the doorway.
+    const mrWall = (axis, fixed, from, to, gap, bl, inward) => {
+      const blind = wallGroup(axis, fixed, inward, (from + to) / 2), cells = [];
       const X = axis === 'x', at = (list, u, w, h, d, y) => list.push(X ? [w, h, d, u, y, fixed] : [d, h, w, fixed, y, u]);
       for (const [a, b] of gap ? [[from, gap[0]], [gap[1], to]] : [[from, to]]) {
         const len = b - a, mid = (a + b) / 2, n = Math.max(1, Math.round(len / 1.5));
@@ -1929,15 +1942,18 @@ export function mountOffice(container) {
         for (let i = 0; i <= n; i++) at(frames, a + (i * len) / n, 0.05, ROOM.h, 0.07, ROOM.h / 2);
         at(frost, mid, len, 0.16, 0.036, 1.46); frost[frost.length - 1].len = len;
         solid(X ? mid : fixed, X ? fixed : mid, X ? len : 0.08, X ? 0.08 : len);
+        cells.push([blind.ux(mid), len - 0.2]);
       }
+      hangBlind(blind.g, cells, BL.top, 0.06, 0.11, bl);
       if (gap) {
         const mid = (gap[0] + gap[1]) / 2, len = gap[1] - gap[0];
         at(frames, mid, len + 0.06, 0.08, 0.08, 2.24);
         at(panes, mid, len, ROOM.h - 2.28, 0.03, (ROOM.h + 2.28) / 2);
       }
     };
-    mrWall('x', 2.5, 14, 20); mrWall('z', 14, 2.5, 7.5, [3.0, 4.1]); mrWall('z', 14, 7.5, 12.5, [8.0, 9.1]); mrWall('x', 12.5, 14, 20);
-    mrWall('z', -1.8, 11.2, 15); mrWall('z', 3.4, 11.2, 15); mrWall('x', 11.2, -1.8, 3.4, [-1.3, -0.2]);
+    const { meetSouth, meetNorth, meetSmall } = blinds;
+    mrWall('x', 2.5, 14, 20, null, meetSouth, 1); mrWall('z', 14, 2.5, 7.5, [3.0, 4.1], meetSouth, 1); mrWall('z', 14, 7.5, 12.5, [8.0, 9.1], meetNorth, 1); mrWall('x', 12.5, 14, 20, null, meetNorth, -1);
+    mrWall('z', -1.8, 11.2, 15, null, meetSmall, 1); mrWall('z', 3.4, 11.2, 15, null, meetSmall, -1); mrWall('x', 11.2, -1.8, 3.4, [-1.3, -0.2], meetSmall, 1);
     const glassMesh = mergedBoxes(panes, glassM); glassMesh.castShadow = false;
     // Frost bands share one material; their UVs are stretched per wall so the dot pattern keeps its spacing.
     const frostM = new THREE.MeshStandardMaterial({ map: frostTex, transparent: true, roughness: 0.9, depthWrite: false });
@@ -1947,6 +1963,7 @@ export function mountOffice(container) {
       return g.translate(x, y, z);
     })), frostM);
     world.add(glassMesh, frostMesh, mergedBoxes(frames, frameM));
+    glassMesh.userData = frostMesh.userData = { action: 'blinds', glass: true, reach: 3.5, blindAt: (p) => p.x < 8 ? meetSmall : p.z < 7.5 ? meetSouth : meetNorth };
     // Solid partition between the two east rooms: a wall screen on one side, a whiteboard on the other.
     box(world, 6, ROOM.h, 0.12, '', 17, ROOM.h / 2, 7.5, { material: wallM });
     solid(17, 7.5, 6, 0.12);
