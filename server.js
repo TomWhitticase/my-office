@@ -935,8 +935,10 @@ function tvMessage(cl, m) {
 // Lights, blinds and the door, set from the Admin tab or by clicking in the office; shared by every open browser.
 // lights: 'auto' follows daylight, 'on'/'off' override it; brightness scales every lamp. ~/.claude/my-office/office.json.
 const OFFICE_FILE = path.join(CLAUDE, 'my-office', 'office.json');
-const OFFICE_DEFAULT = { lights: 'auto', brightness: 1, blinds: { side: 0, front: 0 }, door: 0 };
+// blinds: side/front are my glass office's, north/east/west the outside windows per wall, office the outside window in my office.
+const OFFICE_DEFAULT = { lights: 'auto', brightness: 1, blinds: { side: 0, front: 0, north: 0, east: 0, west: 0, office: 0 }, door: 0 };
 let office = { ...OFFICE_DEFAULT, ...readJSON(OFFICE_FILE) };
+office.blinds = { ...OFFICE_DEFAULT.blinds, ...office.blinds };
 function putOffice(b) {
   if (['auto', 'on', 'off'].includes(b.lights)) office.lights = b.lights;
   if (Number.isFinite(b.brightness)) office.brightness = Math.min(2, Math.max(0.1, b.brightness));
