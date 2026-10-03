@@ -11,6 +11,8 @@ const fs = require('fs');
 const path = require('path');
 const http = require('http');
 const os = require('os');
+const net = require('net');
+const crypto = require('crypto');
 const { execFile, spawn } = require('child_process');
 
 // config.json (written by `npm run setup`) holds owner name, location and port; env vars override.
@@ -569,97 +571,364 @@ function tick() {
 }
 
 // ---------- office TVs ----------
-// Wall TVs in the 3D office show a URL each. Config lives in ~/.claude/my-office/tvs.json: { id: { url, src, refresh, blocked } }.
-// `src` is what the iframe loads (YouTube links become nocookie embeds); `blocked` is why the site refuses to be framed, if it does.
+// Each wall TV in the 3D office is a live tab in a real browser on this machine. Config lives in ~/.claude/my-office/tvs.json:
+// { id: { url, refresh, volume, muted, at } }. `at` changes whenever the URL is (re)set, which (re)loads the tab; volume and
+// mute are patched on their own so the page keeps playing.
 const TVS_FILE = path.join(CLAUDE, 'my-office', 'tvs.json');
 let tvs = readJSON(TVS_FILE) || {};
-const ytTime = (t) => { const m = String(t || '').match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s?)?$/); return m ? (+m[1] || 0) * 3600 + (+m[2] || 0) * 60 + (+m[3] || 0) : 0; };
-function tvSrc(raw) {
-  const u = new URL(raw), host = u.hostname.replace(/^(www|m|music)\./, '');
-  if (!/^(youtube\.com|youtube-nocookie\.com|youtu\.be)$/.test(host)) return u.href;
-  const list = u.searchParams.get('list');
-  if (u.pathname === '/playlist' && list) return `https://www.youtube-nocookie.com/embed/videoseries?list=${encodeURIComponent(list)}&autoplay=1&mute=1&playsinline=1`;
-  const ch = u.pathname.match(/^\/channel\/(UC[\w-]{22})(\/live)?\/?$/)?.[1];
-  if (ch) return `https://www.youtube-nocookie.com/embed/live_stream?channel=${ch}&autoplay=1&mute=1&playsinline=1`;
-  const id = host === 'youtu.be' ? u.pathname.split('/')[1] : u.pathname === '/watch' ? u.searchParams.get('v') : u.pathname.match(/^\/(?:shorts|live|embed|v)\/([^/?]+)/)?.[1];
-  if (!/^[\w-]{6,20}$/.test(id || '')) return u.href;
-  const start = ytTime(u.searchParams.get('t') || u.searchParams.get('start'));
-  return `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&mute=1&playsinline=1&loop=1&playlist=${id}&rel=0${start ? `&start=${start}` : ''}`;
-}
-// Fetch the page anonymously (never with the user's cookies) and read X-Frame-Options / CSP frame-ancestors.
-async function frameBlocked(src) {
-  try {
-    const r = await fetch(src, { redirect: 'follow', signal: AbortSignal.timeout(6000),
-      headers: { 'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36', accept: 'text/html,*/*' } });
-    r.body?.cancel().catch(() => {});
-    const xfo = (r.headers.get('x-frame-options') || '').toLowerCase();
-    const fa = (r.headers.get('content-security-policy') || '').match(/frame-ancestors([^;]*)/i)?.[1].trim().toLowerCase();
-    const self = new URL(r.url).host;
-    if (fa != null && !fa.split(/\s+/).some((s) => s === '*' || /localhost|127\.0\.0\.1/.test(s) || (s === "'self'" && /^(localhost|127\.0\.0\.1)(:|$)/.test(self)))) return `the site forbids embedding elsewhere (CSP frame-ancestors ${fa || "'none'"})`;
-    if (fa == null && /deny|sameorigin/.test(xfo) && !/^(localhost|127\.0\.0\.1)(:|$)/.test(self)) return `the site refuses to be framed (X-Frame-Options: ${xfo.toUpperCase()})`;
-    return null;
-  } catch { return null; }   // unreachable from here: let the browser try
-}
-// Snapshot of a TV's page, painted on the screen while its live iframe is unmounted (the browser can't read pixels out of
-// a cross-origin iframe). YouTube uses the video thumbnail; anything else is shot by a headless Chrome with a throwaway
-// profile, so the user's cookies are never involved. Cached per TV in ~/.claude/my-office/tv-snaps.
-const SNAP_DIR = path.join(CLAUDE, 'my-office', 'tv-snaps');
-const CHROME = [process.env.CHROME_PATH, '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/Applications/Chromium.app/Contents/MacOS/Chromium',
-  '/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser'].find((p) => p && fs.existsSync(p));
-const snapping = new Map();
-let chromes = 0;   // headless shots in flight; capped so a page full of TVs can't spawn a crowd of browsers
-function snapTv(id, maxAge) {
-  const c = tvs[id], file = path.join(SNAP_DIR, `${id}.png`);
-  if (!c || c.blocked) return Promise.resolve(null);
-  try { const st = fs.statSync(file); if (st.mtimeMs > (c.at || 0) && Date.now() - st.mtimeMs < maxAge) return Promise.resolve(file); } catch {}
-  if (snapping.has(id)) return snapping.get(id);
-  const p = (async () => {
-    fs.mkdirSync(SNAP_DIR, { recursive: true });
-    const yt = c.src.match(/youtube-nocookie\.com\/embed\/([\w-]{6,20})\?/)?.[1];
-    if (yt) {
-      for (const q of ['maxresdefault', 'hqdefault']) {
-        const r = await fetch(`https://i.ytimg.com/vi/${yt}/${q}.jpg`, { signal: AbortSignal.timeout(6000) }).catch(() => null);
-        if (r?.ok) { fs.writeFileSync(file, Buffer.from(await r.arrayBuffer())); return file; }
-      }
-    }
-    if (!CHROME || chromes >= 2) return null;
-    chromes++;
-    const prof = fs.mkdtempSync(path.join(os.tmpdir(), 'my-office-snap-'));
-    try {
-      // Chrome often lingers after writing the shot (pages that never go idle), so stop it as soon as the file lands,
-      // killing the whole process group so its helpers go too.
-      const shot = path.join(prof, 'shot.png');
-      const ch = spawn(CHROME, ['--headless=new', '--disable-gpu', '--hide-scrollbars', '--mute-audio', '--no-first-run',
-        `--user-data-dir=${prof}`, '--window-size=1280,720', '--timeout=6000', `--screenshot=${shot}`, c.src], { detached: true, stdio: 'ignore' });
-      await new Promise((resolve) => {
-        let last = -1;
-        const poll = setInterval(() => { const n = fs.existsSync(shot) ? fs.statSync(shot).size : -1; if (n > 0 && n === last) done(); last = n; }, 300);
-        const cap = setTimeout(done, 20000);
-        ch.on('exit', done); ch.on('error', done);
-        function done() { clearInterval(poll); clearTimeout(cap); try { process.kill(-ch.pid, 'SIGKILL'); } catch {} resolve(); }
-      });
-      if (!fs.existsSync(shot)) return null;
-      fs.copyFileSync(shot, file);   // tmp may be another volume
-      return file;
-    } finally { chromes--; fs.rmSync(prof, { recursive: true, force: true }); }
-  })().finally(() => snapping.delete(id));
-  snapping.set(id, p);
-  return p;
-}
+for (const c of Object.values(tvs)) { delete c.src; delete c.blocked; c.volume ??= 100; c.muted ??= false; c.at ??= 0; }   // pre-browser entries
 function sendTvs() { const json = JSON.stringify(tvs); for (const res of clients) res.write(`event: tvs\ndata: ${json}\n\n`); }
-async function putTv(id, body) {
-  const url = String(body.url || '').trim(), refresh = Math.min(86400, Math.max(0, Math.round(Number(body.refresh) || 0)));
-  if (!url) delete tvs[id];
-  else {
-    const u = new URL(url);
-    if (!/^https?:$/.test(u.protocol) || url.length > 2048) throw new Error('only http(s) URLs');
-    const src = tvSrc(u.href);
-    tvs[id] = { url: u.href, src, refresh, blocked: await frameBlocked(src), at: Date.now() };
-  }
+function putTv(id, body) {
+  const prev = tvs[id], vol = (v, d) => Number.isFinite(v) ? Math.min(100, Math.max(0, Math.round(v))) : d;
+  const refresh = (v, d) => 'refresh' in body ? Math.min(86400, Math.max(0, Math.round(Number(v) || 0))) : d;
+  if ('url' in body) {
+    const url = String(body.url || '').trim();
+    if (!url) delete tvs[id];
+    else {
+      const u = new URL(url);
+      if (!/^https?:$/.test(u.protocol) || url.length > 2048) throw new Error('only http(s) URLs');
+      lastFrames.delete(id);
+      tvs[id] = { url: u.href, refresh: refresh(body.refresh, 0), volume: vol(body.volume, prev?.volume ?? 100), muted: 'muted' in body ? !!body.muted : !!prev?.muted, at: Date.now() };
+    }
+  } else if (prev) Object.assign(prev, { volume: vol(body.volume, prev.volume), muted: 'muted' in body ? !!body.muted : prev.muted, refresh: refresh(body.refresh, prev.refresh) });
+  else throw new Error('that TV is off');
   fs.mkdirSync(path.dirname(TVS_FILE), { recursive: true });
   fs.writeFileSync(TVS_FILE, JSON.stringify(tvs, null, 2));
   sendTvs();
+  tvSync();
   return tvs[id] || null;
+}
+
+// ---------- TV browser ----------
+// One headless Chrome, launched when a TV is first needed, with its own persistent profile (log in once on a TV and it
+// sticks). New-style headless still plays sound through the speakers, and has no window or Dock icon to steal focus.
+// CDP runs over --remote-debugging-pipe, so there is no debugging port at all. Each TV gets a tab, screencast only while
+// an office client is looking at it; tabs nobody needs are frozen after 30 s and closed after 3 min (reopening where they
+// left off), and the browser quits with its last tab, so with nobody near a TV it costs nothing.
+const TV_PROFILE = path.join(CLAUDE, 'my-office', 'tv-browser');
+const TV_FRAMES = path.join(CLAUDE, 'my-office', 'tv-frames');   // last frame per TV, shown until it's live again
+const TV_W = 1280, TV_H = 720, TV_MAX_TABS = 8, TV_MAX_CASTS = 4;
+const TV_UA_TAG = 'my-office-tv';   // on the TV browser's user agent, so a TV showing the office can't open TV streams itself
+const CHROME = [process.env.CHROME_PATH, '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/Applications/Chromium.app/Contents/MacOS/Chromium',
+  '/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser'].find((p) => p && fs.existsSync(p));
+const UA_OS = { darwin: 'Macintosh; Intel Mac OS X 10_15_7', win32: 'Windows NT 10.0; Win64; x64' }[process.platform] || 'X11; Linux x86_64';
+// Volume for every <video>/<audio> in a frame, set by the server (starts silent until it knows how close you are), and
+// __tvHold to pause playing media while the tab is frozen (freezing alone leaves video decoding running).
+const TV_VOL_JS = `(() => { if (window.__tvVol) return; let v = 0, held = [];
+  const set = (m) => { if (Math.abs(m.volume - v) > 0.005) m.volume = v; };
+  window.__tvVol = (x) => { v = x; document.querySelectorAll('video, audio').forEach(set); };
+  window.__tvHold = (on) => { if (on) { held = [...document.querySelectorAll('video, audio')].filter((m) => !m.paused); held.forEach((m) => m.pause()); } else { held.forEach((m) => m.play().catch(() => {})); held = []; } };
+  for (const ev of ['play', 'playing', 'volumechange', 'loadedmetadata']) addEventListener(ev, (e) => e.target instanceof HTMLMediaElement && set(e.target), true);
+  const play = HTMLMediaElement.prototype.play; HTMLMediaElement.prototype.play = function () { set(this); return play.apply(this, arguments); }; })()`;
+let chrome = null;   // { proc, send, ready }
+const tabs = new Map();   // tv id -> { id, targetId, sid, kids, at, cast, vol, frozen, neededAt, loadedAt, page }
+const tvSessions = new Map();   // CDP session -> tab (the page and its out-of-process iframes)
+const lastFrames = new Map();   // tv id -> { jpeg, saved }
+const resumeAt = new Map();   // tv id -> { url, at }: page a closed tab was showing, reopened if its config hasn't changed
+
+function startChrome() {
+  if (chrome) return chrome.ready;
+  if (!CHROME) return Promise.reject(new Error('no Chrome found (set CHROME_PATH)'));
+  const c = chrome = { pending: new Map(), seq: 0 };
+  c.ready = (async () => {
+    // A TV browser left behind by a server that died hard still holds the profile.
+    await new Promise((r) => execFile('pkill', ['-f', `user-data-dir=${TV_PROFILE}`], () => setTimeout(r, 300)));
+    const ver = await new Promise((r) => execFile(CHROME, ['--version'], (e, out) => r(String(out).match(/(\d+)\.\d+\.\d+\.\d+/)?.[1] || '140')));
+    const proc = c.proc = spawn(CHROME, ['--headless=new', '--remote-debugging-pipe', `--user-data-dir=${TV_PROFILE}`, '--no-first-run', '--no-default-browser-check',
+      '--use-mock-keychain', '--password-store=basic', '--autoplay-policy=no-user-gesture-required', '--disable-blink-features=AutomationControlled',
+      `--user-agent=Mozilla/5.0 (${UA_OS}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${ver}.0.0.0 Safari/537.36 ${TV_UA_TAG}`, `--window-size=${TV_W},${TV_H}`, 'about:blank'],
+      { detached: true, stdio: ['ignore', 'ignore', 'ignore', 'pipe', 'pipe'] });
+    let buf = '';
+    proc.stdio[4].setEncoding('utf8');
+    proc.stdio[4].on('data', (d) => {
+      buf += d;
+      for (let i; (i = buf.indexOf('\0')) >= 0; buf = buf.slice(i + 1)) {
+        let m; try { m = JSON.parse(buf.slice(0, i)); } catch { continue; }
+        const p = m.id && c.pending.get(m.id);
+        if (p) { c.pending.delete(m.id); m.error ? p.reject(new Error(m.error.message)) : p.resolve(m.result); }
+        else if (m.method) try { cdpEvent(m); } catch (e) { console.error('tv', m.method, e.message); }
+      }
+    });
+    proc.stdio[3].on('error', () => {});
+    proc.on('exit', () => {
+      console.log('tv browser exited');
+      for (const p of c.pending.values()) p.reject(new Error('browser exited'));
+      if (chrome === c) { chrome = null; tabs.clear(); tvSessions.clear(); }
+    });
+    c.send = (method, params = {}, sessionId) => new Promise((resolve, reject) => {
+      if (proc.exitCode !== null) return reject(new Error('browser exited'));
+      const id = ++c.seq;
+      c.pending.set(id, { resolve, reject });
+      proc.stdio[3].write(JSON.stringify({ id, method, params, sessionId }) + '\0');
+    });
+    await c.send('Target.setDiscoverTargets', { discover: true });
+    await c.send('Browser.setDownloadBehavior', { behavior: 'deny' }).catch(() => {});
+    console.log(`tv browser up (Chrome ${ver}, pid ${proc.pid})`);
+  })();
+  c.ready.catch((e) => { console.error('tv browser', e.message); if (chrome === c) chrome = null; });
+  return c.ready;
+}
+const cdp = (method, params, sid) => chrome?.send ? chrome.send(method, params, sid) : Promise.reject(new Error('no browser'));
+function stopChrome() {
+  const c = chrome;
+  if (!c?.proc) return;
+  chrome = null; tabs.clear(); tvSessions.clear();
+  c.send('Browser.close').catch(() => {});
+  setTimeout(() => { try { process.kill(-c.proc.pid, 'SIGKILL'); } catch {} }, 2000).unref();
+}
+
+async function openTab(id) {
+  const tab = { id, kids: new Set(), at: tvs[id].at, cast: 0, vol: -1, frozen: false, neededAt: Date.now(), page: {} };
+  tabs.set(id, tab);
+  try {
+    await startChrome();
+    tab.targetId = (await cdp('Target.createTarget', { url: 'about:blank', newWindow: true, background: true })).targetId;
+    const sid = (await cdp('Target.attachToTarget', { targetId: tab.targetId, flatten: true })).sessionId;
+    tvSessions.set(sid, tab);
+    await Promise.all([
+      cdp('Page.enable', {}, sid),
+      cdp('Page.addScriptToEvaluateOnNewDocument', { source: TV_VOL_JS }, sid),
+      cdp('Emulation.setDeviceMetricsOverride', { width: TV_W, height: TV_H, deviceScaleFactor: 1, mobile: false }, sid),
+      cdp('Emulation.setFocusEmulationEnabled', { enabled: true }, sid),
+      cdp('Target.setAutoAttach', { autoAttach: true, waitForDebuggerOnStart: false, flatten: true }, sid),
+    ]);
+    if (tabs.get(id) !== tab || !tvs[id]) throw new Error('gone');
+    tab.sid = sid;
+    const r = resumeAt.get(id);
+    navTab(tab, r && r.at === tab.at ? r.url : tvs[id].url);
+  } catch (e) {
+    if (tabs.get(id) === tab) tabs.delete(id);
+    if (tab.targetId) cdp('Target.closeTarget', { targetId: tab.targetId }).catch(() => {});
+    if (e.message !== 'gone') console.error('tv tab', id, e.message);
+  }
+  tvSync();
+}
+function closeTab(tab) {
+  tabs.delete(tab.id);
+  if (/^https?:/.test(tab.page.url || '')) resumeAt.set(tab.id, { url: tab.page.url, at: tab.at });
+  saveFrame(tab.id);
+  for (const s of [tab.sid, ...tab.kids]) tvSessions.delete(s);
+  if (tab.targetId) cdp('Target.closeTarget', { targetId: tab.targetId }).catch(() => {});
+  if (!tabs.size) stopChrome();
+}
+function navTab(tab, url) {
+  tab.loadedAt = Date.now();
+  cdp('Page.navigate', { url }, tab.sid).catch(() => {});
+}
+function setVol(tab, v) {
+  tab.vol = v;
+  for (const s of [tab.sid, ...tab.kids]) cdp('Runtime.evaluate', { expression: `window.__tvVol?.(${v})` }, s).catch(() => {});
+}
+
+function cdpEvent(m) {
+  const p = m.params || {}, tab = tvSessions.get(m.sessionId);
+  switch (m.method) {
+    case 'Page.screencastFrame':
+      cdp('Page.screencastFrameAck', { sessionId: p.sessionId }, m.sessionId).catch(() => {});
+      if (tab && m.sessionId === tab.sid) tvFrame(tab, p.data);
+      return;
+    case 'Page.domContentEventFired': case 'Page.loadEventFired':
+      if (tab) setVol(tab, tab.vol);   // a fresh document starts silent
+      return;
+    case 'Page.javascriptDialogOpening':   // nobody is there to answer alerts or "leave this page?"
+      cdp('Page.handleJavaScriptDialog', { accept: true }, m.sessionId).catch(() => {});
+      return;
+    case 'Inspector.targetCrashed':
+      if (tab && m.sessionId === tab.sid) closeTab(tab);
+      return;
+    case 'Target.attachedToTarget':   // out-of-process iframes (e.g. a YouTube embed) need the volume hook too
+      if (!tab || p.targetInfo.type !== 'iframe') { if (p.waitingForDebugger) cdp('Runtime.runIfWaitingForDebugger', {}, p.sessionId).catch(() => {}); return; }
+      tab.kids.add(p.sessionId); tvSessions.set(p.sessionId, tab);
+      cdp('Page.enable', {}, p.sessionId).catch(() => {});
+      cdp('Page.addScriptToEvaluateOnNewDocument', { source: TV_VOL_JS }, p.sessionId).catch(() => {});
+      cdp('Runtime.evaluate', { expression: `${TV_VOL_JS}; window.__tvVol(${tab.vol})` }, p.sessionId).catch(() => {});
+      return;
+    case 'Target.detachedFromTarget':
+      if (tab) { tab.kids.delete(p.sessionId); tvSessions.delete(p.sessionId); }
+      return;
+    case 'Target.targetCreated': case 'Target.targetInfoChanged': {
+      const ti = p.targetInfo;
+      if (ti.type !== 'page') return;
+      const own = [...tabs.values()].find((t) => t.targetId === ti.targetId);
+      if (own) {
+        own.page = { url: ti.url, title: ti.title };
+        const json = JSON.stringify({ t: 'page', id: own.id, ...own.page });
+        for (const cl of tvClients) wsSend(cl.sock, 1, json);
+        return;
+      }
+      // A popup (target=_blank, window.open): show it on the TV that opened it, or the one in use, instead.
+      const opener = [...tabs.values()].find((t) => t.targetId === ti.openerId) || tabs.get(tvUsed);
+      if (/^https?:/.test(ti.url) && opener?.sid) { navTab(opener, ti.url); cdp('Target.closeTarget', { targetId: ti.targetId }).catch(() => {}); }
+      else if (m.method === 'Target.targetCreated') setTimeout(() => {
+        if (chrome && ![...tabs.values()].some((t) => t.targetId === ti.targetId)) cdp('Target.closeTarget', { targetId: ti.targetId }).catch(() => {});
+      }, 15000);
+      return;
+    }
+  }
+}
+function tvFrame(tab, b64) {
+  const jpeg = Buffer.from(b64, 'base64');
+  lastFrames.set(tab.id, { jpeg, saved: false });
+  const msg = frameMsg(tab.id, jpeg);
+  for (const cl of tvClients) if (cl.watch.has(tab.id) && cl.sock.writableLength < 4e6) wsSend(cl.sock, 2, msg);
+}
+function saveFrame(id) {
+  const f = lastFrames.get(id);
+  if (!f || f.saved) return;
+  f.saved = true;
+  fs.mkdirSync(TV_FRAMES, { recursive: true });
+  fs.writeFile(path.join(TV_FRAMES, `${id}.jpg`), f.jpeg, () => {});
+}
+function lastFrame(id) {
+  if (!lastFrames.has(id)) {
+    const file = path.join(TV_FRAMES, `${id}.jpg`);
+    try { if (fs.statSync(file).mtimeMs > (tvs[id]?.at || 0)) lastFrames.set(id, { jpeg: fs.readFileSync(file), saved: true }); } catch {}
+  }
+  return lastFrames.get(id)?.jpeg;
+}
+const frameMsg = (id, jpeg) => Buffer.concat([Buffer.from([Buffer.byteLength(id)]), Buffer.from(id), jpeg]);
+
+// What every TV should be doing, from what the office clients are looking at and how close they are. Called on any change
+// and once a second.
+let tvUsed = null;
+function tvSync() {
+  const now = Date.now(), watch = new Map(), fade = new Map();   // id -> screencast everyNthFrame, id -> loudest client's fade
+  tvUsed = null;
+  for (const cl of tvClients) {
+    for (const id of cl.watch) watch.set(id, Math.min(watch.get(id) || 9, id === cl.use ? 2 : 6));   // ~30 fps in use, ~10 otherwise
+    for (const [id, f] of Object.entries(cl.fade)) fade.set(id, Math.max(fade.get(id) || 0, f));
+    if (cl.use) tvUsed = cl.use;
+  }
+  for (const id of Object.keys(tvs)) if ((watch.has(id) || fade.get(id) > 0) && !tabs.has(id) && tabs.size < TV_MAX_TABS) openTab(id);
+  let casts = 0;
+  for (const tab of [...tabs.values()].sort((a, b) => (watch.get(a.id) || 9) - (watch.get(b.id) || 9))) {
+    const c = tvs[tab.id];
+    if (!c) { lastFrames.delete(tab.id); fs.rm(path.join(TV_FRAMES, `${tab.id}.jpg`), { force: true }, () => {}); closeTab(tab); continue; }
+    if (!tab.sid) continue;   // still opening
+    if (watch.has(tab.id) || fade.get(tab.id) > 0) tab.neededAt = now;
+    const idle = now - tab.neededAt;
+    if (idle > 180e3) { closeTab(tab); continue; }
+    if (tab.at !== c.at) { tab.at = c.at; lastFrames.delete(tab.id); navTab(tab, c.url); }
+    else if (c.refresh && !idle && tvUsed !== tab.id && now - tab.loadedAt > c.refresh * 1000) { tab.loadedAt = now; cdp('Page.reload', {}, tab.sid).catch(() => {}); }
+    const frozen = idle > 30e3, life = (f) => {
+      tab.frozen = f;
+      const hold = () => { for (const s of [tab.sid, ...tab.kids]) cdp('Runtime.evaluate', { expression: `window.__tvHold?.(${f})` }, s).catch(() => {}); };
+      if (f) hold();
+      cdp('Page.setWebLifecycleState', { state: f ? 'frozen' : 'active' }, tab.sid).then(f ? null : hold).catch(() => {});
+    };
+    if (!frozen && tab.frozen) life(false);
+    const nth = !frozen && watch.has(tab.id) && casts++ < TV_MAX_CASTS ? watch.get(tab.id) : 0;
+    if (nth !== tab.cast) {
+      if (tab.cast) { cdp('Page.stopScreencast', {}, tab.sid).catch(() => {}); saveFrame(tab.id); }
+      if (nth && !tab.cast) cdp('Page.captureScreenshot', { format: 'jpeg', quality: 70 }, tab.sid).then((r) => tab.cast && tvFrame(tab, r.data)).catch(() => {});   // a still page sends no screencast frames until it changes
+      if (nth) cdp('Page.startScreencast', { format: 'jpeg', quality: 70, maxWidth: TV_W, maxHeight: TV_H, everyNthFrame: nth }, tab.sid).catch(() => {});
+      tab.cast = nth;
+    }
+    const vol = c.muted || frozen ? 0 : Math.round(c.volume * (fade.get(tab.id) || 0)) / 100;
+    if (vol !== tab.vol) setVol(tab, vol);
+    if (frozen && !tab.frozen) life(true);   // after muting: a frozen page runs nothing
+  }
+}
+setInterval(tvSync, 1000);
+setInterval(() => { for (const id of lastFrames.keys()) saveFrame(id); }, 30000);
+const exitTvs = () => { if (chrome?.proc) try { process.kill(-chrome.proc.pid, 'SIGKILL'); } catch {} };
+process.on('exit', exitTvs);
+for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(sig, () => {
+  for (const id of lastFrames.keys()) { const f = lastFrames.get(id); if (!f.saved) try { fs.mkdirSync(TV_FRAMES, { recursive: true }); fs.writeFileSync(path.join(TV_FRAMES, `${id}.jpg`), f.jpeg); } catch {} }
+  if (!chrome?.send) process.exit(0);
+  chrome.proc.once('exit', () => process.exit(0));
+  chrome.send('Browser.close').catch(() => {});   // let it flush cookies, so TV logins stick
+  setTimeout(() => process.exit(0), 1500);
+});
+
+// ---------- TV socket ----------
+// A minimal WebSocket server (RFC 6455, no deps) at /tv: one socket per office client. The client sends JSON (which TVs
+// it's looking at, how loud each should be for it, mouse/keys/navigation for the TV in use); the server sends binary
+// screencast frames ([id length][id][JPEG]) and JSON page updates. The TV browser carries the user's logins, so only
+// pages served by this server itself may connect.
+const tvClients = new Set();
+function wsSend(sock, op, data) {
+  if (sock.destroyed) return;
+  if (typeof data === 'string') data = Buffer.from(data);
+  const n = data.length, head = n < 126 ? Buffer.from([0x80 | op, n]) : n < 65536 ? Buffer.from([0x80 | op, 126, n >> 8, n & 255]) : Buffer.alloc(10);
+  if (n >= 65536) { head[0] = 0x80 | op; head[1] = 127; head.writeBigUInt64BE(BigInt(n), 2); }
+  sock.cork(); sock.write(head); sock.write(data); sock.uncork();
+}
+function trustedHost(host) {
+  const h = host.replace(/:\d+$/, '').replace(/^\[|\]$/g, '');
+  return h === 'localhost' || net.isIP(h) || h === os.hostname() || h.endsWith('.local');
+}
+function tvUpgrade(req, sock) {
+  const host = req.headers.host || '', key = req.headers['sec-websocket-key'];
+  if (new URL(req.url, 'http://x').pathname !== '/tv' || !key || !trustedHost(host) || req.headers.origin !== `http://${host}`
+    || (req.headers['user-agent'] || '').includes(TV_UA_TAG)) return sock.destroy();
+  sock.write(`HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${
+    crypto.createHash('sha1').update(key + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11').digest('base64')}\r\n\r\n`);
+  sock.setNoDelay(true);
+  const cl = { sock, watch: new Set(), fade: {}, use: null };
+  tvClients.add(cl);
+  for (const id of Object.keys(tvs)) { const f = lastFrame(id); if (f) wsSend(sock, 2, frameMsg(id, f)); }
+  for (const t of tabs.values()) if (t.page.url) wsSend(sock, 1, JSON.stringify({ t: 'page', id: t.id, ...t.page }));
+  let buf = Buffer.alloc(0), parts = [];
+  sock.on('data', (d) => {
+    buf = Buffer.concat([buf, d]);
+    while (buf.length >= 2) {
+      let len = buf[1] & 127, off = 2;
+      if (len === 126) { if (buf.length < 4) return; len = buf.readUInt16BE(2); off = 4; }
+      else if (len === 127) { if (buf.length < 10) return; len = Number(buf.readBigUInt64BE(2)); off = 10; }
+      if (!(buf[1] & 128) || len > 1 << 20) return sock.destroy();   // clients must mask; nothing legit is this big
+      if (buf.length < off + 4 + len) return;
+      const fin = buf[0] & 128, op = buf[0] & 15, mask = buf.subarray(off, off + 4), data = Buffer.from(buf.subarray(off + 4, off + 4 + len));
+      for (let i = 0; i < len; i++) data[i] ^= mask[i & 3];
+      buf = buf.subarray(off + 4 + len);
+      if (op === 8) return sock.end(Buffer.from([0x88, 0]));
+      if (op === 9) { wsSend(sock, 10, data); continue; }
+      if (op > 2) continue;
+      parts.push(data);
+      if (!fin) continue;
+      const text = Buffer.concat(parts).toString(); parts = [];
+      try { tvMessage(cl, JSON.parse(text)); } catch (e) { console.error('tv message', e.message); }
+    }
+  });
+  const bye = () => { if (tvClients.delete(cl)) tvSync(); };
+  sock.on('close', bye); sock.on('error', bye);
+}
+const KEY_TYPES = new Set(['keyDown', 'rawKeyDown', 'keyUp']), MOUSE_TYPES = new Set(['mouseMoved', 'mousePressed', 'mouseReleased', 'mouseWheel']);
+function tvMessage(cl, m) {
+  if (m.t === 'watch') {
+    cl.watch = new Set((Array.isArray(m.ids) ? m.ids : []).filter((id) => tvs[id]).slice(0, TV_MAX_TABS));
+    cl.use = tvs[m.use] ? m.use : null;
+    if (cl.use) cl.watch.add(cl.use);
+    return tvSync();
+  }
+  if (m.t === 'fade') {
+    cl.fade = {};
+    for (const [id, f] of Object.entries(m.fades || {})) if (tvs[id] && Number.isFinite(f)) cl.fade[id] = Math.min(1, Math.max(0, f));
+    return tvSync();
+  }
+  // Input and navigation only go to the TV this client is using.
+  const tab = tabs.get(m.id);
+  if (!tab?.sid || m.id !== cl.use) return;
+  const n = (v, lo, hi) => Math.min(hi, Math.max(lo, Number(v) || 0)), s = (v) => String(v ?? '').slice(0, 32);
+  if (m.t === 'mouse' && MOUSE_TYPES.has(m.type)) {
+    cdp('Input.dispatchMouseEvent', { type: m.type, x: n(m.x, 0, 1) * TV_W, y: n(m.y, 0, 1) * TV_H, modifiers: n(m.mods, 0, 15),
+      button: ['left', 'middle', 'right'].includes(m.button) ? m.button : 'none', buttons: n(m.buttons, 0, 31), clickCount: n(m.clickCount, 0, 3),
+      deltaX: n(m.dx, -5000, 5000), deltaY: n(m.dy, -5000, 5000) }, tab.sid).catch(() => {});
+  } else if (m.t === 'key' && KEY_TYPES.has(m.type)) {
+    const text = m.type === 'keyDown' ? s(m.text) : undefined;
+    cdp('Input.dispatchKeyEvent', { type: m.type, key: s(m.key), code: s(m.code), text, unmodifiedText: text, windowsVirtualKeyCode: n(m.keyCode, 0, 255),
+      modifiers: n(m.mods, 0, 15), location: n(m.loc, 0, 3), commands: m.cmd ? [s(m.cmd)] : undefined }, tab.sid).catch(() => {});
+  } else if (m.t === 'text') {
+    cdp('Input.insertText', { text: String(m.text || '').slice(0, 1e5) }, tab.sid).catch(() => {});
+  } else if (m.t === 'nav') {
+    if (m.act === 'reload') { tab.loadedAt = Date.now(); cdp('Page.reload', {}, tab.sid).catch(() => {}); }
+    else if (m.act === 'home') navTab(tab, tvs[tab.id].url);
+    else if (m.act === 'go') { try { const u = new URL(String(m.url)); if (/^https?:$/.test(u.protocol)) navTab(tab, u.href); } catch {} }
+    else if (m.act === 'back' || m.act === 'forward') cdp('Page.getNavigationHistory', {}, tab.sid).then(({ currentIndex, entries }) => {
+      const e = entries[currentIndex + (m.act === 'back' ? -1 : 1)];
+      if (e) return cdp('Page.navigateToHistoryEntry', { entryId: e.id }, tab.sid);
+    }).catch(() => {});
+  }
 }
 
 // ---------- office settings ----------
@@ -729,24 +998,13 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
     return res.end(JSON.stringify(tvs));
   }
-  const snap = url.pathname.match(/^\/api\/tvs\/([\w-]{1,40})\/snap$/);
-  if (snap) {
-    // The office loaded inside a snapshot browser (a TV showing the office) must not ask for snapshots itself.
-    if (/HeadlessChrome/.test(req.headers['user-agent'] || '')) { res.writeHead(404); return res.end(); }
-    snapTv(snap[1], url.searchParams.has('fresh') ? 20000 : Infinity).then((file) => {
-      if (!file) { res.writeHead(404); return res.end(); }
-      res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'no-store' });   // browsers sniff the JPEG thumbnails fine
-      fs.createReadStream(file).pipe(res);
-    });
-    return;
-  }
   const tv = url.pathname.match(/^\/api\/tvs\/([\w-]{1,40})$/);
   if (tv && req.method === 'PUT') {
     let body = '';
     req.on('data', (c) => { body += c; if (body.length > 16384) req.destroy(); });
-    req.on('end', async () => {
+    req.on('end', () => {
       try {
-        const saved = await putTv(tv[1], JSON.parse(body || '{}'));
+        const saved = putTv(tv[1], JSON.parse(body || '{}'));
         res.writeHead(200, { 'content-type': 'application/json' });
         res.end(JSON.stringify(saved));
       } catch (e) { res.writeHead(400, { 'content-type': 'application/json' }); res.end(JSON.stringify({ error: e.message })); }
@@ -782,4 +1040,5 @@ setInterval(listTranscripts, 15000);
 setInterval(pollProcs, 3000);
 pollProcs();
 setInterval(() => { for (const res of clients) res.write(': ping\n\n'); }, 20000);
+server.on('upgrade', tvUpgrade);
 server.listen(PORT, HOST, () => console.log(`my-office on http://${HOST}:${PORT}`));
