@@ -99,6 +99,40 @@ function rugTexture(base, accent, seed) {
   t.tex.needsUpdate = true;
   return t.tex;
 }
+// Leaf atlas for alpha-tested plant cards: left half a leafy twig, right half one long variegated strap leaf.
+function leafTexture() {
+  const t = makeCanvas(512, 256), { ctx } = t, R = rng(23);
+  const leafPath = (len, wid) => { ctx.beginPath(); ctx.moveTo(0, 0); ctx.bezierCurveTo(wid, -len * 0.2, wid * 0.85, -len * 0.7, 0, -len); ctx.bezierCurveTo(-wid * 0.85, -len * 0.7, -wid, -len * 0.2, 0, 0); };
+  const leaf = (x, y, len, wid, ang) => {
+    const h = 95 + R() * 30, s = 35 + R() * 20, l = 24 + R() * 14;
+    ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
+    const g = ctx.createLinearGradient(-wid, 0, wid, 0);
+    g.addColorStop(0, `hsl(${h},${s}%,${l + 8}%)`); g.addColorStop(0.5, `hsl(${h},${s}%,${l + 3}%)`); g.addColorStop(1, `hsl(${h},${s}%,${l - 6}%)`);
+    ctx.fillStyle = g; leafPath(len, wid); ctx.fill();
+    ctx.strokeStyle = `hsla(${h - 10},40%,${l + 25}%,0.5)`; ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(wid * 0.1, -len * 0.5, 0, -len * 0.95); ctx.stroke();
+    ctx.lineWidth = 0.7;
+    for (let k = 1; k < 6; k++) for (const sd of [-1, 1]) { const y0 = -len * k / 6.5; ctx.beginPath(); ctx.moveTo(0, y0); ctx.lineTo(sd * wid * 0.6, y0 - len * 0.1); ctx.stroke(); }
+    ctx.restore();
+  };
+  ctx.strokeStyle = '#5b4a32'; ctx.lineCap = 'round';
+  for (let k = 0; k < 3; k++) { ctx.lineWidth = 5 - k * 1.5; ctx.beginPath(); ctx.moveTo(128, 256 - k * 80); ctx.lineTo(128 + (k % 2 ? -3 : 3), 176 - k * 80); ctx.stroke(); }
+  for (let i = 0; i < 10; i++) {
+    const f = 0.12 + i * 0.085, sd = i % 2 ? 1 : -1;
+    leaf(128, 256 - f * 236, 92 - f * 40, 31 - f * 8, sd * (0.55 + R() * 0.45));
+  }
+  leaf(128, 30, 30, 11, 0);
+  // Strap leaf: dark green with pale wavy cross-bands and a yellow-green margin.
+  ctx.save(); ctx.translate(384, 254);
+  const strap = () => { ctx.beginPath(); ctx.moveTo(-14, 0); ctx.bezierCurveTo(-24, -110, -20, -190, 0, -250); ctx.bezierCurveTo(20, -190, 24, -110, 14, 0); ctx.closePath(); };
+  strap(); ctx.fillStyle = '#2c5634'; ctx.fill(); ctx.save(); ctx.clip();
+  ctx.strokeStyle = 'rgba(170,200,150,0.35)'; ctx.lineWidth = 3;
+  for (let y = -6; y > -250; y -= 9 + R() * 8) { ctx.beginPath(); ctx.moveTo(-26, y); ctx.bezierCurveTo(-8, y - 6, 8, y + 6, 26, y - 2); ctx.stroke(); }
+  ctx.restore(); strap(); ctx.strokeStyle = '#b9c46a'; ctx.lineWidth = 2.5; ctx.stroke();
+  ctx.restore();
+  t.tex.needsUpdate = true;
+  return t.tex;
+}
 function artTexture(seed, aspect) {
   const W = 512, H = Math.round(512 / aspect), t = makeCanvas(W, H), { ctx } = t, R = rng(seed);
   const pal = [['#f2e8d5', '#d97757', '#2f5d62', '#e8b04b', '#1f2a33'], ['#efe6da', '#3f4a6b', '#a35d7a', '#e7c07a', '#6b8e4e']][seed % 2];
@@ -1124,7 +1158,19 @@ export function mountOffice(container) {
     // Trees: autumn palette, it being October.
     const TREE_COLS = ['#3f7a3a', '#4f8a3c', '#2f6b3a', '#5d9440', '#d08a2a', '#c4572a', '#e0b23a', '#a23a2a', '#b8742a'].map((c) => new THREE.Color(c));
     const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.22, 0.32, 1, 6), mat('#5a4030', { roughness: 1 }), trees.length);
-    const crowns = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 1), new THREE.MeshStandardMaterial({ roughness: 0.9, flatShading: true }), trees.length);
+    // Crowns: a clump of lumpy blobs, darker underneath, instead of one smooth ball.
+    const crownGeo = mergeGeometries([[0, 0.1, 0, 0.8], [0.5, -0.2, 0.2, 0.62], [-0.45, -0.15, -0.3, 0.64], [0.1, 0.45, -0.25, 0.55], [-0.2, -0.05, 0.5, 0.58], [0.3, 0.2, -0.5, 0.5]].map(([x, y, z, r]) => {
+      const g = new THREE.IcosahedronGeometry(r, 1), p = g.attributes.position, col = new Float32Array(p.count * 3);
+      for (let i = 0; i < p.count; i++) {
+        const n = Math.sin(p.getX(i) * 91.7 + p.getY(i) * 47.3 + p.getZ(i) * 73.1 + x * 13) * 43758.5, k = 0.9 + 0.2 * (n - Math.floor(n));
+        p.setXYZ(i, p.getX(i) * k + x, p.getY(i) * k + y, p.getZ(i) * k + z);
+        col.fill(0.55 + 0.45 * sstep(-0.7, 0.8, p.getY(i)), i * 3, i * 3 + 3);
+      }
+      g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      return g;
+    }));
+    crownGeo.computeVertexNormals();
+    const crowns = new THREE.InstancedMesh(crownGeo, new THREE.MeshStandardMaterial({ roughness: 0.9, flatShading: true, vertexColors: true }), trees.length);
     trees.forEach(([x, z, h, r], i) => {
       dummy.rotation.set(0, 0, 0);
       dummy.position.set(x, GROUND + h * 0.25, z); dummy.scale.set(1, h * 0.5, 1); dummy.updateMatrix(); trunks.setMatrixAt(i, dummy.matrix);
@@ -1264,15 +1310,93 @@ export function mountOffice(container) {
     pic.position.z = 0.022;
     g.add(pic);
   }
+  // All plant foliage is three instanced meshes (twig cards, strap-leaf cards, stems) sharing one alpha-tested
+  // leaf atlas; cards sway in the vertex shader. Built lazily since plant() runs before this point in the file.
+  function plantKit() {
+    if (plantKit.k) return plantKit.k;
+    const map = leafTexture(), time = { value: 0 };
+    const sway = (sh) => {
+      sh.uniforms.uTime = time;
+      sh.vertexShader = 'uniform float uTime;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+        { float ph = dot(instanceMatrix[3].xyz, vec3(3.1, 1.7, 2.3)), w = position.y * position.y;
+          transformed.x += sin(uTime * 1.3 + ph) * 0.06 * w; transformed.z += sin(uTime * 2.1 + ph * 1.7) * 0.04 * w; }`);
+    };
+    const leafM = new THREE.MeshStandardMaterial({ map, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.7 });
+    const depthM = new THREE.MeshDepthMaterial({ map, alphaTest: 0.5, depthPacking: THREE.RGBADepthPacking });
+    leafM.onBeforeCompile = depthM.onBeforeCompile = sway;
+    const cardGeo = (u0, droop) => {
+      const g = new THREE.PlaneGeometry(1, 1, 1, 4); g.translate(0, 0.5, 0);
+      const p = g.attributes.position, uv = g.attributes.uv;
+      for (let i = 0; i < p.count; i++) { p.setZ(i, -droop * p.getY(i) ** 2); uv.setX(i, u0 + uv.getX(i) * 0.5); }
+      g.computeVertexNormals();
+      return g;
+    };
+    const inst = (geo, m, n) => {
+      const im = new THREE.InstancedMesh(geo, m, n);
+      im.count = 0; im.castShadow = true; im.receiveShadow = true; im.frustumCulled = false; im.layers.set(1);   // layer 1: keep alpha cards out of the AO/depth passes
+      world.add(im);
+      return im;
+    };
+    const twig = inst(cardGeo(0, 0.35), leafM, 1600), strap = inst(cardGeo(0.5, 0.15), leafM, 600);
+    const stem = inst(new THREE.CylinderGeometry(0.6, 1, 1, 5).translate(0, 0.5, 0), mat('#5b4532', { roughness: 1 }), 200);
+    twig.customDepthMaterial = strap.customDepthMaterial = depthM;
+    twig.onBeforeRender = () => { time.value = performance.now() / 1000; };
+    const bx = new THREE.Vector3(), by = new THREE.Vector3(), bz = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0), X = new THREE.Vector3(1, 0, 0);
+    const M = new THREE.Matrix4(), rollM = new THREE.Matrix4(), sc = new THREE.Vector3();
+    // Card base at p growing along d, leaf face turned up/outward, so the bend in the geometry droops the tip.
+    const add = (im, p, d, sx, sy, roll = 0, color) => {
+      by.copy(d).normalize(); bx.crossVectors(by, Math.abs(by.y) > 0.99 ? X : UP).normalize(); bz.crossVectors(bx, by);
+      M.makeBasis(bx, by, bz).multiply(rollM.makeRotationY(roll)).scale(sc.set(sx, sy, im === stem ? sx : sy)).setPosition(p);
+      im.setMatrixAt(im.count, M); im.instanceMatrix.needsUpdate = true;
+      if (color) { im.setColorAt(im.count, color); im.instanceColor.needsUpdate = true; }
+      im.count++;
+    };
+    return (plantKit.k = { twig, strap, stem, add });
+  }
   function smallPlant(parent, x, y, z) {
     cyl(parent, 0.06, 0.05, 0.1, '#d9cfc0', x, y + 0.05, z);
-    const l = new THREE.Mesh(new THREE.IcosahedronGeometry(0.11, 0), mat('#4f8a52', { roughness: 0.9, flatShading: true }));
-    l.position.set(x, y + 0.17, z); l.castShadow = true; parent.add(l);
+    const { strap, add } = plantKit(), R = rng(hash(`${x}|${y}|${z}`)), p = new THREE.Vector3(), d = new THREE.Vector3(), c = new THREE.Color();
+    for (let i = 0; i < 9; i++) {
+      const a = i * 2.4 + R(), h = 0.12 + R() * 0.08;
+      p.set(x + Math.cos(a) * 0.015, y + 0.09, z + Math.sin(a) * 0.015); d.set(Math.cos(a) * (0.3 + R() * 0.5), 1, Math.sin(a) * (0.3 + R() * 0.5));
+      add(strap, p, d, h * 0.9, h, R() - 0.5, c.setRGB(0.8 + R() * 0.2, 1.05, 0.95 + R() * 0.2));
+    }
   }
+  // Pot plus one of three plant types picked by position: leafy ficus-like shrub, upright snake plant, arching fern-like fronds.
   function plant(x, z, s = 1) {
     cyl(world, 0.22 * s, 0.17 * s, 0.45 * s, '#d6d2c8', x, 0.225 * s, z);
-    const leaves = new THREE.Mesh(new THREE.IcosahedronGeometry(0.42 * s, 1), mat('#3f7d4a', { roughness: 0.9, flatShading: true }));
-    leaves.position.set(x, 0.85 * s, z); leaves.scale.y = 1.25; leaves.castShadow = true; world.add(leaves);
+    cyl(world, 0.2 * s, 0.2 * s, 0.02, '#3b2c22', x, 0.44 * s, z, { seg: 12, mat: { roughness: 1 } });
+    const { twig, strap, stem, add } = plantKit(), R = rng(hash(`${x}|${z}`)), kind = [0, 0, 1, 2][hash(`${z}|${x}`) % 4];
+    const p = new THREE.Vector3(), d = new THREE.Vector3(), c = new THREE.Color(), tint = new THREE.Color(0.85 + R() * 0.2, 1, 0.8 + R() * 0.25);
+    const soil = 0.45 * s, cy = 0.85 * s, cr = 0.42 * s;
+    if (kind === 0) {
+      add(stem, p.set(x, soil, z), d.set(0, 1, 0), 0.025 * s, cy - soil);
+      for (let i = 0; i < 5; i++) {
+        const a = i * 1.26 + R(), q = new THREE.Vector3(x + Math.cos(a) * cr * 0.55, cy + (R() - 0.3) * cr * 0.8, z + Math.sin(a) * cr * 0.55);
+        p.set(x, cy - 0.1 * s, z); d.subVectors(q, p); add(stem, p, d, 0.012 * s, d.length());
+      }
+      for (let i = 0; i < 72; i++) {
+        const u = R() * 2 - 1, a = R() * Math.PI * 2, k = Math.sqrt(1 - u * u), f = 0.35 + R() * 0.6;
+        d.set(Math.cos(a) * k, u * 0.7 + 0.3, Math.sin(a) * k);
+        p.set(x + d.x * cr * f * 0.75, cy + d.y * cr * f * 0.9, z + d.z * cr * f * 0.75);
+        d.x += (R() - 0.5) * 0.6; d.z += (R() - 0.5) * 0.6; d.y += 0.25;
+        const h = (0.32 + R() * 0.16) * s;
+        add(twig, p, d, h * 0.9, h, (R() - 0.5) * 1.2, c.copy(tint).multiplyScalar((0.55 + 0.45 * f) * (0.85 + R() * 0.3)));
+      }
+    } else if (kind === 1) {
+      for (let i = 0; i < 13; i++) {
+        const a = i * 2.4 + R(), r = R() * 0.1 * s, h = (0.65 + R() * 0.4) * s;
+        p.set(x + Math.cos(a) * r, soil, z + Math.sin(a) * r); d.set(Math.cos(a) * (0.08 + R() * 0.2), 1, Math.sin(a) * (0.08 + R() * 0.2));
+        add(strap, p, d, h * 0.5, h, R() * 3, c.copy(tint).multiplyScalar(0.8 + R() * 0.35));
+      }
+    } else {
+      add(stem, p.set(x, soil, z), d.set(0, 1, 0), 0.02 * s, 0.25 * s);
+      for (let i = 0; i < 30; i++) {
+        const a = i * 2.4 + R() * 0.5, up = i < 8 ? 1.6 + R() : 0.5 + R() * 0.7, h = (0.38 + R() * 0.18) * s, y = soil + (0.05 + R() * 0.2) * s;
+        p.set(x, y, z); d.set(Math.cos(a), up, Math.sin(a));
+        add(twig, p, d, h * 0.85, h, (R() - 0.5) * 0.4, c.copy(tint).multiplyScalar((i < 8 ? 1.05 : 0.8) * (0.85 + R() * 0.3)));
+      }
+    }
     solid(x, z, 0.5 * s, 0.5 * s);
   }
   function officeChair(x, z, rotY, color = '#2b2e33') {
