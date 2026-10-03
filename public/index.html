@@ -157,6 +157,7 @@ tr.click:hover td { background: var(--surface-2); }
 #drawer .dh { padding: 18px 20px 12px; border-bottom: 1px solid var(--border); }
 #drawer .dh .x { float: right; background: none; border: 1px solid var(--border); color: var(--ink-2); border-radius: 8px; padding: 3px 10px; cursor: pointer; font: inherit; }
 #drawer .db { overflow: auto; padding: 16px 20px 40px; display: grid; gap: 14px; }
+#drawer.narrow { width: min(460px, 96vw); }
 .kv { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
 .kv .k { font-size: 11px; color: var(--muted); }
 .kv .v { font-size: 15px; font-weight: 600; }
@@ -469,7 +470,15 @@ document.addEventListener('click', (e) => {
 });
 $('scrim').onclick = closeDrawer;
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
-function closeDrawer() { openId = null; clearInterval(drawerTimer); $('drawer').classList.remove('open'); document.body.classList.remove('drawer'); }
+function closeDrawer() { openId = null; clearInterval(drawerTimer); $('drawer').classList.remove('open', 'narrow'); document.body.classList.remove('drawer'); }
+// A narrow drawer with arbitrary content (the office uses it to configure TVs). Returns the body element.
+function openPanel(head, body) {
+  closeDrawer();
+  setHTML($('dh'), `<button class="x" onclick="closeDrawer()">Close</button>${head}`);
+  setHTML($('db'), body);
+  $('drawer').classList.add('open', 'narrow'); document.body.classList.add('drawer');
+  return $('db');
+}
 function openDrawer(id) {
   openId = id;
   $('drawer').classList.add('open'); document.body.classList.add('drawer');
@@ -535,6 +544,7 @@ function connect() {
     render();
     for (const cb of dash.listeners) cb(S);
   };
+  es.addEventListener('tvs', (m) => { dash.tvs = JSON.parse(m.data); for (const cb of dash.tvListeners) cb(dash.tvs); });
   es.onerror = () => { conn.className = 'conn off'; conn.lastChild.textContent = 'reconnecting…'; };
 }
 // Bridge for the 3D office view (office.js), which reuses live state, colours and the drawer.
@@ -542,7 +552,8 @@ window.dash = {
   get state() { return S; },
   listeners: new Set(),
   onUpdate(cb) { this.listeners.add(cb); if (S) cb(S); },
-  openDrawer, closeDrawer,
+  openDrawer, closeDrawer, openPanel,
+  tvs: {}, tvListeners: new Set(),
   colorHex(id) {
     const m = sessionColor(id).match(/var\((--[\w-]+)\)/);
     return (m && getComputedStyle(document.documentElement).getPropertyValue(m[1]).trim()) || '#898781';
