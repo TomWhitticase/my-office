@@ -681,6 +681,10 @@ export function mountOffice(container) {
     .of-dom { background: var(--page); overflow: hidden; pointer-events: none; }
     .of-hud { position: absolute; inset: 0; z-index: 2; pointer-events: none; font: 13px/1.4 system-ui, -apple-system, sans-serif; color: #fff; transition: opacity .4s; }
     .of-hud.hidden { opacity: 0; }
+    .of-bare > :not(.of-cross, .of-toast) { display: none !important; }
+    .of-toast { position: absolute; left: 50%; top: 18px; transform: translateX(-50%); background: rgba(15,16,19,.82); border: 1px solid rgba(255,255,255,.14); border-radius: 10px; padding: 6px 12px; color: #c3c2b7; font-size: 12px; opacity: 0; transition: opacity .3s; }
+    .of-toast.on { opacity: 1; }
+    .of-toast kbd { font: inherit; font-weight: 600; color: #fff; background: rgba(255,255,255,.12); border-radius: 4px; padding: 0 5px; }
     .of-cross { position: absolute; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%; background: rgba(255,255,255,.9); box-shadow: 0 0 0 2px rgba(0,0,0,.35); display: none; }
     .of-locked .of-cross { display: block; }
     .of-target { position: absolute; left: 50%; top: calc(50% + 28px); transform: translateX(-50%); background: rgba(15,16,19,.86); border: 1px solid rgba(255,255,255,.12); border-radius: 10px; padding: 8px 12px; min-width: 220px; max-width: 420px; text-align: center; display: none; }
@@ -736,7 +740,8 @@ export function mountOffice(container) {
   hud.innerHTML = `<div class="of-cross"></div><div class="of-target"></div><canvas class="of-map" width="440" height="330" style="width:220px;height:165px"></canvas>
     <div class="of-count"></div>
     <div class="of-time"><span class="of-clock"></span><button data-speed="1">Live</button><button data-speed="120">×120</button><button data-speed="1200">×1200</button><button data-speed="7200">×7200</button></div>
-    <div class="of-legend"><kbd>W A S D</kbd> move · <kbd>Shift</kbd> run · <kbd>Click</kbd> inspect · <kbd>1</kbd> desks <kbd>2</kbd> breakroom <kbd>3</kbd> my office <kbd>4</kbd> lobby · <kbd>T</kbd> time speed · <kbd>G</kbd> graphics · <kbd>Esc</kbd> release mouse</div>
+    <div class="of-legend"><kbd>W A S D</kbd> move · <kbd>Shift</kbd> run · <kbd>Click</kbd> inspect · <kbd>1</kbd> desks <kbd>2</kbd> breakroom <kbd>3</kbd> my office <kbd>4</kbd> lobby · <kbd>T</kbd> time speed · <kbd>G</kbd> graphics · <kbd>H</kbd> hide overlays · <kbd>Esc</kbd> release mouse</div>
+    <div class="of-toast"></div>
     <div class="of-start"><b>Click to look around</b><span>Walk up to anyone, or their screen, and click for details.<br>Click your own monitor to go back to the dashboard.</span></div>`;
   container.appendChild(hud);
   const targetEl = hud.querySelector('.of-target'), mapCanvas = hud.querySelector('.of-map'), mapCtx = mapCanvas.getContext('2d'), countEl = hud.querySelector('.of-count');
@@ -1905,6 +1910,7 @@ export function mountOffice(container) {
 
   // ----- people sync -----
   const people = new Map();
+  let overlays = localStorage.officeOverlays !== 'off';   // see setOverlays (H)
   let first = true;
   let S = null;
   const routeOut = (p) => (p.spot ? [...p.spot.route].reverse().slice(1) : []);
@@ -1922,6 +1928,7 @@ export function mountOffice(container) {
       let p = people.get(s.sessionId);
       if (!p) {
         p = new Person(s.sessionId, dash.colorHex(s.sessionId));
+        p.label.visible = overlays;
         people.set(s.sessionId, p);
         world.add(p.root);
         if (!first) { p.root.position.set(LIFT.x, 0, LIFT.z); p.rotY = -Math.PI / 2; p.spot = LOBBY; p.root.scale.setScalar(0.01); p.scaleT = 1; }
@@ -2103,6 +2110,7 @@ export function mountOffice(container) {
     if (!active || mode !== 'free' || e.metaKey || e.ctrlKey || e.target.closest?.('input, select, textarea')) return;
     if (TELEPORTS[e.code]) { TELEPORTS[e.code](); return; }
     if (e.code === 'KeyG') { setQuality(!hq); return; }
+    if (e.code === 'KeyH') { setOverlays(!overlays); return; }
     if (e.code === 'KeyT') { setSpeed(SPEEDS[(SPEEDS.indexOf(clockState.speed) + 1) % SPEEDS.length]); return; }
     if (locked) { keys.add(e.code); if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault(); }
   });
@@ -2231,6 +2239,18 @@ export function mountOffice(container) {
     shafts.visible = on;
   }
   setQuality(hq);
+  // H hides every overlay: HUD panels, minimap, hover cards and the name tags over people. Only the crosshair stays.
+  let toastTimer = 0;
+  function setOverlays(on, quiet) {
+    overlays = on; localStorage.officeOverlays = on ? 'on' : 'off';
+    hud.classList.toggle('of-bare', !on);
+    for (const p of people.values()) p.label.visible = on;
+    if (quiet) return;
+    const t = hud.querySelector('.of-toast');
+    t.innerHTML = `Overlays ${on ? 'shown' : 'hidden'} · <kbd>H</kbd> to ${on ? 'hide' : 'show'}`;
+    t.classList.add('on'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('on'), 1600);
+  }
+  setOverlays(overlays, true);
   const sunScreen = new THREE.Vector3(), camFwd = new THREE.Vector3();
   const holeScene = new THREE.Scene(), holeProxy = new THREE.Mesh(hole.geometry, holeM);
   holeProxy.matrixAutoUpdate = false;
