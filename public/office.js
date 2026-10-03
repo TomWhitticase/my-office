@@ -273,6 +273,84 @@ function drawAway(scr, s, color) {
   ctx.textAlign = 'left';
 }
 
+// ---------- code monitor ----------
+const MONO = '"SF Mono", Menlo, Consolas, monospace';
+const KEYWORDS = new Set(('const let var function return if else for while do switch case break continue new class extends import from export default ' +
+  'async await try catch finally throw typeof instanceof in of this super null undefined true false def lambda pass with as elif not and or is None ' +
+  'True False self yield global nonlocal fn mut pub struct enum impl trait use mod match where func package type interface map chan go defer ' +
+  'func extends signal onready tool static void int float bool string var set get public private protected readonly').split(' '));
+const SYN = { kw: '#c678dd', str: '#98c379', num: '#d19a66', com: '#7f848e', fn: '#61afef', type: '#e5c07b', txt: '#d7dae0' };
+const TOKEN = /(\/\/.*|#(?![{\w-]*\s*[:{]).*|\/\*.*?\*\/|<!--.*?-->)|("(?:\\.|[^"\\])*"?|'(?:\\.|[^'\\])*'?|`(?:\\.|[^`\\])*`?)|(\b\d[\d_.xXa-fA-F]*\b)|([A-Za-z_$][\w$]*)(?=\s*\()|([A-Za-z_$][\w$]*)/g;
+function tokens(line) {
+  const out = [];
+  let last = 0, m;
+  TOKEN.lastIndex = 0;
+  while ((m = TOKEN.exec(line))) {
+    if (m.index > last) out.push([line.slice(last, m.index), SYN.txt]);
+    const [tok, com, str, num, fn, word] = m;
+    out.push([tok, com ? SYN.com : str ? SYN.str : num ? SYN.num : fn ? (KEYWORDS.has(fn) ? SYN.kw : SYN.fn)
+      : KEYWORDS.has(word) ? SYN.kw : /^[A-Z][a-z]/.test(word) ? SYN.type : SYN.txt]);
+    last = m.index + tok.length;
+    if (!tok.length) TOKEN.lastIndex++;
+  }
+  if (last < line.length) out.push([line.slice(last), SYN.txt]);
+  return out;
+}
+const countLines = (x) => (x ? x.split('\n').length : 0);
+
+// Draws the session's latest edit; `shown` chars of it are revealed (typing animation).
+function drawCode(scr, s, color, shown, cursorOn) {
+  const { ctx, W, H } = scr, code = s.code;
+  ctx.fillStyle = '#1e2127'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#16181d'; ctx.fillRect(0, 0, W, 44);
+  if (!code) {
+    ctx.textAlign = 'center';
+    ctx.font = `500 22px ${FONT}`; ctx.fillStyle = '#7f848e'; ctx.fillText('No code written yet this session', W / 2, H / 2 - 6);
+    ctx.font = `400 17px ${FONT}`; ctx.fillStyle = '#5c6370'; ctx.fillText('Edits will appear here live as they happen', W / 2, H / 2 + 24);
+    ctx.textAlign = 'left';
+    return;
+  }
+  const base = code.file.split('/').pop();
+  ctx.font = `600 17px ${FONT}`;
+  const tabW = Math.min(ctx.measureText(base).width + 44, 380);
+  ctx.fillStyle = '#1e2127'; ctx.fillRect(0, 0, tabW, 44);
+  ctx.fillStyle = color; ctx.fillRect(0, 0, tabW, 3);
+  ctx.fillStyle = '#e6e6e6'; ctx.fillText(fit(ctx, base, tabW - 34), 16, 28);
+  ctx.textAlign = 'right'; ctx.font = `500 15px ${FONT}`;
+  const plus = countLines(code.added), minus = countLines(code.removed);
+  ctx.fillStyle = '#98c379'; const tag = `+${plus}`; ctx.fillText(tag, W - 150, 28);
+  if (minus) { ctx.fillStyle = '#e06c75'; ctx.fillText(`−${minus}`, W - 108, 28); }
+  ctx.fillStyle = '#7f848e'; ctx.fillText(`${code.tool} · ${F.dur(Date.now() - code.t)} ago`, W - 16, 28);
+  ctx.textAlign = 'left';
+  ctx.font = `400 14px ${FONT}`; ctx.fillStyle = '#5c6370';
+  const crumbs = code.file.split('/').join('  ›  ') + (code.agent ? `     ⤷ subagent: ${code.agent}` : '');
+  ctx.fillText(fit(ctx, crumbs, W - 32), 16, 66);
+
+  const LH = 22, top = 92, gutter = 64, rows = Math.floor((H - top) / LH);
+  ctx.font = `400 16px ${MONO}`;
+  const cw = ctx.measureText('M').width, cols = Math.floor((W - gutter - 16) / cw);
+  const text = code.added.slice(0, shown), lines = text.split('\n');
+  const first = Math.max(0, lines.length - rows + 2);
+  const start = code.line || 1;
+  for (let i = first, row = 0; i < lines.length && row < rows; i++, row++) {
+    const y = top + row * LH;
+    const isCursor = i === lines.length - 1;
+    if (isCursor && cursorOn !== null) { ctx.fillStyle = 'rgba(255,255,255,0.04)'; ctx.fillRect(0, y - 16, W, LH); }
+    ctx.textAlign = 'right'; ctx.fillStyle = isCursor ? '#abb2bf' : '#4b5263';
+    ctx.fillText(String(start + i), gutter - 14, y);
+    ctx.textAlign = 'left';
+    let x = gutter, used = 0;
+    for (const [tok, col] of tokens(lines[i].replace(/\t/g, '  '))) {
+      if (used >= cols) break;
+      const piece = tok.slice(0, cols - used);
+      ctx.fillStyle = col; ctx.fillText(piece, x, y);
+      x += piece.length * cw; used += piece.length;
+    }
+    if (isCursor && cursorOn) { ctx.fillStyle = color; ctx.fillRect(Math.min(x, W - 12) + 1, y - 15, 2.5, 19); }
+  }
+  ctx.fillStyle = color; ctx.fillRect(gutter - 6, top - 16, 2, Math.min(rows, lines.length - first) * LH);
+}
+
 function drawOff(scr) {
   const { ctx, W, H } = scr;
   ctx.fillStyle = '#060607'; ctx.fillRect(0, 0, W, H);
@@ -487,7 +565,7 @@ class Person {
     switch (this.spot?.pose) {
       case 'type':
         sit(0.47);
-        Object.assign(j, { lean: 0.12, sh0: -0.55, sh1: -0.55, shz0: -0.12, shz1: 0.12, headX: 0.12, headY: 0.12 * Math.sin(t * 0.6 + ph),
+        Object.assign(j, { lean: 0.12, sh0: -0.55, sh1: -0.55, shz0: -0.12, shz1: 0.12, headX: 0.12, headY: 0.05 + 0.2 * Math.sin(t * 0.45 + ph),
           el0: -1.05 + 0.07 * Math.sin(t * 19 + ph), el1: -1.05 + 0.07 * Math.sin(t * 17 + ph + 1.3) });
         break;
       case 'wait':
@@ -1236,23 +1314,27 @@ export function mountOffice(container) {
   const deskTopM = mat('#c49a6c', { roughness: 0.55 }), legM = mat('#2f3236', { metalness: 0.5, roughness: 0.4 });
   for (const z of [-3.5, -7.5, -11.5]) {
     for (const x of [0.5, -3, -6.5, -10, -13.5, -17]) {
-      box(world, 1.6, 0.04, 0.8, '', x, 0.74, z, { material: deskTopM });
-      box(world, 0.04, 0.72, 0.7, '', x - 0.76, 0.36, z, { material: legM });
-      box(world, 0.04, 0.72, 0.7, '', x + 0.76, 0.36, z, { material: legM });
+      box(world, 2.0, 0.04, 0.8, '', x, 0.74, z, { material: deskTopM });
+      box(world, 0.04, 0.72, 0.7, '', x - 0.96, 0.36, z, { material: legM });
+      box(world, 0.04, 0.72, 0.7, '', x + 0.96, 0.36, z, { material: legM });
       box(world, 0.44, 0.015, 0.14, '#3a3c40', x, 0.765, z + 0.18);
       box(world, 0.06, 0.02, 0.1, '#3a3c40', x + 0.36, 0.765, z + 0.2);
-      if (hash(String(x * z)) % 3 === 0) cyl(world, 0.04, 0.035, 0.1, '#f4f1ea', x - 0.6, 0.81, z + 0.15);
+      if (hash(String(x * z)) % 3 === 0) cyl(world, 0.04, 0.035, 0.1, '#f4f1ea', x - 0.82, 0.81, z + 0.2);
       box(world, 1.3, 0.035, 0.09, '', x, 2.6, z + 0.1, { material: barM, shadow: false });
       for (const dx of [-0.5, 0.5]) cyl(world, 0.004, 0.004, ROOM.h - 2.6, '#222', x + dx, (ROOM.h + 2.6) / 2, z + 0.1, { shadow: false });
-      if (hash(`${x}|${z}`) % 3 === 1) smallPlant(world, x + 0.62, 0.76, z - 0.22);
+      if (hash(`${x}|${z}`) % 3 === 1) smallPlant(world, x + 0.86, 0.76, z + 0.22);
       officeChair(x, z + 0.68, Math.PI);
-      const mon = monitor(world, 0.9, 0.5625, x, 0.76, z - 0.22);
+      // Left: session stats. Right: the code it's writing. Both angled in toward the chair.
+      const mon = monitor(world, 0.9, 0.5625, x - 0.47, 0.76, z - 0.2, 0.14);
       const scr = makeScreen(mon.g, 0.9, 0.5625, 800, 500, 0, mon.screenY, mon.screenZ);
+      const codeMon = monitor(world, 0.9, 0.5625, x + 0.47, 0.76, z - 0.2, -0.14);
+      const codeScr = makeScreen(codeMon.g, 0.9, 0.5625, 800, 500, 0, codeMon.screenY, codeMon.screenZ);
       drawOff(scr); scr.tex.needsUpdate = true;
-      solid(x, z, 1.6, 0.8);
+      drawOff(codeScr); codeScr.tex.needsUpdate = true;
+      solid(x, z, 2.0, 0.8);
       const chair = { x, z: z + 0.62 };
       const lane = x + 1.75;
-      desks.push({ x, z, scr, owner: null, spot: { key: `desk:${x},${z}`, kind: 'desk', pos: chair, rotY: Math.PI, pose: 'type',
+      desks.push({ x, z, scr, codeScr, owner: null, spot: { key: `desk:${x},${z}`, kind: 'desk', pos: chair, rotY: Math.PI, pose: 'type',
         route: [{ x: lane, z: AISLE }, { x: lane, z: chair.z }, chair] } });
     }
   }
@@ -1498,8 +1580,9 @@ export function mountOffice(container) {
       else if (s.status === 'idle') drawAway(d.scr, s, d.owner.color);
       else drawSession(d.scr, s, d.owner.color);
       d.painted = key;
-      d.scr.mesh.userData.sessionId = s?.sessionId;
+      d.scr.mesh.userData.sessionId = d.codeScr.mesh.userData.sessionId = s?.sessionId;
       d.scr.tex.needsUpdate = true;
+      paintCode(d, now, true);
     }
     for (const p of people.values()) if (p.session && !p.leaving) p.setLabel(p.session);
     drawUsage(usageScr, S); usageScr.tex.needsUpdate = true;
@@ -1508,6 +1591,30 @@ export function mountOffice(container) {
     drawFeed(feedTV, S); feedTV.tex.needsUpdate = true;
     drawBoard(board, S); board.tex.needsUpdate = true;
   }
+  // Typing animation: a new edit is revealed over 1.5-9 s (faster for big edits); already-seen edits show in full.
+  function paintCode(d, now, force) {
+    const s = d.owner?.session;
+    if (!s || s.status === 'idle') {
+      if (d.codePainted !== 'off') { drawOff(d.codeScr); d.codeScr.tex.needsUpdate = true; d.codePainted = 'off'; }
+      return;
+    }
+    const code = s.code, id = code?.id || 'none';
+    if (d.codeId !== id) {
+      const fresh = d.codeId !== undefined && code;
+      d.codeId = id;
+      d.codeAnim = fresh ? { start: now, dur: clamp(code.added.length / 0.09, 1500, 9000) } : null;
+    }
+    const a = d.codeAnim, typing = a && now - a.start < a.dur, recent = a && now - a.start < a.dur + 4000;
+    if (!force && !recent) return;
+    if (!force && now - (d.codeDrawn || 0) < (typing ? 70 : 500)) return;
+    d.codeDrawn = now;
+    const len = code ? code.added.length : 0;
+    const shown = typing ? Math.max(1, Math.floor(len * ease(clamp((now - a.start) / a.dur, 0, 1)))) : len;
+    drawCode(d.codeScr, s, d.owner.color, shown, recent ? Math.floor(now / 450) % 2 === 0 : null);
+    d.codeScr.tex.needsUpdate = true;
+    d.codePainted = 'code';
+  }
+
   dash.onUpdate(sync);
 
   // ----- player -----
@@ -1616,7 +1723,7 @@ export function mountOffice(container) {
     hover = null;
     if (locked && mode === 'free') {
       ray.setFromCamera(new THREE.Vector2(0, 0), camera);
-      const targets = [hole, ...desks.map((d) => d.scr.mesh)];
+      const targets = [hole, ...desks.flatMap((d) => [d.scr.mesh, d.codeScr.mesh])];
       for (const p of people.values()) targets.push(p.root);
       for (const hit of ray.intersectObjects(targets, true)) {
         const ud = hit.object.userData;
@@ -1777,6 +1884,7 @@ export function mountOffice(container) {
     if (mode === 'free') movePlayer(dt);
     stepTween(now);
     paintScreens(false);
+    for (const d of desks) if (d.codeAnim) paintCode(d, performance.now(), false);
     updateHover();
     drawMap();
     sky.position.copy(camera.position);

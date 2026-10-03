@@ -25,6 +25,8 @@ const POWERLINE_DIR = path.join(CLAUDE, 'powerline', 'usage');
 const WINDOW_MS = 48 * 3600e3;          // transcripts touched within this window are tracked
 const MAX_EVENTS = 400;                  // per transcript
 const READ_CHUNK = 8 * 1024 * 1024;
+const CODE_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
+const CODE_CAP = 8000;            // chars of written code kept per edit
 
 // ---------- pricing (API-equivalent USD per MTok) ----------
 // [input, output, cacheRead]; cache writes are 1.25x input (5m) or 2x input (1h).
@@ -76,6 +78,19 @@ function toolDetail(name, input = {}) {
   }
 }
 
+// The code a file-writing tool call writes, and what it replaced.
+function codeOf(name, input = {}) {
+  const cap = (x) => String(x ?? '').slice(0, CODE_CAP);
+  switch (name) {
+    case 'Write': return { file: input.file_path, added: cap(input.content), removed: '' };
+    case 'Edit': return { file: input.file_path, added: cap(input.new_string), removed: cap(input.old_string).slice(0, 2000) };
+    case 'MultiEdit': return { file: input.file_path, added: cap((input.edits || []).map((e) => e.new_string).join('\n\n')),
+      removed: cap((input.edits || []).map((e) => e.old_string).join('\n')).slice(0, 2000) };
+    case 'NotebookEdit': return { file: input.notebook_path, added: cap(input.new_source), removed: '' };
+  }
+  return null;
+}
+
 function textOf(content) {
   if (typeof content === 'string') return content;
   if (Array.isArray(content)) return content.filter((c) => c.type === 'text').map((c) => c.text).join(' ');
@@ -99,6 +114,8 @@ class Transcript {
     this.models = {};
     this.tools = {};
     this.pending = new Map();       // tool_use_id -> {name, detail, t}
+    this.code = [];                 // recent file edits: {id, t, tool, file, added, removed}
+    this.codeCount = 0;
     this.events = [];
     this.prompts = 0;
     this.errors = 0;
@@ -204,6 +221,14 @@ class Transcript {
         this.tools[c.name] = (this.tools[c.name] || 0) + 1;
         this.pending.set(c.id, { name: c.name, detail, t });
         this.push({ t, kind: 'tool', name: c.name, text: detail, id: c.id });
+        if (CODE_TOOLS.has(c.name)) {
+          const code = codeOf(c.name, c.input);
+          if (code?.added) {
+            this.code.push({ id: c.id, t, tool: c.name, ...code });
+            if (this.code.length > 6) this.code.shift();
+            this.codeCount++;
+          }
+        }
       } else if (c.type === 'text' && c.text && c.text.trim()) {
         this.push({ t, kind: 'say', text: clip(c.text, 400) });
       }
@@ -222,6 +247,8 @@ class Transcript {
         if (ev && t && ev.t) ev.ms = t - ev.t;
         if (c.is_error) {
           this.errors++;
+          const ce = this.code.find((x) => x.id === c.tool_use_id);
+          if (ce) ce.failed = true;
           if (ev) ev.error = true;
           this.push({ t, kind: 'error', name: p?.name, text: clip(textOf(c.content) || 'Tool error', 220) });
         }
@@ -381,6 +408,42 @@ function subagentsOf(sessionId) {
   return out.sort((a, b) => b.last - a.last);
 }
 
+// Latest successful edit by a session or any of its subagents, with the line it landed on.
+const lineCache = new Map();   // edit id -> start line (1-based) or 0 if unknown
+function latestCode(sessionId, tr) {
+  let best = null, count = tr.codeCount, agent = null;
+  const consider = (t, label) => {
+    for (let i = t.code.length - 1; i >= 0; i--) {
+      const c = t.code[i];
+      if (c.failed) continue;
+      if (!best || c.t > best.t) { best = c; agent = label; }
+      break;
+    }
+  };
+  consider(tr, null);
+  for (const sub of transcripts.values()) {
+    if (sub.parentId !== sessionId || !sub.code.length) continue;
+    count += sub.codeCount;
+    const meta = readJSON(sub.file.replace(/\.jsonl$/, '.meta.json')) || {};
+    consider(sub, meta.description || meta.agentType || 'subagent');
+  }
+  if (!best) return null;
+  if (!lineCache.has(best.id)) {
+    let line = best.tool === 'Write' ? 1 : 0;
+    try {
+      if (!line && fs.statSync(best.file).size < 4e6) {
+        const text = fs.readFileSync(best.file, 'utf8'), at = text.indexOf(best.added.slice(0, 400));
+        if (at >= 0) line = text.slice(0, at).split('\n').length;
+      }
+    } catch {}
+    lineCache.set(best.id, line);
+  }
+  const cwd = tr.cwd || '';
+  return { id: best.id, t: best.t, tool: best.tool, agent, count, line: lineCache.get(best.id),
+    file: cwd && best.file?.startsWith(cwd + '/') ? best.file.slice(cwd.length + 1) : best.file,
+    added: best.added, removed: best.removed };
+}
+
 // The status line's cost already includes subagents; the transcript estimate does not.
 function sessionCost(s) {
   const sl = s.statusline?.cost?.total_cost_usd;
@@ -408,6 +471,7 @@ function buildState() {
         thinking: sl.thinking?.enabled, at: sl._mtime,
       },
       transcript: tr ? transcriptSummary(tr) : null,
+      code: tr ? latestCode(r.sessionId, tr) : null,
       subagents: { total: subs.length, active: subs.filter((s) => s.active).length, cost: subs.reduce((a, s) => a + s.cost, 0), list: subs.slice(0, 12) },
     };
   }).map((s) => ({ ...s, cost: sessionCost(s) }))
