@@ -40,7 +40,23 @@ header { display: flex; align-items: center; gap: 14px; height: 56px; padding: 0
 .tabs button[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.25), 0 0 0 1px var(--border); }
 #view-office { position: fixed; top: 56px; left: 0; right: 0; bottom: 0; display: none; background: var(--page); z-index: 10; overflow: hidden; }
 body[data-view="office"] #view-office { display: block; }
-body[data-view="office"] > main { display: none; }
+body[data-view="office"] > main, body[data-view="admin"] > main { display: none; }
+/* admin */
+#view-admin { display: none; max-width: 1100px; margin: 0 auto; padding: 20px 24px 60px; }
+body[data-view="admin"] #view-admin { display: grid; gap: 16px; }
+.adm-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 13px; }
+.adm-row + .adm-row { margin-top: 12px; }
+.adm-row > .lbl { width: 110px; color: var(--ink-2); }
+.seg { display: inline-flex; background: var(--surface-2); border: 1px solid var(--border); border-radius: 9px; padding: 2px; }
+.seg button, .adm button, .adm a.btn { font: inherit; font-size: 13px; color: var(--ink-2); background: none; border: 1px solid var(--border); border-radius: 8px; padding: 5px 12px; cursor: pointer; text-decoration: none; }
+.seg button { border: 0; border-radius: 7px; }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 0 0 1px var(--border); }
+.adm button.pri { background: var(--accent); border-color: var(--accent); color: #fff; }
+.adm input[type=text], .adm select { font: inherit; font-size: 13px; color: var(--ink); background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 6px 9px; }
+.adm input[type=range] { width: 220px; accent-color: var(--accent); }
+.tv-grid { display: grid; grid-template-columns: 110px minmax(200px, 1fr) 130px auto; gap: 8px 10px; align-items: center; font-size: 13px; }
+.tv-grid .note { grid-column: 2 / -1; font-size: 12px; margin-top: -4px; }
+.tv-grid .note.bad { color: var(--critical); } .tv-grid .note.warn { color: var(--warning); }
 header h1 { font-size: 18px; font-weight: 650; margin: 0; letter-spacing: -0.01em; }
 header .spacer { flex: 1; }
 .conn { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); }
@@ -176,6 +192,7 @@ tr.click:hover td { background: var(--surface-2); }
   <nav class="tabs" role="tablist">
     <button role="tab" data-view="overview" aria-selected="true">Overview</button>
     <button role="tab" data-view="office" aria-selected="false">Office</button>
+    <button role="tab" data-view="admin" aria-selected="false">Admin</button>
   </nav>
   <span class="spacer"></span>
   <span class="conn" id="conn"><i></i><span>connecting…</span></span>
@@ -216,6 +233,25 @@ tr.click:hover td { background: var(--surface-2); }
   </section>
 </main>
 <div id="view-office"></div>
+<div id="view-admin" class="adm">
+  <section class="panel">
+    <h2>Lights <small>office lamps, pendants and bulbs</small></h2>
+    <div class="adm-row"><span class="lbl">Mode</span><span class="seg" id="adm-lights">
+      <button data-v="auto" title="Off in daylight, fade up from dusk">Auto</button><button data-v="on">On</button><button data-v="off">Off</button></span>
+      <span class="muted" id="adm-lights-note"></span></div>
+    <div class="adm-row"><span class="lbl">Brightness</span><input type="range" id="adm-bright" min="10" max="200" step="5"><span class="num" id="adm-bright-v"></span></div>
+  </section>
+  <section class="panel">
+    <h2>Blinds &amp; door <small>your glass office</small></h2>
+    <div class="adm-row"><span class="lbl">Side blinds</span><span class="seg" data-blind="side"><button data-v="0">Raised</button><button data-v="1">Lowered</button></span></div>
+    <div class="adm-row"><span class="lbl">Front blinds</span><span class="seg" data-blind="front"><button data-v="0">Raised</button><button data-v="1">Lowered</button></span></div>
+    <div class="adm-row"><span class="lbl">Door</span><span class="seg" id="adm-door"><button data-v="0">Closed</button><button data-v="1">Open</button></span></div>
+  </section>
+  <section class="panel">
+    <h2>TVs <small>what each wall TV shows · YouTube links, the dashboard, any web page</small></h2>
+    <div class="tv-grid" id="adm-tvs"></div>
+  </section>
+</div>
 
 <aside id="drawer"><div class="dh" id="dh"></div><div class="db" id="db"></div></aside>
 <div id="scrim"></div>
@@ -545,6 +581,7 @@ function connect() {
     for (const cb of dash.listeners) cb(S);
   };
   es.addEventListener('tvs', (m) => { dash.tvs = JSON.parse(m.data); for (const cb of dash.tvListeners) cb(dash.tvs); });
+  es.addEventListener('office', (m) => { dash.office = JSON.parse(m.data); for (const cb of dash.officeListeners) cb(dash.office); });
   es.onerror = () => { conn.className = 'conn off'; conn.lastChild.textContent = 'reconnecting…'; };
 }
 // Bridge for the 3D office view (office.js), which reuses live state, colours and the drawer.
@@ -554,6 +591,24 @@ window.dash = {
   onUpdate(cb) { this.listeners.add(cb); if (S) cb(S); },
   openDrawer, closeDrawer, openPanel,
   tvs: {}, tvListeners: new Set(),
+  // Wall TVs by id (office.js places them) and the auto-refresh choices, shared by the TV panel and the Admin tab.
+  tvList: { 'desks-west': 'Desks west', 'desks-east': 'Desks east', breakroom: 'Breakroom', pingpong: 'Ping pong', lounge: 'Lounge', lobby: 'Lobby' },
+  tvRefresh: [[0, 'Off'], [30, 'Every 30 s'], [60, 'Every minute'], [300, 'Every 5 min'], [900, 'Every 15 min'], [3600, 'Every hour']],
+  async saveTv(id, url, refresh) {
+    const r = await fetch('/api/tvs/' + id, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url, refresh }) })
+      .then((res) => res.json()).catch((e) => ({ error: e.message }));
+    if (!r?.error) { const map = { ...dash.tvs }; if (r) map[id] = r; else delete map[id]; dash.tvs = map; for (const cb of dash.tvListeners) cb(map); }
+    return r;
+  },
+  normUrl: (s) => { s = s.trim(); return !s ? '' : s.startsWith('/') ? location.origin + s : /^[a-z][\w+.-]*:/i.test(s) ? s : (/^(localhost|127\.)/.test(s) ? 'http://' : 'https://') + s; },
+  // Lights, blinds and door (server-side, /api/office). putOffice applies locally at once, then saves.
+  office: { lights: 'auto', brightness: 1, blinds: { side: 0, front: 0 }, door: 0 }, officeListeners: new Set(),
+  putOffice(patch) {
+    const o = dash.office;
+    dash.office = { ...o, ...patch, blinds: { ...o.blinds, ...patch.blinds } };
+    for (const cb of dash.officeListeners) cb(dash.office);
+    fetch('/api/office', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(patch) }).catch(() => {});
+  },
   colorHex(id) {
     const m = sessionColor(id).match(/var\((--[\w-]+)\)/);
     return (m && getComputedStyle(document.documentElement).getPropertyValue(m[1]).trim()) || '#898781';
@@ -579,14 +634,69 @@ async function setView(view) {
       office.show(y);
     } else {
       const y = prev === 'office' && office ? await office.hide() : 0;
-      document.body.dataset.view = 'overview';
-      scrollTo(0, y);
+      document.body.dataset.view = view;
+      scrollTo(0, view === 'overview' ? y : 0);
     }
   } finally { switching = false; }
 }
 dash.setView = setView;
 document.querySelector('.tabs').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) setView(b.dataset.view); });
-setView(location.hash === '#office' ? 'office' : 'overview');
+setView(['#office', '#admin'].includes(location.hash) ? location.hash.slice(1) : 'overview');
+
+// ---------- admin ----------
+// Office controls. Built once; syncAdmin() refreshes values from dash.office / dash.tvs without clobbering a URL being edited.
+function buildAdmin() {
+  setHTML($('adm-tvs'), Object.entries(dash.tvList).map(([id, name]) => `
+    <b>${esc(name)}</b><input type="text" data-tv="${id}" data-f="url" placeholder="Off · paste a URL" spellcheck="false" autocomplete="off">
+    <select data-tv="${id}" data-f="refresh" title="Auto-refresh">${dash.tvRefresh.map(([v, l]) => `<option value="${v}">${v ? l : 'No refresh'}</option>`).join('')}</select>
+    <span style="display:flex;gap:6px"><button class="pri" data-tv="${id}" data-act="save">Save</button><button data-tv="${id}" data-act="off">Turn off</button><a class="btn" data-tv="${id}" target="_blank" rel="noopener">↗</a></span>
+    <div class="note muted" data-tv="${id}" data-f="note"></div>`).join(''));
+  const adm = $('view-admin');
+  adm.addEventListener('click', async (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    if (b.closest('#adm-lights')) dash.putOffice({ lights: b.dataset.v });
+    else if (b.closest('[data-blind]')) dash.putOffice({ blinds: { [b.closest('[data-blind]').dataset.blind]: +b.dataset.v } });
+    else if (b.closest('#adm-door')) dash.putOffice({ door: +b.dataset.v });
+    else if (b.dataset.act) {
+      const id = b.dataset.tv, q = (f) => adm.querySelector(`[data-tv="${id}"][data-f="${f}"]`), note = q('note');
+      const url = b.dataset.act === 'off' ? '' : dash.normUrl(q('url').value), refresh = b.dataset.act === 'off' ? 0 : +q('refresh').value;
+      note.dataset.busy = '1'; note.className = 'note muted'; note.textContent = url ? 'Saving and checking whether the site can be shown…' : 'Turning off…';
+      const r = await dash.saveTv(id, url, refresh);
+      delete note.dataset.busy;
+      if (r?.error) { note.dataset.busy = 'err'; note.className = 'note bad'; note.textContent = `Couldn't save: ${r.error}`; return; }
+      delete q('url').dataset.dirty;
+      syncAdmin();
+    }
+  });
+  adm.addEventListener('input', (e) => {
+    if (e.target.id === 'adm-bright') { $('adm-bright-v').textContent = e.target.value + '%'; dash.putOffice({ brightness: e.target.value / 100 }); }
+    else if (e.target.dataset.f === 'url') { e.target.dataset.dirty = '1'; delete $('view-admin').querySelector(`[data-tv="${e.target.dataset.tv}"][data-f="note"]`).dataset.busy; }
+  });
+  adm.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.dataset.f === 'url') adm.querySelector(`[data-tv="${e.target.dataset.tv}"][data-act="save"]`).click(); });
+  dash.officeListeners.add(syncAdmin); dash.tvListeners.add(syncAdmin);
+  syncAdmin();
+}
+function syncAdmin() {
+  const o = dash.office, adm = $('view-admin');
+  const press = (seg, v) => { for (const b of seg.querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.v === String(v))); };
+  press($('adm-lights'), o.lights);
+  $('adm-lights-note').textContent = o.lights === 'auto' ? 'off in daylight, on from dusk' : '';
+  for (const seg of adm.querySelectorAll('[data-blind]')) press(seg, o.blinds?.[seg.dataset.blind] ?? 0);
+  press($('adm-door'), o.door);
+  const pct = Math.round((o.brightness ?? 1) * 100);
+  if (document.activeElement !== $('adm-bright')) $('adm-bright').value = pct;
+  $('adm-bright-v').textContent = pct + '%';
+  for (const id of Object.keys(dash.tvList)) {
+    const c = dash.tvs[id], q = (f) => adm.querySelector(`[data-tv="${id}"][data-f="${f}"]`), url = q('url'), note = q('note');
+    if (!url.dataset.dirty && document.activeElement !== url) { url.value = c?.url || ''; q('refresh').value = String(c?.refresh || 0); }
+    const link = adm.querySelector(`a[data-tv="${id}"]`); link.href = c?.url || '#'; link.style.visibility = c ? '' : 'hidden';
+    if (note.dataset.busy) continue;   // saving, or showing a save error until the URL is edited
+    note.className = 'note ' + (c?.blocked ? 'warn' : 'muted');
+    note.textContent = !c ? 'Off' : c.blocked ? `Can't be shown on the TV: ${c.blocked}` : `Showing${c.refresh ? ' · refreshes ' + dash.tvRefresh.find(([v]) => v === c.refresh)?.[1].toLowerCase() : ''}`;
+  }
+}
+buildAdmin();
 connect();
 // Keep relative times ticking between pushes.
 setInterval(() => { for (const el of document.querySelectorAll('[data-rel]')) el.textContent = relText(el.dataset.rel, Number(el.dataset.t)); }, 1000);

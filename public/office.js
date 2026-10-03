@@ -862,7 +862,7 @@ export function mountOffice(container) {
   // World axes: +x east, +z north, so evening sun pours in through the west windows.
   const toDir = (p, v) => v.set(Math.sin(p.az) * Math.cos(p.el), Math.sin(p.el), Math.cos(p.az) * Math.cos(p.el));
   const sunDir = new THREE.Vector3(), moonDir = new THREE.Vector3();
-  let daylight = 1;
+  let daylight = 1, lampK = 0;
   let raysStrength = 0, lastEnvEl = 999, lastEnvAt = 0, envRT = null;
   function updateSky(date, t) {
     const sp = sunPos(date), mp = moonPos(date);
@@ -892,11 +892,13 @@ export function mountOffice(container) {
     scene.environmentIntensity = lerp(0.1, 0.42, dl);
     scene.fog.color.copy(hor).lerp(horSun, 0.3); scene.background.copy(scene.fog.color);
     renderer.toneMappingExposure = lerp(1.12, 1.0, dl) + 0.06 * sunset;
-    // Lamps are off in daylight (the windows light the office) and fade up from dusk as the sun drops below ~12°.
-    const evening = 1 - dl;
+    // Lamps follow the Admin tab: 'auto' keeps them off in daylight (the windows light the office) and fades them up from
+    // dusk as the sun drops below ~12°; 'on'/'off' override that. Eased so switching doesn't snap.
+    const o = dash.office || {}, lampTo = (o.lights === 'on' ? 1 : o.lights === 'off' ? 0 : 1 - dl) * (o.brightness ?? 1);
+    lampK += (lampTo - lampK) * 0.08;
     for (const L of lamps) {
-      if (L.light) L.light.intensity = L.base * evening;
-      if (L.mat) L.mat.emissiveIntensity = L.eBase * evening;
+      if (L.light) L.light.intensity = L.base * lampK;
+      if (L.mat) L.mat.emissiveIntensity = L.eBase * lampK;
     }
     ceilingM.emissiveIntensity = 0.04 + 0.2 * dl;
     city.mat.emissiveIntensity = 0.04 + 1.25 * night;
@@ -1564,7 +1566,7 @@ export function mountOffice(container) {
     return t.tex;
   })();
   // Venetian blinds: k 0 = raised, 1 = lowered with slats tilted ~57°, leaving thin slits of light. Instanced slats per glass run.
-  const slatM = mat('#e6e1d6', { roughness: 0.95, envMapIntensity: 0.25 }), blinds = { side: { k: 0, to: 0, runs: [] }, front: { k: 0, to: 0, runs: [] } };
+  const slatM = mat('#e6e1d6', { roughness: 0.95, envMapIntensity: 0.25 }), blinds = { side: { key: 'side', k: 0, to: 0, runs: [] }, front: { key: 'front', k: 0, to: 0, runs: [] } };
   const BL = { top: ROOM.h - 0.12, sp: 0.05, stack: 0.008 }, _m4 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _v = new THREE.Vector3(), _s = new THREE.Vector3(1, 1, 1);
   BL.n = Math.floor((BL.top - 0.08) / BL.sp);
   function layBlind(r, k) {
@@ -1701,7 +1703,8 @@ export function mountOffice(container) {
   // Each shows a URL set from its panel (stored server-side, /api/tvs). Only the nearest few in view get a live iframe,
   // projected with CSS3D behind a punched hole like the centre monitor; the rest show a painted card and cost nothing.
   const TV_PX = 1280, tvs = [], tvProxies = [];
-  function tvSet(id, name, x, y, z, rotY, w, hung) {
+  function tvSet(id, x, y, z, rotY, w, hung) {
+    const name = dash.tvList[id];
     const h = w * 9 / 16, g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = rotY; world.add(g);
     box(g, w + 0.08, h + 0.08, 0.06, '#111214', 0, 0, -0.03, { mat: { roughness: 0.4 } });
     if (hung) for (const dx of [-w / 3, w / 3]) cyl(g, 0.01, 0.01, ROOM.h - y - h / 2, '#222', dx, (ROOM.h - y + h / 2) / 2, -0.03, { shadow: false });
@@ -1744,12 +1747,12 @@ export function mountOffice(container) {
     }
     t.scr.tex.needsUpdate = true;
   }
-  tvSet('desks-west', 'Desks west', -16.2, 2.05, -14.8, 0, 2.4);
-  tvSet('desks-east', 'Desks east', -0.4, 2.05, -14.8, 0, 2.4);
-  tvSet('breakroom', 'Breakroom', -14, 2.15, 2.42, 0, 1.8, true);
-  tvSet('pingpong', 'Ping pong', 3.69, 1.6, 8, -Math.PI / 2, 1.4);
-  tvSet('lounge', 'Lounge', 11, 1.75, 14.78, Math.PI, 2.6);
-  tvSet('lobby', 'Lobby', 17.6, 2.15, -3.3, 0, 2.0, true);
+  tvSet('desks-west', -16.2, 2.05, -14.8, 0, 2.4);
+  tvSet('desks-east', -0.4, 2.05, -14.8, 0, 2.4);
+  tvSet('breakroom', -14, 2.15, 2.42, 0, 1.8, true);
+  tvSet('pingpong', 3.69, 1.6, 8, -Math.PI / 2, 1.4);
+  tvSet('lounge', 11, 1.75, 14.78, Math.PI, 2.6);
+  tvSet('lobby', 17.6, 2.15, -3.3, 0, 2.0, true);
 
   function mountTv(t, now) {
     const el = document.createElement('div');
@@ -1826,13 +1829,20 @@ export function mountOffice(container) {
   }
   dash.tvListeners.add(applyTvs);
   applyTvs(dash.tvs);
+  // Blinds and door follow the shared office settings (Admin tab, or a click in another browser).
+  function applyOffice(o) {
+    for (const [k, v] of Object.entries(o?.blinds || {})) if (blinds[k]) blinds[k].to = v;
+    if (o && 'door' in o) door.to = o.door;
+  }
+  dash.officeListeners.add(applyOffice);
+  applyOffice(dash.office);
   // Pages inside a TV must never keep keyboard focus, or WASD stops reaching the office.
   addEventListener('blur', () => setTimeout(() => { if (active && document.activeElement?.closest?.('.of-tv')) document.activeElement.blur(); }));
 
   // TV config lives in the drawer.
-  const TV_REFRESH = [[0, 'Off'], [30, 'Every 30 s'], [60, 'Every minute'], [300, 'Every 5 min'], [900, 'Every 15 min'], [3600, 'Every hour']];
+  const TV_REFRESH = dash.tvRefresh;
   const NO_FRAME = /(^|\.)(github\.com|gitlab\.com|bitbucket\.org|x\.com|twitter\.com|facebook\.com|instagram\.com|linkedin\.com|reddit\.com|stackoverflow\.com|google\.com|notion\.so|slack\.com|claude\.ai|chatgpt\.com|amazon\.com|netflix\.com|linear\.app)$/;
-  const normUrl = (s) => { s = s.trim(); return !s ? '' : s.startsWith('/') ? location.origin + s : /^[a-z][\w+.-]*:/i.test(s) ? s : (/^(localhost|127\.)/.test(s) ? 'http://' : 'https://') + s; };
+  const normUrl = dash.normUrl;
   function openTvPanel(t) {
     const c = t.cfg || {};
     const db = dash.openPanel(`<div style="font-size:19px;font-weight:650">${escapeHtml(t.name)} TV</div><div class="muted" style="font-size:12px">Shows a web page live on the office wall</div>`,
@@ -2066,8 +2076,8 @@ export function mountOffice(container) {
     if (!hover) return;
     if (hover.action === 'computer') { document.exitPointerLock(); dash.setView('overview'); }
     else if (hover.sessionId) { document.exitPointerLock(); dash.openDrawer(hover.sessionId); }
-    else if (hover.action === 'blinds') hover.blind.to = hover.blind.to ? 0 : 1;
-    else if (hover.action === 'door') door.to = door.to ? 0 : 1;
+    else if (hover.action === 'blinds') { hover.blind.to = hover.blind.to ? 0 : 1; dash.putOffice({ blinds: { [hover.blind.key]: hover.blind.to } }); }
+    else if (hover.action === 'door') { door.to = door.to ? 0 : 1; dash.putOffice({ door: door.to }); }
     else if (hover.tv) {
       document.exitPointerLock();
       if (hover.tv.cfg?.blocked && !e.shiftKey) open(hover.tv.cfg.url, '_blank', 'noopener'); else openTvPanel(hover.tv);
