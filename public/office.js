@@ -843,10 +843,11 @@ export function mountOffice(container) {
     scene.environmentIntensity = lerp(0.1, 0.42, dl);
     scene.fog.color.copy(hor).lerp(horSun, 0.3); scene.background.copy(scene.fog.color);
     renderer.toneMappingExposure = lerp(1.12, 1.0, dl) + 0.06 * sunset;
+    // Lamps are off in daylight (the windows light the office) and fade up from dusk as the sun drops below ~12°.
     const evening = 1 - dl;
     for (const L of lamps) {
-      if (L.light) L.light.intensity = L.base * (0.3 + 0.7 * evening);
-      if (L.mat) L.mat.emissiveIntensity = L.eBase * (0.45 + 0.55 * evening);
+      if (L.light) L.light.intensity = L.base * evening;
+      if (L.mat) L.mat.emissiveIntensity = L.eBase * evening;
     }
     ceilingM.emissiveIntensity = 0.04 + 0.2 * dl;
     city.mat.emissiveIntensity = 0.04 + 1.25 * night;
@@ -1206,13 +1207,16 @@ export function mountOffice(container) {
   }
 
   // ----- furniture helpers -----
+  const LAMP_DIM = 0.6, GLOW_DIM = 0.6;   // overall dimmer for lamp light and the glow of bulbs/shades
   function addLamp(x, y, z, base) {
+    base *= LAMP_DIM;
     const l = new THREE.PointLight('#ffc98a', base, 16, 2);
     l.position.set(x, y, z);
     world.add(l);
     lamps.push({ light: l, base });
   }
   const glowMat = (eBase, color = '#fff3dd') => {
+    eBase *= GLOW_DIM;
     const m = new THREE.MeshStandardMaterial({ color, emissive: '#ffcf8a', emissiveIntensity: eBase, roughness: 0.9, side: THREE.DoubleSide });
     lamps.push({ mat: m, eBase });
     return m;
