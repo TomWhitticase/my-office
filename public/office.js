@@ -1189,21 +1189,11 @@ export function mountOffice(container) {
   solid(17.6, -1.9, 2.7, 0.85);
   plant(19.3, -2.7, 1.1);
 
-  // Brick feature wall with the logo in the lounge.
+  // Brick feature wall in the lounge.
   {
     const bt = brickTexture();
     bt.repeat.set(5, 1.7);
     box(world, 10, ROOM.h, 0.06, '', 11, ROOM.h / 2, 14.87, { material: new THREE.MeshStandardMaterial({ map: bt, roughness: 0.95 }) });
-    const logo = makeScreen(world, 4, 1, 1024, 256, 11, 2.05, 14.83);
-    logo.mesh.rotation.y = Math.PI;
-    const { ctx } = logo;
-    ctx.clearRect(0, 0, 1024, 256);
-    ctx.fillStyle = 'rgba(28,27,26,0.92)'; ctx.beginPath(); ctx.roundRect(0, 0, 1024, 256, 40); ctx.fill();
-    ctx.strokeStyle = '#d97757'; ctx.lineWidth = 14; ctx.lineCap = 'round';
-    for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; ctx.beginPath(); ctx.moveTo(150 + Math.cos(a) * 24, 128 + Math.sin(a) * 24); ctx.lineTo(150 + Math.cos(a) * 82, 128 + Math.sin(a) * 82); ctx.stroke(); }
-    ctx.font = `700 120px ${FONT}`; ctx.fillStyle = '#f3ece0'; ctx.fillText('Claude HQ', 270, 170);
-    logo.mesh.material.transparent = true;
-    logo.tex.needsUpdate = true;
   }
 
   // ----- furniture helpers -----
