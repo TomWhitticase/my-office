@@ -1734,7 +1734,7 @@ export function mountOffice(container) {
   for (const dx of [-1.3, 1.3]) box(world, 0.06, 0.72, 1, '', 10 + dx, 0.36, 9, { material: legM });
   solid(10, 9, 3, 1.2);
   for (const dx of [-1, 0, 1]) { officeChair(10 + dx, 8.15, 0, '#7a8796'); officeChair(10 + dx, 9.85, Math.PI, '#7a8796'); }
-  plant(3.5, 3.4); plant(19.2, 14.2, 1.2); plant(19.2, 3.2); plant(5.4, -2.9, 0.9);
+  plant(3.5, 3.4); plant(19.2, 14.2, 1.2); plant(5.4, -2.9, 0.9);
   sofa(16.5, 13.9, Math.PI, 2.6, '#8a6f5a');
 
   pendant(9.3, 9, { light: 14, shade: '#2f463b' }); pendant(10.7, 9, { shade: '#2f463b' });
