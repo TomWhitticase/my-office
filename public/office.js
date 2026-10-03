@@ -1319,7 +1319,7 @@ export function mountOffice(container) {
       sh.uniforms.uTime = time;
       sh.vertexShader = 'uniform float uTime;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
         { float ph = dot(instanceMatrix[3].xyz, vec3(3.1, 1.7, 2.3)), w = position.y * position.y;
-          transformed.x += sin(uTime * 1.3 + ph) * 0.06 * w; transformed.z += sin(uTime * 2.1 + ph * 1.7) * 0.04 * w; }`);
+          transformed.x += sin(uTime * 0.6 + ph) * 0.01 * w; transformed.z += sin(uTime * 0.9 + ph * 1.7) * 0.007 * w; }`);
     };
     const leafM = new THREE.MeshStandardMaterial({ map, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.7 });
     const depthM = new THREE.MeshDepthMaterial({ map, alphaTest: 0.5, depthPacking: THREE.RGBADepthPacking });
@@ -1549,7 +1549,7 @@ export function mountOffice(container) {
     return t.tex;
   })();
   // Venetian blinds: k 0 = raised, 1 = lowered with slats tilted shut. Instanced slats per glass run.
-  const slatM = mat('#e6e1d6', { roughness: 0.55, metalness: 0.15 }), blinds = { side: { k: 0, to: 0, runs: [] }, front: { k: 0, to: 0, runs: [] } };
+  const slatM = mat('#e6e1d6', { roughness: 0.95, envMapIntensity: 0.25 }), blinds = { side: { k: 0, to: 0, runs: [] }, front: { k: 0, to: 0, runs: [] } };
   const BL = { top: ROOM.h - 0.12, sp: 0.05, stack: 0.008 }, _m4 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _v = new THREE.Vector3(), _s = new THREE.Vector3(1, 1, 1);
   BL.n = Math.floor((BL.top - 0.08) / BL.sp);
   function layBlind(r, k) {
