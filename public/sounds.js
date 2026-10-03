@@ -320,8 +320,8 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos }) {
     if (!ctx || ctx.state !== 'running') return;
     if (prevK !== null) {
       const ph = prevK % 1, u = k % 1;
-      if (k < prevK || (prevK < 1 && k >= 1)) play(pick(B.paddle), ball.x, ball.y, ball.z, 0.55, rnd(0.95, 1.05));
-      else if (ph < BOUNCE && u >= BOUNCE) play(pick(B.table), ball.x, 0.78, ball.z, 0.45, rnd(0.95, 1.05));
+      if (k < prevK || (prevK < 1 && k >= 1)) play(pick(B.paddle), ball.x, ball.y, ball.z, 0.16, rnd(0.95, 1.05));
+      else if (ph < BOUNCE && u >= BOUNCE) play(pick(B.table), ball.x, 0.78, ball.z, 0.13, rnd(0.95, 1.05));
     }
     prevK = k;
   }
