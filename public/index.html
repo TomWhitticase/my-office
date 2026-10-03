@@ -252,6 +252,14 @@ tr.click:hover td { background: var(--surface-2); }
     <div class="adm-row"><span class="lbl">Door</span><span class="seg" id="adm-door"><button data-v="0">Closed</button><button data-v="1">Open</button></span></div>
   </section>
   <section class="panel">
+    <h2>Window blinds <small>the outside windows</small></h2>
+    <div class="adm-row"><span class="lbl">North wall</span><span class="seg" data-blind="north"><button data-v="0">Raised</button><button data-v="1">Lowered</button></span></div>
+    <div class="adm-row"><span class="lbl">East wall</span><span class="seg" data-blind="east"><button data-v="0">Raised</button><button data-v="1">Lowered</button></span></div>
+    <div class="adm-row"><span class="lbl">West wall</span><span class="seg" data-blind="west"><button data-v="0">Raised</button><button data-v="1">Lowered</button></span></div>
+    <div class="adm-row"><span class="lbl">My office</span><span class="seg" data-blind="office"><button data-v="0">Raised</button><button data-v="1">Lowered</button></span></div>
+    <div class="adm-row"><span class="lbl">Every blind</span><span style="display:flex;gap:6px"><button data-all="0">Raise all</button><button data-all="1">Lower all</button></span></div>
+  </section>
+  <section class="panel">
     <h2>TVs <small>each wall TV is a live browser tab · any web page, YouTube, the dashboard · click a TV in the office to use it</small></h2>
     <div class="tv-grid" id="adm-tvs"></div>
   </section>
@@ -625,7 +633,7 @@ window.dash = {
   },
   normUrl: (s) => { s = s.trim(); return !s ? '' : s.startsWith('/') ? location.origin + s : /^[a-z][\w+.-]*:/i.test(s) ? s : (/^(localhost|127\.)/.test(s) ? 'http://' : 'https://') + s; },
   // Lights, blinds and door (server-side, /api/office). putOffice applies locally at once, then saves.
-  office: { lights: 'auto', brightness: 1, blinds: { side: 0, front: 0 }, door: 0 }, officeListeners: new Set(),
+  office: { lights: 'auto', brightness: 1, blinds: { side: 0, front: 0, north: 0, east: 0, west: 0, office: 0 }, door: 0 }, officeListeners: new Set(),
   putOffice(patch) {
     const o = dash.office;
     dash.office = { ...o, ...patch, blinds: { ...o.blinds, ...patch.blinds } };
@@ -682,6 +690,7 @@ function buildAdmin() {
     if (b.closest('#adm-lights')) dash.putOffice({ lights: b.dataset.v });
     else if (b.closest('[data-blind]')) dash.putOffice({ blinds: { [b.closest('[data-blind]').dataset.blind]: +b.dataset.v } });
     else if (b.closest('#adm-door')) dash.putOffice({ door: +b.dataset.v });
+    else if (b.dataset.all) dash.putOffice({ blinds: Object.fromEntries([...adm.querySelectorAll('[data-blind]')].map((s) => [s.dataset.blind, +b.dataset.all])) });
     else if (b.dataset.act === 'mute') { if (dash.tvs[b.dataset.tv]) dash.patchTv(b.dataset.tv, { muted: !dash.tvs[b.dataset.tv].muted }); }
     else if (b.dataset.act) {
       const id = b.dataset.tv, q = (f) => adm.querySelector(`[data-tv="${id}"][data-f="${f}"]`), note = q('note');

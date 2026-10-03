@@ -992,7 +992,9 @@ export function mountOffice(container) {
   const sillM = mat('#a87447', { roughness: 0.6 });
   const outerGlassM = new THREE.MeshBasicMaterial({ color: '#cfe3ee', transparent: true, opacity: 0.05, depthWrite: false });
   // Outer wall along x (z fixed) or z (x fixed); `windows` are [from, to] spans of floor-to-ceiling glazing.
-  const panes = [];
+  // Window blinds are grouped per wall; the stretch of east wall inside my office is its own group.
+  const WIN = ['north', 'east', 'west', 'office'], winKey = (axis, fixed, u) => axis === 'x' ? 'north' : fixed < 0 ? 'west' : u < -3.5 ? 'office' : 'east';
+  const panes = [], winRuns = [];
   function wall(axis, fixed, from, to, windows = [], m = wallM) {
     const inward = Math.sign(-fixed);
     const seg = (a, b, y0, y1, material = m, depth = 0.2, off = 0, shadow = true) => {
@@ -1005,11 +1007,12 @@ export function mountOffice(container) {
     for (const [a, b] of windows) {
       if (a > cur) seg(cur, a, 0, H);
       seg(a, b, 0, 0.45); seg(a, b, 3.05, H);
-      seg(a, b, 0.45, 3.05, outerGlassM, 0.02, 0, false);
+      const glass = seg(a, b, 0.45, 3.05, outerGlassM, 0.02, 0, false);
       seg(a, b, 0.45, 0.49, sillM, 0.3, 0.12);
       const n = Math.max(1, Math.round((b - a) / 2.5)), step = (b - a) / n;
+      winRuns.push({ axis, fixed, a, b, n, step, inward, glass });
       for (let q = 0; q <= n; q++) seg(a + q * step - 0.04, a + q * step + 0.04, 0.45, 3.05, frameM, 0.12);
-      for (let q = 0; q < n; q++) panes.push({ axis, fixed, a: a + q * step + 0.04, b: a + (q + 1) * step - 0.04, inward });
+      for (let q = 0; q < n; q++) panes.push({ axis, fixed, a: a + q * step + 0.04, b: a + (q + 1) * step - 0.04, inward, win: WIN.indexOf(winKey(axis, fixed, a + (q + 0.5) * step)) });
       seg(a, b, 2.3, 2.36, frameM, 0.1);
       cur = b;
     }
@@ -1026,26 +1029,28 @@ export function mountOffice(container) {
     world.add(mergedBoxes(slats, mat('#b07d4f', { roughness: 0.7 })));
   }
   // Sunbeams: each window pane swept along the light direction, drawn additively and faded with depth.
-  const shaftU = { uLight: { value: new THREE.Vector3(0, -1, 0) }, color: { value: new THREE.Color() }, strength: { value: 0 }, time: { value: 0 } };
+  // `shut` is how much each window group's blinds cut the light (0 raised, ~0.9 lowered).
+  const shaftU = { uLight: { value: new THREE.Vector3(0, -1, 0) }, color: { value: new THREE.Color() }, strength: { value: 0 }, time: { value: 0 }, shut: { value: WIN.map(() => 0) } };
   const shafts = (() => {
-    const pos = [], along = [], nIn = [], idx = [];
+    const pos = [], along = [], nIn = [], win = [], idx = [];
     for (const p of panes) {
       const y0 = 0.49, y1 = 3.05;
       const cs = p.axis === 'x' ? [[p.a, y0, p.fixed], [p.b, y0, p.fixed], [p.b, y1, p.fixed], [p.a, y1, p.fixed]]
         : [[p.fixed, y0, p.a], [p.fixed, y0, p.b], [p.fixed, y1, p.b], [p.fixed, y1, p.a]];
       const nrm = p.axis === 'x' ? [0, 0, p.inward] : [p.inward, 0, 0], base = pos.length / 3;
-      for (const t of [0, 1]) for (const c of cs) { pos.push(...c); along.push(t); nIn.push(...nrm); }
+      for (const t of [0, 1]) for (const c of cs) { pos.push(...c); along.push(t); nIn.push(...nrm); win.push(p.win); }
       for (const [a, b, c, d] of [[0, 1, 2, 3], [4, 5, 6, 7], [0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [3, 0, 4, 7]]) idx.push(base + a, base + b, base + c, base + a, base + c, base + d);
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     g.setAttribute('along', new THREE.Float32BufferAttribute(along, 1));
     g.setAttribute('nIn', new THREE.Float32BufferAttribute(nIn, 3));
+    g.setAttribute('win', new THREE.Float32BufferAttribute(win, 1));
     g.setIndex(idx);
     const m = new THREE.Mesh(g, new THREE.ShaderMaterial({
       uniforms: shaftU, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
-      vertexShader: `attribute float along; attribute vec3 nIn; uniform vec3 uLight; varying float vA; varying float vFace; varying vec3 vW;
-        void main() { vec3 p = position + along * 16.0 * uLight; vA = along; vFace = max(dot(uLight, nIn), 0.0);
+      vertexShader: `attribute float along; attribute vec3 nIn; attribute float win; uniform vec3 uLight; uniform float shut[${WIN.length}]; varying float vA; varying float vFace; varying vec3 vW;
+        void main() { vec3 p = position + along * 16.0 * uLight; vA = along; vFace = max(dot(uLight, nIn), 0.0) * (1.0 - shut[int(win + 0.5)]);
           vec4 w = modelMatrix * vec4(p, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
       fragmentShader: `uniform vec3 color; uniform float strength, time; varying float vA; varying float vFace; varying vec3 vW;
         void main() {
@@ -1656,21 +1661,29 @@ export function mountOffice(container) {
     t.tex.wrapS = THREE.RepeatWrapping; t.tex.needsUpdate = true;
     return t.tex;
   })();
-  // Venetian blinds: k 0 = raised, 1 = lowered with slats tilted ~57°, leaving thin slits of light. Instanced slats per glass run.
-  const slatM = mat('#e6e1d6', { roughness: 0.95, envMapIntensity: 0.25 }), blinds = { side: { key: 'side', k: 0, to: 0, runs: [] }, front: { key: 'front', k: 0, to: 0, runs: [] } };
-  const BL = { top: ROOM.h - 0.12, sp: 0.05, stack: 0.008 }, _m4 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _v = new THREE.Vector3(), _s = new THREE.Vector3(1, 1, 1);
-  BL.n = Math.floor((BL.top - 0.08) / BL.sp);
+  // Venetian blinds: k 0 = raised, 1 = lowered with slats tilted ~57°, leaving thin slits of light.
+  // A run is one InstancedMesh of slats (and one of bottom rails) for a row of [x, width] cells hanging from `top` down to `bot`.
+  const slatM = mat('#e6e1d6', { roughness: 0.95, envMapIntensity: 0.25 }), railM = mat('#cfc9bd'), blinds = {};
+  for (const [key, name] of [['side', 'Blinds'], ['front', 'Blinds'], ['north', 'North window blinds'], ['east', 'East window blinds'], ['west', 'West window blinds'], ['office', 'Window blinds']]) blinds[key] = { key, name, k: 0, to: 0, runs: [] };
+  const BL = { top: ROOM.h - 0.12, sp: 0.05, stack: 0.008, slatG: new THREE.BoxGeometry(1, 0.004, 0.058), railG: new THREE.BoxGeometry(1, 0.02, 0.06) };
+  const _m4 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _q0 = new THREE.Quaternion(), _e = new THREE.Euler(), _v = new THREE.Vector3(), _s = new THREE.Vector3(1, 1, 1);
+  const blindShut = (k) => clamp(k * 1.35, 0, 1) * 0.55 + clamp((k - 0.72) / 0.28, 0, 1) * 0.35;
   function layBlind(r, k) {
     const drop = clamp(k * 1.35, 0, 1), tilt = clamp((k - 0.72) / 0.28, 0, 1) * 1.0;
-    const railY = lerp(BL.top - BL.n * BL.stack - 0.02, 0.06, drop);
-    r.rail.position.y = railY;
+    const railY = lerp(r.top - r.n * BL.stack - 0.02, r.bot, drop);
     _q.setFromEuler(_e.set(tilt, 0, 0));
-    for (let i = 0; i < BL.n; i++) {
-      _m4.compose(_v.set(0, Math.max(BL.top - (i + 1) * BL.sp, railY + (BL.n - i) * BL.stack), 0), _q, _s);
-      r.slats.setMatrixAt(i, _m4);
-    }
-    r.slats.instanceMatrix.needsUpdate = true;
-    r.slats.computeBoundingSphere();
+    r.cells.forEach(([x, w], c) => {
+      _s.x = w;
+      r.rails.setMatrixAt(c, _m4.compose(_v.set(x, railY, 0), _q0, _s));
+      for (let i = 0; i < r.n; i++) r.slats.setMatrixAt(c * r.n + i, _m4.compose(_v.set(x, Math.max(r.top - (i + 1) * BL.sp, railY + (r.n - i) * BL.stack), 0), _q, _s));
+    });
+    for (const m of [r.slats, r.rails]) { m.instanceMatrix.needsUpdate = true; m.computeBoundingSphere(); }
+  }
+  function hangBlind(g, cells, top, bot, z, bl) {
+    const n = Math.floor((top - bot - 0.02) / BL.sp), r = { cells, top, bot, n, slats: new THREE.InstancedMesh(BL.slatG, slatM, n * cells.length), rails: new THREE.InstancedMesh(BL.railG, railM, cells.length) };
+    g.add(mergedBoxes(cells.map(([x, w]) => [w, 0.05, 0.07, x, top + 0.03, z]), mat('#d9d4c9')));
+    for (const m of [r.slats, r.rails]) { m.position.z = z; m.castShadow = true; m.userData = { action: 'blinds', blind: bl, reach: 6 }; g.add(m); }
+    bl.runs.push(r); layBlind(r, 0);
   }
   function glass(axis, fixed, from, to, bl) {
     const len = to - from, mid = (from + to) / 2, X = axis === 'x';
@@ -1687,16 +1700,24 @@ export function mountOffice(container) {
     // Blind hangs on the office side of the glass.
     const g = new THREE.Group();
     g.position.set(X ? mid : fixed, 0, X ? fixed : mid); g.rotation.y = X ? Math.PI : Math.PI / 2; world.add(g);
-    const w = len - 0.2;
-    box(g, w, 0.05, 0.07, '#d9d4c9', 0, ROOM.h - 0.09, 0.11);
-    const r = { slats: new THREE.InstancedMesh(new THREE.BoxGeometry(w, 0.004, 0.058), slatM, BL.n), rail: box(g, w, 0.02, 0.06, '#cfc9bd', 0, 0, 0.11) };
-    r.slats.position.z = 0.11; r.slats.castShadow = true; g.add(r.slats);
-    r.slats.userData = r.rail.userData = { action: 'blinds', blind: bl, reach: 6 };
-    bl.runs.push(r); layBlind(r, 0);
+    hangBlind(g, [[0, len - 0.2]], BL.top, 0.06, 0.11, bl);
   }
   glass('z', 6, -15, -3.5, blinds.side);
   glass('x', -3.5, 6, 7, blinds.front);
   glass('x', -3.5, 8.4, 20, blinds.front);
+  // Outside windows: a blind per pane just inside the glass, above the sill. One run per wall stretch and group.
+  for (const w of winRuns) {
+    const X = w.axis === 'x', mid = (w.a + w.b) / 2, g = new THREE.Group(), cells = {};
+    g.position.set(X ? mid : w.fixed, 0, X ? w.fixed : mid); g.rotation.y = X ? (w.inward > 0 ? 0 : Math.PI) : w.inward * Math.PI / 2; world.add(g);
+    const sx = X ? Math.cos(g.rotation.y) : -Math.sin(g.rotation.y);
+    const cell = (a, b) => (cells[winKey(w.axis, w.fixed, (a + b) / 2)] ||= []).push([((a + b) / 2 - mid) * sx, b - a]);
+    for (let q = 0; q < w.n; q++) {
+      const a = w.a + q * w.step + 0.07, b = w.a + (q + 1) * w.step - 0.07;
+      if (!X && w.fixed > 0 && a < -3.5 && b > -3.5) { cell(a, -3.56); cell(-3.44, b); } else cell(a, b);   // my office's glass meets the east wall here
+    }
+    for (const [key, cs] of Object.entries(cells)) hangBlind(g, cs, 3.0, 0.53, 0.16, blinds[key]);
+    w.glass.userData = { action: 'blinds', glass: true, reach: 3.5, blindAt: (p) => blinds[winKey(w.axis, w.fixed, X ? p.x : p.z)] };
+  }
   for (const x of [7, 8.4]) box(world, 0.06, ROOM.h, 0.06, '', x, ROOM.h / 2, -3.5, { material: frameM, shadow: false });
   box(world, 1.46, 0.08, 0.08, '', 7.7, 2.24, -3.5, { material: frameM, shadow: false });
   box(world, 1.34, ROOM.h - 2.34, 0.03, '', 7.7, (ROOM.h + 2.28) / 2, -3.5, { material: glassM, shadow: false });
@@ -1724,6 +1745,7 @@ export function mountOffice(container) {
     for (const b of Object.values(blinds)) if (b.k !== b.to) {
       b.k = b.to > b.k ? Math.min(b.to, b.k + dt / 1.6) : Math.max(b.to, b.k - dt / 1.6);
       for (const r of b.runs) layBlind(r, b.k);
+      if (WIN.includes(b.key)) shaftU.shut.value[WIN.indexOf(b.key)] = blindShut(b.k);
     }
     if (door.k !== door.to) {
       door.k = door.to > door.k ? Math.min(1, door.k + dt / 0.9) : Math.max(0, door.k - dt / 0.9);
@@ -2307,13 +2329,13 @@ export function mountOffice(container) {
     if (locked && mode === 'free') {
       ray.setFromCamera(new THREE.Vector2(0, 0), camera);
       const targets = [hole, door.pivot, ...desks.flatMap((d) => [d.scr.mesh, d.codeScr.mesh]), ...tvs.map((t) => t.scr.mesh)];
-      for (const b of Object.values(blinds)) for (const r of b.runs) targets.push(r.slats.parent);
+      targets.push(...new Set(Object.values(blinds).flatMap((b) => b.runs.map((r) => r.slats.parent))));
       world.children.forEach((o) => { if (o.userData.glass) targets.push(o); });
       for (const p of people.values()) targets.push(p.root);
       for (const hit of ray.intersectObjects(targets, true)) {
         const ud = hit.object.userData;
         if (ud.reach && hit.distance > ud.reach) { if (ud.glass || hit.object.material.transparent) continue; break; }
-        if (ud.action) { hover = { action: ud.action, blind: ud.blind }; break; }
+        if (ud.action) { hover = { action: ud.action, blind: ud.blind || ud.blindAt?.(hit.point) }; break; }
         if (ud.tv) { hover = { tv: tvs.find((t) => t.id === ud.tv) }; break; }
         if (ud.sessionId) { hover = { sessionId: ud.sessionId }; break; }
         if (hit.object.isMesh && !hit.object.isSprite) break;
@@ -2326,7 +2348,7 @@ export function mountOffice(container) {
       return;
     }
     if (hover.action === 'blinds' || hover.action === 'door') {
-      targetEl.innerHTML = hover.action === 'door' ? `<b>Office door</b><div class="k">Click to ${door.to ? 'close' : 'open'}</div>` : `<b>Blinds</b><div class="k">Click to ${hover.blind.to ? 'raise' : 'lower'} the blinds</div>`;
+      targetEl.innerHTML = hover.action === 'door' ? `<b>Office door</b><div class="k">Click to ${door.to ? 'close' : 'open'}</div>` : `<b>${hover.blind.name}</b><div class="k">Click to ${hover.blind.to ? 'raise' : 'lower'} the blinds</div>`;
       return;
     }
     if (hover.tv) {
@@ -2467,7 +2489,7 @@ export function mountOffice(container) {
   const clock0 = performance.now();
   function frame(now) {
     raf = requestAnimationFrame(frame);
-    const dt = Math.min(0.05, (now - lastT) / 1000);
+    const dt = clamp((now - lastT) / 1000, 0, 0.05);   // the first rAF stamp can predate lastT
     lastT = now;
     const t = (now - clock0) / 1000;
     for (const [id, p] of people) {
