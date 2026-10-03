@@ -1540,12 +1540,21 @@ export function mountOffice(container) {
     }
     solid(x, z, 0.5 * s, 0.5 * s);
   }
+  // Seats you can sit in (click one): chairs and sofa places, facing local +z. `eye` is the seated eye height.
+  const seats = [];
+  function addSeat(g, name, lx, eye) {
+    const seat = { name, x: g.position.x + Math.cos(g.rotation.y) * lx, z: g.position.z - Math.sin(g.rotation.y) * lx, rotY: g.rotation.y, eye, obj: g };
+    seats.push(seat);
+    return seat;
+  }
   function officeChair(x, z, rotY, color = '#2b2e33') {
     const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rotY; world.add(g);
     box(g, 0.5, 0.08, 0.5, color, 0, 0.43, 0);
     box(g, 0.48, 0.55, 0.06, color, 0, 0.78, -0.25);
     cyl(g, 0.03, 0.03, 0.36, '#555', 0, 0.22, 0);
     cyl(g, 0.28, 0.28, 0.04, '#333', 0, 0.04, 0, { seg: 5 });
+    const seat = addSeat(g, 'Chair', 0, SEATED_EYE);
+    g.traverse((o) => { if (o.isMesh) o.userData.seat = seat; });
     return g;
   }
   function monitor(parent, w, h, x, yBottom, z, rotY = 0) {
@@ -1564,6 +1573,10 @@ export function mountOffice(container) {
     box(g, 0.2, 0.32, 0.9, color, len / 2 - 0.1, 0.52, 0);
     const CUSH = ['#d9a441', '#b5654a', '#e7dcc8', '#6b8e4e', '#a35d7a'];
     for (const side of [-1, 1]) box(g, 0.26, 0.34, 0.12, CUSH[hash(`${x}${z}${side}`) % CUSH.length], side * (len / 2 - 0.33), 0.72, -0.2).rotation.x = -0.25;
+    // One place per ~0.7 m of seat; clicking the sofa sits you in the place nearest where you aimed.
+    const n = Math.max(1, Math.round((len - 0.4) / 0.7)), places = [];
+    for (let i = 0; i < n; i++) places.push(addSeat(g, len < 1.4 ? 'Armchair' : 'Sofa', ((i + 0.5) / n - 0.5) * (len - 0.4), 1.08));
+    g.traverse((o) => { if (o.isMesh) o.userData.seatAt = (pt) => places.reduce((a, b) => (Math.hypot(b.x - pt.x, b.z - pt.z) < Math.hypot(a.x - pt.x, a.z - pt.z) ? b : a)); });
     const horiz = Math.abs(Math.sin(rotY)) < 0.5;
     solid(x, z, horiz ? len : 0.9, horiz ? 0.9 : len);
   }
@@ -2475,7 +2488,7 @@ export function mountOffice(container) {
     if (u >= 1) { const d = anim.done; anim = null; d?.(); }
   }
   function teleport(x, z, look, seated = false) {
-    Object.assign(player, { x, z, seated, eye: seated ? SEATED_EYE : EYE });
+    Object.assign(player, { x, z, seated, seat: null, eye: seated ? SEATED_EYE : EYE });
     player.yaw = Math.atan2(-(look.x - x), -(look.z - z));
     player.pitch = Math.atan2((look.y ?? EYE) - player.eye, Math.hypot(look.x - x, look.z - z));
   }
@@ -2495,6 +2508,12 @@ export function mountOffice(container) {
     p.z = clamp(p.z, ROOM.minZ + 0.4, ROOM.maxZ - 0.4);
   }
 
+  const seatTaken = (st) => [...people.values()].some((p) => Math.hypot(p.root.position.x - st.x, p.root.position.z - st.z) < 0.4);
+  function sitIn(st) {
+    if (seatTaken(st)) return;
+    Object.assign(player, { x: st.x, z: st.z, seated: true, seat: st, eye: player.eye });
+    player.yaw = st.rotY + Math.PI; player.pitch = -0.08;
+  }
   function movePlayer(dt) {
     let f = 0, s = 0;
     if (keys.has('KeyW') || keys.has('ArrowUp')) f += 1;
@@ -2502,14 +2521,19 @@ export function mountOffice(container) {
     if (keys.has('KeyD') || keys.has('ArrowRight')) s += 1;
     if (keys.has('KeyA') || keys.has('ArrowLeft')) s -= 1;
     if (f || s) {
-      if (player.seated) { player.seated = false; player.z += 0.25; }
+      // Stand up: step forward out of the chair (or back from your own desk, which has no seat entry).
+      if (player.seated) {
+        const st = player.seat;
+        if (st) { player.x += Math.sin(st.rotY) * 0.55; player.z += Math.cos(st.rotY) * 0.55; } else player.z += 0.25;
+        player.seated = false; player.seat = null;
+      }
       const speed = (keys.has('ShiftLeft') || keys.has('ShiftRight') ? 8.5 : 4.4) * dt, n = Math.hypot(f, s);
       const sy = Math.sin(player.yaw), cy = Math.cos(player.yaw);
       player.x += ((-sy * f + cy * s) / n) * speed;
       player.z += ((-cy * f - sy * s) / n) * speed;
       collide(player);
     }
-    player.eye = damp(player.eye, player.seated ? SEATED_EYE : EYE, 5, dt);
+    player.eye = damp(player.eye, player.seated ? player.seat?.eye ?? SEATED_EYE : EYE, 5, dt);
     const bob = (f || s) && !player.seated ? Math.sin(performance.now() / 140) * 0.025 : 0;
     setCam({ x: player.x, y: player.eye + bob, z: player.z, yaw: player.yaw, pitch: player.pitch });
   }
@@ -2526,6 +2550,7 @@ export function mountOffice(container) {
     else if (hover.sessionId) openChat(hover.sessionId);
     else if (hover.action === 'blinds') { hover.blind.to = hover.blind.to ? 0 : 1; dash.putOffice({ blinds: { [hover.blind.key]: hover.blind.to } }); }
     else if (hover.action === 'door') { door.to = door.to ? 0 : 1; dash.putOffice({ door: door.to }); }
+    else if (hover.seat) sitIn(hover.seat);
     else if (hover.tv) {
       if (hover.tv.cfg && !e.shiftKey) useTv(hover.tv);
       else { document.exitPointerLock(); openTvPanel(hover.tv); }
@@ -2823,12 +2848,14 @@ export function mountOffice(container) {
       targets.push(...new Set(Object.values(blinds).flatMap((b) => b.runs.map((r) => r.slats.parent))));
       world.children.forEach((o) => { if (o.userData.glass) targets.push(o); });
       for (const p of people.values()) targets.push(p.root);
+      for (const st of seats) if (st.obj !== player.seat?.obj && Math.hypot(st.x - player.x, st.z - player.z) < 4) targets.push(st.obj);
       for (const hit of ray.intersectObjects(targets, true)) {
         const ud = hit.object.userData;
         if (ud.reach && hit.distance > ud.reach) { if (ud.glass || hit.object.material.transparent) continue; break; }
         if (ud.action) { hover = { action: ud.action, blind: ud.blind || ud.blindAt?.(hit.point) }; break; }
         if (ud.tv) { hover = { tv: tvs.find((t) => t.id === ud.tv) }; break; }
         if (ud.sessionId) { hover = { sessionId: ud.sessionId, screen: !!ud.screen }; break; }
+        if ((ud.seat || ud.seatAt) && hit.distance < 3) { hover = { seat: ud.seat || ud.seatAt(hit.point) }; break; }
         if (hit.object.isMesh && !hit.object.isSprite) break;
       }
     }
@@ -2840,6 +2867,11 @@ export function mountOffice(container) {
     }
     if (hover.action === 'blinds' || hover.action === 'door') {
       targetEl.innerHTML = hover.action === 'door' ? `<b>Office door</b><div class="k">Click to ${door.to ? 'close' : 'open'}</div>` : `<b>${hover.blind.name}</b><div class="k">Click to ${hover.blind.to ? 'raise' : 'lower'} the blinds</div>`;
+      return;
+    }
+    if (hover.seat) {
+      const taken = seatTaken(hover.seat);
+      targetEl.innerHTML = `<b>${hover.seat.name}</b><div class="k">${taken ? 'Someone’s sitting here' : 'Click to sit · move to stand up'}</div>`;
       return;
     }
     if (hover.tv) {
@@ -3039,7 +3071,7 @@ export function mountOffice(container) {
 
   window.__office = { openChat, closeChat, talk, get mode() { return mode; }, teleport: (k) => TELEPORTS[k](), openTv: (id) => openTvPanel(tvs.find((t) => t.id === id)), useTv: (id) => useTv(tvs.find((t) => t.id === id)), leaveTv,
     tvPoint: (id, u, v) => { const t = tvs.find((x) => x.id === id), p = t.scr.mesh.localToWorld(new THREE.Vector3((u - 0.5) * t.w, (0.5 - v) * t.h, 0)).project(camera), r = renderer.domElement.getBoundingClientRect(); return { x: r.left + (p.x + 1) / 2 * r.width, y: r.top + (1 - p.y) / 2 * r.height }; },
-    tvs: () => tvs.map((t) => ({ id: t.id, live: t.live, frame: !!t.frame, url: t.page?.url, title: t.page?.title, dist: t.dist })), player, people, blinds, door, collide, sfx, setSpeed, clockState, setTime: (ms) => Object.assign(clockState, { speed: 0.0001, simBase: ms, realBase: Date.now() }) };
+    tvs: () => tvs.map((t) => ({ id: t.id, live: t.live, frame: !!t.frame, url: t.page?.url, title: t.page?.title, dist: t.dist })), seats, sitIn, player, people, blinds, door, collide, sfx, setSpeed, clockState, setTime: (ms) => Object.assign(clockState, { speed: 0.0001, simBase: ms, realBase: Date.now() }) };
 
   return {
     // Adopt the overview page onto the monitor, then pull back from it to the chair.
@@ -3059,7 +3091,7 @@ export function mountOffice(container) {
       raf = requestAnimationFrame(frame);
       const seat = seatedPose();
       setTimeout(() => tween(fillPose(), seat, 2600, () => {
-        Object.assign(player, { x: seat.x, z: seat.z, eye: SEATED_EYE, yaw: seat.yaw, pitch: seat.pitch, seated: true });
+        Object.assign(player, { x: seat.x, z: seat.z, eye: SEATED_EYE, yaw: seat.yaw, pitch: seat.pitch, seated: true, seat: null });
         mode = 'free';
         hud.classList.remove('hidden');
       }), REDUCED ? 0 : 350);
