@@ -662,6 +662,24 @@ async function putTv(id, body) {
   return tvs[id] || null;
 }
 
+// ---------- office settings ----------
+// Lights, blinds and the door, set from the Admin tab or by clicking in the office; shared by every open browser.
+// lights: 'auto' follows daylight, 'on'/'off' override it; brightness scales every lamp. ~/.claude/my-office/office.json.
+const OFFICE_FILE = path.join(CLAUDE, 'my-office', 'office.json');
+const OFFICE_DEFAULT = { lights: 'auto', brightness: 1, blinds: { side: 0, front: 0 }, door: 0 };
+let office = { ...OFFICE_DEFAULT, ...readJSON(OFFICE_FILE) };
+function putOffice(b) {
+  if (['auto', 'on', 'off'].includes(b.lights)) office.lights = b.lights;
+  if (Number.isFinite(b.brightness)) office.brightness = Math.min(2, Math.max(0.1, b.brightness));
+  if (b.blinds) for (const k of Object.keys(OFFICE_DEFAULT.blinds)) if (k in b.blinds) office.blinds = { ...office.blinds, [k]: b.blinds[k] ? 1 : 0 };
+  if ('door' in b) office.door = b.door ? 1 : 0;
+  fs.mkdirSync(path.dirname(OFFICE_FILE), { recursive: true });
+  fs.writeFileSync(OFFICE_FILE, JSON.stringify(office, null, 2));
+  const json = JSON.stringify(office);
+  for (const res of clients) res.write(`event: office\ndata: ${json}\n\n`);
+  return office;
+}
+
 // ---------- http ----------
 const INDEX = path.join(__dirname, 'public', 'index.html');
 const STATIC_ROOTS = [
@@ -688,7 +706,7 @@ const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://x');
   if (url.pathname === '/events') {
     res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });
-    res.write(`retry: 2000\ndata: ${stateJSON}\n\nevent: tvs\ndata: ${JSON.stringify(tvs)}\n\n`);
+    res.write(`retry: 2000\ndata: ${stateJSON}\n\nevent: tvs\ndata: ${JSON.stringify(tvs)}\n\nevent: office\ndata: ${JSON.stringify(office)}\n\n`);
     clients.add(res);
     req.on('close', () => clients.delete(res));
     return;
@@ -696,6 +714,16 @@ const server = http.createServer((req, res) => {
   if (url.pathname === '/api/config') {
     res.writeHead(200, { 'content-type': 'application/json' });
     return res.end(JSON.stringify({ owner: CONFIG.owner || '', city: CONFIG.city || '', lat: CONFIG.lat ?? 51.5, lon: CONFIG.lon ?? -0.13 }));
+  }
+  if (url.pathname === '/api/office') {
+    if (req.method !== 'PUT') { res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' }); return res.end(JSON.stringify(office)); }
+    let body = '';
+    req.on('data', (c) => { body += c; if (body.length > 4096) req.destroy(); });
+    req.on('end', () => {
+      try { const saved = putOffice(JSON.parse(body || '{}')); res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify(saved)); }
+      catch (e) { res.writeHead(400, { 'content-type': 'application/json' }); res.end(JSON.stringify({ error: e.message })); }
+    });
+    return;
   }
   if (url.pathname === '/api/tvs') {
     res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
