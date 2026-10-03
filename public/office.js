@@ -1412,25 +1412,94 @@ export function mountOffice(container) {
   plant(15, 14.4, 0.9);
 
   // ----- my office -----
-  const glassM = new THREE.MeshStandardMaterial({ color: '#cfe3ee', transparent: true, opacity: 0.16, roughness: 0.05, metalness: 0.1, depthWrite: false });
-  function glass(axis, fixed, from, to) {
-    const len = to - from, mid = (from + to) / 2;
-    if (axis === 'x') {
-      box(world, len, ROOM.h, 0.03, '', mid, ROOM.h / 2, fixed, { material: glassM, shadow: false });
-      box(world, len, 0.06, 0.06, '', mid, 0.03, fixed, { material: frameM, shadow: false });
-      box(world, len, 0.06, 0.06, '', mid, ROOM.h - 0.03, fixed, { material: frameM, shadow: false });
-      solid(mid, fixed, len, 0.08);
-    } else {
-      box(world, 0.03, ROOM.h, len, '', fixed, ROOM.h / 2, mid, { material: glassM, shadow: false });
-      box(world, 0.06, 0.06, len, '', fixed, 0.03, mid, { material: frameM, shadow: false });
-      box(world, 0.06, 0.06, len, '', fixed, ROOM.h - 0.03, mid, { material: frameM, shadow: false });
-      solid(fixed, mid, 0.08, len);
+  // Tinted glass that gets more opaque and reflective at grazing angles, so the walls read as solid.
+  const glassM = new THREE.MeshPhysicalMaterial({ color: '#b9d3da', transparent: true, opacity: 0.14, roughness: 0.03, metalness: 0, envMapIntensity: 2.2, specularIntensity: 1, depthWrite: false });
+  glassM.onBeforeCompile = (sh) => {
+    sh.fragmentShader = sh.fragmentShader.replace('#include <dithering_fragment>', '#include <dithering_fragment>\n  gl_FragColor.a = mix(gl_FragColor.a, 0.62, pow(1.0 - abs(dot(normalize(normal), normalize(vViewPosition))), 3.0));');
+  };
+  const frostTex = (() => {
+    const t = makeCanvas(128, 64), { ctx } = t;
+    ctx.fillStyle = 'rgba(244,247,248,.62)'; ctx.fillRect(0, 0, 128, 34);
+    for (let x = 8; x < 128; x += 16) { ctx.beginPath(); ctx.arc(x, 48, 4.5, 0, Math.PI * 2); ctx.fill(); }
+    t.tex.wrapS = THREE.RepeatWrapping; t.tex.needsUpdate = true;
+    return t.tex;
+  })();
+  // Venetian blinds: k 0 = raised, 1 = lowered with slats tilted shut. Instanced slats per glass run.
+  const slatM = mat('#e6e1d6', { roughness: 0.55, metalness: 0.15 }), blinds = { side: { k: 0, to: 0, runs: [] }, front: { k: 0, to: 0, runs: [] } };
+  const BL = { top: ROOM.h - 0.12, sp: 0.05, stack: 0.008 }, _m4 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _v = new THREE.Vector3(), _s = new THREE.Vector3(1, 1, 1);
+  BL.n = Math.floor((BL.top - 0.08) / BL.sp);
+  function layBlind(r, k) {
+    const drop = clamp(k * 1.35, 0, 1), tilt = clamp((k - 0.72) / 0.28, 0, 1) * 1.42;
+    const railY = lerp(BL.top - BL.n * BL.stack - 0.02, 0.06, drop);
+    r.rail.position.y = railY;
+    _q.setFromEuler(_e.set(tilt, 0, 0));
+    for (let i = 0; i < BL.n; i++) {
+      _m4.compose(_v.set(0, Math.max(BL.top - (i + 1) * BL.sp, railY + (BL.n - i) * BL.stack), 0), _q, _s);
+      r.slats.setMatrixAt(i, _m4);
+    }
+    r.slats.instanceMatrix.needsUpdate = true;
+    r.slats.computeBoundingSphere();
+  }
+  function glass(axis, fixed, from, to, bl) {
+    const len = to - from, mid = (from + to) / 2, X = axis === 'x';
+    const at = (u, w, h, d, y, m) => box(world, X ? w : d, h, X ? d : w, '', X ? u : fixed, y, X ? fixed : u, { material: m, shadow: false });
+    const pane = at(mid, len, ROOM.h, 0.03, ROOM.h / 2, glassM);
+    pane.userData = { action: 'blinds', blind: bl, reach: 3.5, glass: true };
+    at(mid, len, 0.06, 0.06, 0.03, frameM); at(mid, len, 0.06, 0.06, ROOM.h - 0.03, frameM);
+    const n = Math.max(1, Math.round(len / 1.5));
+    for (let i = 0; i <= n; i++) at(from + (i * len) / n, 0.05, ROOM.h, 0.07, ROOM.h / 2, frameM);
+    const fm = new THREE.MeshStandardMaterial({ map: frostTex.clone(), transparent: true, roughness: 0.9, depthWrite: false });
+    fm.map.repeat.set(len / 0.32, 1); fm.map.needsUpdate = true;
+    at(mid, len, 0.16, 0.036, 1.46, fm).userData = pane.userData;
+    solid(X ? mid : fixed, X ? fixed : mid, X ? len : 0.08, X ? 0.08 : len);
+    // Blind hangs on the office side of the glass.
+    const g = new THREE.Group();
+    g.position.set(X ? mid : fixed, 0, X ? fixed : mid); g.rotation.y = X ? Math.PI : Math.PI / 2; world.add(g);
+    const w = len - 0.2;
+    box(g, w, 0.05, 0.07, '#d9d4c9', 0, ROOM.h - 0.09, 0.11);
+    const r = { slats: new THREE.InstancedMesh(new THREE.BoxGeometry(w, 0.004, 0.058), slatM, BL.n), rail: box(g, w, 0.02, 0.06, '#cfc9bd', 0, 0, 0.11) };
+    r.slats.position.z = 0.11; r.slats.castShadow = true; g.add(r.slats);
+    r.slats.userData = r.rail.userData = { action: 'blinds', blind: bl, reach: 6 };
+    bl.runs.push(r); layBlind(r, 0);
+  }
+  glass('z', 6, -15, -3.5, blinds.side);
+  glass('x', -3.5, 6, 7, blinds.front);
+  glass('x', -3.5, 8.4, 20, blinds.front);
+  for (const x of [7, 8.4]) box(world, 0.06, ROOM.h, 0.06, '', x, ROOM.h / 2, -3.5, { material: frameM, shadow: false });
+  box(world, 1.46, 0.08, 0.08, '', 7.7, 2.24, -3.5, { material: frameM, shadow: false });
+  box(world, 1.34, ROOM.h - 2.34, 0.03, '', 7.7, (ROOM.h + 2.28) / 2, -3.5, { material: glassM, shadow: false });
+  // Glass door hinged on the left post, swinging into the office. Its collider follows it.
+  const door = { k: 0, to: 0, pivot: new THREE.Group(), box: { minX: 7, maxX: 8.4, minZ: -3.54, maxZ: -3.46 } };
+  {
+    const p = door.pivot, W = 1.34, H = 2.18;
+    p.position.set(7.04, 0, -3.5); world.add(p);
+    box(p, W, H, 0.025, '', W / 2, H / 2 + 0.01, 0, { material: glassM, shadow: false });
+    for (const [w, h, x, y] of [[W, 0.07, W / 2, 0.045], [W, 0.05, W / 2, H - 0.015], [0.05, H, 0.025, H / 2 + 0.01], [0.05, H, W - 0.025, H / 2 + 0.01]]) box(p, w, h, 0.045, '', x, y, 0, { material: frameM });
+    const fm = new THREE.MeshStandardMaterial({ map: frostTex.clone(), transparent: true, roughness: 0.9, depthWrite: false });
+    fm.map.repeat.set(W / 0.32, 1); fm.map.needsUpdate = true;
+    box(p, W - 0.1, 0.16, 0.03, '', W / 2, 1.46, 0, { material: fm, shadow: false });
+    for (const s of [-1, 1]) {
+      cyl(p, 0.014, 0.014, 0.9, '#b8bcc2', W - 0.12, 1.05, s * 0.07, { mat: { metalness: 0.9, roughness: 0.25 } });
+      for (const y of [0.65, 1.45]) box(p, 0.018, 0.018, 0.06, '#b8bcc2', W - 0.12, y, s * 0.04, { mat: { metalness: 0.9, roughness: 0.25 } });
+    }
+    p.traverse((o) => { if (o.isMesh) o.userData = { action: 'door', reach: 5 }; });
+    colliders.push(door.box);
+  }
+  function setDoorBox(open) {
+    Object.assign(door.box, open ? { minX: 7, maxX: 7.1, minZ: -4.9, maxZ: -3.5 } : { minX: 7, maxX: 8.4, minZ: -3.54, maxZ: -3.46 });
+  }
+  function officeFx(dt) {
+    for (const b of Object.values(blinds)) if (b.k !== b.to) {
+      b.k = b.to > b.k ? Math.min(b.to, b.k + dt / 1.6) : Math.max(b.to, b.k - dt / 1.6);
+      for (const r of b.runs) layBlind(r, b.k);
+    }
+    if (door.k !== door.to) {
+      door.k = door.to > door.k ? Math.min(1, door.k + dt / 0.9) : Math.max(0, door.k - dt / 0.9);
+      door.pivot.rotation.y = ease(door.k) * Math.PI * 0.5;
+      setDoorBox(door.k > 0.85);
+      if (door.k < 0.85 && door.to === 0) collide(player);
     }
   }
-  glass('z', 6, -15, -3.5);
-  glass('x', -3.5, 6, 7);
-  glass('x', -3.5, 8.4, 20);
-  for (const x of [7, 8.4]) box(world, 0.06, ROOM.h, 0.06, '', x, ROOM.h / 2, -3.5, { material: frameM, shadow: false });
   {
     const plate = makeScreen(world, 0.9, 0.22, 360, 88, 9.4, 1.75, -3.47);
     plate.ctx.fillStyle = 'rgba(20,20,22,.85)'; plate.ctx.beginPath(); plate.ctx.roundRect(0, 0, 360, 88, 14); plate.ctx.fill();
@@ -1682,6 +1751,8 @@ export function mountOffice(container) {
     if (!hover) return;
     if (hover.action === 'computer') { document.exitPointerLock(); dash.setView('overview'); }
     else if (hover.sessionId) { document.exitPointerLock(); dash.openDrawer(hover.sessionId); }
+    else if (hover.action === 'blinds') hover.blind.to = hover.blind.to ? 0 : 1;
+    else if (hover.action === 'door') door.to = door.to ? 0 : 1;
   });
   document.addEventListener('pointerlockchange', () => {
     locked = document.pointerLockElement === renderer.domElement;
@@ -1717,11 +1788,14 @@ export function mountOffice(container) {
     hover = null;
     if (locked && mode === 'free') {
       ray.setFromCamera(new THREE.Vector2(0, 0), camera);
-      const targets = [hole, ...desks.flatMap((d) => [d.scr.mesh, d.codeScr.mesh])];
+      const targets = [hole, door.pivot, ...desks.flatMap((d) => [d.scr.mesh, d.codeScr.mesh])];
+      for (const b of Object.values(blinds)) for (const r of b.runs) targets.push(r.slats.parent);
+      world.children.forEach((o) => { if (o.userData.glass) targets.push(o); });
       for (const p of people.values()) targets.push(p.root);
       for (const hit of ray.intersectObjects(targets, true)) {
         const ud = hit.object.userData;
-        if (ud.action) { hover = { action: ud.action }; break; }
+        if (ud.reach && hit.distance > ud.reach) { if (ud.glass || hit.object.material.transparent) continue; break; }
+        if (ud.action) { hover = { action: ud.action, blind: ud.blind }; break; }
         if (ud.sessionId) { hover = { sessionId: ud.sessionId }; break; }
         if (hit.object.isMesh && !hit.object.isSprite) break;
       }
@@ -1730,6 +1804,10 @@ export function mountOffice(container) {
     targetEl.style.display = 'block';
     if (hover.action === 'computer') {
       targetEl.innerHTML = '<b>Your computer</b><div class="k">Click to sit down and open the dashboard</div>';
+      return;
+    }
+    if (hover.action === 'blinds' || hover.action === 'door') {
+      targetEl.innerHTML = hover.action === 'door' ? `<b>Office door</b><div class="k">Click to ${door.to ? 'close' : 'open'}</div>` : `<b>Blinds</b><div class="k">Click to ${hover.blind.to ? 'raise' : 'lower'} the blinds</div>`;
       return;
     }
     const s = S?.live.find((x) => x.sessionId === hover.sessionId);
@@ -1875,6 +1953,7 @@ export function mountOffice(container) {
     const simDate = new Date(simNow());
     updateSky(simDate, t);
     updateClock(simDate);
+    officeFx(dt);
     if (mode === 'free') movePlayer(dt);
     stepTween(now);
     paintScreens(false);
@@ -1899,7 +1978,7 @@ export function mountOffice(container) {
   }
   new ResizeObserver(resize).observe(container);
 
-  window.__office = { teleport: (k) => TELEPORTS[k](), player, people, setSpeed, clockState, setTime: (ms) => Object.assign(clockState, { speed: 0.0001, simBase: ms, realBase: Date.now() }) };
+  window.__office = { teleport: (k) => TELEPORTS[k](), player, people, blinds, door, collide, setSpeed, clockState, setTime: (ms) => Object.assign(clockState, { speed: 0.0001, simBase: ms, realBase: Date.now() }) };
 
   return {
     // Adopt the overview page onto the monitor, then pull back from it to the chair.
