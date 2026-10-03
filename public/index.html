@@ -1,0 +1,584 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>my-office</title>
+<script type="importmap">{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }</script>
+<style>
+:root {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --surface-2: #222220; --border: rgba(255,255,255,0.10);
+  --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781; --grid: #2c2c2a; --axis: #383835;
+  --accent: #3987e5; --accent-soft: rgba(57,135,229,0.18);
+  --good: #0ca30c; --warning: #fab219; --serious: #ec835a; --critical: #d03b3b;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light;
+    --page: #f9f9f7; --surface: #fcfcfb; --surface-2: #f2f1ed; --border: rgba(11,11,11,0.10);
+    --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781; --grid: #e1e0d9; --axis: #c3c2b7;
+    --accent: #2a78d6; --accent-soft: rgba(42,120,214,0.12);
+    --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300; --s7: #4a3aa7; --s8: #e34948;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+.num { font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); }
+.ink2 { color: var(--ink-2); }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+main { max-width: 1680px; margin: 0 auto; padding: 20px 24px 60px; }
+main > .kpis:first-child { margin-top: 0; }
+
+header { display: flex; align-items: center; gap: 14px; height: 56px; padding: 0 24px; position: sticky; top: 0; z-index: 15; background: var(--page); border-bottom: 1px solid var(--border); }
+.tabs { display: flex; gap: 4px; margin-left: 18px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 3px; }
+.tabs button { font: inherit; font-size: 13px; font-weight: 550; color: var(--ink-2); background: none; border: 0; border-radius: 7px; padding: 5px 14px; cursor: pointer; }
+.tabs button:hover { color: var(--ink); }
+.tabs button[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.25), 0 0 0 1px var(--border); }
+#view-office { position: fixed; top: 56px; left: 0; right: 0; bottom: 0; display: none; background: var(--page); z-index: 10; overflow: hidden; }
+body[data-view="office"] #view-office { display: block; }
+body[data-view="office"] > main { display: none; }
+header h1 { font-size: 18px; font-weight: 650; margin: 0; letter-spacing: -0.01em; }
+header .spacer { flex: 1; }
+.conn { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); }
+.conn i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.conn.on i { background: var(--good); box-shadow: 0 0 0 0 rgba(12,163,12,.6); animation: pulse 2s infinite; }
+.conn.off i { background: var(--critical); }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(12,163,12,.5); } 70% { box-shadow: 0 0 0 7px rgba(12,163,12,0); } 100% { box-shadow: 0 0 0 0 rgba(12,163,12,0); } }
+
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+h2 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-2); margin: 0 0 12px; display: flex; align-items: baseline; gap: 8px; }
+h2 small { text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--muted); font-size: 12px; }
+section { margin-top: 22px; }
+
+/* KPI tiles */
+.kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.tile .label { font-size: 12px; color: var(--ink-2); }
+.tile .value { font-size: 30px; font-weight: 650; letter-spacing: -0.02em; margin: 2px 0 2px; }
+.tile .value small { font-size: 15px; font-weight: 500; color: var(--ink-2); margin-left: 4px; }
+.tile .sub { font-size: 12px; color: var(--muted); }
+.meter { height: 8px; border-radius: 4px; background: var(--grid); overflow: hidden; margin: 8px 0 6px; }
+.meter > i { display: block; height: 100%; border-radius: 4px; }
+.dotsep::before { content: "·"; margin: 0 6px; color: var(--muted); }
+
+/* status */
+.status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 2px 9px 2px 7px; border-radius: 999px; border: 1px solid var(--border); white-space: nowrap; }
+.status svg { width: 12px; height: 12px; }
+.st-working { color: var(--good); }
+.st-working svg { animation: spin 1.4s linear infinite; }
+.st-idle { color: var(--ink-2); }
+.st-shell { color: var(--warning); }
+.st-other { color: var(--serious); }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* session cards */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 12px; }
+.card { cursor: pointer; display: flex; flex-direction: column; gap: 10px; transition: border-color .15s; position: relative; overflow: hidden; }
+.card:hover { border-color: var(--accent); }
+.card.working { border-color: rgba(12,163,12,.45); }
+.card .swatch { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+.card .top { display: flex; align-items: center; gap: 8px; }
+.card .top .since { margin-left: auto; font-size: 12px; color: var(--muted); }
+.card .title { font-size: 16px; font-weight: 620; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.card .where { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card .where b { color: var(--ink-2); font-weight: 500; }
+.now { font-size: 13px; background: var(--surface-2); border-radius: 8px; padding: 7px 10px; min-height: 34px; display: flex; gap: 8px; align-items: baseline; overflow: hidden; }
+.now .tag { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); flex: none; }
+.now .txt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink-2); }
+.now.live .tag { color: var(--good); }
+.now.live .txt { color: var(--ink); }
+.metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.metric .k { font-size: 11px; color: var(--muted); }
+.metric .v { font-size: 16px; font-weight: 600; }
+.ctxbar { height: 4px; border-radius: 2px; background: var(--grid); margin-top: 4px; overflow: hidden; }
+.ctxbar i { display: block; height: 100%; background: var(--accent); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: 11px; color: var(--ink-2); background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 1px 7px; white-space: nowrap; }
+.chip.warn { color: var(--warning); }
+.card .foot { display: flex; justify-content: space-between; align-items: end; gap: 10px; font-size: 12px; color: var(--muted); }
+.spark { width: 100%; height: 34px; display: block; }
+
+/* layout below */
+.split { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+.stack { display: grid; gap: 12px; }
+
+/* feed */
+.feed { max-height: 760px; overflow: auto; margin: -4px -6px; padding: 0 6px; }
+.ev { display: grid; grid-template-columns: 54px 14px minmax(0, 1fr); gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--grid); font-size: 13px; }
+.ev:last-child { border-bottom: 0; }
+.ev time { color: var(--muted); font-size: 12px; padding-top: 1px; }
+.ev .dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; }
+.ev .who { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ev .body { overflow: hidden; }
+.ev .line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ev.prompt .line { white-space: normal; color: var(--ink); font-weight: 500; }
+.ev.say .line { color: var(--ink-2); }
+.ev .k { font-size: 11px; font-weight: 600; margin-right: 6px; padding: 0 5px; border-radius: 4px; background: var(--surface-2); color: var(--ink-2); }
+.ev.prompt .k { background: var(--accent-soft); color: var(--accent); }
+.ev.error .k { color: var(--critical); }
+.ev.error .line { color: var(--critical); }
+.ev .dur { color: var(--muted); font-size: 11px; margin-left: 6px; }
+
+/* charts */
+.chart { width: 100%; display: block; }
+.chart text { fill: var(--muted); font-size: 11px; }
+.chart .gridline { stroke: var(--grid); stroke-width: 1; }
+.chart .baseline { stroke: var(--axis); stroke-width: 1; }
+.chart .bar { fill: var(--accent); }
+.chart .bar.today { fill: var(--accent); }
+.chart .hit { fill: transparent; }
+.chart .hit:hover + .bar, .chart g:hover .bar { opacity: .75; }
+.hbars { display: grid; grid-template-columns: max-content minmax(0, 1fr) max-content; gap: 6px 10px; align-items: center; font-size: 12px; }
+.hbars .lbl { color: var(--ink-2); white-space: nowrap; }
+.hbars .track { height: 10px; }
+.hbars .track i { display: block; height: 100%; background: var(--accent); border-radius: 0 3px 3px 0; min-width: 2px; }
+.hbars .val { color: var(--ink-2); text-align: right; }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; font-weight: 500; font-size: 12px; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--axis); }
+td { padding: 7px 8px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+td.r, th.r { text-align: right; }
+tr.click { cursor: pointer; }
+tr.click:hover td { background: var(--surface-2); }
+.ell { max-width: 420px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+#tip { position: fixed; pointer-events: none; z-index: 50; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; font-size: 12px; color: var(--ink); box-shadow: 0 6px 20px rgba(0,0,0,.35); display: none; max-width: 320px; }
+#tip b { font-weight: 600; }
+#tip .m { color: var(--ink-2); }
+
+/* drawer */
+#scrim { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none; z-index: 20; }
+#drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(760px, 96vw); background: var(--page); border-left: 1px solid var(--border); z-index: 30; transform: translateX(100%); transition: transform .2s ease; display: flex; flex-direction: column; }
+#drawer.open { transform: none; }
+#drawer.open ~ #scrim, body.drawer #scrim { display: block; }
+#drawer .dh { padding: 18px 20px 12px; border-bottom: 1px solid var(--border); }
+#drawer .dh .x { float: right; background: none; border: 1px solid var(--border); color: var(--ink-2); border-radius: 8px; padding: 3px 10px; cursor: pointer; font: inherit; }
+#drawer .db { overflow: auto; padding: 16px 20px 40px; display: grid; gap: 14px; }
+.kv { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.kv .k { font-size: 11px; color: var(--muted); }
+.kv .v { font-size: 15px; font-weight: 600; }
+.sub-list .row { display: grid; grid-template-columns: 14px minmax(0, 1fr) max-content; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--grid); font-size: 13px; }
+.sub-list .row:last-child { border-bottom: 0; }
+.empty { color: var(--muted); font-size: 13px; padding: 10px 0; }
+
+@media (max-width: 1200px) { .kpis { grid-template-columns: repeat(3, 1fr); } .split { grid-template-columns: 1fr; } }
+@media (max-width: 700px) { .kpis { grid-template-columns: repeat(2, 1fr); } .metrics, .kv { grid-template-columns: repeat(2, 1fr); } }
+</style>
+</head>
+<body>
+<header>
+  <h1>my-office</h1>
+  <span class="muted" id="host"></span>
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-view="overview" aria-selected="true">Overview</button>
+    <button role="tab" data-view="office" aria-selected="false">Office</button>
+  </nav>
+  <span class="spacer"></span>
+  <span class="conn" id="conn"><i></i><span>connecting…</span></span>
+</header>
+<main>
+
+  <div class="kpis" id="kpis"></div>
+
+  <section>
+    <h2>Running sessions <small id="live-sub"></small></h2>
+    <div class="cards" id="cards"></div>
+  </section>
+
+  <section class="split">
+    <div class="panel">
+      <h2>Live activity <small>every running session, newest first</small></h2>
+      <div class="feed" id="feed"></div>
+    </div>
+    <div class="stack">
+      <div class="panel">
+        <h2>Last 24 hours <small>API-equivalent cost per hour, all sessions + subagents</small></h2>
+        <div id="hourly"></div>
+      </div>
+      <div class="panel">
+        <h2>Daily cost <small>last 30 days · from claude-powerline</small></h2>
+        <div id="daily"></div>
+      </div>
+      <div class="panel" style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+        <div><h2>Tools used today</h2><div id="tools"></div></div>
+        <div><h2>Models today</h2><div id="models"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Finished in the last 24h <small>sessions no longer running</small></h2>
+    <div id="recent"></div>
+  </section>
+</main>
+<div id="view-office"></div>
+
+<aside id="drawer"><div class="dh" id="dh"></div><div class="db" id="db"></div></aside>
+<div id="scrim"></div>
+<div id="tip"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const usd = (n) => n == null ? '—' : n >= 100 ? '$' + n.toFixed(0) : n >= 10 ? '$' + n.toFixed(1) : '$' + n.toFixed(2);
+const tok = (n) => !n ? '0' : n >= 1e9 ? (n / 1e9).toFixed(2) + 'B' : n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(n >= 1e4 ? 0 : 1) + 'k' : String(n);
+const dur = (ms) => {
+  if (ms == null || ms < 0) return '—';
+  const s = Math.floor(ms / 1000), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
+  if (d) return `${d}d ${h}h`;
+  if (h) return `${h}h ${m}m`;
+  if (m) return `${m}m ${s % 60}s`;
+  return `${s}s`;
+};
+const ago = (t) => t ? dur(Date.now() - t) + ' ago' : '—';
+const clock = (t) => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+const home = (p) => (p || '').replace(/^\/Users\/[^/]+/, '~');
+// Relative times are rendered as spans and ticked in place, so cards only re-render on real changes.
+function relText(mode, t) { return mode === 'ago' ? ago(t) : mode === 'left' ? dur(t - Date.now()) : dur(Date.now() - t); }
+const rel = (mode, t) => `<span data-rel="${mode}" data-t="${t}">${relText(mode, t)}</span>`;
+function setHTML(el, html) { if (el._h !== html) { el._h = html; el.innerHTML = html; } }
+const SERIES = ['--s1', '--s2', '--s3', '--s4', '--s5', '--s6', '--s7', '--s8'];
+
+// Colour follows the session, assigned by start order and kept stable across updates.
+const colorOf = new Map();
+function sessionColor(id) {
+  if (!colorOf.has(id)) colorOf.set(id, colorOf.size < SERIES.length ? `var(${SERIES[colorOf.size]})` : 'var(--muted)');
+  return colorOf.get(id);
+}
+
+const ICONS = {
+  working: '<svg viewBox="0 0 16 16"><path d="M8 1.5a6.5 6.5 0 1 0 6.5 6.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+  idle: '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="none" stroke="currentColor" stroke-width="2"/></svg>',
+  shell: '<svg viewBox="0 0 16 16"><path d="M2.5 4l4 4-4 4M8 12.5h5.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  other: '<svg viewBox="0 0 16 16"><path d="M8 2l6.5 12h-13z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>',
+};
+const STATUS_TEXT = { working: 'Working', idle: 'Idle', shell: 'Waiting on shell task' };
+const prettyModel = (m) => (m || '').replace(/^claude-/, '').replace(/^(\w)(\w*)-(\d+)-(\d+)$/, (_, a, b, x, y) => a.toUpperCase() + b + ' ' + x + '.' + y).replace(/^(\w)(\w*)-(\d+)$/, (_, a, b, x) => a.toUpperCase() + b + ' ' + x);
+function statusPill(s) {
+  const k = ICONS[s] ? s : 'other';
+  return `<span class="status st-${k}">${ICONS[k]}${esc(STATUS_TEXT[s] || s || 'unknown')}</span>`;
+}
+function limitColor(p) { return p >= 90 ? 'var(--critical)' : p >= 70 ? 'var(--warning)' : 'var(--good)'; }
+
+// ---------- tooltip ----------
+const tip = $('tip');
+document.addEventListener('mousemove', (e) => {
+  const el = e.target.closest('[data-tip]');
+  if (!el) { tip.style.display = 'none'; return; }
+  tip.innerHTML = el.dataset.tip;
+  tip.style.display = 'block';
+  const r = tip.getBoundingClientRect();
+  let x = e.clientX + 14, y = e.clientY + 14;
+  if (x + r.width > innerWidth - 8) x = e.clientX - r.width - 14;
+  if (y + r.height > innerHeight - 8) y = e.clientY - r.height - 14;
+  tip.style.left = x + 'px'; tip.style.top = y + 'px';
+});
+
+// ---------- charts ----------
+function niceMax(v) {
+  if (v <= 0) return 1;
+  const p = Math.pow(10, Math.floor(Math.log10(v))), n = v / p;
+  return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * p;
+}
+function barChart(points, { height = 150, label, tipFn, fmt = usd, highlightLast = false }) {
+  const W = 640, H = height, L = 44, R = 6, T = 8, B = 22;
+  const max = niceMax(Math.max(...points.map((p) => p.v), 0));
+  const bw = (W - L - R) / points.length;
+  let s = `<svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="height:${H}px">`;
+  for (let i = 0; i <= 2; i++) {
+    const y = T + (H - T - B) * (1 - i / 2);
+    s += `<line class="${i ? 'gridline' : 'baseline'}" x1="${L}" x2="${W - R}" y1="${y}" y2="${y}"/>`;
+    s += `<text x="${L - 6}" y="${y + 4}" text-anchor="end">${fmt(max * i / 2)}</text>`;
+  }
+  points.forEach((p, i) => {
+    const h = (H - T - B) * (p.v / max), x = L + i * bw;
+    const tipHtml = esc(tipFn(p));
+    s += `<g data-tip="${tipHtml}"><rect class="hit" x="${x}" y="${T}" width="${bw}" height="${H - T - B}"/>`;
+    if (p.v > 0) s += `<rect class="bar" x="${x + bw * 0.14}" y="${H - B - h}" width="${bw * 0.72}" height="${Math.max(h, 1)}" rx="2" ${highlightLast && i === points.length - 1 ? '' : ''}/>`;
+    s += '</g>';
+    if (label(p, i)) s += `<text x="${x + bw / 2}" y="${H - 6}" text-anchor="middle">${esc(label(p, i))}</text>`;
+  });
+  return s + '</svg>';
+}
+function sparkline(values, color) {
+  const W = 300, H = 34, max = Math.max(...values, 1);
+  const pts = values.map((v, i) => [i * W / (values.length - 1), H - 2 - (H - 4) * v / max]);
+  const line = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join('');
+  const total = values.reduce((a, b) => a + b, 0);
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" data-tip="<b>${tok(total)}</b> output tokens in the last 60 min<br><span class='m'>peak ${tok(Math.max(...values))}/min</span>">
+    <path d="${line}L${W} ${H}L0 ${H}Z" fill="${color}" opacity=".16"/>
+    <path d="${line}" fill="none" stroke="${color}" stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg>`;
+}
+function hbars(entries, fmt) {
+  if (!entries.length) return '<div class="empty">Nothing yet today</div>';
+  const max = Math.max(...entries.map((e) => e[1]));
+  return '<div class="hbars">' + entries.map(([k, v]) =>
+    `<span class="lbl">${esc(k)}</span><span class="track"><i style="width:${(v / max * 100).toFixed(1)}%"></i></span><span class="val num">${fmt(v)}</span>`).join('') + '</div>';
+}
+
+// ---------- render ----------
+let S = null;
+
+function renderKpis() {
+  const t = S.totals, rl = S.rateLimits || {};
+  const limitTile = (label, l) => {
+    if (!l) return `<div class="panel tile"><div class="label">${label}</div><div class="value muted">—</div><div class="sub">waiting for a status line update</div></div>`;
+    const p = l.used_percentage;
+    return `<div class="panel tile"><div class="label">${label}</div>
+      <div class="value num">${p}<small>% used</small></div>
+      <div class="meter"><i style="width:${Math.min(p, 100)}%;background:${limitColor(p)}"></i></div>
+      <div class="sub">resets in ${rel('left', l.resets_at * 1000)} · ${new Date(l.resets_at * 1000).toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' })}</div></div>`;
+  };
+  setHTML($('kpis'), `
+    <div class="panel tile"><div class="label">Running sessions</div>
+      <div class="value num">${t.live}</div>
+      <div class="sub"><span style="color:var(--good)">${t.working} working</span><span class="dotsep"></span>${t.live - t.working} idle${t.subagentsActive ? `<span class="dotsep"></span>${t.subagentsActive} subagent${t.subagentsActive > 1 ? 's' : ''} active` : ''}</div></div>
+    ${limitTile('5-hour limit', rl.five_hour)}
+    ${limitTile('Weekly limit', rl.seven_day)}
+    <div class="panel tile" data-tip="What today's usage would cost at API list prices. You're on a subscription, so this is a measure of usage, not a bill."><div class="label">Today · API-equivalent</div>
+      <div class="value num">${usd(t.todayCost)}</div>
+      <div class="sub">${tok(t.todayTokens)} tokens · ${tok(t.todayOutput)} output · ${t.todaySessions} sessions</div></div>
+    <div class="panel tile"><div class="label">Running sessions · lifetime</div>
+      <div class="value num">${usd(t.liveCost)}</div>
+      <div class="sub"><span style="color:var(--good)">+${t.linesAdded.toLocaleString()}</span> / <span style="color:var(--critical)">−${t.linesRemoved.toLocaleString()}</span> lines changed</div></div>`);
+}
+
+function nowLine(s) {
+  const tr = s.transcript || {};
+  const p = tr.pendingTool;
+  if (s.status === 'working' && p) return `<div class="now live"><span class="tag">${esc(p.name)}</span><span class="txt">${esc(p.detail || '…')}</span><span class="muted num" style="margin-left:auto;flex:none">${rel('dur', p.t)}</span></div>`;
+  if (s.status === 'working') return `<div class="now live"><span class="tag">Thinking</span><span class="txt">${esc(tr.lastPrompt || '')}</span></div>`;
+  if (tr.lastPrompt) return `<div class="now"><span class="tag">Last ask</span><span class="txt">${esc(tr.lastPrompt)}</span><span class="muted" style="margin-left:auto;flex:none">${rel('ago', tr.lastPromptAt)}</span></div>`;
+  return `<div class="now"><span class="tag">No prompts yet</span></div>`;
+}
+
+function renderCards() {
+  [...S.live].sort((a, b) => a.startedAt - b.startedAt).forEach((s) => sessionColor(s.sessionId));
+  $('live-sub').textContent = S.live.length ? `${S.live.length} on ${S.host} · click a card for full detail` : '';
+  if (!S.live.length) { setHTML($('cards'), '<div class="panel empty">No Claude Code sessions running.</div>'); return; }
+  setHTML($('cards'), S.live.map((s) => {
+    const tr = s.transcript || {}, sl = s.statusline || {};
+    const color = sessionColor(s.sessionId);
+    const title = sl.name || tr.title || s.name;
+    const ctxPct = sl.context?.used_percentage ?? (tr.contextTokens ? Math.round(tr.contextTokens / 1e4) : null);
+    const ctxTok = sl.context ? (sl.context.current_usage ? Object.values(sl.context.current_usage).reduce((a, b) => a + b, 0) : null) : tr.contextTokens;
+    const cache = sl.cache;
+    const cacheLeft = cache?.expires_at ? cache.expires_at * 1000 - Date.now() : null;
+    const tools = Object.entries(tr.tools || {}).sort((a, b) => b[1] - a[1]);
+    const toolCount = tools.reduce((a, b) => a + b[1], 0);
+    const model = sl.model || prettyModel(tr.model);
+    const repo = sl.repo ? `${sl.repo.owner}/${sl.repo.name}` : null;
+    return `<div class="panel card ${s.status === 'working' ? 'working' : ''}" data-open="${s.sessionId}">
+      <span class="swatch" style="background:${color}"></span>
+      <div class="top">${statusPill(s.status)}<span class="since" data-tip="Status since ${new Date(s.statusSince).toLocaleTimeString()}">for ${rel('dur', s.statusSince)}</span></div>
+      <div>
+        <div class="title">${esc(title)}</div>
+        <div class="where"><b>${esc(s.name)}</b> · ${esc(home(s.cwd))}${tr.branch ? ` · ⎇ ${esc(tr.branch)}` : ''}</div>
+      </div>
+      ${nowLine(s)}
+      <div class="metrics">
+        <div class="metric" data-tip="${sl.cost ? 'From the status line (includes subagents)' : 'Estimated from transcript at API prices'}"><div class="k">Cost (API-eq.)</div><div class="v num">${usd(s.cost)}</div></div>
+        <div class="metric" data-tip="${ctxTok ? tok(ctxTok) + ' tokens in context' : 'Context window usage'}"><div class="k">Context</div><div class="v num">${ctxPct != null ? ctxPct + '%' : '—'}</div><div class="ctxbar"><i style="width:${Math.min(ctxPct || 0, 100)}%;${ctxPct >= 80 ? 'background:var(--warning)' : ''}"></i></div></div>
+        <div class="metric"><div class="k">Prompts · tools</div><div class="v num">${tr.prompts ?? 0} · ${toolCount}</div></div>
+        <div class="metric" data-tip="Started ${new Date(s.startedAt).toLocaleString()}"><div class="k">Session age</div><div class="v num">${rel('dur', s.startedAt)}</div></div>
+      </div>
+      ${sparkline(tr.spark || new Array(60).fill(0), color)}
+      <div class="chips">
+        ${model ? `<span class="chip">${esc(model)}${sl.effort || tr.effort ? ' · ' + esc(sl.effort || tr.effort) : ''}</span>` : ''}
+        ${tr.permissionMode ? `<span class="chip ${tr.permissionMode === 'bypassPermissions' ? 'warn' : ''}">${esc(tr.permissionMode)}</span>` : ''}
+        ${s.subagents.total ? `<span class="chip" data-tip="${s.subagents.active} running now · ${s.subagents.total} spawned · ${usd(s.subagents.cost)}">${s.subagents.active ? `<b style="color:var(--good)">${s.subagents.active} running</b> / ` : ''}${s.subagents.total} subagents</span>` : ''}
+        ${cache && cacheLeft > 0 ? `<span class="chip" data-tip="Prompt cache hit ratio ${(cache.hit_ratio * 100).toFixed(1)}% over ${cache.requests} requests">cache warm ${rel('left', cache.expires_at * 1000)}</span>` : cache ? '<span class="chip warn">cache cold</span>' : ''}
+        ${tr.errors ? `<span class="chip" style="color:var(--critical)" data-tip="Tool calls that returned an error (includes blocked or denied commands)">${tr.errors} errors</span>` : ''}
+        ${(tr.prs || []).slice(-2).map((p) => `<a class="chip" href="${esc(p.url)}" target="_blank" onclick="event.stopPropagation()">PR #${p.number}</a>`).join('')}
+      </div>
+      <div class="foot">
+        <span>${tools.slice(0, 4).map(([k, v]) => `${esc(k)} ${v}`).join(' · ') || 'no tool calls yet'}</span>
+        <span class="num" style="white-space:nowrap" data-tip="Process ${s.pid} · ${esc(s.entrypoint)} · v${esc(s.version)}">${s.proc ? `${s.proc.cpu.toFixed(0)}% cpu · ${s.proc.rssMB} MB` : 'pid ' + s.pid}</span>
+      </div>
+    </div>`;
+  }).join(''));
+}
+
+const EV_LABEL = { prompt: 'You', say: 'Claude', tool: null, error: 'Error', turn: 'Done', notify: 'Task', recap: 'Recap', command: 'Cmd', compact: 'Compact' };
+function eventRow(e, showWho) {
+  const label = e.kind === 'tool' ? e.name : EV_LABEL[e.kind] || e.kind;
+  let line = esc(e.text || '');
+  if (e.kind === 'turn') line = `Turn finished in ${dur(e.ms)}${e.n ? ` · ${e.n} messages` : ''}`;
+  const d = e.kind === 'tool' && e.ms != null ? `<span class="dur">${dur(e.ms)}</span>` : '';
+  return `<div class="ev ${e.kind}${e.error ? ' error' : ''}">
+    <time class="num">${e.t ? clock(e.t) : ''}</time>
+    <span class="dot" style="background:${showWho ? sessionColor(e.sessionId) : 'var(--axis)'}"></span>
+    <div class="body">${showWho ? `<div class="who">${esc(e.session)}</div>` : ''}<div class="line"><span class="k">${esc(label)}</span>${line}${d}</div></div></div>`;
+}
+
+function renderFeed() {
+  const feed = $('feed');
+  const atTop = feed.scrollTop < 10;
+  setHTML(feed, S.feed.length ? S.feed.map((e) => eventRow(e, true)).join('') : '<div class="empty">No activity yet</div>');
+  if (!atTop) return;
+  feed.scrollTop = 0;
+}
+
+function renderCharts() {
+  const nameOf = {};
+  for (const s of S.live) nameOf[s.sessionId] = s.statusline?.name || s.transcript?.title || s.name;
+  for (const r of S.recent) nameOf[r.sessionId] = r.title || home(r.cwd);
+  setHTML($('hourly'), barChart(S.hourly.map((h) => ({ ...h, v: h.cost })), {
+    label: (p, i) => (i % 3 === 0 || i === 23) ? new Date(p.t).toLocaleTimeString([], { hour: '2-digit' }) : '',
+    tipFn: (p) => {
+      const top = Object.entries(p.bySession).sort((a, b) => b[1] - a[1]).slice(0, 4)
+        .map(([id, c]) => `<br><span class='m'>${esc(nameOf[id] || id.slice(0, 8))}: ${usd(c)}</span>`).join('');
+      return `<b>${new Date(p.t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}–${new Date(p.t + 3600e3).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</b><br>${usd(p.cost)} · ${tok(p.tokens)} tokens · ${tok(p.output)} out${top}`;
+    },
+  }));
+  const days = S.days || [];
+  setHTML($('daily'), days.length ? barChart(days.map((d) => ({ ...d, v: d.cost })), {
+    height: 130,
+    label: (p, i) => (i % 5 === 0 || i === days.length - 1) ? new Date(p.date + 'T12:00').toLocaleDateString([], { day: 'numeric', month: 'short' }) : '',
+    tipFn: (p) => `<b>${new Date(p.date + 'T12:00').toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })}</b><br>${usd(p.cost)} · ${tok(p.tokens)} tokens${p.live ? '<br><span class=\'m\'>today: live estimate from transcripts</span>' : ` · ${p.entries} API calls`}`,
+  }) : '<div class="empty">No claude-powerline history found</div>');
+  setHTML($('tools'), hbars(Object.entries(S.tools).sort((a, b) => b[1] - a[1]).slice(0, 10), (v) => v.toLocaleString()));
+  setHTML($('models'), hbars(Object.entries(S.models).sort((a, b) => b[1].cost - a[1].cost).map(([k, v]) => [prettyModel(k), v.cost]), usd)
+    + `<div class="sub muted" style="margin-top:10px;font-size:12px">${Object.values(S.models).reduce((a, m) => a + m.calls, 0).toLocaleString()} API calls today</div>`);
+}
+
+function renderRecent() {
+  if (!S.recent.length) { $('recent').innerHTML = '<div class="empty">None</div>'; return; }
+  setHTML($('recent'), `<table><thead><tr><th>Session</th><th>Where</th><th class="r">Cost</th><th class="r">Prompts</th><th class="r">Tools</th><th class="r">Length</th><th class="r">Ended</th></tr></thead><tbody>` +
+    S.recent.map((r) => `<tr class="click" data-open="${r.sessionId}">
+      <td><div class="ell" style="font-weight:550">${esc(r.title || '(untitled)')}</div><div class="ell muted" style="font-size:12px">${esc(r.lastPrompt || '')}</div></td>
+      <td class="muted"><div class="ell" style="max-width:280px">${esc(home(r.cwd))}${r.branch ? ` · ⎇ ${esc(r.branch)}` : ''}</div></td>
+      <td class="r num">${usd(r.cost)}</td><td class="r num">${r.prompts}</td><td class="r num">${r.toolCalls}</td>
+      <td class="r num">${dur(r.last - r.first)}</td><td class="r num muted">${rel('ago', r.last)}</td></tr>`).join('') + '</tbody></table>');
+}
+
+function render() {
+  if (!S) return;
+  $('host').textContent = S.host;
+  renderKpis(); renderCards(); renderFeed(); renderCharts(); renderRecent();
+}
+
+// ---------- drawer ----------
+let openId = null, drawerTimer = null;
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-open]');
+  if (el && !e.target.closest('a')) openDrawer(el.dataset.open);
+});
+$('scrim').onclick = closeDrawer;
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
+function closeDrawer() { openId = null; clearInterval(drawerTimer); $('drawer').classList.remove('open'); document.body.classList.remove('drawer'); }
+function openDrawer(id) {
+  openId = id;
+  $('drawer').classList.add('open'); document.body.classList.add('drawer');
+  $('db').scrollTop = 0;
+  loadDrawer();
+  clearInterval(drawerTimer);
+  drawerTimer = setInterval(loadDrawer, 2000);
+}
+async function loadDrawer() {
+  const id = openId;
+  const r = await fetch('/api/session/' + id).then((r) => r.ok ? r.json() : null).catch(() => null);
+  if (!r || id !== openId) return;
+  const live = S?.live.find((s) => s.sessionId === id);
+  const sl = live?.statusline || {};
+  const title = sl.name || r.title || live?.name || id;
+  setHTML($('dh'), `<button class="x" onclick="closeDrawer()">Close</button>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">${live ? statusPill(live.status) : '<span class="status st-idle">Finished</span>'}<span class="muted" style="font-size:12px">${esc(id)}</span></div>
+    <div style="font-size:19px;font-weight:650">${esc(title)}</div>
+    <div class="muted" style="font-size:12px">${live ? esc(live.name) + ' · ' : ''}${esc(home(r.cwd))}${r.branch ? ' · ⎇ ' + esc(r.branch) : ''}</div>`);
+  const tok4 = r.tokens;
+  const tools = Object.entries(r.tools).sort((a, b) => b[1] - a[1]);
+  const cacheHit = tok4.cacheRead / Math.max(1, tok4.cacheRead + tok4.cacheWrite + tok4.input);
+  const db = $('db'), keep = db.scrollTop;
+  setHTML(db, `
+    <div class="panel kv">
+      <div><div class="k">Cost (API-eq.)</div><div class="v num">${usd(live ? live.cost : r.cost + r.subagents.reduce((a, s) => a + s.cost, 0))}</div></div>
+      <div><div class="k">API calls</div><div class="v num">${r.apiCalls.toLocaleString()}</div></div>
+      <div><div class="k">Prompts · turns</div><div class="v num">${r.prompts} · ${r.turns}</div></div>
+      <div><div class="k">Avg turn</div><div class="v num">${dur(r.avgTurnMs)}</div></div>
+      <div><div class="k">Output tokens</div><div class="v num">${tok(tok4.output)}</div></div>
+      <div><div class="k">Cache read</div><div class="v num">${tok(tok4.cacheRead)}</div></div>
+      <div><div class="k">Cache written</div><div class="v num">${tok(tok4.cacheWrite)}</div></div>
+      <div><div class="k">Cache hit rate</div><div class="v num">${(cacheHit * 100).toFixed(1)}%</div></div>
+      <div><div class="k">Model</div><div class="v">${esc(sl.model || prettyModel(r.model))}</div></div>
+      <div><div class="k">Effort</div><div class="v">${esc(sl.effort || r.effort || '—')}</div></div>
+      <div><div class="k">Permissions</div><div class="v">${esc(r.permissionMode || '—')}</div></div>
+      <div><div class="k">Duration</div><div class="v num">${dur((r.last || Date.now()) - r.first)}</div></div>
+      ${sl.cost ? `<div><div class="k">API time</div><div class="v num">${dur(sl.cost.total_api_duration_ms)}</div></div>
+      <div><div class="k">Lines</div><div class="v num"><span style="color:var(--good)">+${sl.cost.total_lines_added}</span> <span style="color:var(--critical)">−${sl.cost.total_lines_removed}</span></div></div>` : ''}
+      ${sl.context ? `<div><div class="k">Context</div><div class="v num">${sl.context.used_percentage}% of ${tok(sl.context.context_window_size)}</div></div>` : ''}
+      ${sl.cache ? `<div><div class="k">Cache misses</div><div class="v num">${sl.cache.misses} / ${sl.cache.requests}</div></div>` : ''}
+    </div>
+    ${r.prs.length ? `<div class="panel"><h2>Pull requests</h2>${r.prs.map((p) => `<div><a href="${esc(p.url)}" target="_blank">${esc(p.repo)} #${p.number}</a></div>`).join('')}</div>` : ''}
+    <div class="panel"><h2>Tools <small>${tools.reduce((a, b) => a + b[1], 0)} calls</small></h2>${hbars(tools.slice(0, 12), (v) => v)}</div>
+    ${r.subagents.length ? `<div class="panel sub-list"><h2>Subagents <small>${r.subagents.filter((s) => s.active).length} running · ${r.subagents.length} total · ${usd(r.subagents.reduce((a, s) => a + s.cost, 0))}</small></h2>
+      ${r.subagents.map((s) => `<div class="row"><span class="dot" style="width:8px;height:8px;border-radius:50%;margin-top:6px;background:${s.active ? 'var(--good)' : 'var(--axis)'}"></span>
+        <div><div style="font-weight:550">${esc(s.description || s.id)}</div><div class="muted" style="font-size:12px">${esc(s.type || '')}${s.background ? ' · background' : ''} · ${s.toolCalls} tools · ${s.active && s.current ? esc(s.current) : ago(s.last)}</div></div>
+        <span class="num ink2">${usd(s.cost)}</span></div>`).join('')}</div>` : ''}
+    <div class="panel"><h2>Timeline <small>newest first · last ${r.events.length} events</small></h2>
+      ${[...r.events].reverse().map((e) => eventRow(e, false)).join('') || '<div class="empty">Nothing yet</div>'}</div>`);
+  db.scrollTop = keep;
+}
+
+// ---------- stream ----------
+function connect() {
+  const es = new EventSource('/events');
+  const conn = $('conn');
+  es.onmessage = (m) => {
+    if (!m.data) return;
+    S = JSON.parse(m.data);
+    conn.className = 'conn on';
+    conn.lastChild.textContent = 'live';
+    render();
+    for (const cb of dash.listeners) cb(S);
+  };
+  es.onerror = () => { conn.className = 'conn off'; conn.lastChild.textContent = 'reconnecting…'; };
+}
+// Bridge for the 3D office view (office.js), which reuses live state, colours and the drawer.
+window.dash = {
+  get state() { return S; },
+  listeners: new Set(),
+  onUpdate(cb) { this.listeners.add(cb); if (S) cb(S); },
+  openDrawer, closeDrawer,
+  colorHex(id) {
+    const m = sessionColor(id).match(/var\((--[\w-]+)\)/);
+    return (m && getComputedStyle(document.documentElement).getPropertyValue(m[1]).trim()) || '#898781';
+  },
+  fmt: { usd, tok, dur, ago, clock, home, prettyModel },
+};
+
+// ---------- tabs ----------
+// Entering the office zooms out from the dashboard on your monitor; leaving flies back into it.
+let office = null, switching = false;
+async function setView(view) {
+  const prev = document.body.dataset.view;
+  if (switching || view === prev) return;
+  switching = true;
+  for (const b of document.querySelectorAll('.tabs button')) b.setAttribute('aria-selected', String(b.dataset.view === view));
+  if (location.hash !== '#' + view) history.replaceState(null, '', view === 'overview' ? location.pathname : '#' + view);
+  try {
+    if (view === 'office') {
+      const y = scrollY;
+      dash.config ||= await fetch('/api/config').then((r) => r.json()).catch(() => ({}));
+    if (!office) office = (await import('./office.js')).mountOffice($('view-office'));
+      document.body.dataset.view = 'office';
+      office.show(y);
+    } else {
+      const y = prev === 'office' && office ? await office.hide() : 0;
+      document.body.dataset.view = 'overview';
+      scrollTo(0, y);
+    }
+  } finally { switching = false; }
+}
+dash.setView = setView;
+document.querySelector('.tabs').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) setView(b.dataset.view); });
+setView(location.hash === '#office' ? 'office' : 'overview');
+connect();
+// Keep relative times ticking between pushes.
+setInterval(() => { for (const el of document.querySelectorAll('[data-rel]')) el.textContent = relText(el.dataset.rel, Number(el.dataset.t)); }, 1000);
+</script>
+</body>
+</html>
