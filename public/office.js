@@ -13,6 +13,7 @@ import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { createSounds } from './sounds.js';
 
 const dash = window.dash;
 const F = dash.fmt;
@@ -756,7 +757,7 @@ export function mountOffice(container) {
   hud.innerHTML = `<div class="of-cross"></div><div class="of-target"></div><canvas class="of-map" width="440" height="330" style="width:220px;height:165px"></canvas>
     <div class="of-count"></div>
     <div class="of-time"><span class="of-clock"></span><button data-speed="1">Live</button><button data-speed="120">×120</button><button data-speed="1200">×1200</button><button data-speed="7200">×7200</button></div>
-    <div class="of-legend"><kbd>W A S D</kbd> move · <kbd>Shift</kbd> run · <kbd>Click</kbd> inspect or use a TV · <kbd>E</kbd> set up a TV · <kbd>1</kbd> desks <kbd>2</kbd> breakroom <kbd>3</kbd> my office <kbd>4</kbd> lobby · <kbd>T</kbd> time speed · <kbd>G</kbd> graphics · <kbd>H</kbd> hide overlays · <kbd>Esc</kbd> release mouse</div>
+    <div class="of-legend"><kbd>W A S D</kbd> move · <kbd>Shift</kbd> run · <kbd>Click</kbd> inspect or use a TV · <kbd>E</kbd> set up a TV · <kbd>1</kbd> desks <kbd>2</kbd> breakroom <kbd>3</kbd> my office <kbd>4</kbd> lobby · <kbd>T</kbd> time speed · <kbd>G</kbd> graphics · <kbd>H</kbd> hide overlays · <kbd>M</kbd> sounds · <kbd>Esc</kbd> release mouse</div>
     <div class="of-toast"></div>
     <div class="of-start"><b>Click to look around</b><span>Walk up to anyone, or their screen, and click for details.<br>Click your own monitor to go back to the dashboard.</span></div>
     <div class="of-tvhint">Using the <b class="of-tvname"></b> TV · click and type into the page · <kbd>${ALT}M</kbd> mute · <kbd>${ALT}−</kbd> <kbd>${ALT}=</kbd> or <kbd>${ALT}scroll</kbd> volume · <kbd>Esc</kbd> back to walking</div>
@@ -971,7 +972,9 @@ export function mountOffice(container) {
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(40, 30), new THREE.MeshStandardMaterial({ map: woodTex, roughness: 0.55 }));
   floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; world.add(floor);
   let rugSeed = 1;
+  const rugs = [];   // soft footsteps
   function rug(x0, x1, z0, z1, base, accent, y = 0.006) {
+    rugs.push({ x0, x1, z0, z1 });
     const tex = accent ? rugTexture(base, accent, rugSeed++) : null;
     const m = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0), new THREE.MeshStandardMaterial({ color: tex ? '#ffffff' : base, map: tex, roughness: 1 }));
     m.rotation.x = -Math.PI / 2; m.position.set((x0 + x1) / 2, y, (z0 + z1) / 2); m.receiveShadow = true; world.add(m);
@@ -2001,6 +2004,9 @@ export function mountOffice(container) {
     sofaB[0], sofaB[1], sofaB[2], ...meet];
   const LOBBY = { key: 'lobby', kind: 'idle', pos: LIFT, rotY: -Math.PI / 2, pose: 'chat', route: [{ x: LIFT.x - 1, z: AISLE }, LIFT] };
 
+  // ----- sounds (see sounds.js; M mutes) -----
+  const sfx = createSounds({ camera, rugs, glass: { minX: 6, maxX: 20, minZ: -15, maxZ: -3.5 }, lift: LIFT, coffee: { x: -16.5, y: 1.25, z: 14.5 }, doorPos: { x: 7.7, z: -3.5 } });
+
   // ----- people sync -----
   const people = new Map();
   let overlays = localStorage.officeOverlays !== 'off';   // see setOverlays (H)
@@ -2024,7 +2030,7 @@ export function mountOffice(container) {
         p.label.visible = overlays;
         people.set(s.sessionId, p);
         world.add(p.root);
-        if (!first) { p.root.position.set(LIFT.x, 0, LIFT.z); p.rotY = -Math.PI / 2; p.spot = LOBBY; p.root.scale.setScalar(0.01); p.scaleT = 1; }
+        if (!first) { p.root.position.set(LIFT.x, 0, LIFT.z); p.rotY = -Math.PI / 2; p.spot = LOBBY; p.root.scale.setScalar(0.01); p.scaleT = 1; sfx.ding(); }
       }
       p.session = s;
       const atDesk = s.status !== 'idle';
@@ -2047,7 +2053,7 @@ export function mountOffice(container) {
       if (p.desk) p.desk.owner = null;
       p.path = [...routeOut(p), { x: LIFT.x, z: AISLE }];
       p.spot = null;
-      p.onArrive = () => { p.scaleT = 0; p.dying = true; };
+      p.onArrive = () => { p.scaleT = 0; p.dying = true; sfx.ding(); };
     }
     first = false;
     for (const d of desks) setClutter(d, d.owner && !d.owner.leaving ? clutterFor(d.owner.session, state.now || Date.now()) : 0);
@@ -2172,6 +2178,7 @@ export function mountOffice(container) {
 
   // ----- input -----
   renderer.domElement.addEventListener('click', (e) => {
+    sfx.unlock();
     if (mode !== 'free') return;
     if (!locked) { renderer.domElement.requestPointerLock(); return; }
     if (!hover) return;
@@ -2205,6 +2212,7 @@ export function mountOffice(container) {
     if (TELEPORTS[e.code]) { TELEPORTS[e.code](); return; }
     if (e.code === 'KeyG') { setQuality(!hq); return; }
     if (e.code === 'KeyH') { setOverlays(!overlays); return; }
+    if (e.code === 'KeyM') { dash.setSound({ on: !dash.sound.on }); sfx.unlock(); toast(`Sounds ${dash.sound.on ? 'on' : 'off'} · <kbd>M</kbd> to ${dash.sound.on ? 'mute' : 'unmute'}`); return; }
     if (e.code === 'KeyT') { setSpeed(SPEEDS[(SPEEDS.indexOf(clockState.speed) + 1) % SPEEDS.length]); return; }
     if (e.code === 'KeyE' && hover?.tv) { document.exitPointerLock(); openTvPanel(hover.tv); return; }
     if (locked) { keys.add(e.code); if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault(); }
@@ -2448,9 +2456,11 @@ export function mountOffice(container) {
     overlays = on; localStorage.officeOverlays = on ? 'on' : 'off';
     hud.classList.toggle('of-bare', !on);
     for (const p of people.values()) p.label.visible = on;
-    if (quiet) return;
+    if (!quiet) toast(`Overlays ${on ? 'shown' : 'hidden'} · <kbd>H</kbd> to ${on ? 'hide' : 'show'}`);
+  }
+  function toast(html) {
     const t = hud.querySelector('.of-toast');
-    t.innerHTML = `Overlays ${on ? 'shown' : 'hidden'} · <kbd>H</kbd> to ${on ? 'hide' : 'show'}`;
+    t.innerHTML = html;
     t.classList.add('on'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('on'), 1600);
   }
   setOverlays(overlays, true);
@@ -2508,6 +2518,7 @@ export function mountOffice(container) {
       a.swing = dir ? Math.max(0, 1 - u * 4) : Math.max(0, (u - 0.75) * 4);
       b.swing = dir ? Math.max(0, (u - 0.75) * 4) : Math.max(0, 1 - u * 4);
       a.root.position.z = damp(a.root.position.z, z, 4, dt); b.root.position.z = damp(b.root.position.z, z, 4, dt);
+      sfx.rally(k, ball.position);
     }
     const simDate = new Date(simNow());
     updateSky(simDate, t);
@@ -2515,6 +2526,7 @@ export function mountOffice(container) {
     officeFx(dt);
     if (mode === 'free') movePlayer(dt);
     stepTween(now);
+    sfx.update(t, dt, { people, door, blinds, free: mode === 'free' });
     paintScreens(false);
     if (tvMove) { tvMouse(tvMove, 'mouseMoved'); tvMove = null; }
     updateTVs(now);
@@ -2541,13 +2553,14 @@ export function mountOffice(container) {
 
   window.__office = { teleport: (k) => TELEPORTS[k](), openTv: (id) => openTvPanel(tvs.find((t) => t.id === id)), useTv: (id) => useTv(tvs.find((t) => t.id === id)), leaveTv,
     tvPoint: (id, u, v) => { const t = tvs.find((x) => x.id === id), p = t.scr.mesh.localToWorld(new THREE.Vector3((u - 0.5) * t.w, (0.5 - v) * t.h, 0)).project(camera), r = renderer.domElement.getBoundingClientRect(); return { x: r.left + (p.x + 1) / 2 * r.width, y: r.top + (1 - p.y) / 2 * r.height }; },
-    tvs: () => tvs.map((t) => ({ id: t.id, live: t.live, frame: !!t.frame, url: t.page?.url, title: t.page?.title, dist: t.dist })), player, people, blinds, door, collide, setSpeed, clockState, setTime: (ms) => Object.assign(clockState, { speed: 0.0001, simBase: ms, realBase: Date.now() }) };
+    tvs: () => tvs.map((t) => ({ id: t.id, live: t.live, frame: !!t.frame, url: t.page?.url, title: t.page?.title, dist: t.dist })), player, people, blinds, door, collide, sfx, setSpeed, clockState, setTime: (ms) => Object.assign(clockState, { speed: 0.0001, simBase: ms, realBase: Date.now() }) };
 
   return {
     // Adopt the overview page onto the monitor, then pull back from it to the chair.
     show(scrollY = 0) {
       active = true;
       tvSocket();
+      sfx.setActive(true);
       const main = document.querySelector('body > main');
       if (main) domScreen.appendChild(main);
       resize();
@@ -2583,6 +2596,7 @@ export function mountOffice(container) {
             cancelAnimationFrame(raf);
             tvQuiet();
             active = false;
+            sfx.setActive(false);
             mode = 'idle';
             resolve(scroll);
           });
