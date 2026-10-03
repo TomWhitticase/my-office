@@ -1500,6 +1500,71 @@ export function mountOffice(container) {
     }
   }
 
+  // Desk clutter: takeaway coffee cups and energy drink cans pile up on the desks of the sessions working hardest
+  // (output tokens + time spent busy). Each desk has a fixed, seeded layout of DESK_MAX slots filled in order, so the
+  // pile only grows; cups sometimes stack. Four instanced meshes for every desk.
+  const DESK_MAX = 18, clutterN = desks.length * DESK_MAX;
+  const clutter = {
+    cup: new THREE.InstancedMesh(new THREE.CylinderGeometry(0.04, 0.03, 0.115, 12).translate(0, 0.0575, 0), mat('#ffffff', { roughness: 0.75 }), clutterN),
+    lid: new THREE.InstancedMesh(new THREE.CylinderGeometry(0.043, 0.043, 0.012, 12).translate(0, 0.121, 0), mat('#ffffff', { roughness: 0.5 }), clutterN),
+    can: new THREE.InstancedMesh(new THREE.CylinderGeometry(0.033, 0.033, 0.122, 14).translate(0, 0.061, 0), mat('#ffffff', { roughness: 0.3, metalness: 0.6 }), clutterN),
+    top: new THREE.InstancedMesh(new THREE.CylinderGeometry(0.03, 0.033, 0.008, 14).translate(0, 0.126, 0), mat('#c9ccd1', { roughness: 0.3, metalness: 0.9 }), clutterN),
+  };
+  {
+    const CUP = ['#f2efe8', '#c9a57a', '#f2efe8', '#e9e4da'], LID = ['#2a2a2a', '#f4f4f4'], CAN = ['#7ed321', '#1f6fd1', '#e3e5e8', '#e0245e', '#151515', '#ffb000'];
+    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), one = new THREE.Vector3(1, 1, 1), c = new THREE.Color();
+    // Free spots on the desk top: beside the monitors and in the front corners clear of keyboard and mouse.
+    const ZONES = [[-0.93, -0.62, -0.34, 0.34], [0.62, 0.93, -0.34, 0.12], [-0.6, -0.3, 0.24, 0.36], [0.5, 0.62, 0.24, 0.36]];
+    desks.forEach((d, di) => {
+      const R = rng(hash(`clutter|${d.x}|${d.z}`)), placed = [];
+      d.clutter = [];
+      for (let i = 0, tries = 0; i < DESK_MAX && tries < 400; tries++) {
+        const kind = R() < 0.55 ? 'cup' : 'can', base = kind === 'cup' && placed.find((p) => p.kind === 'cup' && p.h < 3 && R() < 0.3);
+        let x, z, y = 0.76, lying = false;
+        if (base) { x = base.x; z = base.z; y = 0.76 + base.h * 0.105; base.h++; }
+        else {
+          const [x0, x1, z0, z1] = ZONES[Math.floor(R() * R() * ZONES.length)];
+          x = d.x + x0 + R() * (x1 - x0); z = d.z + z0 + R() * (z1 - z0);
+          if (placed.some((p) => Math.hypot(p.x - x, p.z - z) < 0.09) || Math.hypot(x - (d.x - 0.82), z - (d.z + 0.2)) < 0.09 || Math.hypot(x - (d.x + 0.86), z - (d.z + 0.22)) < 0.12) continue;
+          lying = kind === 'can' && R() < 0.25;
+          placed.push({ kind, x, z, h: 1 });
+        }
+        e.set(lying ? Math.PI / 2 : 0, R() * Math.PI * 2, 0, 'YXZ');
+        m4.compose(v.set(x, lying ? y + 0.033 : y, z), q.setFromEuler(e), one);
+        const k = di * DESK_MAX + i;
+        d.clutter.push({ k, kind, m: m4.clone() });
+        if (kind === 'cup') { clutter.cup.setColorAt(k, c.set(CUP[Math.floor(R() * CUP.length)])); clutter.lid.setColorAt(k, c.set(LID[Math.floor(R() * LID.length)])); }
+        else clutter.can.setColorAt(k, c.set(CAN[Math.floor(R() * CAN.length)]));
+        i++;
+      }
+      d.clutterShown = -1;
+    });
+    const zero = new THREE.Matrix4().makeScale(0, 0, 0);
+    for (const im of Object.values(clutter)) {
+      for (let k = 0; k < clutterN; k++) im.setMatrixAt(k, zero);
+      im.castShadow = true; im.receiveShadow = true; im.frustumCulled = false;
+      world.add(im);
+    }
+  }
+  // How many items a session has earned: ~1 per 15k output tokens plus 1 per 10 minutes busy.
+  function clutterFor(s, now) {
+    const t = s?.transcript;
+    if (!t) return 0;
+    const busyMs = (t.turns || 0) * (t.avgTurnMs || 0) + (s.status === 'working' && s.statusSince ? now - s.statusSince : 0);
+    return Math.min(DESK_MAX, Math.floor((t.tokens?.output || 0) / 15000 + busyMs / 600000));
+  }
+  function setClutter(d, n) {
+    if (n === d.clutterShown) return;
+    d.clutterShown = n;
+    const zero = new THREE.Matrix4().makeScale(0, 0, 0);
+    for (const [i, it] of d.clutter.entries()) {
+      const m = i < n ? it.m : zero;
+      if (it.kind === 'cup') { clutter.cup.setMatrixAt(it.k, m); clutter.lid.setMatrixAt(it.k, m); }
+      else { clutter.can.setMatrixAt(it.k, m); clutter.top.setMatrixAt(it.k, m); }
+    }
+    for (const im of Object.values(clutter)) im.instanceMatrix.needsUpdate = true;
+  }
+
   // Big activity screen over the desk floor.
   const feedTV = makeScreen(world, 4.2, 2.1, 1280, 640, -8.2, 2.05, -14.86);
   box(world, 4.3, 2.2, 0.06, '#111214', -8.2, 2.05, -14.9);
@@ -1963,6 +2028,7 @@ export function mountOffice(container) {
       p.onArrive = () => { p.scaleT = 0; p.dying = true; };
     }
     first = false;
+    for (const d of desks) setClutter(d, d.owner && !d.owner.leaving ? clutterFor(d.owner.session, state.now || Date.now()) : 0);
     const atDesks = state.live.filter((x) => x.status !== 'idle').length;
     countEl.innerHTML = `<b>${atDesks}</b> at desks · <b>${state.live.length - atDesks}</b> in the breakroom${state.totals.subagentsActive ? ` · <b>${state.totals.subagentsActive}</b> subagents` : ''}`;
     paintScreens(true);
