@@ -29,6 +29,8 @@ const MAX_EVENTS = 400;                  // per transcript
 const READ_CHUNK = 8 * 1024 * 1024;
 const CODE_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
 const CODE_CAP = 8000;            // chars of written code kept per edit
+const CHAT_MAX = 300;             // conversation entries kept per main transcript (the in-office chat)
+const CHAT_CAP = 20000;           // chars kept per chat message
 
 // ---------- pricing (API-equivalent USD per MTok) ----------
 // [input, output, cacheRead]; cache writes are 1.25x input (5m) or 2x input (1h).
@@ -130,6 +132,8 @@ class Transcript {
     this.title = null; this.lastPrompt = null; this.branch = null; this.cwd = null;
     this.permissionMode = null; this.effort = null; this.model = null; this.entrypoint = null;
     this.contextTokens = 0;
+    this.chat = [];                 // the conversation for the in-office chat: {t, role: user|assistant|tool|command|note, text, name?, queued?}
+    this.chatSeq = 0;
   }
 
   poll() {
@@ -153,6 +157,12 @@ class Transcript {
     return true;
   }
 
+  say(m) {
+    if (this.isSubagent) return;
+    this.chat.push(m); this.chatSeq++;
+    if (this.chat.length > CHAT_MAX) this.chat.splice(0, this.chat.length - CHAT_MAX);
+  }
+
   push(ev) {
     this.events.push(ev);
     if (this.events.length > MAX_EVENTS) this.events.splice(0, this.events.length - MAX_EVENTS);
@@ -170,6 +180,11 @@ class Transcript {
       case 'ai-title': this.title = d.aiTitle; return;
       case 'custom-title': this.customTitle = d.customTitle || d.title; return;
       case 'last-prompt': return;
+      // Messages typed while Claude is busy are queued, then absorbed mid-turn or run as the next turn.
+      case 'queue-operation':
+        if (d.operation === 'enqueue' && d.content) this.say({ t, role: 'user', text: String(d.content).slice(0, CHAT_CAP), queued: true });
+        else if (d.operation === 'remove') { const q = this.chat.findLast((m) => m.queued && m.text === String(d.content).slice(0, CHAT_CAP)); if (q) { q.queued = false; q.ran = true; this.chatSeq++; } }
+        return;
       case 'permission-mode': this.permissionMode = d.permissionMode; return;
       case 'pr-link': this.prs.set(d.prUrl, { url: d.prUrl, number: d.prNumber, repo: d.prRepository, t }); return;
       case 'system':
@@ -183,6 +198,7 @@ class Transcript {
           this.push({ t, kind: 'error', text: clip(d.content || d.subtype) });
         } else if (d.subtype === 'compact_boundary') {
           this.push({ t, kind: 'compact', text: 'Context compacted' });
+          this.say({ t, role: 'note', text: 'Context compacted' });
         }
         return;
       case 'assistant': return this.ingestAssistant(d, t);
@@ -223,6 +239,7 @@ class Transcript {
         this.tools[c.name] = (this.tools[c.name] || 0) + 1;
         this.pending.set(c.id, { name: c.name, detail, t });
         this.push({ t, kind: 'tool', name: c.name, text: detail, id: c.id });
+        this.say({ t, role: 'tool', name: c.name, text: detail });
         if (CODE_TOOLS.has(c.name)) {
           const code = codeOf(c.name, c.input);
           if (code?.added) {
@@ -233,6 +250,7 @@ class Transcript {
         }
       } else if (c.type === 'text' && c.text && c.text.trim()) {
         this.push({ t, kind: 'say', text: clip(c.text, 400) });
+        this.say({ t, role: 'assistant', text: c.text.slice(0, CHAT_CAP) });
       }
     }
   }
@@ -263,13 +281,16 @@ class Transcript {
     if (kind === 'human' || (!kind && d.promptSource)) {
       if (/^<(local-command|command-name|command-message|system-reminder)/.test(text.trim())) {
         const cmd = text.match(/<command-name>([^<]+)</);
-        if (cmd) this.push({ t, kind: 'command', text: cmd[1] });
+        if (cmd) { this.push({ t, kind: 'command', text: cmd[1] }); this.say({ t, role: 'command', text: cmd[1] }); }
         return;
       }
       this.prompts++;
       this.lastPrompt = clip(text, 300);
       this.lastPromptAt = t;
       this.push({ t, kind: 'prompt', text: clip(text, 600) });
+      // A queued message that later ran as its own turn is already in the chat.
+      const q = this.chat.slice(-30).findLast((m) => m.role === 'user' && m.queued !== undefined && !m.ran && m.text === text.slice(0, CHAT_CAP));
+      if (q) { q.queued = false; q.ran = true; this.chatSeq++; } else this.say({ t, role: 'user', text: text.slice(0, CHAT_CAP) });
     } else if (kind === 'task-notification') {
       const s = text.match(/<summary>([\s\S]*?)<\/summary>/);
       this.push({ t, kind: 'notify', text: clip(s ? s[1] : text, 200) });
@@ -951,7 +972,101 @@ function putOffice(b) {
   return office;
 }
 
+// ---------- talking to sessions ----------
+// The in-office chat types into a session's own terminal, as you would: through Orca's documented `orca terminal send`, or
+// tmux outside Orca. The terminal comes from the claude process's own environment (Orca and tmux put ORCA_TERMINAL_HANDLE /
+// TMUX_PANE in every shell they start), never guessed from the cwd; if two live sessions share a terminal we refuse.
+const SEND_MAX = 8000;
+const BIN_DIRS = [...(process.env.PATH || '').split(':'), '/usr/local/bin', '/opt/homebrew/bin', '/Applications/Orca.app/Contents/Resources/bin'];
+const binOf = (name) => BIN_DIRS.map((d) => d && path.join(d, name)).find((p) => p && fs.existsSync(p));
+const run = (cmd, args) => new Promise((resolve) => execFile(cmd, args, { timeout: 30000, maxBuffer: 16 << 20 },
+  (err, out, errOut) => resolve({ err, out: String(out || ''), errOut: String(errOut || '') })));
+const sending = new Set();   // session ids with a send in flight
+const sentAt = new Map();    // session id -> when we last got a message in (the registry's status lags a turn starting by seconds)
+
+async function terminalOf(r) {
+  const { out } = await run('ps', ['eww', '-o', 'lstart=,command=', '-p', String(r.pid)]);
+  if (!out.trim()) throw new Error('the session has exited');
+  // procStart guards against pid reuse; Claude Code writes it in UTC (older versions in local time).
+  const started = Date.parse(out.slice(0, 24)), reg = r.procStart && [Date.parse(r.procStart + ' UTC'), Date.parse(r.procStart)];
+  if (reg && !reg.some((x) => Math.abs(x - started) < 2000)) throw new Error('its process changed since it registered');
+  const last = (re) => [...out.matchAll(re)].at(-1)?.[1];   // the environment follows the arguments
+  const handle = last(/\bORCA_TERMINAL_HANDLE=(term_[\w-]+)/g);
+  if (handle) return { route: 'orca', handle };
+  const pane = last(/\bTMUX_PANE=(%\d+)/g), socket = last(/\bTMUX=([^\s,]+),/g);
+  return pane && socket ? { route: 'tmux', handle: pane, socket } : null;
+}
+
+// Where a message to this session would go, or throws why it can't go anywhere.
+async function routeOf(id) {
+  const r = registry.find((x) => x.sessionId === id);
+  if (!r || !pidAlive(r.pid)) throw new Error('this session isn’t running');
+  if (r.kind !== 'interactive' || r.entrypoint !== 'cli') throw new Error(`can’t send to this session from here: it isn’t a terminal session (${r.entrypoint || r.kind})`);
+  const term = await terminalOf(r);
+  if (!term) throw new Error('can’t send to this session from here: it isn’t running in an Orca terminal or tmux');
+  const others = await Promise.all(registry.filter((x) => x !== r && pidAlive(x.pid)).map((x) => terminalOf(x).catch(() => null)));
+  if (others.some((o) => o?.route === term.route && o.handle === term.handle && o.socket === term.socket)) throw new Error('more than one Claude session runs in that terminal, so it’s unclear which would get the message');
+  return { r, term };
+}
+
+async function sendToSession(id, text) {
+  const { r, term } = await routeOf(id);
+  if (!['idle', 'busy'].includes(r.status)) throw new Error(`it’s ${r.status === 'waiting' ? 'waiting on a prompt (a permission request or question)' : r.status}: answer it in its terminal`);
+  const busy = r.status === 'busy' || (sentAt.get(id) || 0) > (r.statusUpdatedAt || 0);
+  console.log(`[send] ${new Date().toISOString()} ${r.name || id} (pid ${r.pid}, ${busy ? 'busy' : 'idle'}) via ${term.route} ${term.handle}: ${JSON.stringify(text)}`);
+
+  if (term.route === 'orca') {
+    const orca = binOf('orca');
+    if (!orca) throw new Error('the orca CLI isn’t installed');
+    const t = safeJSON((await run(orca, ['terminal', 'list', '--json'])).out)?.result?.terminals?.find((x) => x.handle === term.handle);
+    if (!t) throw new Error('its Orca terminal is gone (did Orca restart?)');
+    if (!t.connected || !t.writable) throw new Error('its Orca terminal isn’t accepting input');
+    // Text plus Enter is one prompt to Orca (newlines don't submit early). For an idle session wait for proof the turn started;
+    // a busy one queues the message, so acceptance is all there is to see.
+    const res = await run(orca, ['terminal', 'send', '--terminal', term.handle, `--text=${text}`, '--enter', ...(busy ? [] : ['--wait-submit', '10']), '--json']);
+    const j = safeJSON(res.out);
+    if (/agent_prompt_blocked/.test(`${j?.error?.code} ${j?.error?.message}`)) throw new Error('it’s showing a prompt in its terminal (a permission request or question), so Orca didn’t press Enter. Answer the prompt there, and check its input box: your text may be sitting in it');
+    if (!j?.ok) throw new Error(j?.error?.message || res.errOut.trim() || 'orca terminal send failed');
+    if (!j.result?.send?.accepted) throw new Error('Orca didn’t accept the input');
+    const stages = j.result.send.prompt?.stages || [];
+    console.log(`[send] ${r.name || id}: accepted, ${stages.join(' → ') || 'no receipt stages'}`);
+    sentAt.set(id, Date.now());
+    return { route: 'orca', terminal: t.title, started: !busy && stages.includes('turn_started'), queued: busy };
+  }
+  // tmux: one bracketed paste so newlines don't submit early, then Enter.
+  const tmux = binOf('tmux');
+  if (!tmux) throw new Error('tmux isn’t installed');
+  const tm = async (...a) => { const x = await run(tmux, ['-S', term.socket, ...a]); if (x.err) throw new Error(`tmux: ${x.errOut.trim() || x.err.message}`); return x.out; };
+  if ((await tm('display-message', '-p', '-t', term.handle, '#{pane_id}')).trim() !== term.handle) throw new Error('its tmux pane is gone');
+  const buf = `my-office-${Date.now()}`;
+  await tm('set-buffer', '-b', buf, '--', text);
+  await tm('paste-buffer', '-p', '-d', '-b', buf, '-t', term.handle);
+  await new Promise((ok) => setTimeout(ok, 150));
+  await tm('send-keys', '-t', term.handle, 'Enter');
+  sentAt.set(id, Date.now());
+  return { route: 'tmux', terminal: term.handle, started: false, queued: busy };
+}
+
 // ---------- http ----------
+// Anything that changes state must come from this dashboard: JSON (a foreign page then needs a CORS preflight, which is never
+// approved), our own Origin on our own Host (no other site, no DNS rebinding), and not a TV or headless browser (a TV showing
+// the dashboard must not drive it).
+function refuse(req) {
+  const host = req.headers.host || '', ua = req.headers['user-agent'] || '';
+  if (!trustedHost(host)) return 'unknown Host';
+  if (req.headers.origin !== `http://${host}`) return 'missing or foreign Origin';
+  if (!/^application\/json\s*(;|$)/i.test(req.headers['content-type'] || '')) return 'Content-Type must be application/json';
+  if (/HeadlessChrome/.test(ua) || ua.includes(TV_UA_TAG)) return 'not from a TV or headless browser';
+  return null;
+}
+function deny(req, res) {
+  const why = refuse(req);
+  if (!why) return false;
+  console.log(`[refused] ${req.method} ${req.url}: ${why} (origin ${req.headers.origin || '-'}, host ${req.headers.host || '-'})`);
+  res.writeHead(403, { 'content-type': 'application/json' });
+  res.end(JSON.stringify({ error: `refused: ${why}` }));
+  return true;
+}
 const INDEX = path.join(__dirname, 'public', 'index.html');
 const STATIC_ROOTS = [
   ['/vendor/three/', path.join(__dirname, 'node_modules', 'three')],
@@ -988,6 +1103,7 @@ const server = http.createServer((req, res) => {
   }
   if (url.pathname === '/api/office') {
     if (req.method !== 'PUT') { res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' }); return res.end(JSON.stringify(office)); }
+    if (deny(req, res)) return;
     let body = '';
     req.on('data', (c) => { body += c; if (body.length > 4096) req.destroy(); });
     req.on('end', () => {
@@ -1002,6 +1118,7 @@ const server = http.createServer((req, res) => {
   }
   const tv = url.pathname.match(/^\/api\/tvs\/([\w-]{1,40})$/);
   if (tv && req.method === 'PUT') {
+    if (deny(req, res)) return;
     let body = '';
     req.on('data', (c) => { body += c; if (body.length > 16384) req.destroy(); });
     req.on('end', () => {
@@ -1016,6 +1133,38 @@ const server = http.createServer((req, res) => {
   if (url.pathname === '/api/state') {
     res.writeHead(200, { 'content-type': 'application/json' });
     return res.end(stateJSON);
+  }
+  // The conversation for the in-office chat. ?seq= is the last seq the client has; unchanged means no messages are sent.
+  const chat = url.pathname.match(/^\/api\/session\/([\w-]+)\/chat$/);
+  if (chat) {
+    const tr = transcripts.get(bySession.get(chat[1])), seq = tr?.chatSeq ?? 0;
+    const body = url.searchParams.get('seq') === String(seq) ? { seq } : { seq, messages: tr?.chat.slice(-150) || [] };
+    if (!url.searchParams.has('route')) { res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' }); return res.end(JSON.stringify(body)); }
+    // ?route also says whether (and how) a message could be delivered, so the chat can say so before you type.
+    routeOf(chat[1]).then(({ term }) => ({ route: term.route }), (e) => ({ cantSend: e.message })).then((o) => {
+      res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+      res.end(JSON.stringify({ ...body, ...o }));
+    });
+    return;
+  }
+  const send = url.pathname.match(/^\/api\/session\/([\w-]+)\/send$/);
+  if (send) {
+    if (req.method !== 'POST') { res.writeHead(405); return res.end(); }
+    if (deny(req, res)) return;
+    let body = '';
+    req.on('data', (c) => { body += c; if (body.length > 65536) req.destroy(); });
+    req.on('end', async () => {
+      const id = send[1], reply = (code, o) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(o)); };
+      const text = String(safeJSON(body)?.text ?? '').replace(/\r\n?/g, '\n').trim();
+      if (!text) return reply(400, { error: 'empty message' });
+      if (text.length > SEND_MAX) return reply(400, { error: `too long (${text.length} of ${SEND_MAX} characters)` });
+      if (sending.has(id)) return reply(409, { error: 'still sending the previous message' });
+      sending.add(id);
+      try { reply(200, await sendToSession(id, text)); }
+      catch (e) { console.log(`[send] ${id}: refused: ${e.message}`); reply(422, { error: e.message }); }
+      finally { sending.delete(id); }
+    });
+    return;
   }
   const m = url.pathname.match(/^\/api\/session\/([\w-]+)$/);
   if (m) {

@@ -652,6 +652,7 @@ class Person {
     }
     this.root.rotation.y = this.rotY;
     const tg = this.targets(t), j = this.j;
+    if (this.lookAt) { const p = this.root.position; tg.headY = clamp(angDiff(this.rotY, Math.atan2(this.lookAt.x - p.x, this.lookAt.z - p.z)), -1.1, 1.1); tg.headX = 0; }   // you're talking to them
     for (const k in tg) j[k] = damp(j[k], tg[k], 9, dt);
     this.body.position.y = j.bodyY;
     this.upper.rotation.x = j.lean;
@@ -682,7 +683,7 @@ export function mountOffice(container) {
     .of-dom { background: var(--page); overflow: hidden; pointer-events: none; }
     .of-hud { position: absolute; inset: 0; z-index: 2; pointer-events: none; font: 13px/1.4 system-ui, -apple-system, sans-serif; color: #fff; transition: opacity .4s; }
     .of-hud.hidden { opacity: 0; }
-    .of-bare > :not(.of-cross, .of-toast, .of-tvbar, .of-osd) { display: none !important; }   /* a TV in use keeps its bar */
+    .of-bare > :not(.of-cross, .of-toast, .of-tvbar, .of-osd, .of-chat, .of-chatbar) { display: none !important; }   /* a TV in use keeps its bar, an open chat stays */
     .of-toast { position: absolute; left: 50%; top: 18px; transform: translateX(-50%); background: rgba(15,16,19,.82); border: 1px solid rgba(255,255,255,.14); border-radius: 10px; padding: 6px 12px; color: #c3c2b7; font-size: 12px; opacity: 0; transition: opacity .3s; }
     .of-toast.on { opacity: 1; }
     .of-toast kbd { font: inherit; font-weight: 600; color: #fff; background: rgba(255,255,255,.12); border-radius: 4px; padding: 0 5px; }
@@ -720,6 +721,40 @@ export function mountOffice(container) {
     .of-using .of-tvhint { display: block; }
     .of-osd { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%); background: rgba(15,16,19,.84); border-radius: 14px; padding: 14px 24px; font-size: 22px; font-weight: 600; white-space: pre; opacity: 0; transition: opacity .3s; }
     .of-osd.on { opacity: 1; }
+    .of-chat { position: absolute; right: 16px; top: 16px; bottom: 112px; width: min(500px, calc(100% - 32px)); display: none; flex-direction: column; background: rgba(15,16,19,.86); border: 1px solid rgba(255,255,255,.12); border-radius: 12px; pointer-events: auto; overflow: hidden; }
+    .of-chatting .of-chat { display: flex; }
+    .of-chatting .of-chatbar { display: flex; }
+    .of-chatting .of-legend, .of-chatting .of-start, .of-chatting .of-map, .of-chatting .of-target { display: none; }
+    .of-chat .hd { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,.1); }
+    .of-chat .hd i { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+    .of-chat .hd .tt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+    .of-chat .hd b, .of-chat .hd small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .of-chat .hd b { font-size: 14px; }
+    .of-chat .hd small { color: #c3c2b7; font-size: 12px; }
+    .of-chat button, .of-chatbar button { font: inherit; font-size: 12px; color: #e8e6df; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12); border-radius: 7px; padding: 3px 9px; cursor: pointer; white-space: nowrap; }
+    .of-chat button:hover, .of-chatbar button:hover { color: #fff; background: rgba(255,255,255,.14); }
+    .of-chatlog { flex: 1; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; overscroll-behavior: contain; }
+    .of-chatlog .u { align-self: flex-end; max-width: 85%; background: #2d5f9e; border-radius: 10px 10px 2px 10px; padding: 6px 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .of-chatlog .u.q { background: rgba(57,135,229,.35); border: 1px dashed rgba(255,255,255,.35); }
+    .of-chatlog .u em { display: block; font-style: normal; font-size: 11px; color: #c9dcf5; margin-top: 2px; }
+    .of-chatlog .a { color: #ecebe4; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .of-chatlog .a code { font: 12px ui-monospace, Menlo, monospace; background: rgba(255,255,255,.1); border-radius: 4px; padding: 0 4px; }
+    .of-chatlog .a pre { font: 12px/1.45 ui-monospace, Menlo, monospace; background: rgba(0,0,0,.35); border-radius: 6px; padding: 7px 9px; margin: 4px 0; overflow-x: auto; white-space: pre; }
+    .of-chatlog .a .h { font-weight: 650; color: #fff; }
+    .of-chatlog .t { color: #8b8a85; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .of-chatlog details.t[open] { white-space: normal; }
+    .of-chatlog details.t summary { cursor: pointer; overflow: hidden; text-overflow: ellipsis; }
+    .of-chatlog details.t div { padding-left: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .of-chatlog .n { color: #8b8a85; font-size: 12px; text-align: center; }
+    .of-chatlog .ts { color: #6f6e69; font-size: 11px; text-align: center; margin-top: 4px; }
+    .of-chatbar { position: absolute; left: 16px; right: 16px; bottom: 14px; display: none; flex-direction: column; gap: 4px; background: rgba(15,16,19,.86); border: 1px solid rgba(255,255,255,.14); border-radius: 12px; padding: 8px; pointer-events: auto; }
+    .of-chatbar form { display: flex; gap: 8px; align-items: flex-end; }
+    .of-chatbar textarea { flex: 1; font: inherit; font-size: 14px; color: #fff; background: rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.14); border-radius: 8px; padding: 7px 10px; resize: none; max-height: 30vh; min-height: 36px; }
+    .of-chatbar textarea:disabled { opacity: .5; }
+    .of-chatbar button.pri { background: #3987e5; border-color: #3987e5; color: #fff; padding: 7px 14px; font-size: 13px; }
+    .of-chatbar .st { font-size: 12px; color: #8b8a85; padding: 0 2px; }
+    .of-chatbar .st.ok { color: #6fcf8f; } .of-chatbar .st.warn { color: #e8b04a; } .of-chatbar .st.bad { color: #f07b6e; }
+    .of-chatbar kbd, .of-chat kbd { font: inherit; font-weight: 600; color: #fff; background: rgba(255,255,255,.12); border-radius: 4px; padding: 0 5px; }
     .of-volrow { display: flex; gap: 10px; align-items: center; }
     .of-volrow input { flex: 1; accent-color: var(--accent); padding: 0 !important; }
     .of-volv { min-width: 44px; color: var(--ink-2); font-size: 13px; }
@@ -757,14 +792,16 @@ export function mountOffice(container) {
   hud.innerHTML = `<div class="of-cross"></div><div class="of-target"></div><canvas class="of-map" width="440" height="330" style="width:220px;height:165px"></canvas>
     <div class="of-count"></div>
     <div class="of-time"><span class="of-clock"></span><button data-speed="1">Live</button><button data-speed="120">×120</button><button data-speed="1200">×1200</button><button data-speed="7200">×7200</button></div>
-    <div class="of-legend"><kbd>W A S D</kbd> move · <kbd>Shift</kbd> run · <kbd>Click</kbd> inspect or use a TV · <kbd>E</kbd> set up a TV · <kbd>1</kbd> desks <kbd>2</kbd> breakroom <kbd>3</kbd> my office <kbd>4</kbd> lobby · <kbd>T</kbd> time speed · <kbd>G</kbd> graphics · <kbd>H</kbd> hide overlays · <kbd>M</kbd> sounds · <kbd>Esc</kbd> release mouse</div>
+    <div class="of-legend"><kbd>W A S D</kbd> move · <kbd>Shift</kbd> run · <kbd>Click</kbd> talk to someone or use a TV · <kbd>E</kbd> details / set up a TV · <kbd>1</kbd> desks <kbd>2</kbd> breakroom <kbd>3</kbd> my office <kbd>4</kbd> lobby · <kbd>T</kbd> time speed · <kbd>G</kbd> graphics · <kbd>H</kbd> hide overlays · <kbd>M</kbd> sounds · <kbd>Esc</kbd> release mouse</div>
     <div class="of-toast"></div>
-    <div class="of-start"><b>Click to look around</b><span>Walk up to anyone, or their screen, and click for details.<br>Click your own monitor to go back to the dashboard.</span></div>
+    <div class="of-start"><b>Click to look around</b><span>Walk up to anyone and click to talk to them, or click their screen for details.<br>Click your own monitor to go back to the dashboard.</span></div>
     <div class="of-tvhint">Using the <b class="of-tvname"></b> TV · click and type into the page · <kbd>${ALT}M</kbd> mute · <kbd>${ALT}−</kbd> <kbd>${ALT}=</kbd> or <kbd>${ALT}scroll</kbd> volume · <kbd>Esc</kbd> back to walking</div>
     <div class="of-tvbar"><button data-nav="back" title="Back">←</button><button data-nav="forward" title="Forward">→</button><button data-nav="reload" title="Reload">⟳</button><button data-nav="home" title="Back to the TV's own page">⌂</button>
       <form><input name="u" type="text" spellcheck="false" autocomplete="off" placeholder="Go to a URL"></form>
       <button data-act="mute"></button><input type="range" min="0" max="100" title="TV volume"><button data-act="setup" title="Set up this TV">⚙</button><button data-act="leave">Done <kbd>Esc</kbd></button></div>
-    <div class="of-osd"></div>`;
+    <div class="of-osd"></div>
+    <div class="of-chat"><div class="hd"><i></i><div class="tt"><b></b><small></small></div><button data-act="details">Details</button><button data-act="close">Close <kbd>Esc</kbd></button></div><div class="of-chatlog"></div></div>
+    <div class="of-chatbar"><form><textarea rows="1" maxlength="8000" spellcheck="true"></textarea><button class="pri">Send</button></form><div class="st"></div></div>`;
   container.appendChild(hud);
   const targetEl = hud.querySelector('.of-target'), mapCanvas = hud.querySelector('.of-map'), mapCtx = mapCanvas.getContext('2d'), countEl = hud.querySelector('.of-count');
 
@@ -2076,6 +2113,7 @@ export function mountOffice(container) {
       else drawSession(d.scr, s, d.owner.color);
       d.painted = key;
       d.scr.mesh.userData.sessionId = d.codeScr.mesh.userData.sessionId = s?.sessionId;
+      d.scr.mesh.userData.screen = d.codeScr.mesh.userData.screen = true;
       d.scr.tex.needsUpdate = true;
       paintCode(d, now, true);
     }
@@ -2179,11 +2217,13 @@ export function mountOffice(container) {
   // ----- input -----
   renderer.domElement.addEventListener('click', (e) => {
     sfx.unlock();
+    if (mode === 'chat') { closeChat(true); return; }
     if (mode !== 'free') return;
     if (!locked) { renderer.domElement.requestPointerLock(); return; }
     if (!hover) return;
     if (hover.action === 'computer') { document.exitPointerLock(); dash.setView('overview'); }
-    else if (hover.sessionId) { document.exitPointerLock(); dash.openDrawer(hover.sessionId); }
+    else if (hover.sessionId && hover.screen) { document.exitPointerLock(); dash.openDrawer(hover.sessionId); }
+    else if (hover.sessionId) openChat(hover.sessionId);
     else if (hover.action === 'blinds') { hover.blind.to = hover.blind.to ? 0 : 1; dash.putOffice({ blinds: { [hover.blind.key]: hover.blind.to } }); }
     else if (hover.action === 'door') { door.to = door.to ? 0 : 1; dash.putOffice({ door: door.to }); }
     else if (hover.tv) {
@@ -2215,6 +2255,7 @@ export function mountOffice(container) {
     if (e.code === 'KeyM') { dash.setSound({ on: !dash.sound.on }); sfx.unlock(); toast(`Sounds ${dash.sound.on ? 'on' : 'off'} · <kbd>M</kbd> to ${dash.sound.on ? 'mute' : 'unmute'}`); return; }
     if (e.code === 'KeyT') { setSpeed(SPEEDS[(SPEEDS.indexOf(clockState.speed) + 1) % SPEEDS.length]); return; }
     if (e.code === 'KeyE' && hover?.tv) { document.exitPointerLock(); openTvPanel(hover.tv); return; }
+    if (e.code === 'KeyE' && hover?.sessionId) { document.exitPointerLock(); dash.openDrawer(hover.sessionId); return; }
     if (locked) { keys.add(e.code); if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault(); }
   });
   document.addEventListener('keyup', (e) => keys.delete(e.code));
@@ -2327,6 +2368,147 @@ export function mountOffice(container) {
     tvSend({ t: 'text', id: using.id, text: e.clipboardData.getData('text') });
   });
 
+  // ----- talking to a session -----
+  // Clicking a person opens their conversation (right) and a message bar (bottom); keys go to the bar until Esc. Messages are
+  // typed into the session's own terminal by the server (/api/session/:id/send). Never from a TV or a framed copy of the office.
+  const CAN_CHAT = window.top === window && !/HeadlessChrome|my-office-tv/.test(navigator.userAgent);
+  const chatEl = hud.querySelector('.of-chat'), chatLog = chatEl.querySelector('.of-chatlog'), chatBar = hud.querySelector('.of-chatbar');
+  const chatIn = chatBar.querySelector('textarea'), chatSend = chatBar.querySelector('button'), chatSt = chatBar.querySelector('.st');
+  const talk = { id: null, seq: null, msgs: [], route: null, cantSend: null, outbox: [], note: null, busy: false, timer: 0, routeAt: 0 };
+  const bubble = new THREE.Sprite(new THREE.SpriteMaterial({ depthWrite: false, transparent: true }));
+  { const b = makeCanvas(128, 96), c = b.ctx;
+    c.fillStyle = '#fff'; c.beginPath(); c.roundRect(8, 6, 112, 64, 22); c.moveTo(40, 68); c.lineTo(30, 92); c.lineTo(62, 68); c.fill();
+    c.fillStyle = '#3987e5'; for (const x of [40, 64, 88]) { c.beginPath(); c.arc(x, 38, 8, 0, Math.PI * 2); c.fill(); }
+    bubble.material.map = b.tex; bubble.scale.set(0.42, 0.315, 1); bubble.visible = false; bubble.layers.set(1); }
+  let bubbleT = 0;
+  function md(text) {
+    return String(text).split(/```[^\n]*\n?/).map((part, i) => i % 2 ? `<pre>${escapeHtml(part.replace(/\n$/, ''))}</pre>` :
+      escapeHtml(i ? part.replace(/^\n/, '') : part).split('\n').map((l) => {
+        l = l.replace(/`([^`\n]+)`/g, '<code>$1</code>').replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>');
+        const h = l.match(/^#{1,6}\s+(.*)/);
+        return h ? `<span class="h">${h[1]}</span>` : l.replace(/^(\s*)[-*] /, '$1• ');
+      }).join('\n')).join('');
+  }
+  function openChat(id) {
+    if (!CAN_CHAT) { dash.openDrawer(id); return; }
+    if (mode !== 'free' && mode !== 'chat') return;
+    if (document.pointerLockElement) document.exitPointerLock();
+    if (talk.id !== id) Object.assign(talk, { id, seq: null, msgs: [], route: null, cantSend: null, outbox: [], note: null, routeAt: 0 });
+    mode = 'chat'; keys.clear();
+    hud.classList.add('of-chatting');
+    const p = people.get(id);
+    if (p) p.lookAt = camera.position;
+    chatLog.innerHTML = '<div class="n">Loading the conversation…</div>';
+    renderChatHead(); syncChatBar();
+    pollChat();
+    clearInterval(talk.timer); talk.timer = setInterval(pollChat, 1000);
+    setTimeout(() => chatIn.focus());
+  }
+  function closeChat(relock) {
+    if (!talk.id) return;
+    const p = people.get(talk.id);
+    if (p) p.lookAt = null;
+    clearInterval(talk.timer);
+    talk.id = null;
+    hud.classList.remove('of-chatting');
+    chatIn.blur();
+    if (mode === 'chat') mode = 'free';
+    if (relock) renderer.domElement.requestPointerLock();   // only works from a click; after Esc, click to look around again
+  }
+  async function pollChat() {
+    const id = talk.id, withRoute = Date.now() - talk.routeAt > 10000;
+    const r = await fetch(`/api/session/${id}/chat?seq=${talk.seq ?? ''}${withRoute ? '&route' : ''}`).then((x) => x.json()).catch(() => null);
+    if (!r || id !== talk.id) return;
+    if (withRoute) { talk.routeAt = Date.now(); talk.route = r.route || null; talk.cantSend = r.cantSend || null; }
+    if (r.messages) { talk.msgs = r.messages; talk.seq = r.seq; }
+    // A sent message stays in the outbox until the transcript has it.
+    talk.outbox = talk.outbox.filter((o) => !talk.msgs.some((m) => m.role === 'user' && m.text.includes(o.text) && m.t >= o.t - 5000) && Date.now() - o.t < 120000);
+    renderChatHead(); syncChatBar();
+    if (r.messages || withRoute) renderChatLog();
+  }
+  function renderChatHead() {
+    const s = S?.live.find((x) => x.sessionId === talk.id), st = s ? statusOf(s) : { text: 'ENDED', color: '#9a9890' };
+    chatEl.querySelector('i').style.background = dash.colorHex(talk.id);
+    chatEl.querySelector('b').textContent = s ? titleOf(s) : 'Session ended';
+    const sm = chatEl.querySelector('small');
+    sm.textContent = s ? `${st.text}${s.status === 'idle' ? ` · ${F.dur(Date.now() - s.statusSince)}` : ''} · ${s.name}` : '';
+    sm.style.color = st.color;
+  }
+  function renderChatLog() {
+    const stick = chatLog.scrollHeight - chatLog.scrollTop - chatLog.clientHeight < 60;
+    const out = [], tools = [];
+    let lastT = 0;
+    const flush = () => {
+      if (!tools.length) return;
+      const line = (m) => `${escapeHtml(m.name)} · ${escapeHtml(m.text)}`;
+      out.push(tools.length === 1 ? `<div class="t">⚙ ${line(tools[0])}</div>`
+        : `<details class="t"><summary>⚙ ${tools.length} tool calls · ${escapeHtml([...new Set(tools.map((m) => m.name))].join(', '))}</summary>${tools.map((m) => `<div>${line(m)}</div>`).join('')}</details>`);
+      tools.length = 0;
+    };
+    for (const m of talk.msgs) {
+      if (m.t - lastT > 15 * 60e3) { flush(); out.push(`<div class="ts">${new Date(m.t).toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' })}</div>`); }
+      lastT = m.t || lastT;
+      if (m.role === 'tool') { tools.push(m); continue; }
+      flush();
+      if (m.role === 'user') out.push(`<div class="u${m.queued ? ' q' : ''}">${escapeHtml(m.text)}${m.queued ? '<em>queued · Claude will read it when it can</em>' : ''}</div>`);
+      else if (m.role === 'assistant') out.push(`<div class="a">${md(m.text)}</div>`);
+      else out.push(`<div class="n">${escapeHtml(m.text)}</div>`);
+    }
+    flush();
+    for (const o of talk.outbox) out.push(`<div class="u q">${escapeHtml(o.text)}<em>${o.queued ? 'queued · Claude will read it when it can' : 'sent'}</em></div>`);
+    const s = S?.live.find((x) => x.sessionId === talk.id);
+    if (s?.status === 'working') out.push(`<div class="n">${s.transcript?.pendingTool ? `working · ${escapeHtml(s.transcript.pendingTool.name)}` : 'thinking'}…</div>`);
+    chatLog.innerHTML = out.join('') || '<div class="n">No conversation yet</div>';
+    if (stick) chatLog.scrollTop = chatLog.scrollHeight;
+  }
+  function syncChatBar() {
+    const s = S?.live.find((x) => x.sessionId === talk.id), who = s ? titleOf(s) : 'this session';
+    const why = !s ? 'this session has ended' : talk.cantSend || (!['idle', 'working'].includes(s.status) && `it’s ${s.status === 'waiting' ? 'waiting on a prompt (a permission request or question)' : s.status}: answer it in its terminal`);
+    chatIn.disabled = chatSend.disabled = !!why || talk.busy;
+    chatIn.placeholder = why ? 'Can’t send from here' : s.status === 'working' ? `Message ${who} · it’s working, so this will be queued` : `Message ${who}`;
+    if (talk.note) { chatSt.className = 'st ' + talk.note.cls; chatSt.textContent = talk.note.text; return; }
+    chatSt.className = 'st' + (why ? ' bad' : s.status === 'working' ? ' warn' : '');
+    chatSt.innerHTML = why ? escapeHtml(why[0].toUpperCase() + why.slice(1)) : s.status === 'working'
+      ? 'Working: your message will be queued and Claude reads it at its next step · <kbd>Enter</kbd> send · <kbd>Shift+Enter</kbd> new line · <kbd>Esc</kbd> back'
+      : `${s.status === 'idle' ? 'Waiting for you' : escapeHtml(s.status)}${talk.route ? ` · types into its ${talk.route === 'orca' ? 'Orca' : 'tmux'} terminal` : ''} · <kbd>Enter</kbd> send · <kbd>Shift+Enter</kbd> new line · <kbd>Esc</kbd> back`;
+  }
+  async function sendChat() {
+    const id = talk.id, text = chatIn.value.trim();
+    if (!text || talk.busy || chatIn.disabled) return;
+    talk.busy = true; talk.note = { cls: '', text: 'Sending…' }; syncChatBar();
+    const r = await fetch(`/api/session/${id}/send`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text }) })
+      .then((x) => x.json()).catch((e) => ({ error: e.message }));
+    talk.busy = false;
+    if (id !== talk.id) return;
+    if (r.error) talk.note = { cls: 'bad', text: `Not sent: ${r.error}` };
+    else {
+      chatIn.value = ''; chatIn.style.height = '';
+      talk.outbox.push({ text, t: Date.now(), queued: r.queued });
+      talk.note = { cls: 'ok', text: r.queued ? 'Delivered · queued until Claude finishes its current step' : r.started ? 'Delivered · Claude is on it' : 'Delivered to the terminal (no reply started yet)' };
+      const p = people.get(id);
+      if (p) { p.root.add(bubble); bubble.position.y = 2.5; bubble.visible = true; clearTimeout(bubbleT); bubbleT = setTimeout(() => (bubble.visible = false), 4000); }
+    }
+    syncChatBar(); renderChatLog();
+    chatIn.focus();
+  }
+  chatBar.querySelector('form').addEventListener('submit', (e) => { e.preventDefault(); sendChat(); });
+  chatIn.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); sendChat(); } });
+  chatIn.addEventListener('input', () => {
+    chatIn.style.height = ''; chatIn.style.height = Math.min(chatIn.scrollHeight + 2, innerHeight * 0.3) + 'px';
+    if (talk.note && !talk.busy) { talk.note = null; syncChatBar(); }
+  });
+  chatEl.addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (b?.dataset.act === 'details') dash.openDrawer(talk.id);
+    else if (b?.dataset.act === 'close') closeChat();
+  });
+  // Esc closes the chat (or just the drawer, if Details is open); typing anywhere goes to the message bar.
+  document.addEventListener('keydown', (e) => {
+    if (!talk.id || document.body.classList.contains('drawer')) return;
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeChat(); return; }
+    if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey && !e.target.closest?.('input, select, textarea') && !chatIn.disabled) chatIn.focus();
+  }, true);
+
   // ----- hover / inspect -----
   const ray = new THREE.Raycaster();
   ray.far = 14;
@@ -2345,7 +2527,7 @@ export function mountOffice(container) {
         if (ud.reach && hit.distance > ud.reach) { if (ud.glass || hit.object.material.transparent) continue; break; }
         if (ud.action) { hover = { action: ud.action, blind: ud.blind || ud.blindAt?.(hit.point) }; break; }
         if (ud.tv) { hover = { tv: tvs.find((t) => t.id === ud.tv) }; break; }
-        if (ud.sessionId) { hover = { sessionId: ud.sessionId }; break; }
+        if (ud.sessionId) { hover = { sessionId: ud.sessionId, screen: !!ud.screen }; break; }
         if (hit.object.isMesh && !hit.object.isSprite) break;
       }
     }
@@ -2370,7 +2552,7 @@ export function mountOffice(container) {
     const st = statusOf(s), tr = s.transcript || {};
     const doing = s.status !== 'idle' && tr.pendingTool ? `${tr.pendingTool.name}: ${tr.pendingTool.detail || ''}` : s.status === 'idle' ? `idle for ${F.dur(Date.now() - s.statusSince)}` : 'thinking';
     targetEl.innerHTML = `<b>${escapeHtml(titleOf(s))}</b><div class="m"><span style="color:${st.color}">${st.text}</span> · ${F.usd(s.cost)}${s.statusline?.context ? ` · ${s.statusline.context.used_percentage}% context` : ''}</div>
-      <div class="m">${escapeHtml(doing.slice(0, 90))}</div><div class="k">${escapeHtml(s.name)} · click for full details</div>`;
+      <div class="m">${escapeHtml(doing.slice(0, 90))}</div><div class="k">${escapeHtml(s.name)} · ${CAN_CHAT && !hover.screen ? 'click to talk · E for details' : 'click for full details'}</div>`;
   }
   const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -2551,7 +2733,7 @@ export function mountOffice(container) {
   }
   new ResizeObserver(resize).observe(container);
 
-  window.__office = { teleport: (k) => TELEPORTS[k](), openTv: (id) => openTvPanel(tvs.find((t) => t.id === id)), useTv: (id) => useTv(tvs.find((t) => t.id === id)), leaveTv,
+  window.__office = { openChat, closeChat, talk, get mode() { return mode; }, teleport: (k) => TELEPORTS[k](), openTv: (id) => openTvPanel(tvs.find((t) => t.id === id)), useTv: (id) => useTv(tvs.find((t) => t.id === id)), leaveTv,
     tvPoint: (id, u, v) => { const t = tvs.find((x) => x.id === id), p = t.scr.mesh.localToWorld(new THREE.Vector3((u - 0.5) * t.w, (0.5 - v) * t.h, 0)).project(camera), r = renderer.domElement.getBoundingClientRect(); return { x: r.left + (p.x + 1) / 2 * r.width, y: r.top + (1 - p.y) / 2 * r.height }; },
     tvs: () => tvs.map((t) => ({ id: t.id, live: t.live, frame: !!t.frame, url: t.page?.url, title: t.page?.title, dist: t.dist })), player, people, blinds, door, collide, sfx, setSpeed, clockState, setTime: (ms) => Object.assign(clockState, { speed: 0.0001, simBase: ms, realBase: Date.now() }) };
 
@@ -2582,6 +2764,7 @@ export function mountOffice(container) {
     hide() {
       return new Promise((resolve) => {
         if (document.pointerLockElement) document.exitPointerLock();
+        closeChat();
         dash.closeDrawer();
         if (using) { using.dirty = true; using = null; hud.classList.remove('of-using'); }
         hud.classList.add('hidden');
