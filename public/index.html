@@ -33,12 +33,7 @@ a:hover { text-decoration: underline; }
 main { max-width: 1680px; margin: 0 auto; padding: 20px 24px 60px; }
 main > .kpis:first-child { margin-top: 0; }
 
-header { display: flex; align-items: center; gap: 14px; height: 56px; padding: 0 24px; position: sticky; top: 0; z-index: 15; background: var(--page); border-bottom: 1px solid var(--border); }
-.tabs { display: flex; gap: 4px; margin-left: 18px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 3px; }
-.tabs button { font: inherit; font-size: 13px; font-weight: 550; color: var(--ink-2); background: none; border: 0; border-radius: 7px; padding: 5px 14px; cursor: pointer; }
-.tabs button:hover { color: var(--ink); }
-.tabs button[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.25), 0 0 0 1px var(--border); }
-#view-office { position: fixed; top: 56px; left: 0; right: 0; bottom: 0; display: none; background: var(--page); z-index: 10; overflow: hidden; }
+#view-office { position: fixed; top: 0; left: 0; right: 0; bottom: 0; display: none; background: var(--page); z-index: 10; overflow: hidden; }
 body[data-view="office"] #view-office { display: block; }
 body[data-view="office"] > main, body[data-view="admin"] > main { display: none; }
 /* admin */
@@ -61,8 +56,14 @@ body[data-view="admin"] #view-admin { display: grid; gap: 16px; }
 .tv-grid .vol button { padding: 5px 8px; }
 .tv-grid .note { grid-column: 2 / -1; font-size: 12px; margin-top: -4px; }
 .tv-grid .note.bad { color: var(--critical); } .tv-grid .note.warn { color: var(--warning); }
-header h1 { font-size: 18px; font-weight: 650; margin: 0; letter-spacing: -0.01em; }
-header .spacer { flex: 1; }
+/* Corner bar on the overview and admin pages: back into the office, and the other page. Hidden in the office. */
+#corner { position: fixed; top: 14px; right: 18px; z-index: 15; display: flex; align-items: center; gap: 8px; }
+body[data-view="office"] #corner { display: none; }
+body[data-view="overview"] > main, body[data-view="admin"] #view-admin { padding-top: 62px; }   /* room for the corner bar; not on the in-office monitor */
+#corner button { font: inherit; font-size: 13px; font-weight: 550; color: var(--ink-2); background: var(--surface); border: 1px solid var(--border); border-radius: 9px; padding: 6px 13px; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,.15); }
+#corner button:hover { color: var(--ink); border-color: var(--accent); }
+#corner button.exit { background: var(--accent); border-color: var(--accent); color: #fff; }
+body[data-view="overview"] #corner [data-go="overview"], body[data-view="admin"] #corner [data-go="admin"] { display: none; }
 .conn { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); }
 .conn i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
 .conn.on i { background: var(--good); box-shadow: 0 0 0 0 rgba(12,163,12,.6); animation: pulse 2s infinite; }
@@ -190,17 +191,12 @@ tr.click:hover td { background: var(--surface-2); }
 </style>
 </head>
 <body>
-<header>
-  <h1>my-office</h1>
-  <span class="muted" id="host"></span>
-  <nav class="tabs" role="tablist">
-    <button role="tab" data-view="overview" aria-selected="true">Overview</button>
-    <button role="tab" data-view="office" aria-selected="false">Office</button>
-    <button role="tab" data-view="admin" aria-selected="false">Admin</button>
-  </nav>
-  <span class="spacer"></span>
-  <span class="conn" id="conn"><i></i><span>connecting…</span></span>
-</header>
+<div id="corner">
+  <span class="conn" id="conn" title=""><i></i><span>connecting…</span></span>
+  <button data-go="overview">Overview</button>
+  <button data-go="admin">Admin</button>
+  <button data-go="office" class="exit">Exit to office ✕</button>
+</div>
 <main>
 
   <div class="kpis" id="kpis"></div>
@@ -256,7 +252,7 @@ tr.click:hover td { background: var(--surface-2); }
     <div class="adm-row"><span class="lbl">North wall</span><span class="seg" data-blind="north"><button data-v="0">Raised</button><button data-v="1">Lowered</button></span></div>
     <div class="adm-row"><span class="lbl">East wall</span><span class="seg" data-blind="east"><button data-v="0">Raised</button><button data-v="1">Lowered</button></span></div>
     <div class="adm-row"><span class="lbl">West wall</span><span class="seg" data-blind="west"><button data-v="0">Raised</button><button data-v="1">Lowered</button></span></div>
-    <div class="adm-row"><span class="lbl">My office</span><span class="seg" data-blind="office"><button data-v="0">Raised</button><button data-v="1">Lowered</button></span></div>
+    <div class="adm-row"><span class="lbl" data-office-name>Your office</span><span class="seg" data-blind="office"><button data-v="0">Raised</button><button data-v="1">Lowered</button></span></div>
     <div class="adm-row"><span class="lbl">Meeting room (south)</span><span class="seg" data-blind="meetSouth"><button data-v="0">Raised</button><button data-v="1">Lowered</button></span></div>
     <div class="adm-row"><span class="lbl">Meeting room (north)</span><span class="seg" data-blind="meetNorth"><button data-v="0">Raised</button><button data-v="1">Lowered</button></span></div>
     <div class="adm-row"><span class="lbl">Small meeting room</span><span class="seg" data-blind="meetSmall"><button data-v="0">Raised</button><button data-v="1">Lowered</button></span></div>
@@ -514,7 +510,7 @@ function renderRecent() {
 
 function render() {
   if (!S) return;
-  $('host').textContent = S.host;
+  $('conn').title = S.host;
   renderKpis(); renderCards(); renderFeed(); renderCharts(); renderRecent();
 }
 
@@ -660,6 +656,8 @@ window.dash = {
     return (m && getComputedStyle(document.documentElement).getPropertyValue(m[1]).trim()) || '#898781';
   },
   fmt: { usd, tok, dur, ago, clock, home, prettyModel },
+  // "Tom's Office" from the owner in config.json (set by /setup), else "My Office".
+  officeName() { const o = dash.config?.owner; return o ? `${o}’s Office` : 'My Office'; },
 };
 
 // ---------- tabs ----------
@@ -669,8 +667,7 @@ async function setView(view) {
   const prev = document.body.dataset.view;
   if (switching || view === prev) return;
   switching = true;
-  for (const b of document.querySelectorAll('.tabs button')) b.setAttribute('aria-selected', String(b.dataset.view === view));
-  if (location.hash !== '#' + view) history.replaceState(null, '', view === 'overview' ? location.pathname : '#' + view);
+  if (location.hash !== '#' + view) history.replaceState(null, '', view === 'office' ? location.pathname : '#' + view);
   try {
     if (view === 'office') {
       const y = scrollY;
@@ -686,8 +683,10 @@ async function setView(view) {
   } finally { switching = false; }
 }
 dash.setView = setView;
-document.querySelector('.tabs').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) setView(b.dataset.view); });
-setView(['#office', '#admin'].includes(location.hash) ? location.hash.slice(1) : 'overview');
+// The office is home; the overview (your monitor) and admin pages have a corner bar to get back.
+$('corner').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) setView(b.dataset.go); });
+setView(['#overview', '#admin'].includes(location.hash) ? location.hash.slice(1) : 'office');
+fetch('/api/config').then((r) => r.json()).then((c) => { dash.config ||= c; for (const el of document.querySelectorAll('[data-office-name]')) el.textContent = dash.officeName(); }).catch(() => {});
 
 // ---------- admin ----------
 // Office controls. Built once; syncAdmin() refreshes values from dash.office / dash.tvs without clobbering a URL being edited.
