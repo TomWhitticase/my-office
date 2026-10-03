@@ -1,0 +1,16 @@
+{
+  "name": "my-office",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Live dashboard and 3D office for your Claude Code sessions",
+  "scripts": {
+    "start": "node server.js",
+    "setup": "node bin/setup.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "three": "^0.186.1"
+  }
+}
