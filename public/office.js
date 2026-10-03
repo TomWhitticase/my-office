@@ -1106,10 +1106,10 @@ export function mountOffice(container) {
 
   for (const [x, z] of [[4, -8], [4, 8], [-9, 0.5 - 2.6]]) { box(world, 0.5, ROOM.h, 0.5, '#a8774b', x, ROOM.h / 2, z, { mat: { roughness: 0.7 } }); solid(x, z, 0.5, 0.5); }
 
-  // ----- the city outside (we're ~60 m up) -----
+  // ----- the city outside (we're on the ~48th floor, ~175 m up) -----
   const city = buildCity();
   function buildCity() {
-    const GROUND = -62, R = rng(4242);
+    const GROUND = -175, R = rng(4242);
     // Facade colour, lit windows at night, and a roughness/metalness map so the glass is glossy and reflective.
     const fac = makeCanvas(512, 512), lit = makeCanvas(512, 512), rm = makeCanvas(512, 512);
     fac.ctx.fillStyle = '#9a9a96'; fac.ctx.fillRect(0, 0, 512, 512);
@@ -1166,14 +1166,14 @@ export function mountOffice(container) {
       const n = 1 + Math.floor(R() * 3);
       for (let k = 0; k < n; k++) {
         const w = 14 + R() * 22, d = 14 + R() * 22;
-        // Low-rise next door so the view opens over rooftops to the skyline; towers further out.
-        const tall = R() < 0.1 ? 110 + R() * 140 : 0;
-        let h = ring === 1 ? 12 + R() * 26 : ring === 2 ? 20 + R() * 40 + (R() < 0.2 ? 30 + R() * 50 : 0) : 18 + R() * 95 * (1 - dist / 1300) + tall;
+        // Mid-rise next door, well below us, so the view opens over rooftops; a few towers further out top us.
+        const tall = R() < 0.1 ? 120 + R() * 160 : 0;
+        let h = ring === 1 ? 25 + R() * 55 : ring === 2 ? 35 + R() * 70 + (R() < 0.2 ? 25 + R() * 40 : 0) : 25 + R() * 130 * (1 - dist / 1300) + tall;
         const x = cx + (R() - 0.5) * (54 - w), z = cz + (R() - 0.5) * (54 - d);
         if (cx < -40 && Math.abs(cz) < -cx * 0.75 + 60) h = Math.min(h, 22 + R() * 30);
         if (Math.abs(x - riverX(z)) < RIVER_W + Math.max(w, d) / 2 + 6) continue;
         addB(w, h, d, x, z, TINTS[Math.floor(R() * TINTS.length)], Math.floor(R() * 8) / 8, Math.floor(R() * 8) / 8);
-        if (h > 120) av.push([x, GROUND + h + 1, z]);
+        if (h > 150) av.push([x, GROUND + h + 1, z]);
       }
       if (R() < 0.55) {   // street trees along one or two kerbs
         const side = Math.floor(R() * 4);
@@ -1275,7 +1275,8 @@ export function mountOffice(container) {
       return lerp(lerp(h2(xi, yi), h2(xi + 1, yi), u), lerp(h2(xi, yi + 1), h2(xi + 1, yi + 1), u), v);
     };
     const fbm2 = (x, y) => { let s = 0, a = 0.5; for (let i = 0; i < 5; i++) { s += a * n2(x, y); x = x * 2.03 + 1.7; y = y * 2.03 + 3.1; a *= 0.5; } return s; };
-    const MBASE = GROUND - 40, R0 = 2700, R1 = 4400, SEG = 720, ROWS = 16;
+    // MS scales the peaks up so they still clear the horizon seen from up here.
+    const MBASE = GROUND - 40, R0 = 2700, R1 = 4400, SEG = 720, ROWS = 16, MS = 1.35;
     const mtnH = (th, t) => {
       const c = Math.cos(th), sn = Math.sin(th);
       const amp = 120 + 380 * fbm2(c * 2.2 + 5, sn * 2.2 + 9) + 320 * Math.max(0, sn) + 160 * Math.max(0, c) - 90 * Math.max(0, -c);
@@ -1287,7 +1288,7 @@ export function mountOffice(container) {
     for (let j = 0; j <= ROWS; j++) {
       const t = j / ROWS, r = R0 + (R1 - R0) * t;
       for (let i = 0; i <= SEG; i++) {
-        const th = (i / SEG) * Math.PI * 2, hh = mtnH(th, t), y = MBASE + hh;
+        const th = (i / SEG) * Math.PI * 2, hh = mtnH(th, t), y = MBASE + hh * MS;
         mpos.push(Math.cos(th) * r, y, Math.sin(th) * r);
         if (hh > 470 + 60 * n2(i * 0.3, j)) tmpC.copy(SNOW); else tmpC.copy(FOREST).lerp(ROCK, sstep(120, 380, hh));
         mcol.push(tmpC.r, tmpC.g, tmpC.b);
@@ -1310,6 +1311,53 @@ export function mountOffice(container) {
         #endif`);
     };
     world.add(new THREE.Mesh(mg, mtnMat));
+
+    // Low cloud drifting between the rooftops: stacked fbm slices, so each cloud has some depth and where a tower pokes
+    // through it fades over a few slices instead of a hard line. Unlit: tinted from the sky colours, glowing over the
+    // city at night. Bottom slice first so they blend back to front from above.
+    const CL = 7, cpos = [], ck = [], cidx = [];
+    for (let i = 0; i < CL; i++) {
+      const y = GROUND + 72 + i * 5, b = i * 4;
+      cpos.push(-3000, y, -3000, 3000, y, -3000, 3000, y, 3000, -3000, y, 3000);
+      ck.push(i / (CL - 1), i / (CL - 1), i / (CL - 1), i / (CL - 1));
+      cidx.push(b, b + 2, b + 1, b, b + 3, b + 2);
+    }
+    const cg = new THREE.BufferGeometry();
+    cg.setAttribute('position', new THREE.Float32BufferAttribute(cpos, 3));
+    cg.setAttribute('k', new THREE.Float32BufferAttribute(ck, 1));
+    cg.setIndex(cidx);
+    const cloudU = { lit: skyU.cloudLit, dark: skyU.cloudDark, sunCol: skyU.sunCol, sunDir: skyU.sunDir, night: skyU.night, time: skyU.time,
+      fogCol: { value: scene.fog.color }, fogD: { value: scene.fog.density }, glow: { value: new THREE.Color('#ff9a52') } };
+    const clouds = new THREE.Mesh(cg, new THREE.ShaderMaterial({
+      uniforms: cloudU, transparent: true, depthWrite: false,
+      vertexShader: `attribute float k; varying float vK; varying vec3 vW;
+        void main() { vK = k; vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
+      fragmentShader: `uniform vec3 lit, dark, sunCol, sunDir, fogCol, glow; uniform float night, time, fogD; varying float vK; varying vec3 vW;
+        float h2(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+        float n2(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+          return mix(mix(h2(i), h2(i + vec2(1, 0)), f.x), mix(h2(i + vec2(0, 1)), h2(i + vec2(1, 1)), f.x), f.y); }
+        float fbm(vec2 p) { float v = 0.0, a = 0.5; for (int i = 0; i < 4; i++) { v += a * n2(p); p = p * 2.07 + 1.3; a *= 0.5; } return v; }
+        void main() {
+          vec2 p = vW.xz * 0.004 + vec2(time * 0.006, time * 0.0025);
+          float n = (fbm(p + vec2(vK * 0.07, 0.0)) - 0.42) * 2.4 + (n2(p * 0.15 + 1.5) - 0.5) * 1.1;   // ~half cover
+          // Thickest mid-stack: the top and bottom slices only show where the cloud is dense, which rounds the puffs.
+          float a = smoothstep(0.0, 0.3, n - abs(vK - 0.4) * 0.5);
+          float r = length(vW.xz);
+          a *= 0.38 * (1.0 - smoothstep(1500.0, 2900.0, r));
+          if (a < 0.002) discard;
+          vec3 v = normalize(vW - cameraPosition);
+          vec3 col = mix(dark, lit, 0.3 + 0.55 * vK + 0.15 * smoothstep(0.0, 0.5, n));
+          col += sunCol * (pow(max(dot(v, sunDir), 0.0), 6.0) * 0.5 + 0.12 * max(sunDir.y, 0.0) * vK);
+          col += glow * night * (0.16 + 0.12 * (1.0 - vK)) * (1.0 - smoothstep(500.0, 1300.0, r));   // only over the lit city
+          float d = distance(vW, cameraPosition);
+          col = mix(col, fogCol, 1.0 - exp(-fogD * fogD * d * d * 0.5));
+          gl_FragColor = vec4(col, a);
+          #include <tonemapping_fragment>
+          #include <colorspace_fragment>
+        }`,
+    }));
+    clouds.frustumCulled = false;
+    world.add(clouds);
 
     return {
       mat: cityMat, ground: groundMat, av: avMat, mtn: mtnMat, ridge: ridgeDeg,
