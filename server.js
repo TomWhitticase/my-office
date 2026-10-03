@@ -568,6 +568,54 @@ function tick() {
   }
 }
 
+// ---------- office TVs ----------
+// Wall TVs in the 3D office show a URL each. Config lives in ~/.claude/my-office/tvs.json: { id: { url, src, refresh, blocked } }.
+// `src` is what the iframe loads (YouTube links become nocookie embeds); `blocked` is why the site refuses to be framed, if it does.
+const TVS_FILE = path.join(CLAUDE, 'my-office', 'tvs.json');
+let tvs = readJSON(TVS_FILE) || {};
+const ytTime = (t) => { const m = String(t || '').match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s?)?$/); return m ? (+m[1] || 0) * 3600 + (+m[2] || 0) * 60 + (+m[3] || 0) : 0; };
+function tvSrc(raw) {
+  const u = new URL(raw), host = u.hostname.replace(/^(www|m|music)\./, '');
+  if (!/^(youtube\.com|youtube-nocookie\.com|youtu\.be)$/.test(host)) return u.href;
+  const list = u.searchParams.get('list');
+  if (u.pathname === '/playlist' && list) return `https://www.youtube-nocookie.com/embed/videoseries?list=${encodeURIComponent(list)}&autoplay=1&mute=1&playsinline=1`;
+  const ch = u.pathname.match(/^\/channel\/(UC[\w-]{22})(\/live)?\/?$/)?.[1];
+  if (ch) return `https://www.youtube-nocookie.com/embed/live_stream?channel=${ch}&autoplay=1&mute=1&playsinline=1`;
+  const id = host === 'youtu.be' ? u.pathname.split('/')[1] : u.pathname === '/watch' ? u.searchParams.get('v') : u.pathname.match(/^\/(?:shorts|live|embed|v)\/([^/?]+)/)?.[1];
+  if (!/^[\w-]{6,20}$/.test(id || '')) return u.href;
+  const start = ytTime(u.searchParams.get('t') || u.searchParams.get('start'));
+  return `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&mute=1&playsinline=1&loop=1&playlist=${id}&rel=0${start ? `&start=${start}` : ''}`;
+}
+// Fetch the page anonymously (never with the user's cookies) and read X-Frame-Options / CSP frame-ancestors.
+async function frameBlocked(src) {
+  try {
+    const r = await fetch(src, { redirect: 'follow', signal: AbortSignal.timeout(6000),
+      headers: { 'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36', accept: 'text/html,*/*' } });
+    r.body?.cancel().catch(() => {});
+    const xfo = (r.headers.get('x-frame-options') || '').toLowerCase();
+    const fa = (r.headers.get('content-security-policy') || '').match(/frame-ancestors([^;]*)/i)?.[1].trim().toLowerCase();
+    const self = new URL(r.url).host;
+    if (fa != null && !fa.split(/\s+/).some((s) => s === '*' || /localhost|127\.0\.0\.1/.test(s) || (s === "'self'" && /^(localhost|127\.0\.0\.1)(:|$)/.test(self)))) return `the site forbids embedding elsewhere (CSP frame-ancestors ${fa || "'none'"})`;
+    if (fa == null && /deny|sameorigin/.test(xfo) && !/^(localhost|127\.0\.0\.1)(:|$)/.test(self)) return `the site refuses to be framed (X-Frame-Options: ${xfo.toUpperCase()})`;
+    return null;
+  } catch { return null; }   // unreachable from here: let the browser try
+}
+function sendTvs() { const json = JSON.stringify(tvs); for (const res of clients) res.write(`event: tvs\ndata: ${json}\n\n`); }
+async function putTv(id, body) {
+  const url = String(body.url || '').trim(), refresh = Math.min(86400, Math.max(0, Math.round(Number(body.refresh) || 0)));
+  if (!url) delete tvs[id];
+  else {
+    const u = new URL(url);
+    if (!/^https?:$/.test(u.protocol) || url.length > 2048) throw new Error('only http(s) URLs');
+    const src = tvSrc(u.href);
+    tvs[id] = { url: u.href, src, refresh, blocked: await frameBlocked(src) };
+  }
+  fs.mkdirSync(path.dirname(TVS_FILE), { recursive: true });
+  fs.writeFileSync(TVS_FILE, JSON.stringify(tvs, null, 2));
+  sendTvs();
+  return tvs[id] || null;
+}
+
 // ---------- http ----------
 const INDEX = path.join(__dirname, 'public', 'index.html');
 const STATIC_ROOTS = [
@@ -594,7 +642,7 @@ const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://x');
   if (url.pathname === '/events') {
     res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });
-    res.write(`retry: 2000\ndata: ${stateJSON}\n\n`);
+    res.write(`retry: 2000\ndata: ${stateJSON}\n\nevent: tvs\ndata: ${JSON.stringify(tvs)}\n\n`);
     clients.add(res);
     req.on('close', () => clients.delete(res));
     return;
@@ -602,6 +650,23 @@ const server = http.createServer((req, res) => {
   if (url.pathname === '/api/config') {
     res.writeHead(200, { 'content-type': 'application/json' });
     return res.end(JSON.stringify({ owner: CONFIG.owner || '', city: CONFIG.city || '', lat: CONFIG.lat ?? 51.5, lon: CONFIG.lon ?? -0.13 }));
+  }
+  if (url.pathname === '/api/tvs') {
+    res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+    return res.end(JSON.stringify(tvs));
+  }
+  const tv = url.pathname.match(/^\/api\/tvs\/([\w-]{1,40})$/);
+  if (tv && req.method === 'PUT') {
+    let body = '';
+    req.on('data', (c) => { body += c; if (body.length > 16384) req.destroy(); });
+    req.on('end', async () => {
+      try {
+        const saved = await putTv(tv[1], JSON.parse(body || '{}'));
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(JSON.stringify(saved));
+      } catch (e) { res.writeHead(400, { 'content-type': 'application/json' }); res.end(JSON.stringify({ error: e.message })); }
+    });
+    return;
   }
   if (url.pathname === '/api/state') {
     res.writeHead(200, { 'content-type': 'application/json' });
