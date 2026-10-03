@@ -20,7 +20,7 @@ const F = dash.fmt;
 const AISLE = 0.5;
 const EYE = 1.65, SEATED_EYE = 1.2;
 const ROOM = { minX: -20, maxX: 20, minZ: -15, maxZ: 15, h: 3.3 };
-const LIFT = { x: 18.6, z: AISLE };   // reception: where new sessions arrive and finished ones leave
+const LIFT = { x: 18, z: 0.4 };   // lift lobby: the face of the lift core and its call panel, between the two lifts
 const FONT = 'system-ui, -apple-system, "Segoe UI", sans-serif';
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -632,6 +632,9 @@ class Person {
         Object.assign(j, { lean: 0.06, sh0: -0.55 - 0.25 * (0.5 + 0.5 * Math.sin(t * 1.9 + ph)), el0: -1.2 + 0.25 * Math.sin(t * 2.7 + ph), sh1: -0.5, el1: -1.0,
           shz0: -0.1, shz1: 0.12, headX: 0.04 * Math.sin(t * 1.3 + ph), headY: 0.35 * Math.sin(t * 0.35 + ph) });
         break;
+      case 'press':   // calling the lift: reach for the button, then wait
+        if (t - this.pressAt < 1.1) Object.assign(j, { sh0: -1.25, el0: -0.25, shz0: 0.1, headX: 0.1 });
+        break;
       case 'pingpong': {
         this.paddle.visible = true;
         const swing = this.swing || 0;
@@ -644,7 +647,7 @@ class Person {
   }
 
   update(t, dt) {
-    if (this.scaleT !== undefined) this.root.scale.setScalar(Math.max(0.001, damp(this.root.scale.x, this.scaleT, 5, dt)));
+    this.time = t;
     if (this.path.length) {
       const target = this.path[0], p = this.root.position;
       const dx = target.x - p.x, dz = target.z - p.z, d = Math.hypot(dx, dz), step = 1.4 * dt;
@@ -1065,7 +1068,7 @@ export function mountOffice(container) {
   }
   wall('x', 15, -20, 20, [[-20, 6], [16, 20]]);
   wall('z', -20, -15, 15, [[-15, 2], [6.8, 15]]);
-  wall('z', 20, -15, 15, [[-15, 15]]);
+  wall('z', 20, -15, 15, [[-15, -3.5], [2.5, 15]]);   // the lift core fills the stretch between my office and the meeting rooms
   wall('x', -15, -20, 6, [], mat('#2f463b', { roughness: 0.9 }));          // green accent behind the desks
   wall('x', -15, 6, 20, [], mat('#2b3650', { roughness: 0.9 }));           // navy in my office
   {
@@ -1370,11 +1373,10 @@ export function mountOffice(container) {
     };
   }
 
-  // Reception by the east windows.
-  box(world, 2.6, 1.05, 0.7, '#c49a6c', 17.6, 0.525, -1.9, { mat: { roughness: 0.55 } });
-  box(world, 2.7, 0.05, 0.85, '#2a2724', 17.6, 1.075, -1.9, { mat: { roughness: 0.35 } });
-  solid(17.6, -1.9, 2.7, 0.85);
-  plant(19.3, -2.7, 1.1);
+  // Reception, side-on to the lift core, the receptionist's back to the floor sign.
+  box(world, 0.7, 1.05, 2.0, '#c49a6c', 16.6, 0.525, -2.3, { mat: { roughness: 0.55 } });
+  box(world, 0.85, 0.05, 2.1, '#2a2724', 16.6, 1.075, -2.3, { mat: { roughness: 0.35 } });
+  solid(16.6, -2.3, 0.85, 2.1);
 
   // Brick feature wall in the lounge.
   {
@@ -1897,7 +1899,7 @@ export function mountOffice(container) {
 
   bookshelf(8.6, -14.7, 0, 2.4, 2.2, 5);
   art(17.4, 1.75, -14.92, 0, 1.6, 1.1);
-  smallPlant(world, 16.8, 1.1, -1.85);
+  smallPlant(world, 16.6, 1.1, -3.0);
   pendant(13, -10.6, { drop: 0.85, light: 12, shade: '#d97757' });
   floorLamp(19.3, -10.8, 10);
   smallPlant(world, OWNER.x - 1.5, 0.765, OWNER.z + 0.3);
@@ -2086,20 +2088,97 @@ export function mountOffice(container) {
     solid(x, z, 0.4, 0.4);
   }
   waterCooler(5.55, -1.7);
-  // Lobby: a waiting sofa against my office's glass, a side table, a coat stand and an umbrella stand by the lift.
+  // Lobby: a waiting sofa against my office's glass, a side table, a coat stand, an umbrella stand and a plant along the meeting room glass.
   sofa(14.6, -2.95, 0, 1.9, '#4b5a6a');
   cyl(world, 0.26, 0.26, 0.03, '#2a2724', 13.15, 0.55, -3.0, { seg: 24 }); cyl(world, 0.03, 0.03, 0.54, '#2f3236', 13.15, 0.27, -3.0); cyl(world, 0.18, 0.18, 0.02, '#2f3236', 13.15, 0.01, -3.0);
   smallPlant(world, 13.15, 0.565, -3.0); solid(13.15, -3.0, 0.5, 0.5);
   {
-    const x = 19.4, z = 1.55;
+    const x = 15.6, z = 2.05;
     cyl(world, 0.22, 0.24, 0.03, '#2a2a2a', x, 0.015, z, { seg: 20 }); cyl(world, 0.02, 0.025, 1.8, '#5a3d28', x, 0.9, z);
     for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + 0.4; box(world, 0.16, 0.02, 0.02, '#2a2a2a', x + Math.cos(a) * 0.07, 1.72, z + Math.sin(a) * 0.07).rotation.y = -a; }
     box(world, 0.34, 0.75, 0.16, '#6b4f3a', x - 0.02, 1.32, z + 0.09).rotation.z = 0.05;   // a coat
     box(world, 0.06, 0.6, 0.05, '#c0392b', x + 0.1, 1.35, z - 0.08);                       // a scarf
-    cyl(world, 0.13, 0.12, 0.5, '#3a3c40', 18.85, 0.25, 2.05, { mat: { metalness: 0.5, roughness: 0.4 } });
-    for (const [dx, c] of [[-0.04, '#1f2a44'], [0.05, '#2f6f8f']]) { cyl(world, 0.012, 0.012, 0.85, c, 18.85 + dx, 0.62, 2.05 + dx, { seg: 8 }); cyl(world, 0.02, 0.02, 0.1, '#5a3d28', 18.85 + dx, 1.07, 2.05 + dx, { seg: 8 }); }
-    solid(x, z, 0.4, 0.4); solid(18.85, 2.05, 0.3, 0.3);
+    cyl(world, 0.13, 0.12, 0.5, '#3a3c40', 15.05, 0.25, 2.1, { mat: { metalness: 0.5, roughness: 0.4 } });
+    for (const [dx, c] of [[-0.04, '#1f2a44'], [0.05, '#2f6f8f']]) { cyl(world, 0.012, 0.012, 0.85, c, 15.05 + dx, 0.62, 2.1 + dx, { seg: 8 }); cyl(world, 0.02, 0.02, 0.1, '#5a3d28', 15.05 + dx, 1.07, 2.1 + dx, { seg: 8 }); }
+    solid(x, z, 0.4, 0.4); solid(15.05, 2.1, 0.3, 0.3);
   }
+  plant(14.45, 2.0, 0.9);
+
+  // ----- lift lobby -----
+  // The building's lifts: a stone-clad core against the east wall, two cars facing west either side of the call panel.
+  // Doors are brushed steel leaves sliding into the wall; each car is lit by an emissive ceiling panel only (no lights).
+  // Sessions arrive and leave by lift: see the lift cycle next to the people sync.
+  const CORE = { x0: LIFT.x, x1: 20, z0: -3.47, z1: 2.46 }, DOOR = { w: 1.1, h: 2.2 }, CAR = { d: 1.8, w: 1.5, h: 2.35 };
+  const lifts = [[LIFT.z - 0.9, 48], [LIFT.z + 0.9, 12]].map(([z, floor]) => ({ z, at: { x: LIFT.x, z }, floor, goal: floor, dir: 0, state: floor === 48 ? 'home' : 'away', t: 0, doorK: 0, nIn: 0,
+    pending: [], cargo: new Set(), exits: new Set(), callers: new Set(), riders: new Set() }));
+  {
+    const brushed = makeCanvas(64, 256), R = rng(31);
+    brushed.ctx.fillStyle = '#c9cdd2'; brushed.ctx.fillRect(0, 0, 64, 256);
+    for (let i = 0; i < 260; i++) { brushed.ctx.fillStyle = `rgba(${R() > 0.5 ? '255,255,255' : '40,44,50'},${0.05 + R() * 0.08})`; brushed.ctx.fillRect(R() * 64, 0, 0.6 + R(), 256); }
+    brushed.tex.needsUpdate = true;
+    const steelM = new THREE.MeshStandardMaterial({ map: brushed.tex, metalness: 0.85, roughness: 0.32 });
+    const fx = LIFT.x + 0.05, cx = LIFT.x + 0.1 + CAR.d / 2, back = LIFT.x + 0.1 + CAR.d;
+    const edges = [CORE.z0, ...lifts.flatMap((L) => [L.z - DOOR.w / 2, L.z + DOOR.w / 2]), CORE.z1];
+    const stone = [], steel = [], car = [], mirror = [], glow = [];
+    for (let k = 0; k < edges.length; k += 2) {
+      const a = edges[k], b = edges[k + 1], len = b - a, mid = (a + b) / 2;
+      stone.push([0.1, ROOM.h, len, fx, ROOM.h / 2, mid, '#77716a'], [0.02, 0.1, len, LIFT.x - 0.01, 0.05, mid, '#3b3835']);
+      for (let y = 0.9; y < ROOM.h; y += 0.9) stone.push([0.012, 0.006, len, LIFT.x - 0.001, y, mid, '#5d5852']);   // panel joints
+    }
+    stone.push([CORE.x1 - LIFT.x, ROOM.h, 0.06, (LIFT.x + CORE.x1) / 2, ROOM.h / 2, CORE.z0 + 0.03, '#77716a'], [CORE.x1 - LIFT.x, ROOM.h, 0.06, (LIFT.x + CORE.x1) / 2, ROOM.h / 2, CORE.z1 - 0.03, '#77716a']);
+    for (const L of lifts) {
+      const z = L.z;
+      stone.push([0.1, ROOM.h - DOOR.h, DOOR.w, fx, (ROOM.h + DOOR.h) / 2, z, '#77716a']);
+      // Surround: jambs, head, threshold and the indicator housing.
+      for (const s of [-1, 1]) steel.push([0.05, DOOR.h + 0.08, 0.08, LIFT.x - 0.02, (DOOR.h + 0.08) / 2, z + s * (DOOR.w / 2 + 0.04)]);
+      steel.push([0.05, 0.08, DOOR.w + 0.16, LIFT.x - 0.02, DOOR.h + 0.04, z], [0.34, 0.012, DOOR.w, fx + 0.02, 0.006, z], [0.04, 0.26, 0.56, LIFT.x - 0.02, 2.5, z]);
+      // Car: floor, ceiling, steel sides, wood back with a mirror over it, handrails.
+      car.push([CAR.d, 0.02, CAR.w, cx, 0.01, z, '#2c2b2a'], [CAR.d, 0.04, CAR.w, cx, CAR.h, z, '#232426'], [0.04, CAR.h, CAR.w, back, CAR.h / 2, z, '#8a6446']);
+      for (const s of [-1, 1]) car.push([CAR.d, CAR.h, 0.04, cx, CAR.h / 2, z + s * CAR.w / 2, '#aeb4ba'], [CAR.d - 0.3, 0.035, 0.035, cx + 0.1, 0.95, z + s * (CAR.w / 2 - 0.06), '#dfe2e5']);
+      car.push([0.035, 0.035, CAR.w - 0.2, back - 0.06, 0.95, z, '#dfe2e5'], [0.02, 0.4, 0.16, LIFT.x + 0.35, 1.2, z + CAR.w / 2 - 0.03, '#5a5f66']);
+      mirror.push([0.01, 1.05, CAR.w - 0.3, back - 0.025, 1.65, z]);
+      glow.push([CAR.d - 0.5, 0.01, CAR.w - 0.45, cx, CAR.h - 0.025, z]);
+      // Two leaves meeting in the middle; they slide apart into the wall.
+      L.leaves = [-1, 1].map((s) => box(world, 0.03, DOOR.h, DOOR.w / 2 + 0.01, '', LIFT.x + 0.13, DOOR.h / 2, z + s * DOOR.w / 4, { material: steelM, shadow: false }));   // behind the stone face, so they slide into the wall
+      L.ind = makeScreen(world, 0.48, 0.2, 192, 80, LIFT.x - 0.045, 2.5, z);
+      L.ind.mesh.rotation.y = -Math.PI / 2;
+    }
+    steel.push([0.02, 0.38, 0.15, LIFT.x - 0.01, 1.1, LIFT.z]);   // call panel
+    world.add(mergedBoxes(stone, mat('#ffffff', { vertexColors: true, roughness: 0.55 })), mergedBoxes(steel, steelM),
+      mergedBoxes(car, mat('#ffffff', { vertexColors: true, roughness: 0.45, metalness: 0.35 })), mergedBoxes(mirror, mat('#dfe4e8', { metalness: 1, roughness: 0.05 })));
+    const carLight = mergedBoxes(glow, new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: '#fff3df', emissiveIntensity: 1.6 }));
+    carLight.castShadow = false; world.add(carLight);
+    lifts.callM = new THREE.MeshStandardMaterial({ color: '#e6e3dc', emissive: '#ffb347', emissiveIntensity: 0, roughness: 0.4 });
+    for (const y of [1.16, 1.04]) cyl(world, 0.026, 0.026, 0.02, '', LIFT.x - 0.025, y, LIFT.z, { material: y > 1.1 ? mat('#e6e3dc', { roughness: 0.4 }) : lifts.callM, seg: 16, shadow: false }).rotation.z = Math.PI / 2;
+    solid((LIFT.x + CORE.x1) / 2, (CORE.z0 + CORE.z1) / 2, CORE.x1 - LIFT.x, CORE.z1 - CORE.z0);
+    // The floor sign on the core behind reception: "48" and a building directory.
+    const sign = makeScreen(world, 1.5, 1.0, 600, 400, LIFT.x - 0.012, 1.95, -2.3), c = sign.ctx;
+    sign.mesh.rotation.y = -Math.PI / 2;
+    c.fillStyle = '#26282b'; c.fillRect(0, 0, 600, 400);
+    c.fillStyle = '#d97757'; c.fillRect(40, 54, 6, 120);
+    c.font = `200 132px ${FONT}`; c.fillStyle = '#f2efe8'; c.fillText('48', 62, 168);
+    c.font = `600 26px ${FONT}`; c.fillStyle = '#c3c2b7'; c.fillText('FLOOR', 250, 96);
+    c.font = `400 24px ${FONT}`; c.fillText(fit(c, dash.officeName(), 310), 250, 132); c.fillText('Desks · Meeting rooms · Lounge', 250, 164);
+    c.fillStyle = 'rgba(255,255,255,.14)'; c.fillRect(40, 214, 520, 2);
+    c.font = `400 22px ${FONT}`; c.fillStyle = '#9a9890';
+    [['50', 'Sky bar · Terrace'], ['49', 'Plant room'], ['47', 'Server hall'], ['G', 'Lobby · Street · Coffee']].forEach(([f, t], i) => {
+      c.fillStyle = '#f2efe8'; c.font = `600 22px ${FONT}`; c.fillText(f, 44, 254 + i * 38); c.fillStyle = '#9a9890'; c.font = `400 22px ${FONT}`; c.fillText(t, 100, 254 + i * 38);
+    });
+    sign.mesh.material = new THREE.MeshStandardMaterial({ map: sign.tex, roughness: 0.5 }); sign.tex.needsUpdate = true;
+  }
+  // Hall lantern over each lift: floor and direction, repainted only when they change.
+  function paintIndicator(L) {
+    const f = Math.round(L.floor), key = `${f}${L.dir}`;
+    if (key === L.indKey) return;
+    L.indKey = key;
+    const { ctx, W, H } = L.ind;
+    ctx.fillStyle = '#0b0b0c'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#ffb347'; ctx.font = `600 58px ${MONO}`; ctx.textAlign = 'center'; ctx.fillText(f ? String(f) : 'G', W / 2 + 22, 62); ctx.textAlign = 'left';
+    if (L.dir) { ctx.beginPath(); ctx.moveTo(26, L.dir > 0 ? 22 : 58); ctx.lineTo(48, L.dir > 0 ? 22 : 58); ctx.lineTo(37, L.dir > 0 ? 8 : 72); ctx.lineTo(26, L.dir > 0 ? 22 : 58); ctx.fill(); ctx.fillRect(33, L.dir > 0 ? 22 : 34, 8, 24); }
+    L.ind.tex.needsUpdate = true;
+  }
+  lifts.forEach(paintIndicator);
+
   // Lounge, by the brick wall: a vending machine with a lit front, recycling bins, some art.
   {
     const x = 7.1, z = 14.42;
@@ -2205,7 +2284,7 @@ export function mountOffice(container) {
   tvSet('breakroom', -14, 2.15, 2.42, 0, 1.8, true);
   tvSet('pingpong', 3.69, 1.6, 8, -Math.PI / 2, 1.4);
   tvSet('lounge', 11, 1.75, 14.78, Math.PI, 2.6);
-  tvSet('lobby', 17.6, 2.15, -3.3, 0, 2.0, true);
+  tvSet('lobby', 16.9, 2.15, -3.3, 0, 2.0, true);
 
   // One socket to the server for every TV: JPEG frames in ([id length][id][JPEG]) and page updates; which TVs we're
   // looking at, how loud each should be for us, and input for the TV in use out.
@@ -2353,7 +2432,113 @@ export function mountOffice(container) {
   const [mrSouth, mrNorth, mrSmall] = mrSeats;
   const IDLE_ORDER = [sofaA[1], coffee[0], pp[0], pp[1], sofaA[0], chat[0], chat[1], bean[0], sofaA[2], coffee[1], bean[1], chat[2],
     mrSmall[0], mrSmall[1], sofaB[0], sofaB[1], sofaB[2], ...meet, ...mrSouth, ...mrNorth, ...mrSmall.slice(2)];
-  const LOBBY = { key: 'lobby', kind: 'idle', pos: LIFT, rotY: -Math.PI / 2, pose: 'chat', route: [{ x: LIFT.x - 1, z: AISLE }, LIFT] };
+  const LOBBY = { key: 'lobby', kind: 'idle', pos: { x: 15.6, z: -0.5 }, rotY: -Math.PI / 2, pose: 'chat', route: R([15.6, AISLE], [15.6, -0.5]) };
+
+  // ----- lifts -----
+  // Each lift is home (closed at 48), away (closed on another floor), travel, opening, open or closing. Arrivals ride up in
+  // the car (`cargo`; `pending` until a car is free to fetch them) and walk out once the doors part. Leavers call it at the
+  // panel, wait beside the doors, board, turn round, and are removed once the car has gone. Doors hold for anyone coming
+  // or standing in the doorway, and reopen for them while closing.
+  const PANEL = { x: LIFT.x - 0.45, z: LIFT.z };
+  const inCar = (L, i) => ({ x: LIFT.x + 1.05 + (i % 2) * 0.45, z: L.z + [0, -0.4, 0.4][Math.floor(i / 2) % 3] });
+  const carSpot = (L, pos) => ({ key: 'lift', kind: 'lift', pos, rotY: -Math.PI / 2, route: [{ x: LIFT.x - 1.2, z: AISLE }, { x: LIFT.x - 0.6, z: L.z }, pos] });
+  const calling = (L) => [...L.callers].some((p) => p.lv.stage !== 'walk');
+  const waitAt = (L) => ({ x: LIFT.x - 0.95 - 0.45 * ([...L.callers].filter((q) => q.lv.stage !== 'walk').length % 3), z: L.z + (L === lifts[0] ? -0.6 : 0.6) });
+  const inDoorway = (L) => [...people.values()].some((p) => p.lv?.stage !== 'in' && Math.abs(p.root.position.z - L.z) < 0.7 && p.root.position.x > LIFT.x - 0.6 && p.root.position.x < LIFT.x + 0.5);
+  function gone(p) { world.remove(p.root); for (const [k, v] of people) if (v === p) people.delete(k); }
+  function setLift(L, state) {
+    if ((state === 'opening' || state === 'closing') && L.state !== state) sfx.slide(L.at);
+    L.state = state; L.t = 0;
+  }
+  function goTo(L, floor) { L.goal = floor; L.dir = Math.sign(floor - L.floor); setLift(L, 'travel'); }
+  function ride(L, p) {   // into the car out of sight: placed standing, facing the doors
+    L.cargo.add(p); p.lift = L; p.root.visible = true;
+    p.spot = carSpot(L, inCar(L, L.cargo.size - 1)); p.place(p.spot);
+  }
+  function arrive(p) {
+    const free = (L) => L.state === 'away' || (L.state === 'travel' && L.goal === 48 && L.dir > 0);
+    const L = lifts.find(free) || lifts.find((x) => x.state === 'home') || lifts.reduce((a, b) => (b.pending.length < a.pending.length ? b : a));
+    p.root.visible = false; p.lift = L; p.place(carSpot(L, inCar(L, 0)));
+    if (free(L)) ride(L, p); else L.pending.push(p);
+  }
+  function leave(p) {
+    const fresh = lifts.some((L) => L.exits.delete(p));   // still stepping out of the car: turn straight round
+    const C = p.lift;
+    if (C) {   // gone again before they even stepped out: stay in the car, or never show up at all
+      p.lift = null;
+      if (C.pending.includes(p)) { C.pending.splice(C.pending.indexOf(p), 1); gone(p); return; }
+      C.cargo.delete(p); C.riders.add(p); p.lv = { L: C, stage: 'in' };
+      return;
+    }
+    const L = lifts.find((x) => x.state === 'open' || x.state === 'opening') || lifts.find(calling) || lifts.find((x) => x.state === 'home')
+      || lifts.reduce((a, b) => (b.callers.size < a.callers.size ? b : a));
+    const press = !lifts.some(calling) && L.state !== 'open';
+    p.lv = { L, stage: 'walk', press };
+    L.callers.add(p);
+    p.path = [...(fresh ? [] : routeOut(p)), { x: LIFT.x - 1.2, z: AISLE }, press ? PANEL : waitAt(L)];
+    p.spot = null;
+    p.onArrive = () => atLift(p);
+  }
+  function atLift(p) {
+    p.onArrive = null;
+    if (p.lv.stage === 'walk' && p.lv.press) { p.lv.stage = 'press'; p.pressAt = p.time; p.spot = { pose: 'press', rotY: Math.PI / 2 }; return; }
+    p.lv.stage = 'wait'; p.spot = { rotY: faceTo(p.root.position, p.lv.L.at) };
+  }
+  function liftFx(dt) {
+    for (const L of lifts) {
+      L.t += dt;
+      for (const p of L.callers) {
+        if (p.lv.stage === 'press' && p.time - p.pressAt > 1.2) { p.lv.stage = 'toWait'; p.path = [waitAt(L)]; p.onArrive = () => atLift(p); }
+        if (p.lv.stage === 'wait' && (L.state === 'open' || (L.state === 'opening' && L.doorK > 0.8))) {
+          p.lv.stage = 'board'; p.spot = null;
+          p.path = [{ x: LIFT.x - 0.3, z: L.z }, inCar(L, L.nIn++)];
+          p.onArrive = () => { p.onArrive = null; p.lv.stage = 'in'; L.callers.delete(p); L.riders.add(p); p.spot = { rotY: -Math.PI / 2 }; };
+        }
+      }
+      for (const p of L.exits) if (!p.path.length || p.root.position.x < LIFT.x - 0.8) L.exits.delete(p);
+      const holding = [...L.callers].some((p) => p.lv.stage !== 'walk' || Math.hypot(p.root.position.x - LIFT.x, p.root.position.z - L.z) < 4) || L.exits.size || inDoorway(L);   // incl. anyone about to reach it
+      switch (L.state) {
+        case 'home':
+          if (calling(L)) { sfx.ding(L.at); setLift(L, 'opening'); }
+          else if (L.pending.length) goTo(L, 30 + Math.floor(Math.random() * 15));   // fetch them from below
+          break;
+        case 'away':
+          for (const p of L.pending.splice(0)) ride(L, p);
+          if (L.cargo.size || calling(L)) goTo(L, 48);
+          break;
+        case 'travel':
+          L.floor += L.dir * dt * 9;
+          if ((L.goal - L.floor) * L.dir <= 0) {
+            L.floor = L.goal; L.dir = 0;
+            if (L.goal === 48) { sfx.ding(L.at); setLift(L, 'opening'); }
+            else { for (const p of L.riders) gone(p); L.riders.clear(); setLift(L, 'away'); }
+          }
+          break;
+        case 'opening':
+          L.doorK = Math.min(1, L.doorK + dt / 1.1);
+          if (L.doorK > 0.6) for (const p of L.cargo) { L.cargo.delete(p); p.lift = null; L.exits.add(p); sendTo(p, p.want || LOBBY); }
+          if (L.doorK === 1) setLift(L, 'open');
+          break;
+        case 'open':
+          if (L.t > 2.2 && !holding) setLift(L, 'closing');
+          break;
+        case 'closing':
+          L.doorK = Math.max(0, L.doorK - dt / 1.3);
+          if (holding) setLift(L, 'opening');
+          else if (L.doorK === 0) {
+            L.nIn = 0;
+            if (L.riders.size) goTo(L, Math.random() < 0.6 ? 0 : 1 + Math.floor(Math.random() * 40));
+            else if (L.pending.length) goTo(L, 30 + Math.floor(Math.random() * 15));
+            else setLift(L, 'home');
+          }
+          break;
+      }
+      const e = ease(L.doorK);
+      L.leaves.forEach((m, i) => { m.position.z = L.z + (i ? 1 : -1) * (DOOR.w / 4 + e * DOOR.w * 0.48); });
+      paintIndicator(L);
+    }
+    lifts.callM.emissiveIntensity = lifts.some((L) => calling(L) && L.state !== 'open') ? 2.5 : 0;
+  }
 
   // ----- sounds (see sounds.js; M mutes) -----
   const sfx = createSounds({ camera, rugs, glass: { minX: 6, maxX: 20, minZ: -15, maxZ: -3.5 }, lift: LIFT, coffee: { x: -16.5, y: 1.25, z: 14.5 }, doorPos: { x: 7.7, z: -3.5 } });
@@ -2381,7 +2566,14 @@ export function mountOffice(container) {
         p.label.visible = overlays;
         people.set(s.sessionId, p);
         world.add(p.root);
-        if (!first) { p.root.position.set(LIFT.x, 0, LIFT.z); p.rotY = -Math.PI / 2; p.spot = LOBBY; p.root.scale.setScalar(0.01); p.scaleT = 1; sfx.ding(); }
+        if (!first) arrive(p);
+      } else if (p.leaving) {   // back before the lift took them: that one carries on leaving, this session arrives afresh
+        people.delete(s.sessionId); people.set({}, p);
+        p = new Person(s.sessionId, dash.colorHex(s.sessionId));
+        p.label.visible = overlays;
+        people.set(s.sessionId, p);
+        world.add(p.root);
+        arrive(p);
       }
       p.session = s;
       const atDesk = s.status !== 'idle';
@@ -2395,16 +2587,14 @@ export function mountOffice(container) {
         if (!p.idle) { p.idle = IDLE_ORDER.find((q) => !q.occupant) || null; if (p.idle) p.idle.occupant = p; }
         target = p.idle || LOBBY;
       }
-      sendTo(p, target, first);
+      if (p.lift) p.want = target; else sendTo(p, target, first);
     }
     for (const [id, p] of people) {
       if (seen.has(id) || p.leaving) continue;
       p.leaving = true;
       if (p.idle) p.idle.occupant = null;
       if (p.desk) p.desk.owner = null;
-      p.path = [...routeOut(p), { x: LIFT.x, z: AISLE }];
-      p.spot = null;
-      p.onArrive = () => { p.scaleT = 0; p.dying = true; sfx.ding(); };
+      leave(p);
     }
     first = false;
     for (const d of desks) setClutter(d, d.owner && !d.owner.leaving ? clutterFor(d.owner.session, state.now || Date.now()) : 0);
@@ -2571,7 +2761,7 @@ export function mountOffice(container) {
     Digit1: () => teleport(-6, 1.4, { x: -8, y: 1.3, z: -10 }),
     Digit2: () => teleport(-6.5, 2.2, { x: -13, y: 1.0, z: 8 }),
     Digit3: () => { const p = seatedPose(); teleport(p.x, p.z, { x: screenWorld.x, y: screenWorld.y, z: screenWorld.z }, true); },
-    Digit4: () => teleport(18.2, AISLE, { x: 0, y: 1.5, z: AISLE }),
+    Digit4: () => teleport(14.6, 0.6, { x: LIFT.x, y: 1.6, z: LIFT.z }),
     Digit5: () => teleport(12.4, 1.4, { x: 17, y: 1.2, z: 6.5 }),
   };
   document.addEventListener('keydown', (e) => {
@@ -2902,7 +3092,11 @@ export function mountOffice(container) {
     for (const b of colliders) c.fillRect(sx(b.minX), sz(b.minZ), Math.max(2, sx(b.maxX) - sx(b.minX)), Math.max(2, sz(b.maxZ) - sz(b.minZ)));
     c.font = '600 20px system-ui'; c.fillStyle = 'rgba(255,255,255,.55)';
     c.fillText('Desks', sx(-12), sz(-0.6)); c.fillText('Breakroom', sx(-12), sz(13.6)); c.fillText(dash.officeName(), sx(9), sz(-13.4)); c.fillText('Lounge', sx(8), sz(13.6));
+    c.fillStyle = 'rgba(200,205,212,.9)';
+    for (const L of lifts) c.fillRect(sx(LIFT.x) - 3, sz(L.z - DOOR.w / 2), 4, sz(L.z + DOOR.w / 2) - sz(L.z - DOOR.w / 2));
+    c.font = '600 15px system-ui'; c.fillStyle = 'rgba(255,255,255,.55)'; c.fillText('Lifts', sx(LIFT.x) - 44, sz(-2.6));
     for (const p of people.values()) {
+      if (!p.root.visible) continue;
       c.fillStyle = p.color; c.beginPath(); c.arc(sx(p.root.position.x), sz(p.root.position.z), 7, 0, Math.PI * 2); c.fill();
       if (p.session?.status === 'working') { c.strokeStyle = '#22c55e'; c.lineWidth = 3; c.stroke(); }
     }
@@ -3022,8 +3216,8 @@ export function mountOffice(container) {
     const t = (now - clock0) / 1000;
     for (const [id, p] of people) {
       p.update(t, dt);
-      if (p.dying && p.root.scale.x < 0.03) { world.remove(p.root); people.delete(id); }
     }
+    liftFx(dt);
     // Ping pong rally when both ends are manned and settled.
     const [a, b] = pp.map((q) => q.occupant);
     const rally = a && b && !a.path.length && !b.path.length && a.spot === pp[0] && b.spot === pp[1];
@@ -3072,7 +3266,7 @@ export function mountOffice(container) {
 
   window.__office = { openChat, closeChat, talk, get mode() { return mode; }, teleport: (k) => TELEPORTS[k](), openTv: (id) => openTvPanel(tvs.find((t) => t.id === id)), useTv: (id) => useTv(tvs.find((t) => t.id === id)), leaveTv,
     tvPoint: (id, u, v) => { const t = tvs.find((x) => x.id === id), p = t.scr.mesh.localToWorld(new THREE.Vector3((u - 0.5) * t.w, (0.5 - v) * t.h, 0)).project(camera), r = renderer.domElement.getBoundingClientRect(); return { x: r.left + (p.x + 1) / 2 * r.width, y: r.top + (1 - p.y) / 2 * r.height }; },
-    tvs: () => tvs.map((t) => ({ id: t.id, live: t.live, frame: !!t.frame, url: t.page?.url, title: t.page?.title, dist: t.dist })), seats, sitIn, player, people, blinds, door, collide, sfx, setSpeed, clockState, setTime: (ms) => Object.assign(clockState, { speed: 0.0001, simBase: ms, realBase: Date.now() }) };
+    tvs: () => tvs.map((t) => ({ id: t.id, live: t.live, frame: !!t.frame, url: t.page?.url, title: t.page?.title, dist: t.dist })), seats, sitIn, player, people, blinds, door, collide, colliders, lifts, sfx, setSpeed, clockState, setTime: (ms) => Object.assign(clockState, { speed: 0.0001, simBase: ms, realBase: Date.now() }) };
 
   return {
     // Adopt the overview page onto the monitor, then pull back from it to the chair.

@@ -1,4 +1,4 @@
-// Ambient office sounds: typing, footsteps, chatter, ping pong, the coffee machine, and a few fixtures (lift, door, blinds,
+// Ambient office sounds: typing, footsteps, chatter, ping pong, the coffee machine, and a few fixtures (lift chime and doors, door, blinds,
 // chairs, room tone). No assets: every sound is synthesised once into a short buffer, then played through a panner with
 // random pitch/gain so repeats don't sound canned. Nothing is scheduled for sources more than CULL metres away.
 import * as THREE from 'three';
@@ -118,6 +118,13 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos }) {
     const tone = (f, t) => t < 0 ? 0 : Math.exp(-t / 0.55) * (Math.sin(TAU * f * t) + 0.4 * Math.sin(TAU * f * 2 * t) * Math.exp(-t / 0.2) + 0.15 * Math.sin(TAU * f * 2.76 * t) * Math.exp(-t / 0.1));
     return make(2.2, (t) => tone(1318.5, t) * 0.8 + tone(1046.5, t - 0.42));
   }
+  function slide() {   // lift doors gliding: a soft motor whirr, rollers on the track, a felt stop at the end
+    const hum = biq('bp', 180, 2), roll = biq('bp', 1100, 1.5), stop = biq('lp', 140, 0.9);
+    return make(1.15, (t) => {
+      const e = env(t, 0, 1.0, 0.2, 0.3), n = noise();
+      return hum(n * e) * 1.4 + Math.sin(TAU * 92 * t) * e * 0.05 + roll(n * e) * 0.12 + stop(n * Math.exp(-Math.abs(t - 1.0) / 0.02)) * 2;
+    });
+  }
   function build() {
     const n = (k, f) => Array.from({ length: k }, f);
     B = {
@@ -125,7 +132,7 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos }) {
       step: n(6, () => step(false)), soft: n(6, () => step(true)),
       paddle: n(3, () => tock(false)), table: n(3, () => tock(true)),
       low: n(14, () => syllable(125)), high: n(14, () => syllable(205)),
-      espresso: espresso(), creak: n(3, creak), swish: swish(), rattle: rattle(), chime: chime(),
+      espresso: espresso(), creak: n(3, creak), swish: swish(), rattle: rattle(), chime: chime(), slide: slide(),
     };
     for (const [k, v] of Object.entries(B)) for (const b of [v].flat()) b.kind = k;
   }
@@ -329,7 +336,8 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos }) {
     unlock,
     setActive(on) { active = on; if (on && navigator.userActivation?.hasBeenActive) unlock(); else sync(); },
     update, rally,
-    ding() { play(B?.chime, lift.x, 2.4, lift.z, 0.35); },
+    ding(at = lift) { play(B?.chime, at.x, 2.4, at.z, 0.35); },
+    slide(at = lift) { play(B?.slide, at.x, 1.2, at.z, 0.22, rnd(0.95, 1.05)); },
     get ready() { return !!ctx && ctx.state; },
     get voices() { return voices; }, played, get buffers() { return B; },
   };
