@@ -22,7 +22,7 @@ curl -sf http://127.0.0.1:7777/api/state > /dev/null && echo server ok
 
 ## Layout
 
-- `server.js`: tails `~/.claude` (session registry, transcripts incl. subagents, status line snapshots) and pushes state over SSE at `/events`. Per-session detail is at `/api/session/:id`, config at `/api/config`.
+- `server.js`: tails `~/.claude` (session registry, transcripts incl. subagents, status line snapshots) and pushes state over SSE at `/events`. Per-session detail is at `/api/session/:id`, config at `/api/config`. It also runs the wall TVs: one headless Chrome (CDP over `--remote-debugging-pipe`, profile `~/.claude/my-office/tv-browser`), a tab per TV, screencast frames and input over the dependency-free WebSocket at `/tv`.
 - `public/index.html`: the overview tab, the tabs, and the `window.dash` bridge (state, colours, drawer, config).
 - `public/office.js`: the 3D office (Three.js, vendored via npm and served at `/vendor/three/`). The centre monitor in the owner's office is the live overview `<main>` in a CSS3DObject behind a hole punched in the WebGL frame.
 - `bin/setup.mjs` and `.claude/skills/setup`: installer and the `/setup` wizard. `bin/statusline-tap.sh`: the status line snapshot tap.

@@ -681,7 +681,7 @@ export function mountOffice(container) {
     .of-dom { background: var(--page); overflow: hidden; pointer-events: none; }
     .of-hud { position: absolute; inset: 0; z-index: 2; pointer-events: none; font: 13px/1.4 system-ui, -apple-system, sans-serif; color: #fff; transition: opacity .4s; }
     .of-hud.hidden { opacity: 0; }
-    .of-bare > :not(.of-cross, .of-toast) { display: none !important; }
+    .of-bare > :not(.of-cross, .of-toast, .of-tvbar, .of-osd) { display: none !important; }   /* a TV in use keeps its bar */
     .of-toast { position: absolute; left: 50%; top: 18px; transform: translateX(-50%); background: rgba(15,16,19,.82); border: 1px solid rgba(255,255,255,.14); border-radius: 10px; padding: 6px 12px; color: #c3c2b7; font-size: 12px; opacity: 0; transition: opacity .3s; }
     .of-toast.on { opacity: 1; }
     .of-toast kbd { font: inherit; font-weight: 600; color: #fff; background: rgba(255,255,255,.12); border-radius: 4px; padding: 0 5px; }
@@ -705,8 +705,23 @@ export function mountOffice(container) {
     .of-time button { font: inherit; font-size: 11px; color: #c3c2b7; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); border-radius: 6px; padding: 2px 7px; cursor: pointer; }
     .of-time button:hover { color: #fff; }
     .of-time button[aria-pressed="true"] { background: #3987e5; border-color: #3987e5; color: #fff; }
-    .of-tv { background: #000; pointer-events: none; }
-    .of-tv iframe { width: 100%; height: 100%; border: 0; pointer-events: none; background: #000; }
+    .of-tvbar { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); width: min(880px, calc(100% - 32px)); display: none; align-items: center; gap: 6px; background: rgba(15,16,19,.86); border: 1px solid rgba(255,255,255,.14); border-radius: 12px; padding: 6px 8px; pointer-events: auto; }
+    .of-using .of-tvbar { display: flex; }
+    .of-using .of-legend, .of-using .of-start, .of-using .of-map, .of-using .of-count, .of-using .of-time { display: none; }
+    .of-tvbar button { font: inherit; font-size: 13px; color: #e8e6df; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12); border-radius: 7px; padding: 4px 9px; cursor: pointer; white-space: nowrap; }
+    .of-tvbar button:hover { color: #fff; background: rgba(255,255,255,.14); }
+    .of-tvbar form { flex: 1; display: flex; min-width: 0; }
+    .of-tvbar input[name=u] { flex: 1; min-width: 0; font: inherit; font-size: 13px; color: #fff; background: rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.14); border-radius: 7px; padding: 5px 9px; }
+    .of-tvbar input[type=range] { width: 90px; accent-color: #3987e5; }
+    .of-tvbar kbd, .of-tvhint kbd { font: inherit; font-weight: 600; color: #fff; background: rgba(255,255,255,.12); border-radius: 4px; padding: 0 5px; }
+    .of-tvhint { position: absolute; left: 50%; top: 16px; transform: translateX(-50%); display: none; background: rgba(15,16,19,.72); border: 1px solid rgba(255,255,255,.1); border-radius: 10px; padding: 7px 11px; color: #c3c2b7; font-size: 12px; white-space: nowrap; }
+    .of-tvhint b { color: #fff; }
+    .of-using .of-tvhint { display: block; }
+    .of-osd { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%); background: rgba(15,16,19,.84); border-radius: 14px; padding: 14px 24px; font-size: 22px; font-weight: 600; white-space: pre; opacity: 0; transition: opacity .3s; }
+    .of-osd.on { opacity: 1; }
+    .of-volrow { display: flex; gap: 10px; align-items: center; }
+    .of-volrow input { flex: 1; accent-color: var(--accent); padding: 0 !important; }
+    .of-volv { min-width: 44px; color: var(--ink-2); font-size: 13px; }
     .of-tvform { display: grid; gap: 12px; }
     .of-tvform label { display: grid; gap: 5px; font-size: 12px; color: var(--muted); }
     .of-tvform input, .of-tvform select { font: inherit; font-size: 14px; color: var(--ink); background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; }
@@ -737,12 +752,18 @@ export function mountOffice(container) {
 
   const hud = document.createElement('div');
   hud.className = 'of-hud hidden';
+  const IS_MAC = /Mac/.test(navigator.platform), ALT = IS_MAC ? '⌥' : 'Alt+';
   hud.innerHTML = `<div class="of-cross"></div><div class="of-target"></div><canvas class="of-map" width="440" height="330" style="width:220px;height:165px"></canvas>
     <div class="of-count"></div>
     <div class="of-time"><span class="of-clock"></span><button data-speed="1">Live</button><button data-speed="120">×120</button><button data-speed="1200">×1200</button><button data-speed="7200">×7200</button></div>
-    <div class="of-legend"><kbd>W A S D</kbd> move · <kbd>Shift</kbd> run · <kbd>Click</kbd> inspect · <kbd>1</kbd> desks <kbd>2</kbd> breakroom <kbd>3</kbd> my office <kbd>4</kbd> lobby · <kbd>T</kbd> time speed · <kbd>G</kbd> graphics · <kbd>H</kbd> hide overlays · <kbd>Esc</kbd> release mouse</div>
+    <div class="of-legend"><kbd>W A S D</kbd> move · <kbd>Shift</kbd> run · <kbd>Click</kbd> inspect or use a TV · <kbd>E</kbd> set up a TV · <kbd>1</kbd> desks <kbd>2</kbd> breakroom <kbd>3</kbd> my office <kbd>4</kbd> lobby · <kbd>T</kbd> time speed · <kbd>G</kbd> graphics · <kbd>H</kbd> hide overlays · <kbd>Esc</kbd> release mouse</div>
     <div class="of-toast"></div>
-    <div class="of-start"><b>Click to look around</b><span>Walk up to anyone, or their screen, and click for details.<br>Click your own monitor to go back to the dashboard.</span></div>`;
+    <div class="of-start"><b>Click to look around</b><span>Walk up to anyone, or their screen, and click for details.<br>Click your own monitor to go back to the dashboard.</span></div>
+    <div class="of-tvhint">Using the <b class="of-tvname"></b> TV · click and type into the page · <kbd>${ALT}M</kbd> mute · <kbd>${ALT}−</kbd> <kbd>${ALT}=</kbd> or <kbd>${ALT}scroll</kbd> volume · <kbd>Esc</kbd> back to walking</div>
+    <div class="of-tvbar"><button data-nav="back" title="Back">←</button><button data-nav="forward" title="Forward">→</button><button data-nav="reload" title="Reload">⟳</button><button data-nav="home" title="Back to the TV's own page">⌂</button>
+      <form><input name="u" type="text" spellcheck="false" autocomplete="off" placeholder="Go to a URL"></form>
+      <button data-act="mute"></button><input type="range" min="0" max="100" title="TV volume"><button data-act="setup" title="Set up this TV">⚙</button><button data-act="leave">Done <kbd>Esc</kbd></button></div>
+    <div class="of-osd"></div>`;
   container.appendChild(hud);
   const targetEl = hud.querySelector('.of-target'), mapCanvas = hud.querySelector('.of-map'), mapCtx = mapCanvas.getContext('2d'), countEl = hud.querySelector('.of-count');
 
@@ -1705,21 +1726,19 @@ export function mountOffice(container) {
   }
 
   // ----- wall TVs -----
-  // Each shows a URL set from its panel (stored server-side, /api/tvs). Only the nearest few in view get a live iframe,
-  // projected with CSS3D behind a punched hole like the centre monitor; the rest show a painted card and cost nothing.
-  const TV_PX = 1280, tvs = [], tvProxies = [];
+  // Each is a live tab in a browser the server runs (set from its panel or the Admin tab, /api/tvs). Frames arrive over
+  // one socket and are drawn into the screen's canvas; only the nearest few in view stream, the rest keep their last frame.
+  const tvs = [];
+  let using = null;   // the TV clicked into, taking mouse and keys
   function tvSet(id, x, y, z, rotY, w, hung) {
     const name = dash.tvList[id];
     const h = w * 9 / 16, g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = rotY; world.add(g);
     box(g, w + 0.08, h + 0.08, 0.06, '#111214', 0, 0, -0.03, { mat: { roughness: 0.4 } });
     if (hung) for (const dx of [-w / 3, w / 3]) cyl(g, 0.01, 0.01, ROOM.h - y - h / 2, '#222', dx, (ROOM.h - y + h / 2) / 2, -0.03, { shadow: false });
-    const scr = makeScreen(g, w, h, 640, 360, 0, 0, 0.004);
+    const scr = makeScreen(g, w, h, 1280, 720, 0, 0, 0.004);
     scr.mesh.userData.tv = id;
-    const anchor = new THREE.Object3D(); anchor.position.z = 0.012; anchor.scale.set(w, h, 1); g.add(anchor);
-    g.updateWorldMatrix(true, true);
-    const proxy = new THREE.Mesh(hole.geometry, holeM); proxy.matrixAutoUpdate = false; proxy.matrix.copy(anchor.matrixWorld); proxy.visible = false;
-    tvProxies.push(proxy);
-    const t = { id, name, w, scr, anchor, proxy, cfg: null, obj: null, center: new THREE.Vector3(x, y, z), normal: new THREE.Vector3(Math.sin(rotY), 0, Math.cos(rotY)) };
+    scr.mesh.material.color.setScalar(1); scr.mesh.material.toneMapped = false;   // web pages in their own colours, not tone-mapped
+    const t = { id, name, w, h, scr, cfg: null, frame: null, seq: 0, shown: 0, live: false, page: null, center: new THREE.Vector3(x, y, z), normal: new THREE.Vector3(Math.sin(rotY), 0, Math.cos(rotY)) };
     t.sphere = new THREE.Sphere(t.center, w * 0.6);
     tvs.push(t);
     paintTv(t);
@@ -1727,28 +1746,23 @@ export function mountOffice(container) {
   const hostOf = (u) => { try { return new URL(u).host; } catch { return u; } };
   function paintTv(t) {
     const { ctx, W, H } = t.scr, c = t.cfg;
-    ctx.fillStyle = c?.blocked ? '#1c1012' : c ? '#0b0d12' : '#050607'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = c ? '#0b0d12' : '#050607'; ctx.fillRect(0, 0, W, H);
     ctx.textAlign = 'center';
     if (!c) {
-      ctx.font = `600 22px ${FONT}`; ctx.fillStyle = 'rgba(255,255,255,.16)';
-      ctx.fillText(`${t.name.toUpperCase()} TV · CLICK TO SET UP`, W / 2, H / 2 + 8);
-    } else if (c.blocked) {
-      ctx.font = `700 34px ${FONT}`; ctx.fillStyle = '#ffb4a8'; ctx.fillText('⚠  This site can’t be embedded', W / 2, 120);
-      ctx.font = `500 26px ${FONT}`; ctx.fillStyle = '#e8e6df'; ctx.fillText(fit(ctx, hostOf(c.url), W - 80), W / 2, 175);
-      ctx.font = `400 19px ${FONT}`; ctx.fillStyle = '#9a9890'; ctx.fillText(fit(ctx, c.blocked, W - 60), W / 2, 215);
-      ctx.font = `600 24px ${FONT}`; ctx.fillStyle = '#7fb2ff'; ctx.fillText('Click to open it in a new tab', W / 2, 285);
-    } else if (t.snap) {
-      // Last snapshot of the page while the live frame is paused (out of range or behind you).
-      const k = Math.max(W / t.snap.width, H / t.snap.height), iw = t.snap.width * k, ih = t.snap.height * k;
-      ctx.drawImage(t.snap, (W - iw) / 2, (H - ih) / 2, iw, ih);
-      ctx.font = `600 15px ${FONT}`; const label = '❚❚  paused · live when you walk closer', lw = ctx.measureText(label).width + 24;
-      ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.beginPath(); ctx.roundRect(W - lw - 12, H - 40, lw, 28, 14); ctx.fill();
-      ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.fillText(label, W - lw / 2 - 12, H - 21);
+      ctx.font = `600 44px ${FONT}`; ctx.fillStyle = 'rgba(255,255,255,.16)';
+      ctx.fillText(`${t.name.toUpperCase()} TV · CLICK TO SET UP`, W / 2, H / 2 + 16);
+    } else if (t.frame) {
+      ctx.drawImage(t.frame, 0, 0, W, H);
+      if (!t.live && t !== using) {
+        ctx.font = `600 26px ${FONT}`; const label = '❚❚  paused · live when you walk closer', lw = ctx.measureText(label).width + 40;
+        ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.beginPath(); ctx.roundRect(W - lw - 20, H - 68, lw, 48, 24); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.fillText(label, W - lw / 2 - 20, H - 35);
+      }
     } else {
-      ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.beginPath(); ctx.arc(W / 2, 140, 46, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.beginPath(); ctx.moveTo(W / 2 - 14, 116); ctx.lineTo(W / 2 + 24, 140); ctx.lineTo(W / 2 - 14, 164); ctx.fill();
-      ctx.font = `600 26px ${FONT}`; ctx.fillStyle = '#e8e6df'; ctx.fillText(fit(ctx, hostOf(c.url), W - 80), W / 2, 240);
-      ctx.font = `400 18px ${FONT}`; ctx.fillStyle = '#9a9890'; ctx.fillText('live when you walk closer', W / 2, 272);
+      ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.beginPath(); ctx.arc(W / 2, 280, 92, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.beginPath(); ctx.moveTo(W / 2 - 28, 232); ctx.lineTo(W / 2 + 48, 280); ctx.lineTo(W / 2 - 28, 328); ctx.fill();
+      ctx.font = `600 52px ${FONT}`; ctx.fillStyle = '#e8e6df'; ctx.fillText(fit(ctx, hostOf(c.url), W - 160), W / 2, 480);
+      ctx.font = `400 36px ${FONT}`; ctx.fillStyle = '#9a9890'; ctx.fillText(t.live ? 'loading…' : 'live when you walk closer', W / 2, 544);
     }
     t.scr.tex.needsUpdate = true;
   }
@@ -1759,77 +1773,67 @@ export function mountOffice(container) {
   tvSet('lounge', 11, 1.75, 14.78, Math.PI, 2.6);
   tvSet('lobby', 17.6, 2.15, -3.3, 0, 2.0, true);
 
-  function mountTv(t, now) {
-    const el = document.createElement('div');
-    el.className = 'of-tv';
-    el.style.width = TV_PX + 'px'; el.style.height = TV_PX * 9 / 16 + 'px';
-    const fr = document.createElement('iframe');
-    fr.allow = 'autoplay; encrypted-media; picture-in-picture';
-    fr.referrerPolicy = 'strict-origin-when-cross-origin';
-    fr.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups allow-forms allow-presentation');   // no top navigation: frame-busters can't hijack the office
-    fr.tabIndex = -1;
-    fr.src = tvSrc(t);
-    fr.addEventListener('load', () => { tvPost(t, { event: 'listening' }); t.vol = -1; });
-    el.appendChild(fr);
-    t.obj = new CSS3DObject(el);
-    t.anchor.matrixWorld.decompose(t.obj.position, t.obj.quaternion, new THREE.Vector3());
-    t.obj.scale.setScalar(t.w / TV_PX);
-    cssScene.add(t.obj);
-    t.frame = fr; t.loadedAt = now; t.proxy.visible = true;
+  // One socket to the server for every TV: JPEG frames in ([id length][id][JPEG]) and page updates; which TVs we're
+  // looking at, how loud each should be for us, and input for the TV in use out.
+  let sock = null, sentWatch = '', sentFade = '', fadeAt = 0;
+  const utf8 = new TextDecoder();
+  function tvSocket() {
+    if (sock) return;
+    sock = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/tv`);
+    sock.binaryType = 'arraybuffer';
+    sock.onopen = () => { sentWatch = sentFade = ''; };
+    sock.onmessage = (e) => {
+      if (typeof e.data === 'string') {
+        const m = JSON.parse(e.data), t = tvs.find((x) => x.id === m.id);
+        if (t && m.t === 'page') { t.page = m; if (t === using) tvBarSync(); }
+        return;
+      }
+      const b = new Uint8Array(e.data), n = b[0], t = tvs.find((x) => x.id === utf8.decode(b.subarray(1, 1 + n)));
+      if (!t?.cfg) return;
+      const seq = ++t.seq;   // decodes can finish out of order; keep the newest
+      createImageBitmap(new Blob([b.subarray(1 + n)], { type: 'image/jpeg' })).then((img) => {
+        if (seq < t.shown) return img.close();
+        t.shown = seq; t.frame?.close(); t.frame = img; t.dirty = true;
+      }).catch(() => {});
+    };
+    sock.onclose = () => { sock = null; if (active) setTimeout(tvSocket, 2000); };
   }
-  function unmountTv(t, snap) {
-    if (!t.obj) return;
-    cssScene.remove(t.obj);   // CSS3DObject drops its element (and the iframe) when removed
-    t.obj = t.frame = null; t.proxy.visible = false;
-    if (snap) loadSnap(t, true);
-  }
-  // The server shoots the page (or grabs the YouTube thumbnail); `fresh` asks for a new shot rather than the cached one.
-  function loadSnap(t, fresh) {
-    const src = t.cfg?.src, img = new Image();
-    if (!src || t.cfg.blocked) return;
-    img.onload = () => { if (t.cfg?.src === src) { t.snap = img; paintTv(t); } };
-    img.src = `/api/tvs/${t.id}/snap?${fresh ? 'fresh&' : ''}v=${Date.now()}`;
-  }
-  // YouTube TVs get sound that fades with distance: full within AUDIO.near, silent by AUDIO.far (inside the 25 m live
-  // range). Volume goes through the YouTube iframe API by postMessage; other sites can't be turned up or down from here.
+  const tvSend = (m) => sock?.readyState === 1 && sock.send(JSON.stringify(m));
+  function tvQuiet() { tvSend({ t: 'watch', ids: [] }); tvSend({ t: 'fade', fades: {} }); sentWatch = sentFade = ''; }
+  document.addEventListener('visibilitychange', () => { if (document.hidden && active) tvQuiet(); });
+
+  // Sound fades with distance: full within AUDIO.near, silent by AUDIO.far, times the TV's own volume (applied by the server).
   const AUDIO = { near: 3, far: 20 };
-  const isYt = (t) => /^https:\/\/www\.youtube-nocookie\.com\/embed\//.test(t.cfg?.src || '');
-  const tvSrc = (t) => isYt(t) ? `${t.cfg.src}&enablejsapi=1&origin=${encodeURIComponent(location.origin)}` : t.cfg.src;
-  const tvPost = (t, msg) => t.frame?.contentWindow?.postMessage(JSON.stringify(msg), '*');
-  function tvVolume(t, now) {
-    const v = Math.round(100 * (1 - sstep(AUDIO.near, AUDIO.far, t.dist)));
-    if (v === t.vol && now - t.volAt < 1000) return;   // resend each second: commands sent before the player is ready are dropped
-    tvPost(t, { event: 'command', func: 'setVolume', args: [v] });
-    tvPost(t, { event: 'command', func: v ? 'unMute' : 'mute', args: [] });
-    t.vol = v; t.volAt = now;
-  }
   const tvFrustum = new THREE.Frustum(), tvProj = new THREE.Matrix4(), toCam = new THREE.Vector3();
   function updateTVs(now) {
     camera.updateMatrixWorld();
     tvFrustum.setFromProjectionMatrix(tvProj.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
     for (const t of tvs) t.dist = toCam.subVectors(camera.position, t.center).length();
-    const want = tvs.filter((t) => t.cfg?.src && !t.cfg.blocked && t.dist < 25
+    const want = tvs.filter((t) => t.cfg && t.dist < 25
       && toCam.subVectors(camera.position, t.center).dot(t.normal) > 0 && tvFrustum.intersectsSphere(t.sphere)).sort((a, b) => a.dist - b.dist).slice(0, 3);
     for (const t of tvs) {
-      // A playing YouTube TV stays mounted while it's still audible, so turning your back on it doesn't cut the sound.
-      const audible = t.obj && isYt(t) && t.dist < AUDIO.far;
-      if (!want.includes(t) && !audible) { if (t.obj && now - t.seen > 3000) unmountTv(t, true); continue; }
-      t.seen = now;
-      if (!t.obj) mountTv(t, now);
-      else if (t.cfg.refresh && now - t.loadedAt > t.cfg.refresh * 1000) { t.frame.src = tvSrc(t); t.loadedAt = now; }
-      if (isYt(t)) tvVolume(t, now);
+      if (want.includes(t) || t === using) t.seen = now;
+      const live = !!t.cfg && now - (t.seen ?? -1e9) < 3000;   // a short grace, so glancing away doesn't stop the stream
+      if (live !== t.live) { t.live = live; t.dirty = true; }
+      if (t.dirty) { t.dirty = false; paintTv(t); }
     }
+    if (sock?.readyState !== 1) return;
+    const ids = tvs.filter((t) => t.live).map((t) => t.id), w = `${ids}|${using?.id || ''}`;
+    if (w !== sentWatch) { sentWatch = w; tvSend({ t: 'watch', ids, use: using?.id || null }); }
+    if (now - fadeAt < 250) return;
+    fadeAt = now;
+    const fades = {};
+    for (const t of tvs) if (t.cfg && t.dist < AUDIO.far) fades[t.id] = Math.round(100 * (1 - sstep(AUDIO.near, AUDIO.far, t.dist))) / 100;
+    const f = JSON.stringify(fades);
+    if (f !== sentFade) { sentFade = f; tvSend({ t: 'fade', fades }); }
   }
   function applyTvs(map) {
     for (const t of tvs) {
       const c = map?.[t.id] || null;
       if (JSON.stringify(c) === JSON.stringify(t.cfg)) continue;
-      const changed = c?.src !== t.cfg?.src || c?.at !== t.cfg?.at;
-      if (c?.src !== t.cfg?.src || c?.blocked) unmountTv(t);
-      if (changed) t.snap = null;
-      t.cfg = c;
-      paintTv(t);
-      if (changed) loadSnap(t, false);
+      if (c?.url !== t.cfg?.url || c?.at !== t.cfg?.at) { t.frame?.close(); t.frame = null; t.shown = t.seq; t.page = null; }
+      t.cfg = c; t.dirty = true;
+      if (t === using) c ? tvBarSync() : leaveTv();
     }
   }
   dash.tvListeners.add(applyTvs);
@@ -1841,50 +1845,52 @@ export function mountOffice(container) {
   }
   dash.officeListeners.add(applyOffice);
   applyOffice(dash.office);
-  // Pages inside a TV must never keep keyboard focus, or WASD stops reaching the office.
-  addEventListener('blur', () => setTimeout(() => { if (active && document.activeElement?.closest?.('.of-tv')) document.activeElement.blur(); }));
 
-  // TV config lives in the drawer.
+  // TV config lives in the drawer (and the Admin tab). Volume and mute apply live without reloading the page.
   const TV_REFRESH = dash.tvRefresh;
-  const NO_FRAME = /(^|\.)(github\.com|gitlab\.com|bitbucket\.org|x\.com|twitter\.com|facebook\.com|instagram\.com|linkedin\.com|reddit\.com|stackoverflow\.com|google\.com|notion\.so|slack\.com|claude\.ai|chatgpt\.com|amazon\.com|netflix\.com|linear\.app)$/;
   const normUrl = dash.normUrl;
   function openTvPanel(t) {
     const c = t.cfg || {};
-    const db = dash.openPanel(`<div style="font-size:19px;font-weight:650">${escapeHtml(t.name)} TV</div><div class="muted" style="font-size:12px">Shows a web page live on the office wall</div>`,
+    const db = dash.openPanel(`<div style="font-size:19px;font-weight:650">${escapeHtml(t.name)} TV</div><div class="muted" style="font-size:12px">A live browser tab on the office wall · click the TV to use it</div>`,
       `<form class="panel of-tvform">
-        <label>Show this URL<input name="url" type="text" autocomplete="off" spellcheck="false" placeholder="YouTube link, the dashboard, any web page" value="${escapeHtml(c.url || '')}"></label>
+        <label>Show this URL<input name="url" type="text" autocomplete="off" spellcheck="false" placeholder="Any web page: YouTube, GitHub, the dashboard" value="${escapeHtml(c.url || '')}"></label>
         <div class="of-presets">Try <button type="button" data-url="${escapeHtml(location.origin)}/">Live dashboard</button></div>
         <label>Auto-refresh<select name="refresh">${TV_REFRESH.map(([v, l]) => `<option value="${v}"${v === (c.refresh || 0) ? ' selected' : ''}>${l}</option>`).join('')}</select></label>
+        <label>Volume<span class="of-volrow"><input name="volume" type="range" min="0" max="100"><span class="of-volv"></span><button type="button" data-mute></button></span></label>
         <div class="of-tvwarn"></div>
         <div class="of-tvbtns"><button type="submit" class="pri">Save</button><button type="button" data-off>Turn off</button><a target="_blank" rel="noopener">Open in new tab ↗</a></div>
+        <div class="muted" style="font-size:12px">Sound fades with distance on top of this volume. Logins made on a TV stay in the TV browser's own profile.</div>
       </form>`);
     const form = db.querySelector('form'), input = form.elements.url, warn = form.querySelector('.of-tvwarn'), link = form.querySelector('a');
+    const vol = form.elements.volume, volV = form.querySelector('.of-volv'), mute = form.querySelector('[data-mute]');
     const check = (msg) => {
-      const url = normUrl(input.value);
       let host = '';
-      try { host = new URL(url).hostname; } catch {}
-      link.href = url || '#'; link.style.visibility = host ? '' : 'hidden';
-      const blocked = t.cfg?.blocked && t.cfg.url === url;
-      warn.className = 'of-tvwarn' + (msg ? ' bad' : blocked || NO_FRAME.test(host) ? ' warn' : '');
-      warn.textContent = msg || (blocked ? `This site can't be embedded: ${t.cfg.blocked}. The TV will offer to open it in a new tab instead.`
-        : NO_FRAME.test(host) ? `${host} usually refuses to load inside other pages (X-Frame-Options / CSP), so the TV will probably only offer to open it in a new tab.`
-        : /(^|\.)(youtube\.com|youtu\.be)$/.test(host) ? 'YouTube links play muted via the privacy-enhanced embed. Some videos (often music) have embedding turned off by their owner and will say "unavailable".' : '');
+      try { host = new URL(normUrl(input.value)).hostname; } catch {}
+      link.href = normUrl(input.value) || '#'; link.style.visibility = host ? '' : 'hidden';
+      warn.className = 'of-tvwarn' + (msg ? ' bad' : ''); warn.textContent = msg || '';
     };
+    const syncVol = () => {
+      const c = dash.tvs[t.id];
+      vol.disabled = mute.disabled = !c;
+      if (document.activeElement !== vol) vol.value = c?.volume ?? 100;
+      volV.textContent = c ? `${c.volume}%` : 'TV off';
+      mute.textContent = c?.muted ? 'Unmute' : 'Mute';
+    };
+    vol.oninput = () => { dash.patchTv(t.id, { volume: +vol.value }); syncVol(); };
+    mute.onclick = () => { dash.patchTv(t.id, { muted: !dash.tvs[t.id]?.muted }); syncVol(); };
+    dash.tvListeners.add(syncVol);
+    new MutationObserver((_, mo) => { if (!form.isConnected) { dash.tvListeners.delete(syncVol); mo.disconnect(); } }).observe(db, { childList: true });
     input.oninput = () => check();
     form.querySelector('.of-presets').onclick = (e) => { const b = e.target.closest('button'); if (b) { input.value = b.dataset.url; check(); } };
     const save = async (url, refresh) => {
-      warn.className = 'of-tvwarn'; warn.textContent = url ? 'Saving and checking whether the site can be embedded…' : '';
-      const r = await fetch('/api/tvs/' + t.id, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url, refresh }) })
-        .then((res) => res.json()).catch((e) => ({ error: e.message }));
+      warn.className = 'of-tvwarn'; warn.textContent = url ? 'Saving…' : '';
+      const r = await dash.saveTv(t.id, url, refresh);
       if (r?.error) return check(`Couldn't save: ${r.error}`);
-      const map = { ...dash.tvs };
-      if (r) map[t.id] = r; else delete map[t.id];
-      dash.tvs = map; applyTvs(map);
-      if (r?.blocked) check(); else dash.closeDrawer();
+      dash.closeDrawer();
     };
     form.onsubmit = (e) => { e.preventDefault(); save(normUrl(input.value), +form.elements.refresh.value); };
     form.querySelector('[data-off]').onclick = () => save('', 0);
-    check();
+    check(); syncVol();
     input.focus(); input.select();
   }
 
@@ -2086,8 +2092,8 @@ export function mountOffice(container) {
     else if (hover.action === 'blinds') { hover.blind.to = hover.blind.to ? 0 : 1; dash.putOffice({ blinds: { [hover.blind.key]: hover.blind.to } }); }
     else if (hover.action === 'door') { door.to = door.to ? 0 : 1; dash.putOffice({ door: door.to }); }
     else if (hover.tv) {
-      document.exitPointerLock();
-      if (hover.tv.cfg?.blocked && !e.shiftKey) open(hover.tv.cfg.url, '_blank', 'noopener'); else openTvPanel(hover.tv);
+      if (hover.tv.cfg && !e.shiftKey) useTv(hover.tv);
+      else { document.exitPointerLock(); openTvPanel(hover.tv); }
     }
   });
   document.addEventListener('pointerlockchange', () => {
@@ -2112,9 +2118,118 @@ export function mountOffice(container) {
     if (e.code === 'KeyG') { setQuality(!hq); return; }
     if (e.code === 'KeyH') { setOverlays(!overlays); return; }
     if (e.code === 'KeyT') { setSpeed(SPEEDS[(SPEEDS.indexOf(clockState.speed) + 1) % SPEEDS.length]); return; }
+    if (e.code === 'KeyE' && hover?.tv) { document.exitPointerLock(); openTvPanel(hover.tv); return; }
     if (locked) { keys.add(e.code); if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault(); }
   });
   document.addEventListener('keyup', (e) => keys.delete(e.code));
+
+  // ----- using a TV -----
+  // Clicking a TV frames it square-on and frees the mouse: the cursor maps onto the page through the screen's UVs, and keys
+  // go to the page until Esc. The bar below has back/forward/reload/home, the address, and the TV's volume.
+  const tvBar = hud.querySelector('.of-tvbar'), tvUrl = tvBar.querySelector('input[name=u]'), tvVol = tvBar.querySelector('input[type=range]');
+  const tvMuteBtn = tvBar.querySelector('[data-act=mute]'), osdEl = hud.querySelector('.of-osd');
+  const BTN = ['left', 'middle', 'right'];
+  const mods = (e) => (e.altKey ? 1 : 0) | (e.ctrlKey ? 2 : 0) | (e.metaKey ? 4 : 0) | (e.shiftKey ? 8 : 0);
+  function useTv(t) {
+    if (!t?.cfg || !active) return;
+    if (document.pointerLockElement) document.exitPointerLock();
+    using = t; mode = 'tv'; keys.clear(); t.dirty = true;
+    hud.classList.add('of-using');
+    tvBarSync();
+    const half = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)), d = Math.max(t.h / 2 / half / 0.82, t.w / 2 / (half * camera.aspect) / 0.92);
+    tween(camPose(), { x: t.center.x + t.normal.x * d, y: t.center.y, z: t.center.z + t.normal.z * d, yaw: Math.atan2(t.normal.x, t.normal.z), pitch: 0 }, 700);
+  }
+  function leaveTv(relock) {
+    if (!using) return;
+    using.dirty = true; using = null;
+    hud.classList.remove('of-using');
+    tvUrl.blur();
+    if (mode !== 'tv') return;
+    tween(camPose(), { x: player.x, y: player.eye, z: player.z, yaw: player.yaw, pitch: player.pitch }, 600, () => { if (mode === 'tv') mode = 'free'; });
+    if (relock) renderer.domElement.requestPointerLock();   // only works from a click; after Esc, click to look around again
+  }
+  function tvBarSync() {
+    if (!using) return;
+    const c = using.cfg;
+    if (document.activeElement !== tvUrl) tvUrl.value = using.page?.url || c.url;
+    if (document.activeElement !== tvVol) tvVol.value = c.volume;
+    tvMuteBtn.textContent = c.muted ? '🔇' : c.volume ? '🔊' : '🔈';
+    tvMuteBtn.title = `${c.muted ? 'Unmute' : 'Mute'} (${ALT}M)`;
+    hud.querySelector('.of-tvname').textContent = using.name;
+  }
+  let osdT = 0;
+  function tvVolume(patch) {
+    const c = { ...using.cfg, ...patch };
+    dash.patchTv(using.id, patch);
+    osdEl.textContent = c.muted ? '🔇  Muted' : `${c.volume ? '🔊' : '🔈'}  ${c.volume}%`;
+    osdEl.classList.add('on'); clearTimeout(osdT); osdT = setTimeout(() => osdEl.classList.remove('on'), 1100);
+  }
+  const volStep = (d) => tvVolume({ volume: clamp(using.cfg.volume + d, 0, 100), muted: false });
+  tvBar.addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b || !using) return;
+    if (b.dataset.nav) tvSend({ t: 'nav', id: using.id, act: b.dataset.nav });
+    else if (b.dataset.act === 'mute') tvVolume({ muted: !using.cfg.muted });
+    else if (b.dataset.act === 'setup') openTvPanel(using);
+    else if (b.dataset.act === 'leave') leaveTv(true);
+    b.blur();
+  });
+  tvVol.addEventListener('input', () => using && tvVolume({ volume: +tvVol.value, muted: false }));
+  tvVol.addEventListener('change', () => tvVol.blur());
+  tvBar.querySelector('form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (using && tvUrl.value.trim()) tvSend({ t: 'nav', id: using.id, act: 'go', url: dash.normUrl(tvUrl.value) });
+    tvUrl.blur();
+  });
+  tvUrl.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); tvUrl.blur(); tvBarSync(); } });
+
+  const tvRay = new THREE.Raycaster(), tvNdc = new THREE.Vector2();
+  let tvMove = null;   // latest mousemove, sent once per frame
+  function tvMouse(e, type, extra) {
+    if (mode !== 'tv' || !using || anim) return;
+    const r = renderer.domElement.getBoundingClientRect();
+    tvNdc.set(((e.clientX - r.left) / r.width) * 2 - 1, 1 - ((e.clientY - r.top) / r.height) * 2);
+    tvRay.setFromCamera(tvNdc, camera);
+    const hit = tvRay.intersectObject(using.scr.mesh)[0];
+    if (!hit) return;
+    const press = type === 'mousePressed' || type === 'mouseReleased';
+    tvSend({ t: 'mouse', id: using.id, type, x: hit.uv.x, y: 1 - hit.uv.y, button: press ? BTN[e.button] || 'none' : e.buttons & 1 ? 'left' : 'none',
+      buttons: e.buttons, clickCount: press ? e.detail || 1 : 0, mods: mods(e), ...extra });
+  }
+  const gl = renderer.domElement;
+  gl.addEventListener('mousemove', (e) => { if (mode === 'tv') tvMove = e; });
+  gl.addEventListener('mousedown', (e) => { document.activeElement?.blur?.(); tvMouse(e, 'mousePressed'); });
+  gl.addEventListener('mouseup', (e) => tvMouse(e, 'mouseReleased'));
+  gl.addEventListener('contextmenu', (e) => { if (mode === 'tv') e.preventDefault(); });
+  gl.addEventListener('wheel', (e) => {
+    if (mode !== 'tv' || !using) return;
+    e.preventDefault();
+    if (e.altKey) return volStep(e.deltaY < 0 ? 5 : -5);
+    const k = [1, 40, 720][e.deltaMode] || 1;
+    tvMouse(e, 'mouseWheel', { dx: e.deltaX * k, dy: e.deltaY * k });
+  }, { passive: false });
+  // ⌘A/C/X/Z need explicit editing commands on a Mac; ⌘V is sent as text from the paste event; other ⌘ shortcuts stay the dashboard's.
+  const CMDS = { KeyA: 'selectAll', KeyC: 'copy', KeyX: 'cut', KeyZ: 'undo' };
+  const VOL_KEYS = { KeyM: () => tvVolume({ muted: !using.cfg.muted }), Minus: () => volStep(-10), Equal: () => volStep(10) };
+  function tvKey(e) {
+    if (mode !== 'tv' || !using || e.target.closest?.('input, select, textarea, #drawer')) return;
+    const down = e.type === 'keydown';
+    if (e.code === 'Escape') { if (down) { e.preventDefault(); leaveTv(); } return; }
+    if (e.altKey && !e.metaKey && !e.ctrlKey && VOL_KEYS[e.code]) { e.preventDefault(); if (down) VOL_KEYS[e.code](); return; }
+    if ((e.metaKey || (e.ctrlKey && !IS_MAC)) && e.code === 'KeyV') return;
+    if (e.metaKey && !CMDS[e.code] && e.key !== 'Meta') return;
+    e.preventDefault();
+    const text = !down ? '' : e.key === 'Enter' ? '\r' : e.key.length === 1 && !e.ctrlKey && !e.metaKey ? e.key : '';
+    tvSend({ t: 'key', id: using.id, type: !down ? 'keyUp' : text ? 'keyDown' : 'rawKeyDown', key: e.key, code: e.code, keyCode: e.keyCode, text,
+      mods: mods(e), loc: e.location, cmd: down && e.metaKey ? CMDS[e.code] : undefined });
+  }
+  document.addEventListener('keydown', tvKey);
+  document.addEventListener('keyup', tvKey);
+  document.addEventListener('paste', (e) => {
+    if (mode !== 'tv' || !using || e.target.closest?.('input, textarea')) return;
+    e.preventDefault();
+    tvSend({ t: 'text', id: using.id, text: e.clipboardData.getData('text') });
+  });
 
   // ----- hover / inspect -----
   const ray = new THREE.Raycaster();
@@ -2151,7 +2266,7 @@ export function mountOffice(container) {
     if (hover.tv) {
       const c = hover.tv.cfg;
       targetEl.innerHTML = `<b>${escapeHtml(hover.tv.name)} TV</b><div class="m">${c ? escapeHtml(hostOf(c.url)) : 'Off'}</div>
-        <div class="k">${c?.blocked ? 'Can’t be embedded · click to open in a new tab · Shift+click to change' : 'Click to choose what it shows'}</div>`;
+        <div class="k">${c ? 'Click to use it · E (or Shift+click) to set it up' : 'Click to choose what it shows'}</div>`;
       return;
     }
     const s = S?.live.find((x) => x.sessionId === hover.sessionId);
@@ -2254,7 +2369,7 @@ export function mountOffice(container) {
   const sunScreen = new THREE.Vector3(), camFwd = new THREE.Vector3();
   const holeScene = new THREE.Scene(), holeProxy = new THREE.Mesh(hole.geometry, holeM);
   holeProxy.matrixAutoUpdate = false;
-  holeScene.add(holeProxy, ...tvProxies);
+  holeScene.add(holeProxy);
   const depthOnlyM = new THREE.MeshBasicMaterial({ colorWrite: false });
   function renderFrame() {
     camera.getWorldDirection(camFwd);
@@ -2313,6 +2428,7 @@ export function mountOffice(container) {
     if (mode === 'free') movePlayer(dt);
     stepTween(now);
     paintScreens(false);
+    if (tvMove) { tvMouse(tvMove, 'mouseMoved'); tvMove = null; }
     updateTVs(now);
     for (const d of desks) if (d.codeAnim) paintCode(d, performance.now(), false);
     updateHover();
@@ -2335,12 +2451,15 @@ export function mountOffice(container) {
   }
   new ResizeObserver(resize).observe(container);
 
-  window.__office = { teleport: (k) => TELEPORTS[k](), openTv: (id) => openTvPanel(tvs.find((t) => t.id === id)), player, people, blinds, door, collide, setSpeed, clockState, setTime: (ms) => Object.assign(clockState, { speed: 0.0001, simBase: ms, realBase: Date.now() }) };
+  window.__office = { teleport: (k) => TELEPORTS[k](), openTv: (id) => openTvPanel(tvs.find((t) => t.id === id)), useTv: (id) => useTv(tvs.find((t) => t.id === id)), leaveTv,
+    tvPoint: (id, u, v) => { const t = tvs.find((x) => x.id === id), p = t.scr.mesh.localToWorld(new THREE.Vector3((u - 0.5) * t.w, (0.5 - v) * t.h, 0)).project(camera), r = renderer.domElement.getBoundingClientRect(); return { x: r.left + (p.x + 1) / 2 * r.width, y: r.top + (1 - p.y) / 2 * r.height }; },
+    tvs: () => tvs.map((t) => ({ id: t.id, live: t.live, frame: !!t.frame, url: t.page?.url, title: t.page?.title, dist: t.dist })), player, people, blinds, door, collide, setSpeed, clockState, setTime: (ms) => Object.assign(clockState, { speed: 0.0001, simBase: ms, realBase: Date.now() }) };
 
   return {
     // Adopt the overview page onto the monitor, then pull back from it to the chair.
     show(scrollY = 0) {
       active = true;
+      tvSocket();
       const main = document.querySelector('body > main');
       if (main) domScreen.appendChild(main);
       resize();
@@ -2363,7 +2482,7 @@ export function mountOffice(container) {
       return new Promise((resolve) => {
         if (document.pointerLockElement) document.exitPointerLock();
         dash.closeDrawer();
-        for (const t of tvs) unmountTv(t);
+        if (using) { using.dirty = true; using = null; hud.classList.remove('of-using'); }
         hud.classList.add('hidden');
         mode = 'outro';
         const from = camPose(), to = fillPose();
@@ -2374,6 +2493,7 @@ export function mountOffice(container) {
             const main = domScreen.querySelector('main');
             if (main) document.body.insertBefore(main, container);
             cancelAnimationFrame(raf);
+            tvQuiet();
             active = false;
             mode = 'idle';
             resolve(scroll);

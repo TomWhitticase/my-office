@@ -54,7 +54,11 @@ body[data-view="admin"] #view-admin { display: grid; gap: 16px; }
 .adm button.pri { background: var(--accent); border-color: var(--accent); color: #fff; }
 .adm input[type=text], .adm select { font: inherit; font-size: 13px; color: var(--ink); background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 6px 9px; }
 .adm input[type=range] { width: 220px; accent-color: var(--accent); }
-.tv-grid { display: grid; grid-template-columns: 110px minmax(200px, 1fr) 130px auto; gap: 8px 10px; align-items: center; font-size: 13px; }
+.tv-grid { display: grid; grid-template-columns: 110px minmax(200px, 1fr) 130px auto auto; gap: 8px 10px; align-items: center; font-size: 13px; }
+.tv-grid .vol { display: flex; gap: 6px; align-items: center; }
+.tv-grid .vol input[type=range] { width: 90px; }
+.tv-grid .vol output { min-width: 36px; font-size: 12px; color: var(--ink-2); }
+.tv-grid .vol button { padding: 5px 8px; }
 .tv-grid .note { grid-column: 2 / -1; font-size: 12px; margin-top: -4px; }
 .tv-grid .note.bad { color: var(--critical); } .tv-grid .note.warn { color: var(--warning); }
 header h1 { font-size: 18px; font-weight: 650; margin: 0; letter-spacing: -0.01em; }
@@ -248,7 +252,7 @@ tr.click:hover td { background: var(--surface-2); }
     <div class="adm-row"><span class="lbl">Door</span><span class="seg" id="adm-door"><button data-v="0">Closed</button><button data-v="1">Open</button></span></div>
   </section>
   <section class="panel">
-    <h2>TVs <small>what each wall TV shows · YouTube links, the dashboard, any web page</small></h2>
+    <h2>TVs <small>each wall TV is a live browser tab · any web page, YouTube, the dashboard · click a TV in the office to use it</small></h2>
     <div class="tv-grid" id="adm-tvs"></div>
   </section>
 </div>
@@ -585,6 +589,7 @@ function connect() {
   es.onerror = () => { conn.className = 'conn off'; conn.lastChild.textContent = 'reconnecting…'; };
 }
 // Bridge for the 3D office view (office.js), which reuses live state, colours and the drawer.
+const tvPatches = {};   // per TV: volume/mute changes waiting to be saved
 window.dash = {
   get state() { return S; },
   listeners: new Set(),
@@ -599,6 +604,24 @@ window.dash = {
       .then((res) => res.json()).catch((e) => ({ error: e.message }));
     if (!r?.error) { const map = { ...dash.tvs }; if (r) map[id] = r; else delete map[id]; dash.tvs = map; for (const cb of dash.tvListeners) cb(map); }
     return r;
+  },
+  // Volume / mute: applied here at once (and in every open office via the server's push), saved at most every 150 ms.
+  // The server patches only these fields, so the page on the TV keeps playing.
+  patchTv(id, patch) {
+    const c = dash.tvs[id];
+    if (!c) return;
+    dash.tvs = { ...dash.tvs, [id]: { ...c, ...patch } };
+    for (const cb of dash.tvListeners) cb(dash.tvs);
+    const q = tvPatches[id] ||= { patch: {}, t: 0 };
+    Object.assign(q.patch, patch);
+    if (q.t) return;
+    const flush = () => {
+      const body = q.patch; q.patch = {};
+      if (!Object.keys(body).length) { q.t = 0; return; }
+      fetch('/api/tvs/' + id, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).catch(() => {});
+      q.t = setTimeout(flush, 150);
+    };
+    flush();
   },
   normUrl: (s) => { s = s.trim(); return !s ? '' : s.startsWith('/') ? location.origin + s : /^[a-z][\w+.-]*:/i.test(s) ? s : (/^(localhost|127\.)/.test(s) ? 'http://' : 'https://') + s; },
   // Lights, blinds and door (server-side, /api/office). putOffice applies locally at once, then saves.
@@ -649,6 +672,7 @@ function buildAdmin() {
   setHTML($('adm-tvs'), Object.entries(dash.tvList).map(([id, name]) => `
     <b>${esc(name)}</b><input type="text" data-tv="${id}" data-f="url" placeholder="Off · paste a URL" spellcheck="false" autocomplete="off">
     <select data-tv="${id}" data-f="refresh" title="Auto-refresh">${dash.tvRefresh.map(([v, l]) => `<option value="${v}">${v ? l : 'No refresh'}</option>`).join('')}</select>
+    <span class="vol"><button data-tv="${id}" data-act="mute" title="Mute / unmute"></button><input type="range" min="0" max="100" data-tv="${id}" data-f="volume" title="Volume"><output data-tv="${id}" data-f="volv"></output></span>
     <span style="display:flex;gap:6px"><button class="pri" data-tv="${id}" data-act="save">Save</button><button data-tv="${id}" data-act="off">Turn off</button><a class="btn" data-tv="${id}" target="_blank" rel="noopener">↗</a></span>
     <div class="note muted" data-tv="${id}" data-f="note"></div>`).join(''));
   const adm = $('view-admin');
@@ -658,10 +682,11 @@ function buildAdmin() {
     if (b.closest('#adm-lights')) dash.putOffice({ lights: b.dataset.v });
     else if (b.closest('[data-blind]')) dash.putOffice({ blinds: { [b.closest('[data-blind]').dataset.blind]: +b.dataset.v } });
     else if (b.closest('#adm-door')) dash.putOffice({ door: +b.dataset.v });
+    else if (b.dataset.act === 'mute') { if (dash.tvs[b.dataset.tv]) dash.patchTv(b.dataset.tv, { muted: !dash.tvs[b.dataset.tv].muted }); }
     else if (b.dataset.act) {
       const id = b.dataset.tv, q = (f) => adm.querySelector(`[data-tv="${id}"][data-f="${f}"]`), note = q('note');
       const url = b.dataset.act === 'off' ? '' : dash.normUrl(q('url').value), refresh = b.dataset.act === 'off' ? 0 : +q('refresh').value;
-      note.dataset.busy = '1'; note.className = 'note muted'; note.textContent = url ? 'Saving and checking whether the site can be shown…' : 'Turning off…';
+      note.dataset.busy = '1'; note.className = 'note muted'; note.textContent = url ? 'Saving…' : 'Turning off…';
       const r = await dash.saveTv(id, url, refresh);
       delete note.dataset.busy;
       if (r?.error) { note.dataset.busy = 'err'; note.className = 'note bad'; note.textContent = `Couldn't save: ${r.error}`; return; }
@@ -671,6 +696,7 @@ function buildAdmin() {
   });
   adm.addEventListener('input', (e) => {
     if (e.target.id === 'adm-bright') { $('adm-bright-v').textContent = e.target.value + '%'; dash.putOffice({ brightness: e.target.value / 100 }); }
+    else if (e.target.dataset.f === 'volume') dash.patchTv(e.target.dataset.tv, { volume: +e.target.value });
     else if (e.target.dataset.f === 'url') { e.target.dataset.dirty = '1'; delete $('view-admin').querySelector(`[data-tv="${e.target.dataset.tv}"][data-f="note"]`).dataset.busy; }
   });
   adm.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.dataset.f === 'url') adm.querySelector(`[data-tv="${e.target.dataset.tv}"][data-act="save"]`).click(); });
@@ -691,9 +717,14 @@ function syncAdmin() {
     const c = dash.tvs[id], q = (f) => adm.querySelector(`[data-tv="${id}"][data-f="${f}"]`), url = q('url'), note = q('note');
     if (!url.dataset.dirty && document.activeElement !== url) { url.value = c?.url || ''; q('refresh').value = String(c?.refresh || 0); }
     const link = adm.querySelector(`a[data-tv="${id}"]`); link.href = c?.url || '#'; link.style.visibility = c ? '' : 'hidden';
+    const vol = q('volume'), mute = adm.querySelector(`[data-tv="${id}"][data-act="mute"]`);
+    vol.disabled = mute.disabled = !c;
+    if (document.activeElement !== vol) vol.value = c?.volume ?? 100;
+    q('volv').textContent = c ? `${c.volume}%` : '';
+    mute.textContent = c?.muted ? '🔇' : '🔊'; mute.setAttribute('aria-pressed', String(!!c?.muted));
     if (note.dataset.busy) continue;   // saving, or showing a save error until the URL is edited
-    note.className = 'note ' + (c?.blocked ? 'warn' : 'muted');
-    note.textContent = !c ? 'Off' : c.blocked ? `Can't be shown on the TV: ${c.blocked}` : `Showing${c.refresh ? ' · refreshes ' + dash.tvRefresh.find(([v]) => v === c.refresh)?.[1].toLowerCase() : ''}`;
+    note.className = 'note muted';
+    note.textContent = !c ? 'Off' : `Showing${c.refresh ? ' · refreshes ' + dash.tvRefresh.find(([v]) => v === c.refresh)?.[1].toLowerCase() : ''}${c.muted ? ' · muted' : ''}`;
   }
 }
 buildAdmin();
