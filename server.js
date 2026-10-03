@@ -11,7 +11,7 @@ const fs = require('fs');
 const path = require('path');
 const http = require('http');
 const os = require('os');
-const { execFile } = require('child_process');
+const { execFile, spawn } = require('child_process');
 
 // config.json (written by `npm run setup`) holds owner name, location and port; env vars override.
 const CONFIG = (() => { try { return JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8')); } catch { return {}; } })();
@@ -600,6 +600,52 @@ async function frameBlocked(src) {
     return null;
   } catch { return null; }   // unreachable from here: let the browser try
 }
+// Snapshot of a TV's page, painted on the screen while its live iframe is unmounted (the browser can't read pixels out of
+// a cross-origin iframe). YouTube uses the video thumbnail; anything else is shot by a headless Chrome with a throwaway
+// profile, so the user's cookies are never involved. Cached per TV in ~/.claude/my-office/tv-snaps.
+const SNAP_DIR = path.join(CLAUDE, 'my-office', 'tv-snaps');
+const CHROME = [process.env.CHROME_PATH, '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/Applications/Chromium.app/Contents/MacOS/Chromium',
+  '/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser'].find((p) => p && fs.existsSync(p));
+const snapping = new Map();
+let chromes = 0;   // headless shots in flight; capped so a page full of TVs can't spawn a crowd of browsers
+function snapTv(id, maxAge) {
+  const c = tvs[id], file = path.join(SNAP_DIR, `${id}.png`);
+  if (!c || c.blocked) return Promise.resolve(null);
+  try { const st = fs.statSync(file); if (st.mtimeMs > (c.at || 0) && Date.now() - st.mtimeMs < maxAge) return Promise.resolve(file); } catch {}
+  if (snapping.has(id)) return snapping.get(id);
+  const p = (async () => {
+    fs.mkdirSync(SNAP_DIR, { recursive: true });
+    const yt = c.src.match(/youtube-nocookie\.com\/embed\/([\w-]{6,20})\?/)?.[1];
+    if (yt) {
+      for (const q of ['maxresdefault', 'hqdefault']) {
+        const r = await fetch(`https://i.ytimg.com/vi/${yt}/${q}.jpg`, { signal: AbortSignal.timeout(6000) }).catch(() => null);
+        if (r?.ok) { fs.writeFileSync(file, Buffer.from(await r.arrayBuffer())); return file; }
+      }
+    }
+    if (!CHROME || chromes >= 2) return null;
+    chromes++;
+    const prof = fs.mkdtempSync(path.join(os.tmpdir(), 'my-office-snap-'));
+    try {
+      // Chrome often lingers after writing the shot (pages that never go idle), so stop it as soon as the file lands,
+      // killing the whole process group so its helpers go too.
+      const shot = path.join(prof, 'shot.png');
+      const ch = spawn(CHROME, ['--headless=new', '--disable-gpu', '--hide-scrollbars', '--mute-audio', '--no-first-run',
+        `--user-data-dir=${prof}`, '--window-size=1280,720', '--timeout=6000', `--screenshot=${shot}`, c.src], { detached: true, stdio: 'ignore' });
+      await new Promise((resolve) => {
+        let last = -1;
+        const poll = setInterval(() => { const n = fs.existsSync(shot) ? fs.statSync(shot).size : -1; if (n > 0 && n === last) done(); last = n; }, 300);
+        const cap = setTimeout(done, 20000);
+        ch.on('exit', done); ch.on('error', done);
+        function done() { clearInterval(poll); clearTimeout(cap); try { process.kill(-ch.pid, 'SIGKILL'); } catch {} resolve(); }
+      });
+      if (!fs.existsSync(shot)) return null;
+      fs.copyFileSync(shot, file);   // tmp may be another volume
+      return file;
+    } finally { chromes--; fs.rmSync(prof, { recursive: true, force: true }); }
+  })().finally(() => snapping.delete(id));
+  snapping.set(id, p);
+  return p;
+}
 function sendTvs() { const json = JSON.stringify(tvs); for (const res of clients) res.write(`event: tvs\ndata: ${json}\n\n`); }
 async function putTv(id, body) {
   const url = String(body.url || '').trim(), refresh = Math.min(86400, Math.max(0, Math.round(Number(body.refresh) || 0)));
@@ -608,7 +654,7 @@ async function putTv(id, body) {
     const u = new URL(url);
     if (!/^https?:$/.test(u.protocol) || url.length > 2048) throw new Error('only http(s) URLs');
     const src = tvSrc(u.href);
-    tvs[id] = { url: u.href, src, refresh, blocked: await frameBlocked(src) };
+    tvs[id] = { url: u.href, src, refresh, blocked: await frameBlocked(src), at: Date.now() };
   }
   fs.mkdirSync(path.dirname(TVS_FILE), { recursive: true });
   fs.writeFileSync(TVS_FILE, JSON.stringify(tvs, null, 2));
@@ -654,6 +700,17 @@ const server = http.createServer((req, res) => {
   if (url.pathname === '/api/tvs') {
     res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
     return res.end(JSON.stringify(tvs));
+  }
+  const snap = url.pathname.match(/^\/api\/tvs\/([\w-]{1,40})\/snap$/);
+  if (snap) {
+    // The office loaded inside a snapshot browser (a TV showing the office) must not ask for snapshots itself.
+    if (/HeadlessChrome/.test(req.headers['user-agent'] || '')) { res.writeHead(404); return res.end(); }
+    snapTv(snap[1], url.searchParams.has('fresh') ? 20000 : Infinity).then((file) => {
+      if (!file) { res.writeHead(404); return res.end(); }
+      res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'no-store' });   // browsers sniff the JPEG thumbnails fine
+      fs.createReadStream(file).pipe(res);
+    });
+    return;
   }
   const tv = url.pathname.match(/^\/api\/tvs\/([\w-]{1,40})$/);
   if (tv && req.method === 'PUT') {

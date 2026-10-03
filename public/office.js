@@ -1729,6 +1729,13 @@ export function mountOffice(container) {
       ctx.font = `500 26px ${FONT}`; ctx.fillStyle = '#e8e6df'; ctx.fillText(fit(ctx, hostOf(c.url), W - 80), W / 2, 175);
       ctx.font = `400 19px ${FONT}`; ctx.fillStyle = '#9a9890'; ctx.fillText(fit(ctx, c.blocked, W - 60), W / 2, 215);
       ctx.font = `600 24px ${FONT}`; ctx.fillStyle = '#7fb2ff'; ctx.fillText('Click to open it in a new tab', W / 2, 285);
+    } else if (t.snap) {
+      // Last snapshot of the page while the live frame is paused (out of range or behind you).
+      const k = Math.max(W / t.snap.width, H / t.snap.height), iw = t.snap.width * k, ih = t.snap.height * k;
+      ctx.drawImage(t.snap, (W - iw) / 2, (H - ih) / 2, iw, ih);
+      ctx.font = `600 15px ${FONT}`; const label = '❚❚  paused · live when you walk closer', lw = ctx.measureText(label).width + 24;
+      ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.beginPath(); ctx.roundRect(W - lw - 12, H - 40, lw, 28, 14); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.fillText(label, W - lw / 2 - 12, H - 21);
     } else {
       ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.beginPath(); ctx.arc(W / 2, 140, 46, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.beginPath(); ctx.moveTo(W / 2 - 14, 116); ctx.lineTo(W / 2 + 24, 140); ctx.lineTo(W / 2 - 14, 164); ctx.fill();
@@ -1761,19 +1768,27 @@ export function mountOffice(container) {
     cssScene.add(t.obj);
     t.frame = fr; t.loadedAt = now; t.proxy.visible = true;
   }
-  function unmountTv(t) {
+  function unmountTv(t, snap) {
     if (!t.obj) return;
     cssScene.remove(t.obj);   // CSS3DObject drops its element (and the iframe) when removed
     t.obj = t.frame = null; t.proxy.visible = false;
+    if (snap) loadSnap(t, true);
+  }
+  // The server shoots the page (or grabs the YouTube thumbnail); `fresh` asks for a new shot rather than the cached one.
+  function loadSnap(t, fresh) {
+    const src = t.cfg?.src, img = new Image();
+    if (!src || t.cfg.blocked) return;
+    img.onload = () => { if (t.cfg?.src === src) { t.snap = img; paintTv(t); } };
+    img.src = `/api/tvs/${t.id}/snap?${fresh ? 'fresh&' : ''}v=${Date.now()}`;
   }
   const tvFrustum = new THREE.Frustum(), tvProj = new THREE.Matrix4(), toCam = new THREE.Vector3();
   function updateTVs(now) {
     camera.updateMatrixWorld();
     tvFrustum.setFromProjectionMatrix(tvProj.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
-    const want = tvs.filter((t) => t.cfg?.src && !t.cfg.blocked && (t.dist = toCam.subVectors(camera.position, t.center).length()) < 12
+    const want = tvs.filter((t) => t.cfg?.src && !t.cfg.blocked && (t.dist = toCam.subVectors(camera.position, t.center).length()) < 25
       && toCam.dot(t.normal) > 0 && tvFrustum.intersectsSphere(t.sphere)).sort((a, b) => a.dist - b.dist).slice(0, 3);
     for (const t of tvs) {
-      if (!want.includes(t)) { if (t.obj && now - t.seen > 3000) unmountTv(t); continue; }
+      if (!want.includes(t)) { if (t.obj && now - t.seen > 3000) unmountTv(t, true); continue; }
       t.seen = now;
       if (!t.obj) mountTv(t, now);
       else if (t.cfg.refresh && now - t.loadedAt > t.cfg.refresh * 1000) { t.frame.src = t.cfg.src; t.loadedAt = now; }
@@ -1783,9 +1798,12 @@ export function mountOffice(container) {
     for (const t of tvs) {
       const c = map?.[t.id] || null;
       if (JSON.stringify(c) === JSON.stringify(t.cfg)) continue;
+      const changed = c?.src !== t.cfg?.src || c?.at !== t.cfg?.at;
       if (c?.src !== t.cfg?.src || c?.blocked) unmountTv(t);
+      if (changed) t.snap = null;
       t.cfg = c;
       paintTv(t);
+      if (changed) loadSnap(t, false);
     }
   }
   dash.tvListeners.add(applyTvs);
