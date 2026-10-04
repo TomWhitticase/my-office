@@ -1,6 +1,6 @@
 // 3D first-person office view of the live dashboard.
 // Working sessions sit at desks with their stats on screen; idle ones hang out in the breakroom.
-// Your own glass office holds the overview: the centre monitor is the real, live dashboard page,
+// Your own glass office holds your computer: the centre monitor is the real, live desktop (desktop.js),
 // projected with CSS3DRenderer behind a hole punched in the WebGL scene.
 
 import * as THREE from 'three';
@@ -14,6 +14,7 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { createSounds } from './sounds.js';
+import { CAN_CHAT, chatView, escapeHtml, titleOf } from './chat.js';
 
 const dash = window.dash;
 const F = dash.fmt;
@@ -207,7 +208,6 @@ const STATUS = {
   idle: { text: '○ IDLE', color: '#9a9890' },
 };
 const statusOf = (s) => STATUS[s.status] || { text: String(s.status || '?').toUpperCase(), color: '#ec835a' };
-const titleOf = (s) => s.statusline?.name || s.transcript?.title || s.name;
 const evText = (e) => (e.kind === 'turn' ? `Turn finished in ${F.dur(e.ms)}` : e.text || '');
 
 function spark(ctx, vals, x, y, w, h, color) {
@@ -850,7 +850,7 @@ export function mountOffice(container) {
     <div class="of-time"><span class="of-clock"></span><button data-speed="1">Live</button><button data-speed="120">×120</button><button data-speed="1200">×1200</button><button data-speed="7200">×7200</button></div>
     <div class="of-legend"><kbd>W A S D</kbd> move · <kbd>Shift</kbd> run · <kbd>Click</kbd> talk to someone or use a TV · <kbd>E</kbd> details / set up a TV · <kbd>1</kbd> desks <kbd>2</kbd> breakroom <kbd>3</kbd> my office <kbd>4</kbd> lobby <kbd>5</kbd> meeting rooms · <kbd>T</kbd> time speed · <kbd>G</kbd> graphics · <kbd>H</kbd> hide overlays · <kbd>M</kbd> sounds · <kbd>Esc</kbd> release mouse</div>
     <div class="of-toast"></div>
-    <div class="of-start"><b>Click to look around</b><span>Walk up to anyone and click to talk to them, or click their screen for details.<br>Click your own monitor to go back to the dashboard.</span></div>
+    <div class="of-start"><b>Click to look around</b><span>Walk up to anyone and click to talk to them, or click their screen for details.<br>Click your own monitor to use your computer.</span></div>
     <div class="of-tvhint">Using the <b class="of-tvname"></b> TV · click and type into the page · <kbd>${ALT}M</kbd> mute · <kbd>${ALT}−</kbd> <kbd>${ALT}=</kbd> or <kbd>${ALT}scroll</kbd> volume · <kbd>Esc</kbd> back to walking</div>
     <div class="of-tvbar"><button data-nav="back" title="Back">←</button><button data-nav="forward" title="Forward">→</button><button data-nav="reload" title="Reload">⟳</button><button data-nav="home" title="Back to the TV's own page">⌂</button>
       <form><input name="u" type="text" spellcheck="false" autocomplete="off" placeholder="Go to a URL"></form>
@@ -3267,10 +3267,10 @@ export function mountOffice(container) {
     lapN.set(0, 0, 1).transformDirection(hole.matrixWorld);
   }
   // Clicking the MacBook sits you in the nearer free armchair (or the one you're in) and opens it toward you; it shuts when
-  // you get up. Once the screen's awake, clicking it again flies into the dashboard like the office computer.
+  // you get up. Once the screen's awake, clicking it again flies into your desktop like the office computer.
   function openLaptop() {
     const L = laptop;
-    if (L.open) { if (L.shown) { document.exitPointerLock(); dash.setView('overview'); } return; }
+    if (L.open) { if (L.shown) { document.exitPointerLock(); dash.setView('desktop'); } return; }
     const near = (st) => Math.hypot(st.x - player.x, st.z - player.z);
     const st = L.seats.includes(player.seat) ? player.seat : L.seats.filter((q) => !seatTaken(q)).sort((a, b) => near(a) - near(b))[0];
     if (!st) return;
@@ -3361,7 +3361,7 @@ export function mountOffice(container) {
     if (mode !== 'free') return;
     if (!locked) { renderer.domElement.requestPointerLock(); return; }
     if (!hover) return;
-    if (hover.action === 'computer') { document.exitPointerLock(); dash.setView('overview'); }
+    if (hover.action === 'computer') { document.exitPointerLock(); dash.setView('desktop'); }
     else if (hover.action === 'laptop') openLaptop();
     else if (hover.action === 'board') useBoard(hover.board);
     else if (hover.action === 'coffee') kitchen.brew();
@@ -3680,68 +3680,42 @@ export function mountOffice(container) {
   });
 
   // ----- talking to a session -----
-  // Clicking a person opens their conversation (right) and a message bar (bottom); keys go to the bar until Esc. Messages are
-  // typed into the session's own terminal by the server (/api/session/:id/send). Never from a TV or a framed copy of the office.
-  const CAN_CHAT = window.top === window && !/HeadlessChrome|my-office-tv/.test(navigator.userAgent);
+  // Clicking a person opens their conversation (right) and a message bar (bottom); keys go to the bar until Esc. The log,
+  // polling and sending are shared with the desktop's Messages app (chat.js).
   const chatEl = hud.querySelector('.of-chat'), chatLog = chatEl.querySelector('.of-chatlog'), chatBar = hud.querySelector('.of-chatbar');
-  const chatIn = chatBar.querySelector('textarea'), chatSend = chatBar.querySelector('button'), chatSt = chatBar.querySelector('.st');
-  const talk = { id: null, seq: null, msgs: [], route: null, cantSend: null, outbox: [], note: null, busy: false, timer: 0, routeAt: 0, polling: false, html: '' };
+  const chatIn = chatBar.querySelector('textarea');
   const bubble = new THREE.Sprite(new THREE.SpriteMaterial({ depthWrite: false, transparent: true }));
   { const b = makeCanvas(128, 96), c = b.ctx;
     c.fillStyle = '#fff'; c.beginPath(); c.roundRect(8, 6, 112, 64, 22); c.moveTo(40, 68); c.lineTo(30, 92); c.lineTo(62, 68); c.fill();
     c.fillStyle = '#3987e5'; for (const x of [40, 64, 88]) { c.beginPath(); c.arc(x, 38, 8, 0, Math.PI * 2); c.fill(); }
     bubble.material.map = b.tex; bubble.scale.set(0.42, 0.315, 1); bubble.visible = false; bubble.layers.set(1); }
   let bubbleT = 0;
-  function md(text) {
-    return String(text).split(/```[^\n]*\n?/).map((part, i) => i % 2 ? `<pre>${escapeHtml(part.replace(/\n$/, ''))}</pre>` :
-      escapeHtml(i ? part.replace(/^\n/, '') : part).split('\n').map((l) => {
-        // Code spans (any run of backticks, as in CommonMark) first, so ** inside code stays literal.
-        l = l.split(/(`+)(.+?)\1(?!`)/).map((x, j) => j % 3 === 2 ? `<code>${x.replace(/^ (.+) $/, '$1')}</code>` : j % 3 ? '' : x.replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>')).join('');
-        const h = l.match(/^#{1,6}\s+(.*)/);
-        return h ? `<span class="h">${h[1]}</span>` : l.replace(/^(\s*)[-*] /, '$1• ');
-      }).join('\n')).join('');
-  }
+  const talk = chatView({ log: chatLog, input: chatIn, send: chatBar.querySelector('button'), status: chatBar.querySelector('.st'), keys: ' · <kbd>Esc</kbd> back',
+    onUpdate: renderChatHead,
+    onSent(id) {
+      const p = people.get(id);
+      if (p) { p.root.add(bubble); bubble.position.y = 2.5; bubble.visible = true; clearTimeout(bubbleT); bubbleT = setTimeout(() => (bubble.visible = false), 4000); }
+    } });
   function openChat(id) {
     if (!CAN_CHAT) { dash.openDrawer(id); return; }
     if (mode !== 'free' && mode !== 'chat') return;
     if (document.pointerLockElement) document.exitPointerLock();
-    if (talk.id !== id) Object.assign(talk, { id, seq: null, msgs: [], route: null, cantSend: null, outbox: [], note: null, routeAt: 0 });
-    talk.html = '';
     mode = 'chat'; keys.clear();
     hud.classList.add('of-chatting');
     const p = people.get(id);
     if (p) p.lookAt = camera.position;
-    chatLog.innerHTML = '<div class="n">Loading the conversation…</div>';
-    renderChatHead(); syncChatBar();
-    pollChat();
-    clearInterval(talk.timer); talk.timer = setInterval(pollChat, 1000);
+    talk.open(id);
+    renderChatHead();
     setTimeout(() => chatIn.focus());
   }
   function closeChat(relock) {
     if (!talk.id) return;
     const p = people.get(talk.id);
     if (p) p.lookAt = null;
-    clearInterval(talk.timer);
-    talk.id = null;
+    talk.close();
     hud.classList.remove('of-chatting');
-    chatIn.blur();
     if (mode === 'chat') mode = 'free';
     if (relock) renderer.domElement.requestPointerLock();   // only works from a click; after Esc, click to look around again
-  }
-  async function pollChat() {
-    if (talk.polling) return;   // one request at a time, so an old answer can't land after a newer one
-    const id = talk.id, withRoute = Date.now() - talk.routeAt > 10000;
-    talk.polling = true;
-    const r = await fetch(`/api/session/${id}/chat?seq=${talk.seq ?? ''}${withRoute ? '&route' : ''}`).then((x) => x.json()).catch(() => null);
-    talk.polling = false;
-    if (!r || id !== talk.id) return;
-    if (withRoute) { talk.routeAt = Date.now(); talk.route = r.route || null; talk.cantSend = r.cantSend || null; }
-    if (r.messages) { talk.msgs = r.messages; talk.seq = r.seq; }
-    // A sent message stays in the outbox until the transcript has it, which is the proof it reached Claude.
-    const n = talk.outbox.length;
-    talk.outbox = talk.outbox.filter((o) => !talk.msgs.some((m) => m.role === 'user' && m.text.includes(o.text) && m.t >= o.t - 5000) && Date.now() - o.t < 120000);
-    if (talk.outbox.length < n && talk.note?.cls === 'ok') talk.note = { cls: 'ok', at: Date.now(), text: 'Delivered · it’s in the conversation' };
-    renderChatHead(); syncChatBar(); renderChatLog();
   }
   function renderChatHead() {
     const s = S?.live.find((x) => x.sessionId === talk.id), st = s ? statusOf(s) : { text: 'ENDED', color: '#9a9890' };
@@ -3751,75 +3725,6 @@ export function mountOffice(container) {
     sm.textContent = s ? `${st.text}${s.status === 'idle' ? ` · ${F.dur(Date.now() - s.statusSince)}` : ''} · ${s.name}` : '';
     sm.style.color = st.color;
   }
-  function renderChatLog() {
-    const stick = chatLog.scrollHeight - chatLog.scrollTop - chatLog.clientHeight < 60;
-    const out = [], tools = [];
-    let lastT = 0;
-    const flush = () => {
-      if (!tools.length) return;
-      const line = (m) => `${escapeHtml(m.name)} · ${escapeHtml(m.text)}`;
-      out.push(tools.length === 1 ? `<div class="t">⚙ ${line(tools[0])}</div>`
-        : `<details class="t"><summary>⚙ ${tools.length} tool calls · ${escapeHtml([...new Set(tools.map((m) => m.name))].join(', '))}</summary>${tools.map((m) => `<div>${line(m)}</div>`).join('')}</details>`);
-      tools.length = 0;
-    };
-    for (const m of talk.msgs) {
-      if (m.t - lastT > 15 * 60e3) { flush(); out.push(`<div class="ts">${new Date(m.t).toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' })}</div>`); }
-      lastT = m.t || lastT;
-      if (m.role === 'tool') { tools.push(m); continue; }
-      flush();
-      if (m.role === 'user') out.push(`<div class="u${m.queued ? ' q' : ''}">${escapeHtml(m.text)}${m.queued ? '<em>queued · Claude will read it when it can</em>' : ''}</div>`);
-      else if (m.role === 'assistant') out.push(`<div class="a">${md(m.text)}</div>`);
-      else out.push(`<div class="n">${escapeHtml(m.text)}</div>`);
-    }
-    flush();
-    for (const o of talk.outbox) out.push(`<div class="u q">${escapeHtml(o.text)}<em>${o.queued ? 'queued · Claude will read it when it can' : 'sent'}</em></div>`);
-    const s = S?.live.find((x) => x.sessionId === talk.id);
-    if (s?.status === 'working') out.push(`<div class="n">${s.transcript?.pendingTool ? `working · ${escapeHtml(s.transcript.pendingTool.name)}` : 'thinking'}…</div>`);
-    const html = out.join('') || '<div class="n">No conversation yet</div>';
-    if (html === talk.html) return;   // unchanged: leave the DOM (and any selection) alone
-    // Keep expanded tool groups open across updates; they're counted from the top, which only grows.
-    const open = [...chatLog.querySelectorAll('details')].map((d) => d.open);
-    talk.html = chatLog.innerHTML = html;
-    chatLog.querySelectorAll('details').forEach((d, i) => { if (open[i]) d.open = true; });
-    if (stick) chatLog.scrollTop = chatLog.scrollHeight;
-  }
-  function syncChatBar() {
-    const s = S?.live.find((x) => x.sessionId === talk.id), who = s ? titleOf(s) : 'this session';
-    const why = !s ? 'this session has ended' : talk.cantSend || (!['idle', 'working'].includes(s.status) && `it’s ${s.status === 'waiting' ? 'waiting on a prompt (a permission request or question)' : s.status}: answer it in its terminal`);
-    chatIn.disabled = chatSend.disabled = !!why || talk.busy;
-    chatIn.placeholder = why ? 'Can’t send from here' : s.status === 'working' ? `Message ${who} · it’s working, so this will be queued` : `Message ${who}`;
-    if (talk.note?.cls === 'ok' && Date.now() - talk.note.at > 8000) talk.note = null;   // success fades; errors stay until you type
-    if (talk.note) { chatSt.className = 'st ' + talk.note.cls; chatSt.textContent = talk.note.text; return; }
-    chatSt.className = 'st' + (why ? ' bad' : s.status === 'working' ? ' warn' : '');
-    chatSt.innerHTML = why ? escapeHtml(why[0].toUpperCase() + why.slice(1)) : s.status === 'working'
-      ? 'Working: your message will be queued and Claude reads it at its next step · <kbd>Enter</kbd> send · <kbd>Shift+Enter</kbd> new line · <kbd>Esc</kbd> back'
-      : `${s.status === 'idle' ? 'Waiting for you' : escapeHtml(s.status)}${talk.route ? ` · types into its ${talk.route === 'orca' ? 'Orca' : 'tmux'} terminal` : ''} · <kbd>Enter</kbd> send · <kbd>Shift+Enter</kbd> new line · <kbd>Esc</kbd> back`;
-  }
-  async function sendChat() {
-    const id = talk.id, text = chatIn.value.trim();
-    if (!text || talk.busy || chatIn.disabled) return;
-    talk.busy = true; talk.note = { cls: '', text: 'Sending…' }; syncChatBar();
-    const r = await fetch(`/api/session/${id}/send`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text }) })
-      .then((x) => x.json()).catch((e) => ({ error: e.message }));
-    talk.busy = false;
-    if (id !== talk.id) return;
-    if (r.error) talk.note = { cls: 'bad', text: `Not sent: ${r.error}` };
-    else {
-      chatIn.value = ''; chatIn.style.height = '';
-      talk.outbox.push({ text, t: Date.now(), queued: r.queued });
-      talk.note = { cls: 'ok', at: Date.now(), text: r.queued ? 'Delivered · queued until Claude finishes its current step' : r.started ? 'Delivered · Claude is on it' : 'Typed into its terminal · waiting to see it in the conversation…' };
-      const p = people.get(id);
-      if (p) { p.root.add(bubble); bubble.position.y = 2.5; bubble.visible = true; clearTimeout(bubbleT); bubbleT = setTimeout(() => (bubble.visible = false), 4000); }
-    }
-    syncChatBar(); renderChatLog();
-    chatIn.focus();
-  }
-  chatBar.querySelector('form').addEventListener('submit', (e) => { e.preventDefault(); sendChat(); });
-  chatIn.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); sendChat(); } });
-  chatIn.addEventListener('input', () => {
-    chatIn.style.height = ''; chatIn.style.height = Math.min(chatIn.scrollHeight + 2, innerHeight * 0.3) + 'px';
-    if (talk.note && !talk.busy) { talk.note = null; syncChatBar(); }
-  });
   chatEl.addEventListener('click', (e) => {
     const b = e.target.closest('button');
     if (b?.dataset.act === 'details') dash.openDrawer(talk.id);
@@ -3859,8 +3764,8 @@ export function mountOffice(container) {
     if (!hover) { targetEl.style.display = 'none'; return; }
     targetEl.style.display = 'block';
     if (hover.action === 'computer' || hover.action === 'laptop') {
-      targetEl.innerHTML = hover.action === 'computer' && !laptop.shown ? '<b>Your computer</b><div class="k">Click to sit down and open the dashboard</div>'
-        : `<b>Your MacBook</b><div class="k">${laptop.shown ? 'Click to open the dashboard' : laptop.open ? 'Waking up…' : 'Click to sit down and open it'}</div>`;
+      targetEl.innerHTML = hover.action === 'computer' && !laptop.shown ? '<b>Your computer</b><div class="k">Click to sit down and use it</div>'
+        : `<b>Your MacBook</b><div class="k">${laptop.shown ? 'Click to use it' : laptop.open ? 'Waking up…' : 'Click to sit down and open it'}</div>`;
       return;
     }
     if (hover.action === 'coffee') {
@@ -3893,7 +3798,6 @@ export function mountOffice(container) {
     targetEl.innerHTML = `<b>${escapeHtml(titleOf(s))}</b><div class="m"><span style="color:${st.color}">${st.text}</span> · ${F.usd(s.cost)}${s.statusline?.context ? ` · ${s.statusline.context.used_percentage}% context` : ''}</div>
       <div class="m">${escapeHtml(doing.slice(0, 90))}</div><div class="k">${escapeHtml(s.name)} · ${CAN_CHAT && !hover.screen ? 'click to talk · E for details' : 'click for full details'}</div>`;
   }
-  const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   // ----- minimap -----
   function drawMap() {
@@ -4100,15 +4004,13 @@ export function mountOffice(container) {
     tvs: () => tvs.map((t) => ({ id: t.id, live: t.live, frame: !!t.frame, url: t.page?.url, title: t.page?.title, dist: t.dist })), seats, sitIn, openLaptop, laptop, kitchen, player, people, blinds, door, doors, collide, colliders, lifts, sfx, setSpeed, clockState, setTime: (ms) => Object.assign(clockState, { speed: 0.0001, simBase: ms, realBase: Date.now() }) };
 
   return {
-    // Adopt the overview page onto the monitor, then pull back from it to the chair.
-    show(scrollY = 0) {
+    // Adopt your desktop onto the monitor, then pull back from it to the chair.
+    show() {
       active = true;
       tvSocket();
       sfx.setActive(true);
-      const main = document.querySelector('body > main');
-      if (main) domScreen.appendChild(main);
+      dash.desktop?.mount(domScreen);
       resize();
-      domScreen.scrollTop = scrollY;
       setCam(fillPose());
       mode = 'intro';
       hud.classList.add('hidden');
@@ -4122,7 +4024,7 @@ export function mountOffice(container) {
         hud.classList.remove('hidden');
       }), REDUCED ? 0 : 350);
     },
-    // Fly back into the monitor, then hand the page back. Resolves with the scroll offset to restore.
+    // Fly back into the monitor, then hand the desktop back to the page.
     hide() {
       return new Promise((resolve) => {
         if (document.pointerLockElement) document.exitPointerLock();
@@ -4137,15 +4039,13 @@ export function mountOffice(container) {
         const dist = Math.hypot(from.x - to.x, from.y - to.y, from.z - to.z);
         tween(from, to, clamp(dist * 260, 1100, 2800), () => {
           requestAnimationFrame(() => {
-            const scroll = domScreen.scrollTop;
-            const main = domScreen.querySelector('main');
-            if (main) document.body.insertBefore(main, container);
+            dash.desktop?.mount(document.body);
             cancelAnimationFrame(raf);
             tvQuiet();
             active = false;
             sfx.setActive(false);
             mode = 'idle';
-            resolve(scroll);
+            resolve();
           });
         });
       });
