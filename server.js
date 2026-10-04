@@ -1233,6 +1233,55 @@ async function sendToSession(id, text) {
   return { route: 'tmux', terminal: term.handle, started: false, queued: busy };
 }
 
+// ---------- GitHub repos (THE ARCHIVE's filing cabinet) ----------
+// Read-only, through the gh CLI already signed in on this machine; cached ~10 minutes. Repo text is passed through as data
+// (the office escapes everything it renders).
+const REPO_TTL = 10 * 60e3;
+const repoCache = new Map();   // key -> { at, p }
+function cached(key, fn) {
+  const c = repoCache.get(key);
+  if (c && Date.now() - c.at < REPO_TTL) return c.p;
+  const p = fn().catch((e) => { repoCache.delete(key); throw e; });
+  repoCache.set(key, { at: Date.now(), p });
+  if (repoCache.size > 200) repoCache.delete(repoCache.keys().next().value);
+  return p;
+}
+async function gh(args) {
+  const bin = binOf('gh');
+  if (!bin) throw Object.assign(new Error('the GitHub CLI (gh) isn’t installed'), { signin: true });
+  const r = await run(bin, args);
+  if (r.err) throw Object.assign(new Error((r.errOut.trim() || r.err.message).split('\n')[0]), { signin: /gh auth login|not logged in|Requires authentication|HTTP 401/i.test(r.errOut) });
+  return JSON.parse(r.out);
+}
+const REPO_FIELDS = 'name,nameWithOwner,description,url,isPrivate,isFork,isArchived,primaryLanguage,stargazerCount,updatedAt,diskUsage';
+const listRepos = () => cached('list', async () => {
+  const me = (await gh(['api', 'user'])).login;
+  const orgs = await gh(['api', 'user/orgs', '--jq', '[.[].login]']).catch(() => []);
+  const lists = await Promise.all([me, ...orgs].map((o) => gh(['repo', 'list', o, '--limit', '500', '--json', REPO_FIELDS]).catch(() => [])));
+  const repos = lists.flat().map((r) => ({ owner: r.nameWithOwner.split('/')[0], name: r.name, description: r.description || '', url: r.url, private: r.isPrivate, fork: r.isFork,
+    archived: r.isArchived, language: r.primaryLanguage?.name || '', stars: r.stargazerCount, updatedAt: r.updatedAt, kb: r.diskUsage }));
+  return { login: me, orgs, repos: repos.sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' })) };
+});
+const REPO_GQL = 'query($o:String!,$n:String!){repository(owner:$o,name:$n){pullRequests(states:OPEN){totalCount} issues(states:OPEN){totalCount} '
+  + 'defaultBranchRef{name} languages(first:12,orderBy:{field:SIZE,direction:DESC}){edges{size node{name color}}}}}';
+const repoDetail = (o, n) => cached(`repo:${o}/${n}`, async () => {
+  const [meta, readme, files, commits] = await Promise.all([
+    gh(['api', 'graphql', '-f', `query=${REPO_GQL}`, '-F', `o=${o}`, '-F', `n=${n}`]),
+    gh(['api', `repos/${o}/${n}/readme`]).catch(() => null),
+    gh(['api', `repos/${o}/${n}/contents`]).catch(() => []),
+    gh(['api', `repos/${o}/${n}/commits?per_page=8`]).catch(() => []),
+  ]);
+  const r = meta.data?.repository;
+  if (!r) throw new Error('repository not found');
+  return {
+    branch: r.defaultBranchRef?.name || '', prs: r.pullRequests.totalCount, issues: r.issues.totalCount,
+    languages: r.languages.edges.map((e) => ({ name: e.node.name, color: e.node.color, size: e.size })),
+    readme: readme?.content ? { name: readme.name, text: Buffer.from(readme.content, 'base64').toString('utf8').slice(0, 200000) } : null,
+    files: Array.isArray(files) ? files.map((f) => ({ name: f.name, type: f.type })) : [],
+    commits: (Array.isArray(commits) ? commits : []).map((c) => ({ sha: c.sha.slice(0, 7), message: c.commit.message.split('\n')[0], author: c.commit.author?.name || c.author?.login || '', date: c.commit.author?.date })),
+  };
+});
+
 // ---------- http ----------
 // Anything that changes state must come from this dashboard: JSON (a foreign page then needs a CORS preflight, which is never
 // approved), our own Origin on our own Host (no other site, no DNS rebinding), and not a TV or headless browser (a TV showing
@@ -1318,6 +1367,16 @@ const server = http.createServer((req, res) => {
   }
   if (url.pathname === '/api/machine') {
     machineJSON().then((json) => { res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' }); res.end(json); });
+    return;
+  }
+  // Your GitHub repos, for THE ARCHIVE. Private ones included, so: our own Host, never a TV, and no cross-site fetches.
+  const repo = url.pathname.match(/^\/api\/repos(?:\/([\w.-]{1,100})\/([\w.-]{1,100}))?$/);
+  if (repo) {
+    const ua = req.headers['user-agent'] || '', reply = (code, o) => { res.writeHead(code, { 'content-type': 'application/json', 'cache-control': 'no-store' }); res.end(JSON.stringify(o)); };
+    if (req.method !== 'GET') return reply(405, { error: 'GET only' });
+    if (/^\.\.?$/.test(repo[1]) || /^\.\.?$/.test(repo[2])) return reply(400, { error: 'bad repo' });
+    if (!trustedHost(req.headers.host || '') || ua.includes(TV_UA_TAG) || /^(cross-site|same-site)$/.test(req.headers['sec-fetch-site'] || '')) return reply(403, { error: 'refused' });
+    (repo[1] ? repoDetail(repo[1], repo[2]) : listRepos()).then((o) => reply(200, o), (e) => reply(e.signin ? 401 : 502, { error: e.message, signin: !!e.signin }));
     return;
   }
   if (url.pathname === '/api/state') {

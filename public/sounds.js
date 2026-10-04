@@ -126,6 +126,46 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos, roof 
       return hum(n * e) * 1.4 + Math.sin(TAU * 92 * t) * e * 0.05 + roll(n * e) * 0.12 + stop(n * Math.exp(-Math.abs(t - 1.0) / 0.02)) * 2;
     });
   }
+  // THE ARCHIVE's filing cabinet: the latch letting go, the drawer rumbling out on its ball-bearing runners (one take long enough
+  // for the longest drawer, shaped to its speed when played), the stop at full stretch, the slam shut, paper, and a page turning.
+  function latch() {
+    const c1 = biq('bp', 3200, 2.5), c2 = biq('bp', 1700, 4), spring = rnd(2300, 2600);
+    return make(0.22, (t) => { const n = noise(), k = Math.exp(-t / 0.003) + 0.7 * (t > 0.045 ? Math.exp(-(t - 0.045) / 0.004) : 0);
+      return c1(n * k) * 1.5 + c2(n * k) + Math.sin(TAU * spring * t) * Math.exp(-t / 0.05) * 0.08; });
+  }
+  function roll() {
+    const lo = biq('lp', 110, 0.8), mid = biq('bp', 420, 1.5), bear = biq('bp', 1500, 2.5), steel = biq('bp', 2900, 6);
+    let k = 0;
+    return make(2.4, (t) => {
+      if (Math.random() < 260 / ctx.sampleRate) k = rnd(0.3, 1);   // balls ticking over the joints in the slides
+      k *= 0.996;
+      const n = noise(), w = 1 + 0.25 * Math.sin(TAU * 7.3 * t) + 0.15 * Math.sin(TAU * 2.1 * t);
+      return lo(n) * 3.2 * w + mid(n) * 0.5 * w + bear(n * (0.3 + k)) * 0.45 + steel(n * k) * 0.12 + Math.sin(TAU * 63 * t) * 0.05;
+    });
+  }
+  function thunk(slam) {   // the stop: a dull body thump, the steel ringing a little, the folders inside shuffling on
+    const body = biq('lp', slam ? 190 : 150, 0.9), r1 = biq('bp', slam ? 610 : 700, 7), r2 = biq('bp', slam ? 1210 : 1390, 9), shuf = biq('hp', 2500, 0.7), click = biq('bp', 3000, 3);
+    return make(slam ? 0.9 : 0.6, (t) => {
+      const n = noise(), e = Math.exp(-t / (slam ? 0.05 : 0.035));
+      return body(n * e) * (slam ? 5 : 3.5) + Math.sin(TAU * (slam ? 78 : 92) * t) * e * 0.6 + (r1(n * e) + r2(n * e) * 0.6) * (slam ? 2.4 : 1.4) * (1 + 6 * Math.exp(-t / 0.25))
+        + shuf(n * env(t, 0.03, slam ? 0.5 : 0.35, 0.02, 0.2)) * 0.12 + (slam ? click(n * (t > 0.035 ? Math.exp(-(t - 0.035) / 0.004) : 0)) * 1.2 : 0);
+    });
+  }
+  function rustle(D) {   // paper: crinkles over a moving hiss
+    const f = svf(), hi = biq('hp', 1800, 0.7);
+    let k = 0;
+    return make(D, (t) => {
+      if (Math.random() < 140 / ctx.sampleRate) k = rnd(0.4, 1);
+      k *= 0.9985;
+      const e = env(t, 0, D, 0.06, D * 0.4), n = noise();
+      return f(n * e, 2200 + 2500 * Math.sin(TAU * 1.7 * t) ** 2, 0.6) * 0.6 + hi(n * k * e) * 1.1;
+    });
+  }
+  function page() {   // a sheet flipped over: an airy swish, with a little snap as it lands
+    const f = svf(), snap = biq('bp', 2600, 2);
+    return make(0.42, (t) => { const u = t / 0.36, e = u < 1 ? Math.sin(Math.PI * u) ** 2 : 0;
+      return f(noise() * e, 900 + 3200 * u, 0.9) + snap(noise() * (t > 0.33 ? Math.exp(-(t - 0.33) / 0.006) : 0)) * 0.4; });
+  }
   function build() {
     const n = (k, f) => Array.from({ length: k }, f);
     B = {
@@ -134,6 +174,7 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos, roof 
       paddle: n(3, () => tock(false)), table: n(3, () => tock(true)),
       low: n(14, () => syllable(125)), high: n(14, () => syllable(205)),
       espresso: espresso(), creak: n(3, creak), swish: swish(), rattle: rattle(), chime: chime(), slide: slide(),
+      latch: n(2, latch), roll: roll(), thunk: n(2, () => thunk(false)), slam: n(2, () => thunk(true)), rustle: n(3, () => rustle(rnd(0.6, 0.9))), page: n(3, page),
     };
     for (const [k, v] of Object.entries(B)) for (const b of [v].flat()) b.kind = k;
   }
@@ -163,6 +204,7 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos, roof 
     voices++; played[buf.kind] = (played[buf.kind] || 0) + 1;
     src.onended = () => { voices--; src.disconnect(); pan.disconnect(); };
     src.start(ctx.currentTime + Math.max(0, when));
+    return { src, g, pan };
   }
   const onRug = (x, z) => rugs.some((r) => x > r.x0 && x < r.x1 && z > r.z0 && z < r.z1);
 
@@ -387,6 +429,19 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos, roof 
     espresso() { if (!away) play(B?.espresso, coffee.x, coffee.y, coffee.z, 0.5); machineFree = lastT + 7.5; },
     slide(at = lift, mine) { if (!away || mine) play(B?.slide, at.x, 1.2, at.z, 0.22, rnd(0.95, 1.05)); },
     setAway(on, kind) { away = on && (kind || true); applyAway(); }, hum: liftHum,
+    // The filing cabinet, only ever heard down in the archive. `p` is a world position.
+    cabinet(kind, p, gain = 0.4) { if (away && B) play(pick([B[kind]].flat()), p.x, p.y, p.z, gain, rnd(0.94, 1.06)); },
+    // The drawer rolling for `dur` s, loudest and highest at its fastest (the eased slide's speed). move(p) as it goes; stop() cuts it.
+    roll(p, dur, gain = 0.5) {
+      const v = away && B && play(B.roll, p.x, p.y, p.z, 0, 1);
+      if (!v) return null;
+      const t0 = ctx.currentTime, d = Math.min(dur, 2.3), sp = (u) => (u < 0.5 ? 12 * u * u : 12 * (1 - u) ** 2) / 3, N = 48;
+      v.g.gain.setValueCurveAtTime(Float32Array.from({ length: N }, (_, i) => gain * Math.sqrt(sp(i / (N - 1)))), t0, d);
+      v.src.playbackRate.setValueCurveAtTime(Float32Array.from({ length: N }, (_, i) => 0.7 + 0.45 * sp(i / (N - 1))), t0, d);
+      v.src.stop(t0 + d + 0.02);
+      const pp = v.pan;
+      return { move(q) { if (pp.positionX) { pp.positionX.value = q.x; pp.positionY.value = q.y; pp.positionZ.value = q.z; } }, stop() { try { v.g.gain.cancelScheduledValues(ctx.currentTime); v.g.gain.setTargetAtTime(0, ctx.currentTime, 0.03); v.src.stop(ctx.currentTime + 0.15); } catch {} } };
+    },
     get ready() { return !!ctx && ctx.state; },
     get voices() { return voices; }, played, get buffers() { return B; },
   };
