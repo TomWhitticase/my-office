@@ -3149,27 +3149,33 @@ export function mountOffice(container) {
   // ----- riding the lifts yourself -----
   // Click the call panel and the nearest car no session needs is yours (`mine.L`, `L.player`) until you step out and it
   // closes: it opens, you walk in, press a floor on the car panel, and ride. Sessions keep using the other car meanwhile.
-  // B2 is THE ARCHIVE, a separate scene: the swap happens behind closed doors, and the car stays down there for you.
+  // The other floors (THE ARCHIVE, ...) are separate scenes: the swap happens behind closed doors, and the car stays there for you.
+  // FLOORS lists every floor the car panel offers, top first; `away` is the floor you're on when it isn't the office. A floor is
+  // { n, label, title, scene, enter(z), bound(p), map(), colliders, hits, look } plus the car from liftShaft (see setFloor, renderFloor).
   const ARCHIVE = -2;
+  const OFFICE = { n: 48, label: 'OFFICE', title: 'Office' }, FLOORS = [OFFICE];
+  let away = null;
+  const addFloor = (F) => { FLOORS.push(F); FLOORS.sort((a, b) => b.n - a.n); for (const P of carPanels()) paintPanel(P, null); };
+  const carPanels = () => [...lifts.map((L) => L.panel), ...FLOORS.filter((F) => F.panel).map((F) => F.panel)];
   const mine = { L: null, call: false, goal: null, from: 48, to: 48, k: 0, dur: 1 };
   const inMyCar = () => !!mine.L && player.x > LIFT.x + 0.3 && Math.abs(player.z - mine.L.z) < CAR.w / 2;
   const atMyDoor = () => !!mine.L && player.x > LIFT.x - 0.7 && player.x < LIFT.x + 0.45 && Math.abs(player.z - mine.L.z) < DOOR.w / 2 + 0.1;
   const spare = (L) => !L.player && !L.pending.length && !L.cargo.size && !L.callers.size && !L.riders.size && !L.exits.size && ['home', 'away', 'open', 'closing'].includes(L.state);
-  function carPanel(parent, z) {   // the car's floor buttons, on the return beside the doors: 48 over B2
+  function carPanel(parent, z) {   // the car's floor buttons, on the return beside the doors: one per floor, top floor first
     const scr = makeScreen(parent, 0.1, 0.34, 80, 272, LIFT.x + 0.3615, 1.2, z + 0.68);
     scr.mesh.rotation.y = Math.PI / 2;
-    Object.assign(scr.mesh.userData, { action: 'liftpanel', reach: 2.2, floorAt: (uv) => (uv.y > 0.5 ? 48 : ARCHIVE) });
+    Object.assign(scr.mesh.userData, { action: 'liftpanel', reach: 2.2, floorAt: (uv) => FLOORS[clamp(Math.floor((1 - uv.y) * FLOORS.length), 0, FLOORS.length - 1)].n });
     return scr;
   }
   function paintPanel(scr, lit) {
-    const { ctx: c, W } = scr;
-    c.fillStyle = '#4d5157'; c.fillRect(0, 0, W, scr.H); c.textAlign = 'center';
-    [[48, 'OFFICE'], [ARCHIVE, 'ARCHIVE']].forEach(([f, t], i) => {
-      const y = 78 + i * 112;
-      c.beginPath(); c.arc(W / 2, y, 27, 0, Math.PI * 2); c.fillStyle = '#d9dcdf'; c.fill();
-      c.lineWidth = 5; c.strokeStyle = f === lit ? '#ffb347' : '#8b9096'; c.stroke();
-      c.fillStyle = '#26282b'; c.font = `600 24px ${FONT}`; c.fillText(floorName(f), W / 2, y + 8);
-      c.fillStyle = '#e8e6e1'; c.font = `600 12px ${FONT}`; c.fillText(t, W / 2, y + 48);
+    const { ctx: c, W, H } = scr, step = H / FLOORS.length, r = Math.min(27, step * 0.3);
+    c.fillStyle = '#4d5157'; c.fillRect(0, 0, W, H); c.textAlign = 'center';
+    FLOORS.forEach(({ n: f, label: t }, i) => {
+      const y = step * (i + 0.42);
+      c.beginPath(); c.arc(W / 2, y, r, 0, Math.PI * 2); c.fillStyle = '#d9dcdf'; c.fill();
+      c.lineWidth = r / 5.4; c.strokeStyle = f === lit ? '#ffb347' : '#8b9096'; c.stroke();
+      c.fillStyle = '#26282b'; c.font = `600 ${Math.round(r * 0.9)}px ${FONT}`; c.fillText(floorName(f), W / 2, y + r * 0.3);
+      c.fillStyle = '#e8e6e1'; c.font = `600 ${Math.min(12, Math.round(r * 0.48))}px ${FONT}`; c.fillText(fit(c, t, W - 4), W / 2, y + r * 1.75);
     });
     c.textAlign = 'left'; scr.tex.needsUpdate = true;
   }
@@ -3188,12 +3194,12 @@ export function mountOffice(container) {
     if (!L || L.state === 'travel') return;
     mine.goal = f === Math.round(L.floor) ? null : f;
     if (mine.goal === null && L.state !== 'open') setLift(L, 'opening');
-    for (const P of [L.panel, arch.panel]) paintPanel(P, mine.goal);
+    for (const P of carPanels()) paintPanel(P, mine.goal);
   }
   function travelTo(L, f) {
     Object.assign(mine, { from: L.floor, to: f, k: 0, dur: clamp(Math.abs(f - L.floor) / 11, 2.5, 5.5) });
     L.goal = f; L.dir = Math.sign(f - L.floor); setLift(L, 'travel');
-    if (inMyCar()) { setArchive(f === ARCHIVE); sfx.hum(true); }
+    if (inMyCar()) { setFloor(f === 48 ? null : FLOORS.find((F) => F.n === f)); sfx.hum(true); }
   }
   function release(L) {   // back to the sessions, closed at whatever floor it's on
     L.player = false; L.floor = Math.round(L.floor); L.dir = 0; L.doorK = 0;
@@ -3218,16 +3224,16 @@ export function mountOffice(container) {
         break;
       case 'parked':
         if (inside && mine.goal !== null) travelTo(L, mine.goal);
-        else if (!inside && here === 48 && !arch.on) release(L);
+        else if (!inside && here === 48 && !away) release(L);
         break;
       case 'travel':
         mine.k = Math.min(1, mine.k + dt / mine.dur);
         L.floor = lerp(mine.from, mine.to, ease(mine.k));
         if (mine.k === 1) {
           L.floor = mine.to; L.dir = 0; mine.goal = null; sfx.hum(false);
-          for (const P of [L.panel, arch.panel]) paintPanel(P, null);
+          for (const P of carPanels()) paintPanel(P, null);
           sfx.ding(L.at, true); setLift(L, 'opening');
-          if (arch.on) toast('<b>THE ARCHIVE</b> · B2');
+          if (away) toast(`<b>${away.title.toUpperCase()}</b> · ${floorName(away.n)}`);
         }
         break;
     }
@@ -3243,17 +3249,18 @@ export function mountOffice(container) {
       }
     }
     const L = mine.L;
-    if (!arch.on || !L) return;
+    const F = away;
+    if (!F || !L) return;
     const e = ease(L.doorK);
-    arch.leaves.forEach((m, i) => { m.position.z = (i ? 1 : -1) * (DOOR.w / 4 + e * DOOR.w * 0.48); });
-    Object.assign(arch.ind, { floor: L.floor, dir: L.dir }); paintIndicator(arch.ind);
-    arch.callM.emissiveIntensity = L.state === 'opening' ? 2.5 : 0;
+    F.leaves.forEach((m, i) => { m.position.z = (i ? 1 : -1) * (DOOR.w / 4 + e * DOOR.w * 0.48); });
+    Object.assign(F.ind, { floor: L.floor, dir: L.dir }); paintIndicator(F.ind);
+    F.callM.emissiveIntensity = L.state === 'opening' ? 2.5 : 0;
   }
   function resetLift() {   // leaving the 3D view: you're back at your desk and the car goes back to the sessions
     mine.call = false;
     if (mine.L) release(mine.L);
     sfx.hum(false);
-    setArchive(false);
+    setFloor(null);
   }
   // Your car while it's yours: its walls, and the doorway while the doors are open (the core's collider rules otherwise).
   function carCollide(p) {
@@ -3277,9 +3284,9 @@ export function mountOffice(container) {
   // filing cabinet (`arch.drawers`: a group per drawer, front at +z in the cabinet's space, so sliding one out is +z).
   // Its own scene and composer; while you're down here the office still runs, but isn't drawn or heard.
   const ARCH = { x: LIFT.x - 24, z: LIFT.z, r: 34 };   // the cabinet, 24 m out from the lift
-  const arch = { on: false, colliders: [], drawers: [], composer: null };
+  const arch = { n: ARCHIVE, label: 'ARCHIVE', title: 'The Archive', on: false, colliders: [], drawers: [], composer: null };
   {
-    // Plain white haze, brightened by exposure (see renderArchive): an over-bright background clear gets clamped.
+    // Plain white haze, brightened by exposure (see renderFloor): an over-bright background clear gets clamped.
     const S = arch.scene = new THREE.Scene(), haze = new THREE.Color('#ffffff');
     S.background = haze; S.fog = new THREE.Fog(haze, 8, 60);
     S.environment = scene.environment; S.environmentIntensity = 0.7;
@@ -3339,8 +3346,30 @@ export function mountOffice(container) {
     arch.colliders.push({ minX: ARCH.x - D / 2, maxX: ARCH.x + D / 2, minZ: ARCH.z - W / 2, maxZ: ARCH.z + W / 2 });
 
     // The lift back up: a freestanding stone shaft, the same car as upstairs, so the swap behind its doors is seamless.
-    // Built about z = 0 and moved onto your car's z when you arrive (see setArchive).
-    const lift = arch.lift = new THREE.Group(), fx = LIFT.x + 0.05, front = LIFT.x + 0.1, cx = front + CAR.d / 2, back = front + CAR.d, sw = CAR.w / 2 + 0.3, top = ROOM.h;
+    // Built about z = 0 and moved onto your car's z when you arrive (see arch.enter).
+    Object.assign(arch, liftShaft());
+    const lift = arch.lift, back = LIFT.x + 0.1 + CAR.d, sw = CAR.w / 2 + 0.3;
+    shadow(lift, (back + 0.2 - LIFT.x) / 2, sw, (LIFT.x + back + 0.2) / 2, 0, 0.6);
+    S.add(lift);
+    arch.hits = [arch.cabHit, arch.callHit, arch.panel.mesh, cab, lift];
+    // Brighter than the office, no bloom or grade (see renderFloor); the floor and its shadows stay out of the AO (layer 1).
+    arch.look = { exposure: 1.5, hemi: 1.5, sky: new THREE.Color('#ffffff'), ground: new THREE.Color('#dcdcdc'), env: 0.7, bloom: 0, grade: 0, lights: [[key, 0.75]], aoSkip1: true };
+    arch.enter = (z) => {
+      arch.lift.position.z = z;
+      arch.colliders.length = 1;
+      arch.colliders.push({ minX: LIFT.x, maxX: LIFT.x + 0.3 + CAR.d, minZ: z - CAR.w / 2 - 0.3, maxZ: z + CAR.w / 2 + 0.3 });
+    };
+    arch.bound = (p) => {   // the void ends in a soft wall you don't see
+      const dx = p.x - ARCH.x, dz = p.z - ARCH.z, d = Math.hypot(dx, dz);
+      if (d > ARCH.r) { p.x = ARCH.x + (dx / d) * ARCH.r; p.z = ARCH.z + (dz / d) * ARCH.r; }
+    };
+    arch.map = drawArchiveMap;
+    addFloor(arch);
+  }
+  // Another floor's car: a freestanding stone shaft and the same car as the office's, facing -x at LIFT.x about z = 0, with
+  // its own doors, hall lantern, call button and floor panel (moved onto your car's z when you arrive, see setFloor).
+  function liftShaft() {
+    const lift = new THREE.Group(), fx = LIFT.x + 0.05, front = LIFT.x + 0.1, cx = front + CAR.d / 2, back = front + CAR.d, sw = CAR.w / 2 + 0.3, top = ROOM.h;
     const stone = [[0.1, top, sw - DOOR.w / 2, fx, top / 2, -(sw + DOOR.w / 2) / 2], [0.1, top, sw - DOOR.w / 2, fx, top / 2, (sw + DOOR.w / 2) / 2], [0.1, top - DOOR.h, DOOR.w, fx, (top + DOOR.h) / 2, 0],
       [back + 0.2 - front, top, 0.3, (front + back + 0.2) / 2, top / 2, -sw + 0.15], [back + 0.2 - front, top, 0.3, (front + back + 0.2) / 2, top / 2, sw - 0.15],
       [0.2, top, CAR.w, back + 0.1, top / 2, 0], [back + 0.2 - front, top - CAR.h - 0.04, CAR.w, (front + back + 0.2) / 2, (top + CAR.h + 0.04) / 2, 0]];
@@ -3356,60 +3385,56 @@ export function mountOffice(container) {
     for (const s of [-1, 1]) car.push([CAR.d, CAR.h, 0.04, cx, CAR.h / 2, s * CAR.w / 2, '#aeb4ba'], [CAR.d - 0.3, 0.035, 0.035, cx + 0.1, 0.95, s * (CAR.w / 2 - 0.06), '#dfe2e5']);
     lift.add(mergedBoxes(car, mat('#ffffff', { vertexColors: true, roughness: 0.45, metalness: 0.35 })), mergedBoxes([[0.01, 1.05, CAR.w - 0.3, back - 0.025, 1.65, 0]], mat('#dfe4e8', { metalness: 1, roughness: 0.05 })),
       mergedBoxes([[CAR.d - 0.5, 0.01, CAR.w - 0.45, cx, CAR.h - 0.025, 0]], new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: '#fff3df', emissiveIntensity: 1.6 })));
-    arch.leaves = [-1, 1].map((s) => box(lift, 0.03, DOOR.h, DOOR.w / 2 + 0.01, '', LIFT.x + 0.13, DOOR.h / 2, s * DOOR.w / 4, { material: steelM, shadow: false }));
-    arch.ind = { ind: makeScreen(lift, 0.48, 0.2, 192, 80, LIFT.x - 0.045, 2.5, 0), floor: ARCHIVE, dir: 0 };
-    arch.ind.ind.mesh.rotation.y = -Math.PI / 2;
-    arch.callM = new THREE.MeshStandardMaterial({ color: '#e6e3dc', emissive: '#ffb347', emissiveIntensity: 0, roughness: 0.4 });
-    for (const y of [1.16, 1.04]) cyl(lift, 0.026, 0.026, 0.02, '', LIFT.x - 0.025, y, DOOR.w / 2 + 0.3, { material: y > 1.1 ? mat('#e6e3dc', { roughness: 0.4 }) : arch.callM, seg: 16, shadow: false }).rotation.z = Math.PI / 2;
-    arch.callHit = hitBox(lift, 0.06, 0.42, 0.22, LIFT.x - 0.03, 1.1, DOOR.w / 2 + 0.3, { action: 'liftcall', reach: 2.5 });
-    arch.panel = carPanel(lift, 0); paintPanel(arch.panel, null);
-    shadow(lift, (back + 0.2 - LIFT.x) / 2, sw, (LIFT.x + back + 0.2) / 2, 0, 0.6);
-    S.add(lift);
-    arch.hits = [arch.cabHit, arch.callHit, arch.panel.mesh, cab, lift];
+    const leaves = [-1, 1].map((s) => box(lift, 0.03, DOOR.h, DOOR.w / 2 + 0.01, '', LIFT.x + 0.13, DOOR.h / 2, s * DOOR.w / 4, { material: steelM, shadow: false }));
+    const ind = { ind: makeScreen(lift, 0.48, 0.2, 192, 80, LIFT.x - 0.045, 2.5, 0), floor: ARCHIVE, dir: 0 };
+    ind.ind.mesh.rotation.y = -Math.PI / 2;
+    const callM = new THREE.MeshStandardMaterial({ color: '#e6e3dc', emissive: '#ffb347', emissiveIntensity: 0, roughness: 0.4 });
+    for (const y of [1.16, 1.04]) cyl(lift, 0.026, 0.026, 0.02, '', LIFT.x - 0.025, y, DOOR.w / 2 + 0.3, { material: y > 1.1 ? mat('#e6e3dc', { roughness: 0.4 }) : callM, seg: 16, shadow: false }).rotation.z = Math.PI / 2;
+    const callHit = hitBox(lift, 0.06, 0.42, 0.22, LIFT.x - 0.03, 1.1, DOOR.w / 2 + 0.3, { action: 'liftcall', reach: 2.5 });
+    const panel = carPanel(lift, 0); paintPanel(panel, null);
+    return { lift, leaves, ind, callM, callHit, panel };
   }
-  function setArchive(on) {
-    if (arch.on === on) return;
-    arch.on = on;
-    if (on) {
-      const z = mine.L.z, x1 = LIFT.x + 0.3 + CAR.d;
-      arch.lift.position.z = z; arch.scene.updateMatrixWorld();
-      arch.colliders.length = 1;
-      arch.colliders.push({ minX: LIFT.x, maxX: x1, minZ: z - CAR.w / 2 - 0.3, maxZ: z + CAR.w / 2 + 0.3 });
+  // Going to (F) or leaving (null) another floor, behind closed doors.
+  function setFloor(F) {
+    if (away === F) return;
+    if (away) away.on = false;
+    away = F;
+    if (F) {
+      F.on = true; F.out = 0;
+      F.enter(mine.L.z); F.scene.updateMatrixWorld();
       tvQuiet();
     }
-    cssRenderer.domElement.style.visibility = on ? 'hidden' : '';
-    sfx.setAway(on);
+    cssRenderer.domElement.style.visibility = F ? 'hidden' : '';
+    sfx.setAway(!!F, F?.sound);
   }
-  const WHITE = new THREE.Color('#ffffff'), GREY_DC = new THREE.Color('#dcdcdc');
-  function renderArchive() {
-    const w = container.clientWidth, h = container.clientHeight;
-    if (!arch.composer) {
-      const c = arch.composer = new EffectComposer(renderer);
+  // Inside the car it's lit like the office car upstairs; stepping out, your eyes adjust to the floor's own `look` over ~3 m:
+  // exposure, hemisphere light, environment and extra lights, and the office's bloom and grade scaled by look.bloom/grade.
+  function renderFloor(F) {
+    const w = container.clientWidth, h = container.clientHeight, L = F.look;
+    if (!F.composer) {
+      const c = F.composer = new EffectComposer(renderer);
       c.setPixelRatio(renderer.getPixelRatio());
-      c.addPass(new RenderPass(arch.scene, camera));
-      const ao = arch.gtao = new GTAOPass(arch.scene, camera, 512, 512);
+      c.addPass(new RenderPass(F.scene, camera));
+      const ao = F.gtao = new GTAOPass(F.scene, camera, 512, 512);
       ao.blendIntensity = 0.8;
       ao.updateGtaoMaterial({ radius: 0.5, distanceExponent: 1.4, thickness: 1, scale: 1.1, samples: 12 });
-      const aoRender = ao.render.bind(ao);
-      ao.render = (...a) => { camera.layers.disable(1); aoRender(...a); camera.layers.enable(1); };
-      // The office's bloom and grade too, so the car looks the same on every floor (faded out in the void, see below).
-      arch.bloom = new UnrealBloomPass(new THREE.Vector2(512, 512), bloom.strength, bloom.radius, bloom.threshold);
-      arch.grade = new ShaderPass(grade.material.clone());
-      c.addPass(ao); c.addPass(arch.bloom); c.addPass(new OutputPass()); c.addPass(arch.grade);
+      if (L.aoSkip1) { const aoRender = ao.render.bind(ao); ao.render = (...a) => { camera.layers.disable(1); aoRender(...a); camera.layers.enable(1); }; }
+      F.bloom = new UnrealBloomPass(new THREE.Vector2(512, 512), bloom.strength, bloom.radius, bloom.threshold);
+      F.grade = new ShaderPass(grade.material.clone());
+      c.addPass(ao); c.addPass(F.bloom); c.addPass(new OutputPass()); c.addPass(F.grade);
       c.setSize(w, h);
     }
-    arch.gtao.enabled = hq;
-    // Inside the car it's lit like the office car upstairs; stepping out, your eyes adjust to the void over a few metres.
-    const out = clamp((LIFT.x + 0.1 - player.x) / 3, 0, 1);
-    arch.out = damp(arch.out ?? 0, out, 3, 1 / 60);
-    const k = ease(arch.out);
-    renderer.toneMappingExposure = lerp(officeExposure, 1.5, k);
-    arch.hemi.intensity = lerp(hemi.intensity, 1.5, k); arch.key.intensity = lerp(0, 0.75, k);
-    arch.hemi.color.copy(hemi.color).lerp(WHITE, k); arch.hemi.groundColor.copy(hemi.groundColor).lerp(GREY_DC, k);
-    arch.bloom.enabled = hq && k < 0.99; arch.bloom.strength = bloom.strength * (1 - k);
-    arch.grade.enabled = hq; arch.grade.uniforms.amount.value = 1 - k;
-    arch.scene.environmentIntensity = lerp(scene.environmentIntensity, 0.7, k);
-    arch.composer.render();
+    F.gtao.enabled = hq;
+    F.out = damp(F.out ?? 0, clamp((LIFT.x + 0.1 - player.x) / 3, 0, 1), 3, 1 / 60);
+    const k = ease(F.out);
+    renderer.toneMappingExposure = lerp(officeExposure, L.exposure, k);
+    F.hemi.intensity = lerp(hemi.intensity, L.hemi, k);
+    F.hemi.color.copy(hemi.color).lerp(L.sky, k); F.hemi.groundColor.copy(hemi.groundColor).lerp(L.ground, k);
+    for (const [light, v] of L.lights) light.intensity = v * k;
+    F.bloom.strength = bloom.strength * lerp(1, L.bloom, k); F.bloom.enabled = hq && F.bloom.strength > 0.004;
+    F.grade.enabled = hq; F.grade.uniforms.amount.value = lerp(1, L.grade, k);
+    F.scene.environmentIntensity = lerp(scene.environmentIntensity, L.env, k);
+    F.composer.render();
     renderer.setRenderTarget(null);
     const gl = renderer.getContext();   // full alpha everywhere: no dashboard hole down here (see renderFrame)
     gl.colorMask(false, false, false, true); gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT); gl.colorMask(true, true, true, true);
@@ -3619,7 +3644,7 @@ export function mountOffice(container) {
 
   function collide(p, r = 0.3) {
     if (p === player && carCollide(p)) return;
-    for (const b of arch.on ? arch.colliders : colliders) {
+    for (const b of away ? away.colliders : colliders) {
       const cx = clamp(p.x, b.minX, b.maxX), cz = clamp(p.z, b.minZ, b.maxZ);
       const dx = p.x - cx, dz = p.z - cz, d2 = dx * dx + dz * dz;
       if (d2 >= r * r) continue;
@@ -3629,11 +3654,7 @@ export function mountOffice(container) {
         if (pen[1]) p.x = pen[1] < 0 ? b.minX - r : b.maxX + r; else p.z = pen[2] < 0 ? b.minZ - r : b.maxZ + r;
       }
     }
-    if (arch.on) {   // the void goes on forever; you don't
-      const dx = p.x - ARCH.x, dz = p.z - ARCH.z, d = Math.hypot(dx, dz);
-      if (d > ARCH.r) { p.x = ARCH.x + (dx / d) * ARCH.r; p.z = ARCH.z + (dz / d) * ARCH.r; }
-      return;
-    }
+    if (away) { away.bound(p); return; }
     p.x = clamp(p.x, ROOM.minX + 0.4, ROOM.maxX - 0.4);
     p.z = clamp(p.z, ROOM.minZ + 0.4, ROOM.maxZ - 0.4);
   }
@@ -3711,7 +3732,7 @@ export function mountOffice(container) {
   };
   document.addEventListener('keydown', (e) => {
     if (!active || mode !== 'free' || e.metaKey || e.ctrlKey || e.target.closest?.('input, select, textarea')) return;
-    if (TELEPORTS[e.code]) { if (arch.on || (mine.L?.state === 'travel' && inMyCar())) toast('Take the lift back to the office'); else TELEPORTS[e.code](); return; }
+    if (TELEPORTS[e.code]) { if (away || (mine.L?.state === 'travel' && inMyCar())) toast('Take the lift back to the office'); else TELEPORTS[e.code](); return; }
     if (e.code === 'KeyG') { setQuality(!hq); return; }
     if (e.code === 'KeyH') { setOverlays(!overlays); return; }
     if (e.code === 'KeyM') { dash.setSound({ on: !dash.sound.on }); sfx.unlock(); toast(`Sounds ${dash.sound.on ? 'on' : 'off'} · <kbd>M</kbd> to ${dash.sound.on ? 'mute' : 'unmute'}`); return; }
@@ -4063,11 +4084,11 @@ export function mountOffice(container) {
     hover = null;
     if (locked && mode === 'free') {
       ray.setFromCamera(new THREE.Vector2(0, 0), camera);
-      const targets = arch.on ? [...arch.hits] : [lifts.callHit, ...lifts.map((L) => L.panel.mesh), hole, laptop.g, kitchen.hit, ...doors.map((d) => d.pivot), ...desks.flatMap((d) => [d.scr.mesh, d.codeScr.mesh]), ...tvs.map((t) => t.scr.mesh), ...boards.map((b) => b.scr.mesh)];
-      if (!arch.on) targets.push(...new Set(Object.values(blinds).flatMap((b) => b.runs.map((r) => r.slats.parent))));
-      if (!arch.on) world.children.forEach((o) => { if (o.userData.glass) targets.push(o); });
-      if (!arch.on) for (const p of people.values()) targets.push(p.root);
-      if (!arch.on) for (const st of seats) if (st.obj !== player.seat?.obj && Math.hypot(st.x - player.x, st.z - player.z) < 4) targets.push(st.obj);
+      const targets = away ? [...away.hits] : [lifts.callHit, ...lifts.map((L) => L.panel.mesh), hole, laptop.g, kitchen.hit, ...doors.map((d) => d.pivot), ...desks.flatMap((d) => [d.scr.mesh, d.codeScr.mesh]), ...tvs.map((t) => t.scr.mesh), ...boards.map((b) => b.scr.mesh)];
+      if (!away) targets.push(...new Set(Object.values(blinds).flatMap((b) => b.runs.map((r) => r.slats.parent))));
+      if (!away) world.children.forEach((o) => { if (o.userData.glass) targets.push(o); });
+      if (!away) for (const p of people.values()) targets.push(p.root);
+      if (!away) for (const st of seats) if (st.obj !== player.seat?.obj && Math.hypot(st.x - player.x, st.z - player.z) < 4) targets.push(st.obj);
       for (const hit of ray.intersectObjects(targets, true)) {
         const ud = hit.object.userData;
         if (ud.reach && hit.distance > ud.reach) { if (ud.glass || hit.object.material.transparent) continue; break; }
@@ -4088,7 +4109,7 @@ export function mountOffice(container) {
     if (hover.action === 'liftcall' || hover.action === 'liftpanel' || hover.action === 'cabinet') {
       const L = mine.L, f = hover.floor;
       targetEl.innerHTML = hover.action === 'cabinet' ? '<b>Filing cabinet</b><div class="k">Coming soon</div>'
-        : hover.action === 'liftpanel' ? `<b>${f === 48 ? '48 · Office' : 'B2 · The Archive'}</b><div class="k">${!L || L.state === 'travel' ? '' : f === Math.round(L.floor) ? 'You’re here · click to open the doors' : mine.goal === f ? 'On its way' : 'Click to go'}</div>`
+        : hover.action === 'liftpanel' ? `<b>${floorName(f)} · ${FLOORS.find((F) => F.n === f)?.title}</b><div class="k">${!L || L.state === 'travel' ? '' : f === Math.round(L.floor) ? 'You’re here · click to open the doors' : mine.goal === f ? 'On its way' : 'Click to go'}</div>`
         : `<b>Lift</b><div class="k">${mine.call ? 'Called · waiting for a free car' : L && (L.state === 'open' || L.state === 'opening') ? 'Doors open · walk in' : L?.state === 'travel' ? 'On its way' : 'Click to call it'}</div>`;
       return;
     }
@@ -4125,7 +4146,7 @@ export function mountOffice(container) {
 
   // ----- minimap -----
   function drawMap() {
-    if (arch.on) { drawArchiveMap(); return; }
+    if (away) { away.map(); return; }
     const c = mapCtx, W = 440, H = 330, sx = (x) => ((x - ROOM.minX) / 40) * W, sz = (z) => ((z - ROOM.minZ) / 30) * H;
     c.clearRect(0, 0, W, H);
     c.fillStyle = 'rgba(181,138,95,.35)'; c.fillRect(sx(-19.9), sz(2.6), sx(-2) - sx(-19.9), sz(14.9) - sz(2.6));
@@ -4304,12 +4325,12 @@ export function mountOffice(container) {
     paintScreens(false);
     for (const b of boards) if (b.dirty) paintBoard(b);
     if (tvMove) { tvMouse(tvMove, 'mouseMoved'); tvMove = null; }
-    if (!arch.on) updateTVs(now);
+    if (!away) updateTVs(now);
     for (const d of desks) if (d.codeAnim) paintCode(d, performance.now(), false);
     updateHover();
     drawMap();
     sky.position.copy(camera.position);
-    if (arch.on) { renderArchive(); return; }
+    if (away) { away.fx?.(dt, t); renderFloor(away); return; }
     renderFrame();
     syncCss();
     cssRenderer.render(cssScene, camera);
@@ -4325,15 +4346,15 @@ export function mountOffice(container) {
     camera.updateProjectionMatrix();
     layoutCenterMonitor(w, h);
     composer.setSize(w, h);
-    arch.composer?.setSize(w, h);
-    if (active) (arch.on ? renderArchive : renderFrame)();   // setSize clears the canvas; redraw now so the blank frame never reaches the screen
+    for (const F of FLOORS) F.composer?.setSize(w, h);
+    if (active) away ? renderFloor(away) : renderFrame();   // setSize clears the canvas; redraw now so the blank frame never reaches the screen
   }
   new ResizeObserver(resize).observe(container);
 
   window.__office = { openChat, closeChat, talk, get mode() { return mode; }, teleport: (k) => TELEPORTS[k](), openTv: (id) => openTvPanel(tvs.find((t) => t.id === id)), useTv: (id) => useTv(tvs.find((t) => t.id === id)), leaveTv,
     boards, useBoard: (id) => useBoard(boards.find((b) => b.id === id)), leaveBoard, wb,
     tvPoint: (id, u, v) => { const t = tvs.find((x) => x.id === id), p = t.scr.mesh.localToWorld(new THREE.Vector3((u - 0.5) * t.w, (0.5 - v) * t.h, 0)).project(camera), r = renderer.domElement.getBoundingClientRect(); return { x: r.left + (p.x + 1) / 2 * r.width, y: r.top + (1 - p.y) / 2 * r.height }; },
-    tvs: () => tvs.map((t) => ({ id: t.id, live: t.live, frame: !!t.frame, url: t.page?.url, title: t.page?.title, dist: t.dist })), seats, sitIn, openLaptop, laptop, kitchen, player, people, blinds, door, doors, collide, colliders, desks, idleSpots, lifts, sfx, mine, arch, callLift, pressFloor, setSpeed, clockState, setTime: (ms) => Object.assign(clockState, { speed: 0.0001, simBase: ms, realBase: Date.now() }) };
+    tvs: () => tvs.map((t) => ({ id: t.id, live: t.live, frame: !!t.frame, url: t.page?.url, title: t.page?.title, dist: t.dist })), seats, sitIn, openLaptop, laptop, kitchen, player, people, blinds, door, doors, collide, colliders, desks, idleSpots, lifts, sfx, mine, arch, FLOORS, get away() { return away; }, callLift, pressFloor, setSpeed, clockState, setTime: (ms) => Object.assign(clockState, { speed: 0.0001, simBase: ms, realBase: Date.now() }) };
 
   return {
     // Adopt your desktop onto the monitor, then pull back from it to the chair.
@@ -4365,7 +4386,7 @@ export function mountOffice(container) {
         dash.closeDrawer();
         if (using) { using.dirty = true; using = null; hud.classList.remove('of-using'); }
         leaveBoard();
-        if (arch.on) { resetLift(); setCam(seatedPose()); }
+        if (away) { resetLift(); setCam(seatedPose()); }
         hud.classList.add('hidden');
         mode = 'outro';
         if (laptop.open) { laptop.k = 1; laptopFx(0); }
