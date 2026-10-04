@@ -746,10 +746,12 @@ function cdpEvent(m) {
   switch (m.method) {
     case 'Page.screencastFrame':
       cdp('Page.screencastFrameAck', { sessionId: p.sessionId }, m.sessionId).catch(() => {});
-      if (tab && m.sessionId === tab.sid) tvFrame(tab, p.data);
+      // While an auto-refresh reloads the page, keep showing the last frame instead of the blank page in between.
+      if (tab && m.sessionId === tab.sid && !(tab.holdUntil > Date.now())) tvFrame(tab, p.data);
       return;
     case 'Page.domContentEventFired': case 'Page.loadEventFired':
       if (tab) setVol(tab, tab.vol);   // a fresh document starts silent
+      if (tab && m.method === 'Page.loadEventFired' && tab.holdUntil > Date.now()) tab.holdUntil = Date.now() + 400;   // let it paint first
       return;
     case 'Page.javascriptDialogOpening':   // nobody is there to answer alerts or "leave this page?"
       cdp('Page.handleJavaScriptDialog', { accept: true }, m.sessionId).catch(() => {});
@@ -830,7 +832,7 @@ function tvSync() {
     const idle = now - tab.neededAt;
     if (idle > 180e3) { closeTab(tab); continue; }
     if (tab.at !== c.at) { tab.at = c.at; lastFrames.delete(tab.id); navTab(tab, c.url); }
-    else if (c.refresh && !idle && tvUsed !== tab.id && now - tab.loadedAt > c.refresh * 1000) { tab.loadedAt = now; cdp('Page.reload', {}, tab.sid).catch(() => {}); }
+    else if (c.refresh && !idle && tvUsed !== tab.id && now - tab.loadedAt > c.refresh * 1000) { tab.loadedAt = now; tab.holdUntil = now + 8000; cdp('Page.reload', {}, tab.sid).catch(() => {}); }
     const frozen = idle > 30e3, life = (f) => {
       tab.frozen = f;
       const hold = () => { for (const s of [tab.sid, ...tab.kids]) cdp('Runtime.evaluate', { expression: `window.__tvHold?.(${f})` }, s).catch(() => {}); };

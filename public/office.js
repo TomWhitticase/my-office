@@ -705,6 +705,7 @@ export function mountOffice(container) {
   const style = document.createElement('style');
   style.textContent = `
     #view-office canvas.of-gl { position: absolute; inset: 0; z-index: 1; display: block; }
+    #view-office { background: #0b0c0e; }   /* if a frame is ever missed, show dark, not the white page */
     #view-office .of-css { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
     .of-dom { background: var(--page); overflow: hidden; pointer-events: none; }
     .of-hud { position: absolute; inset: 0; z-index: 2; pointer-events: none; font: 13px/1.4 system-ui, -apple-system, sans-serif; color: #fff; transition: opacity .4s; }
@@ -3225,6 +3226,12 @@ export function mountOffice(container) {
     rays.enabled = hq && rays.uniforms.strength.value > 0.01;
     renderer.shadowMap.needsUpdate = true;
     composer.render();
+    // The canvas is transparent so the dashboard can show through the hole, which means any pixel the passes leave
+    // below full alpha lets the (white) page behind flash through. Force alpha to 1 everywhere first, then punch.
+    renderer.setRenderTarget(null);
+    const gl = renderer.getContext();
+    gl.colorMask(false, false, false, true); gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT); gl.colorMask(true, true, true, true);
+    renderer.state.buffers.color.reset();   // three caches the mask and clear colour; make it resend both
     // Re-punch the dashboard hole: depth of opaque geometry, then the hole writes alpha 0 where it's visible.
     renderer.autoClear = false;
     renderer.clearDepth();
@@ -3301,6 +3308,7 @@ export function mountOffice(container) {
     camera.updateProjectionMatrix();
     layoutCenterMonitor(w, h);
     composer.setSize(w, h);
+    if (active) renderFrame();   // setSize clears the canvas; redraw now so the blank frame never reaches the screen
   }
   new ResizeObserver(resize).observe(container);
 
