@@ -1841,11 +1841,14 @@ export function mountOffice(container) {
   for (const x of [7, 8.4]) box(world, 0.06, ROOM.h, 0.06, '', x, ROOM.h / 2, -3.5, { material: frameM, shadow: false });
   box(world, 1.46, 0.08, 0.08, '', 7.7, 2.24, -3.5, { material: frameM, shadow: false });
   box(world, 1.34, ROOM.h - 2.34, 0.03, '', 7.7, (ROOM.h + 2.28) / 2, -3.5, { material: glassM, shadow: false });
-  // Glass door hinged on the left post, swinging into the office. Its collider follows it.
-  const door = { k: 0, to: 0, pivot: new THREE.Group(), box: { minX: 7, maxX: 8.4, minZ: -3.54, maxZ: -3.46 } };
-  {
-    const p = door.pivot, W = 1.34, H = 2.18;
-    p.position.set(7.04, 0, -3.5); world.add(p);
+  // Glass doors: a leaf hinged at (hx, hz), lying along angle r0 when shut and swinging `swing` (±1) quarter turns open.
+  // An invisible box over the whole leaf takes the clicks (the glass itself is on layer 1, which the ray skips). Its
+  // collider follows it, and `auto` doors open by themselves while someone walks through.
+  const doors = [], doorHitM = new THREE.MeshBasicMaterial();
+  function glassDoor({ name, hx, hz, r0, swing, W, H = 2.18, auto = false }) {
+    const d = { name, k: 0, to: 0, r0, swing, W, hx, hz, auto, pivot: new THREE.Group(), box: {} };
+    const p = d.pivot;
+    p.position.set(hx, 0, hz); p.rotation.y = r0; world.add(p);
     box(p, W, H, 0.025, '', W / 2, H / 2 + 0.01, 0, { material: glassM, shadow: false });
     for (const [w, h, x, y] of [[W, 0.07, W / 2, 0.045], [W, 0.05, W / 2, H - 0.015], [0.05, H, 0.025, H / 2 + 0.01], [0.05, H, W - 0.025, H / 2 + 0.01]]) box(p, w, h, 0.045, '', x, y, 0, { material: frameM });
     const fm = new THREE.MeshStandardMaterial({ map: frostTex.clone(), transparent: true, roughness: 0.9, depthWrite: false });
@@ -1855,23 +1858,34 @@ export function mountOffice(container) {
       cyl(p, 0.014, 0.014, 0.9, '#b8bcc2', W - 0.12, 1.05, s * 0.07, { mat: { metalness: 0.9, roughness: 0.25 } });
       for (const y of [0.65, 1.45]) box(p, 0.018, 0.018, 0.06, '#b8bcc2', W - 0.12, y, s * 0.04, { mat: { metalness: 0.9, roughness: 0.25 } });
     }
-    p.traverse((o) => { if (o.isMesh) o.userData = { action: 'door', reach: 5 }; });
-    colliders.push(door.box);
+    const hit = new THREE.Mesh(new THREE.BoxGeometry(W, H, 0.1), doorHitM);
+    hit.position.set(W / 2, H / 2, 0); hit.visible = false; p.add(hit);
+    p.traverse((o) => { if (o.isMesh) o.userData = { action: 'door', door: d, reach: 5 }; });
+    setDoorBox(d, false);
+    colliders.push(d.box);
+    doors.push(d);
+    return d;
   }
-  function setDoorBox(open) {
-    Object.assign(door.box, open ? { minX: 7, maxX: 7.1, minZ: -4.9, maxZ: -3.5 } : { minX: 7, maxX: 8.4, minZ: -3.54, maxZ: -3.46 });
+  function setDoorBox(d, open) {
+    const r = d.r0 + (open ? d.swing * Math.PI / 2 : 0), tx = d.hx + Math.cos(r) * d.W, tz = d.hz - Math.sin(r) * d.W;
+    Object.assign(d.box, { minX: Math.min(d.hx, tx) - 0.04, maxX: Math.max(d.hx, tx) + 0.04, minZ: Math.min(d.hz, tz) - 0.04, maxZ: Math.max(d.hz, tz) + 0.04 });
   }
+  // Mine: hinged on the left post, swinging into my office; shared with every browser via /api/office.
+  const door = glassDoor({ name: 'Office door', hx: 7.04, hz: -3.5, r0: 0, swing: 1, W: 1.34 });
   function officeFx(dt) {
     for (const b of Object.values(blinds)) if (b.k !== b.to) {
       b.k = b.to > b.k ? Math.min(b.to, b.k + dt / 2.2) : Math.max(b.to, b.k - dt / 2.2);
       for (const r of b.runs) layBlind(r, b.k);
       if (WIN.includes(b.key)) shaftU.shut.value[WIN.indexOf(b.key)] = blindShut(b.k);
     }
-    if (door.k !== door.to) {
-      door.k = door.to > door.k ? Math.min(1, door.k + dt / 0.9) : Math.max(0, door.k - dt / 0.9);
-      door.pivot.rotation.y = ease(door.k) * Math.PI * 0.5;
-      setDoorBox(door.k > 0.85);
-      if (door.k < 0.85 && door.to === 0) collide(player);
+    for (const d of doors) {
+      const mid = { x: d.hx + Math.cos(d.r0) * d.W / 2, z: d.hz - Math.sin(d.r0) * d.W / 2 };
+      const want = d.auto && [...people.values()].some((q) => Math.hypot(q.root.position.x - mid.x, q.root.position.z - mid.z) < 1.3) ? 1 : d.to;
+      if (d.k === want) continue;
+      d.k = want > d.k ? Math.min(1, d.k + dt / 0.9) : Math.max(0, d.k - dt / 0.9);
+      d.pivot.rotation.y = d.r0 + d.swing * ease(d.k) * Math.PI * 0.5;
+      setDoorBox(d, d.k > 0.85);
+      if (d.k < 0.85 && want === 0) collide(player);
     }
   }
   {
@@ -1970,6 +1984,10 @@ export function mountOffice(container) {
     const { meetSouth, meetNorth, meetSmall } = blinds;
     mrWall('x', 2.5, 14, 20, null, meetSouth, 1); mrWall('z', 14, 2.5, 7.5, [3.0, 4.1], meetSouth, 1); mrWall('z', 14, 7.5, 12.5, [8.0, 9.1], meetNorth, 1); mrWall('x', 12.5, 14, 20, null, meetNorth, -1);
     mrWall('z', -1.8, 11.2, 15, null, meetSmall, 1); mrWall('z', 3.4, 11.2, 15, null, meetSmall, -1); mrWall('x', 11.2, -1.8, 3.4, [-1.3, -0.2], meetSmall, 1);
+    // Doors in the doorways, swinging into the rooms. People walking in or out open them on the way through.
+    glassDoor({ name: 'Meeting room door', hx: 14, hz: 3.02, r0: -Math.PI / 2, swing: 1, W: 1.06, H: 2.16, auto: true });
+    glassDoor({ name: 'Meeting room door', hx: 14, hz: 8.02, r0: -Math.PI / 2, swing: 1, W: 1.06, H: 2.16, auto: true });
+    glassDoor({ name: 'Meeting room door', hx: -1.28, hz: 11.2, r0: 0, swing: -1, W: 1.06, H: 2.16, auto: true });
     const glassMesh = mergedBoxes(panes, glassM); glassMesh.castShadow = false;
     // Frost bands share one material; their UVs are stretched per wall so the dot pattern keeps its spacing.
     const frostM = new THREE.MeshStandardMaterial({ map: frostTex, transparent: true, roughness: 0.9, depthWrite: false });
@@ -2740,7 +2758,7 @@ export function mountOffice(container) {
     else if (hover.sessionId && hover.screen) { document.exitPointerLock(); dash.openDrawer(hover.sessionId); }
     else if (hover.sessionId) openChat(hover.sessionId);
     else if (hover.action === 'blinds') { hover.blind.to = hover.blind.to === 1 ? 0 : hover.blind.to + 0.5; dash.putOffice({ blinds: { [hover.blind.key]: hover.blind.to } }); }
-    else if (hover.action === 'door') { door.to = door.to ? 0 : 1; dash.putOffice({ door: door.to }); }
+    else if (hover.action === 'door') { const d = hover.door; d.to = d.to ? 0 : 1; if (d === door) dash.putOffice({ door: d.to }); }
     else if (hover.seat) sitIn(hover.seat);
     else if (hover.tv) {
       if (hover.tv.cfg && !e.shiftKey) useTv(hover.tv);
@@ -3035,7 +3053,7 @@ export function mountOffice(container) {
     hover = null;
     if (locked && mode === 'free') {
       ray.setFromCamera(new THREE.Vector2(0, 0), camera);
-      const targets = [hole, door.pivot, ...desks.flatMap((d) => [d.scr.mesh, d.codeScr.mesh]), ...tvs.map((t) => t.scr.mesh)];
+      const targets = [hole, ...doors.map((d) => d.pivot), ...desks.flatMap((d) => [d.scr.mesh, d.codeScr.mesh]), ...tvs.map((t) => t.scr.mesh)];
       targets.push(...new Set(Object.values(blinds).flatMap((b) => b.runs.map((r) => r.slats.parent))));
       world.children.forEach((o) => { if (o.userData.glass) targets.push(o); });
       for (const p of people.values()) targets.push(p.root);
@@ -3043,7 +3061,7 @@ export function mountOffice(container) {
       for (const hit of ray.intersectObjects(targets, true)) {
         const ud = hit.object.userData;
         if (ud.reach && hit.distance > ud.reach) { if (ud.glass || hit.object.material.transparent) continue; break; }
-        if (ud.action) { hover = { action: ud.action, blind: ud.blind || ud.blindAt?.(hit.point) }; break; }
+        if (ud.action) { hover = { action: ud.action, door: ud.door, blind: ud.blind || ud.blindAt?.(hit.point) }; break; }
         if (ud.tv) { hover = { tv: tvs.find((t) => t.id === ud.tv) }; break; }
         if (ud.sessionId) { hover = { sessionId: ud.sessionId, screen: !!ud.screen }; break; }
         if ((ud.seat || ud.seatAt) && hit.distance < 3) { hover = { seat: ud.seat || ud.seatAt(hit.point) }; break; }
@@ -3057,7 +3075,7 @@ export function mountOffice(container) {
       return;
     }
     if (hover.action === 'blinds' || hover.action === 'door') {
-      targetEl.innerHTML = hover.action === 'door' ? `<b>Office door</b><div class="k">Click to ${door.to ? 'close' : 'open'}</div>` : `<b>${hover.blind.name}</b><div class="k">Click to ${['lower the blinds', 'close the slats', 'raise the blinds'][hover.blind.to * 2]}</div>`;
+      targetEl.innerHTML = hover.action === 'door' ? `<b>${hover.door.name}</b><div class="k">Click to ${hover.door.to ? 'close' : 'open'}</div>` : `<b>${hover.blind.name}</b><div class="k">Click to ${['lower the blinds', 'close the slats', 'raise the blinds'][hover.blind.to * 2]}</div>`;
       return;
     }
     if (hover.seat) {
@@ -3266,7 +3284,7 @@ export function mountOffice(container) {
 
   window.__office = { openChat, closeChat, talk, get mode() { return mode; }, teleport: (k) => TELEPORTS[k](), openTv: (id) => openTvPanel(tvs.find((t) => t.id === id)), useTv: (id) => useTv(tvs.find((t) => t.id === id)), leaveTv,
     tvPoint: (id, u, v) => { const t = tvs.find((x) => x.id === id), p = t.scr.mesh.localToWorld(new THREE.Vector3((u - 0.5) * t.w, (0.5 - v) * t.h, 0)).project(camera), r = renderer.domElement.getBoundingClientRect(); return { x: r.left + (p.x + 1) / 2 * r.width, y: r.top + (1 - p.y) / 2 * r.height }; },
-    tvs: () => tvs.map((t) => ({ id: t.id, live: t.live, frame: !!t.frame, url: t.page?.url, title: t.page?.title, dist: t.dist })), seats, sitIn, player, people, blinds, door, collide, colliders, lifts, sfx, setSpeed, clockState, setTime: (ms) => Object.assign(clockState, { speed: 0.0001, simBase: ms, realBase: Date.now() }) };
+    tvs: () => tvs.map((t) => ({ id: t.id, live: t.live, frame: !!t.frame, url: t.page?.url, title: t.page?.title, dist: t.dist })), seats, sitIn, player, people, blinds, door, doors, collide, colliders, lifts, sfx, setSpeed, clockState, setTime: (ms) => Object.assign(clockState, { speed: 0.0001, simBase: ms, realBase: Date.now() }) };
 
   return {
     // Adopt the overview page onto the monitor, then pull back from it to the chair.
