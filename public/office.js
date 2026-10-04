@@ -551,11 +551,16 @@ class Person {
       add(hand, G.hand, skinM, 0, 0, 0);
       return { sh, el, hand, side };
     });
+    // A phone for waiting at the desk: dark slab with a lit screen, held in the right hand.
+    this.phone = new THREE.Group();
+    box(this.phone, 0.075, 0.15, 0.012, '#1a1b1e', 0, 0, 0, { shadow: false });
+    box(this.phone, 0.064, 0.13, 0.002, '', 0, 0, 0.007, { material: mat('#9fd0ff', { emissive: '#7fb8ff', emissiveIntensity: 0.9 }), shadow: false });
+    this.phone.position.set(0, -0.06, 0.05); this.phone.rotation.x = -0.5; this.phone.visible = false;
     this.mug = new THREE.Group();
     cyl(this.mug, 0.04, 0.035, 0.1, '#f4f1ea', 0, 0, 0);
     cyl(this.mug, 0.036, 0.036, 0.005, '#4a2c1a', 0, 0.046, 0, { shadow: false });
     this.mug.position.set(0, -0.03, 0.06); this.mug.rotation.x = Math.PI / 2; this.mug.visible = false;
-    this.arms[0].hand.add(this.mug);
+    this.arms[0].hand.add(this.mug, this.phone);
     this.paddle = new THREE.Group();
     cyl(this.paddle, 0.075, 0.075, 0.012, '#c0392b', 0, 0.12, 0, { seg: 20 }).rotation.x = Math.PI / 2;
     cyl(this.paddle, 0.015, 0.015, 0.1, '#c8a46a', 0, 0.03, 0);
@@ -588,7 +593,7 @@ class Person {
   targets(t) {
     const ph = this.phase, j = { bodyY: 0, lean: 0.02 * Math.sin(t * 1.3 + ph), leg0: 0, leg1: 0, knee0: 0, knee1: 0,
       sh0: 0, sh1: 0, shz0: -0.07, shz1: 0.07, el0: -0.15, el1: -0.15, headY: 0, headX: 0 };
-    this.mug.visible = false; this.paddle.visible = false;
+    this.mug.visible = false; this.paddle.visible = false; this.phone.visible = false;
     if (this.path.length) {
       const w = this.walkPhase;
       Object.assign(j, { leg0: 0.5 * Math.sin(w), leg1: -0.5 * Math.sin(w), knee0: 0.1 + 0.55 * Math.max(0, Math.sin(w + 1.6)),
@@ -603,9 +608,15 @@ class Person {
         Object.assign(j, { lean: 0.12, sh0: -0.55, sh1: -0.55, shz0: -0.12, shz1: 0.12, headX: 0.12, headY: 0.05 + 0.2 * Math.sin(t * 0.45 + ph),
           el0: -1.05 + 0.07 * Math.sin(t * 19 + ph), el1: -1.05 + 0.07 * Math.sin(t * 17 + ph + 1.3) });
         break;
-      case 'wait':
+      case 'wait':   // at the desk but the session is waiting (on a shell, a prompt…): see waitStyle()
         sit(0.47);
-        Object.assign(j, { lean: -0.12, sh0: -0.3, sh1: -0.3, el0: -1.4, el1: -1.4, shz0: -0.15, shz1: 0.15, headX: -0.05 + 0.04 * Math.sin(t * 0.8 + ph) });
+        if (this.waitStyle() === 'lean')        // leaning right back, hands behind the head
+          Object.assign(j, { lean: -0.38, sh0: -2.75, sh1: -2.75, shz0: -0.55, shz1: 0.55, el0: -2.0, el1: -2.0, headX: -0.18, headY: 0.15 * Math.sin(t * 0.3 + ph) });
+        else if (this.waitStyle() === 'phone') { // slouched, scrolling a phone held up in front
+          this.phone.visible = true;
+          Object.assign(j, { lean: 0.05, sh0: -0.85, el0: -1.55 + 0.05 * Math.sin(t * 6 + ph), shz0: 0.12, sh1: -0.7, el1: -1.5, shz1: -0.05, headX: 0.38, headY: -0.08 });
+        } else                                   // spinning the chair like a kid: legs up, arms out
+          Object.assign(j, { lean: -0.2, leg0: -1.15, leg1: -1.15, knee0: 0.55, knee1: 0.55, sh0: -0.3, sh1: -0.3, shz0: -0.9, shz1: 0.9, el0: -0.2, el1: -0.2, headX: -0.1 });
         break;
       case 'sofa':
         sit(0.53);
@@ -656,7 +667,8 @@ class Person {
       this.walkPhase += dt * 8;
       if (!this.path.length) this.onArrive?.();
     } else if (this.spot) {
-      this.rotY += angDiff(this.rotY, this.spot.rotY) * Math.min(1, dt * 6);
+      if (this.spot.pose === 'wait' && this.waitStyle() === 'spin') this.rotY += dt * 2.4;
+      else this.rotY += angDiff(this.rotY, this.spot.rotY) * Math.min(1, dt * 6);
     }
     this.root.rotation.y = this.rotY;
     const tg = this.targets(t), j = this.j;
@@ -671,6 +683,12 @@ class Person {
     this.arms[0].el.rotation.x = j.el0; this.arms[1].el.rotation.x = j.el1;
     this.head.rotation.y = j.headY; this.head.rotation.x = j.headX;
     this.label.position.y = 2.1 + j.bodyY;
+  }
+
+  // Each waiting stretch picks one way to kill time, so the same person varies but doesn't flip mid-wait.
+  waitStyle() {
+    const s = this.session;
+    return ['lean', 'phone', 'spin'][hash(`${s?.sessionId}|${s?.statusSince}`) % 3];
   }
 
   setLabel(s) {
@@ -1597,7 +1615,7 @@ export function mountOffice(container) {
       box(world, 1.3, 0.035, 0.09, '', x, 2.6, z + 0.1, { material: barM, shadow: false });
       for (const dx of [-0.5, 0.5]) cyl(world, 0.004, 0.004, ROOM.h - 2.6, '#222', x + dx, (ROOM.h + 2.6) / 2, z + 0.1, { shadow: false });
       if (hash(`${x}|${z}`) % 3 === 1) smallPlant(world, x + 0.86, 0.76, z + 0.22);
-      officeChair(x, z + 0.68, Math.PI);
+      const deskChair = officeChair(x, z + 0.68, Math.PI);
       // Left: session stats. Right: the code it's writing. Both angled in toward the chair.
       const mon = monitor(world, 0.9, 0.5625, x - 0.47, 0.76, z - 0.2, 0.14);
       const scr = makeScreen(mon.g, 0.9, 0.5625, 800, 500, 0, mon.screenY, mon.screenZ);
@@ -1608,7 +1626,7 @@ export function mountOffice(container) {
       solid(x, z, 2.0, 0.8);
       const chair = { x, z: z + 0.62 };
       const lane = x + 1.75;
-      desks.push({ x, z, scr, codeScr, owner: null, spot: { key: `desk:${x},${z}`, kind: 'desk', pos: chair, rotY: Math.PI, pose: 'type',
+      desks.push({ x, z, scr, codeScr, chair: deskChair, owner: null, spot: { key: `desk:${x},${z}`, kind: 'desk', pos: chair, rotY: Math.PI, pose: 'type',
         route: [{ x: lane, z: AISLE }, { x: lane, z: chair.z }, chair] } });
     }
   }
@@ -3234,7 +3252,11 @@ export function mountOffice(container) {
     const t = (now - clock0) / 1000;
     for (const [id, p] of people) {
       p.update(t, dt);
+      // A desk chair turns with whoever's sitting in it (spinning while they wait), and settles back when they leave it.
+      const d = p.desk, seated = d && !p.path.length && p.spot?.key === d.spot.key;
+      if (d) d.chair.rotation.y = seated ? p.rotY : d.chair.rotation.y + angDiff(d.chair.rotation.y, Math.PI) * Math.min(1, dt * 4);
     }
+    for (const d of desks) if (!d.owner && d.chair.rotation.y !== Math.PI) d.chair.rotation.y += angDiff(d.chair.rotation.y, Math.PI) * Math.min(1, dt * 4);
     liftFx(dt);
     // Ping pong rally when both ends are manned and settled.
     const [a, b] = pp.map((q) => q.occupant);
