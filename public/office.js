@@ -2585,22 +2585,12 @@ export function mountOffice(container) {
   // Whiteboards with a marker sketch on them to start with.
   function markerBoard(id, name, scr, draw) { return whiteboard(scr, id, name, draw); }
   {
-    // South east room: a wall screen with a slide up.
-    const scr = makeScreen(world, 2.4, 1.35, 1024, 576, 17.2, 1.6, 7.4);
-    scr.mesh.rotation.y = Math.PI;
-    box(world, 2.48, 1.43, 0.03, '#111214', 17.2, 1.6, 7.425, { shadow: false });
-    const { ctx } = scr;
-    ctx.fillStyle = '#1b1d22'; ctx.fillRect(0, 0, 1024, 576);
-    ctx.fillStyle = '#d97757'; ctx.fillRect(64, 70, 8, 64);
-    ctx.font = `700 52px ${FONT}`; ctx.fillStyle = '#f2efe8'; ctx.fillText('Q4 roadmap', 92, 122);
-    ctx.font = `400 26px ${FONT}`; ctx.fillStyle = '#9a9890'; ctx.fillText('Weekly sync', 94, 164);
-    [0.45, 0.62, 0.58, 0.8, 0.92].forEach((v, i) => {
-      ctx.fillStyle = i === 4 ? '#d97757' : '#3987e5'; ctx.fillRect(96 + i * 118, 500 - v * 270, 80, v * 270);
-      ctx.font = `400 22px ${FONT}`; ctx.fillStyle = '#9a9890'; ctx.fillText(['Jun', 'Jul', 'Aug', 'Sep', 'Oct'][i], 112 + i * 118, 536);
-    });
-    ctx.font = `400 28px ${FONT}`; ctx.fillStyle = '#e8e6df';
-    ['✓ Ship the office', '✓ Meeting rooms', '→ More plants', '→ Fewer meetings'].forEach((t, i) => ctx.fillText(t, 720, 260 + i * 56));
-    scr.tex.needsUpdate = true;
+    // South east room: a whiteboard on its face of the partition, back to back with the north room's.
+    const sb = makeScreen(world, 2.4, 1.2, 1024, 512, 17.2, 1.55, 7.4);
+    sb.mesh.rotation.y = Math.PI;
+    box(world, 2.48, 1.28, 0.03, '#b9bcc0', 17.2, 1.55, 7.425, { shadow: false });
+    box(world, 1.2, 0.03, 0.07, '#b9bcc0', 17.2, 0.93, 7.38, { shadow: false });
+    markerBoard('meet-south', 'meeting room whiteboard', sb, null);
     // North east room: whiteboard on the other face of the partition.
     const wb = makeScreen(world, 2.4, 1.2, 1024, 512, 17.2, 1.55, 7.6);
     box(world, 2.48, 1.28, 0.03, '#b9bcc0', 17.2, 1.55, 7.575, { shadow: false });
@@ -2815,7 +2805,7 @@ export function mountOffice(container) {
   wallClock(-3.3, 2.45, -14.86, 0);             // desk floor
   wallClock(3.74, 2.65, 8, -Math.PI / 2);       // pillar over the ping pong TV, facing the breakroom
   wallClock(10.55, 2.35, -14.9, 0, 0.18);       // my office
-  wallClock(17.2, 2.8, 7.44, Math.PI, 0.17);    // south east meeting room, over the screen
+  wallClock(17.2, 2.8, 7.44, Math.PI, 0.17);    // south east meeting room, over the whiteboard
 
   // ----- wall TVs -----
   // Each is a live tab in a browser the server runs (set from its panel or the Admin tab, /api/tvs). Frames arrive over
