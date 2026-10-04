@@ -604,15 +604,16 @@ function tick() {
 
 // ---------- office TVs ----------
 // Each wall TV in the 3D office is a live tab in a real browser on this machine. Config lives in ~/.claude/my-office/tvs.json:
-// { id: { url, refresh, volume, muted, at } }. `at` changes whenever the URL is (re)set, which (re)loads the tab; volume and
-// mute are patched on their own so the page keeps playing.
+// { id: { url, refresh, volume, muted, adblock, at } }. `at` changes whenever the URL is (re)set, which (re)loads the tab;
+// volume, mute and ad blocking are patched on their own so the page keeps playing.
 const TVS_FILE = path.join(CLAUDE, 'my-office', 'tvs.json');
 let tvs = readJSON(TVS_FILE) || {};
-for (const c of Object.values(tvs)) { delete c.src; delete c.blocked; c.volume ??= 100; c.muted ??= false; c.at ??= 0; }   // pre-browser entries
+for (const c of Object.values(tvs)) { delete c.src; delete c.blocked; c.volume ??= 100; c.muted ??= false; c.adblock ??= true; c.at ??= 0; }   // pre-browser entries
 function sendTvs() { const json = JSON.stringify(tvs); for (const res of clients) res.write(`event: tvs\ndata: ${json}\n\n`); }
 function putTv(id, body) {
   const prev = tvs[id], vol = (v, d) => Number.isFinite(v) ? Math.min(100, Math.max(0, Math.round(v))) : d;
   const refresh = (v, d) => 'refresh' in body ? Math.min(86400, Math.max(0, Math.round(Number(v) || 0))) : d;
+  const adblock = 'adblock' in body ? !!body.adblock : prev?.adblock ?? true;
   if ('url' in body) {
     const url = String(body.url || '').trim();
     if (!url) delete tvs[id];
@@ -620,9 +621,9 @@ function putTv(id, body) {
       const u = new URL(url);
       if (!/^https?:$/.test(u.protocol) || url.length > 2048) throw new Error('only http(s) URLs');
       lastFrames.delete(id);
-      tvs[id] = { url: u.href, refresh: refresh(body.refresh, 0), volume: vol(body.volume, prev?.volume ?? 100), muted: 'muted' in body ? !!body.muted : !!prev?.muted, at: Date.now() };
+      tvs[id] = { url: u.href, refresh: refresh(body.refresh, 0), volume: vol(body.volume, prev?.volume ?? 100), muted: 'muted' in body ? !!body.muted : !!prev?.muted, adblock, at: Date.now() };
     }
-  } else if (prev) Object.assign(prev, { volume: vol(body.volume, prev.volume), muted: 'muted' in body ? !!body.muted : prev.muted, refresh: refresh(body.refresh, prev.refresh) });
+  } else if (prev) Object.assign(prev, { volume: vol(body.volume, prev.volume), muted: 'muted' in body ? !!body.muted : prev.muted, adblock, refresh: refresh(body.refresh, prev.refresh) });
   else throw new Error('that TV is off');
   fs.mkdirSync(path.dirname(TVS_FILE), { recursive: true });
   fs.writeFileSync(TVS_FILE, JSON.stringify(tvs, null, 2));
@@ -652,8 +653,79 @@ const TV_VOL_JS = `(() => { if (window.__tvVol) return; let v = 0, held = [];
   window.__tvHold = (on) => { if (on) { held = [...document.querySelectorAll('video, audio')].filter((m) => !m.paused); held.forEach((m) => m.pause()); } else { held.forEach((m) => m.play().catch(() => {})); held = []; } };
   for (const ev of ['play', 'playing', 'volumechange', 'loadedmetadata']) addEventListener(ev, (e) => e.target instanceof HTMLMediaElement && set(e.target), true);
   const play = HTMLMediaElement.prototype.play; HTMLMediaElement.prototype.play = function () { set(this); return play.apply(this, arguments); }; })()`;
+
+// Ad blocking. Branded Chrome ignores --load-extension, so the server is the ad blocker: every request from a TV tab (its
+// out-of-process iframes and workers too) pauses in the Fetch domain and fails if its host, or a parent domain, is on
+// StevenBlack's unified hosts list (fetched weekly into ~/.claude/my-office/adblock, a few obvious ad networks built in for
+// when it can't be). ADS_JS hides common ad slots and skips YouTube's in-stream ads. `adblock: false` on a TV turns it off.
+const ADS_DIR = path.join(CLAUDE, 'my-office', 'adblock'), ADS_FILE = path.join(ADS_DIR, 'hosts');
+const ADS_URL = 'https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts';
+const adHosts = new Set(['doubleclick.net', 'googlesyndication.com', 'googleadservices.com', 'adservice.google.com', 'amazon-adsystem.com',
+  'taboola.com', 'outbrain.com', 'criteo.com', 'criteo.net', 'adnxs.com', 'pubmatic.com', 'rubiconproject.com', 'openx.net', 'casalemedia.com',
+  'adsrvr.org', 'moatads.com', 'smartadserver.com', 'teads.tv', 'media.net', '33across.com', 'indexww.com', 'adform.net', 'serving-sys.com', 'scorecardresearch.com']);
+const AD_ALLOW = new Set(['cookielaw.org', 'onetrust.com', 'cookiebot.com', 'privacy-mgmt.com']);   // consent platforms: blocked, their banners can't be closed
+const AD_PATHS = /^https:\/\/(www\.|m\.)?youtube\.com\/(pagead\/|api\/stats\/ads|ptracking|get_midroll_)/;
+const adsBlocked = new Map();   // tv id -> requests blocked since the server started
+let adsSent = '';
+(async () => {
+  let text = '', age = Infinity;
+  try { age = Date.now() - fs.statSync(ADS_FILE).mtimeMs; text = fs.readFileSync(ADS_FILE, 'utf8'); } catch {}
+  if (age > 7 * 864e5) try {
+    const res = await fetch(ADS_URL, { signal: AbortSignal.timeout(30000) });
+    const t = res.ok && await res.text();
+    if (!/^0\.0\.0\.0 \S+\.\S+$/m.test(t || '')) throw new Error(`HTTP ${res.status}`);
+    fs.mkdirSync(ADS_DIR, { recursive: true }); fs.writeFileSync(ADS_FILE, text = t);
+  } catch (e) { console.error('adblock list:', e.message, text ? '(using the cached copy)' : '(using the built-in list)'); }
+  for (const m of text.matchAll(/^0\.0\.0\.0[ \t]+([\w.-]+\.[a-z][\w-]*)\s*$/gim)) adHosts.add(m[1].toLowerCase());
+  console.log(`adblock: ${adHosts.size} domains`);
+})();
+function isAd(url) {
+  if (AD_PATHS.test(url)) return true;
+  let h; try { h = new URL(url).hostname; } catch { return false; }
+  const up = [];   // the host and its parent domains
+  for (let i = 0; i >= 0; i = h.indexOf('.'), h = h.slice(i + 1)) up.push(h);
+  return !up.some((d) => AD_ALLOW.has(d)) && up.some((d) => adHosts.has(d));
+}
+const ADS_CSS = `ins.adsbygoogle, [id^="google_ads_iframe"], [id^="div-gpt-ad"], [data-google-query-id], [data-ad-slot], [data-ad-unit],
+  iframe[src*="doubleclick.net"], iframe[src*="googlesyndication.com"], iframe[src*="amazon-adsystem.com"], amp-ad, amp-embed[type="taboola"],
+  [id^="taboola-"], .trc_related_container, .OUTBRAIN, .ob-widget, [aria-label="Advertisement" i], .ad-slot, .adslot, .ad-banner, .ad-unit,
+  .advertisement, .adsbox, #player-ads, #masthead-ad, ytd-ad-slot-renderer, ytd-in-feed-ad-layout-renderer, ytd-promoted-sparkles-web-renderer,
+  ytd-display-ad-renderer, ytd-companion-slot-renderer, .ytp-ad-overlay-container, .ytp-ad-overlay-slot,
+  ytd-rich-item-renderer:has(> #content > ytd-ad-slot-renderer), .mm-ads-gpt-adunit, .mm-ads-leaderboard-header, .banner-adverts,
+  .mol-ads-label-container, .billboard-container:has(> .mol-ads-label-container) { display: none !important; }`;
+// Consent banners: "Reject all" on the common consent platforms (OneTrust, Google Funding Choices, Cookiebot, Didomi, Google's and YouTube's own),
+// for the first 20 s of a page. Rejecting is always allowed, and means fewer ads and trackers.
+const CONSENT_REJECT = '#onetrust-reject-all-handler, .fc-cta-do-not-consent, #CybotCookiebotDialogBodyButtonDecline, #didomi-notice-disagree-button';
+// __tvAds(on) per document. On YouTube, while #movie_player shows an ad: mute it, jump to its end, press Skip; unmuting
+// after fires volumechange, so the volume hook puts the TV's level back.
+const ADS_JS = `(() => { if (window.__tvAds) return window.__tvAds(true);
+  const css = new CSSStyleSheet(); css.replaceSync(${JSON.stringify(ADS_CSS)});
+  const adopt = () => { if (!document.adoptedStyleSheets.includes(css)) document.adoptedStyleSheets = [...document.adoptedStyleSheets, css]; };
+  let on = true, muted = null, timer = 0;
+  const yt = /(^|\\.)youtube(-nocookie)?\\.com$/.test(location.hostname) && (() => {
+    const p = document.querySelector('#movie_player, .html5-video-player'), v = p?.querySelector('video');
+    if (on && v && p.matches('.ad-showing, .ad-interrupting')) {
+      if (!v.muted) { v.muted = true; muted = v; }
+      if (v.duration > 0 && Number.isFinite(v.duration) && v.currentTime < v.duration - 0.1) v.currentTime = v.duration;
+      p.querySelectorAll('.ytp-skip-ad-button, .ytp-ad-skip-button, .ytp-ad-skip-button-modern').forEach((b) => b.click());
+    } else if (muted) { muted.muted = false; muted = null; }
+  });
+  const google = /(^|\.)google\.[a-z.]+$/.test(location.hostname), consent = /^consent\.(google|youtube)\./.test(location.hostname);
+  const reject = setInterval(() => { if (!on || performance.now() > 20000) return performance.now() > 20000 && clearInterval(reject);
+    const b = document.querySelector(${JSON.stringify(CONSENT_REJECT)} + (google ? ', #W0wltc' : '') + (consent ? ', button[aria-label^="Reject all"]' : '') + (yt ? ', ytd-consent-bump-v2-lightbox button[aria-label^="Reject"]' : ''));
+    if (b?.getClientRects().length) b.click(); }, 500);
+  window.__tvAds = (x) => { on = x; css.disabled = !x; if (x) adopt(); if (yt) { clearInterval(timer); timer = x && setInterval(yt, 250); yt(); } };
+  addEventListener('DOMContentLoaded', () => on && adopt());
+  window.__tvAds(true); })()`;
+function adScript(tab, s, on) {   // (un)register ADS_JS for new documents in one CDP session
+  const id = tab.adScripts.get(s);
+  tab.adScripts.delete(s);
+  return Promise.all([id && cdp('Page.removeScriptToEvaluateOnNewDocument', { identifier: id }, s),
+    on && cdp('Page.addScriptToEvaluateOnNewDocument', { source: ADS_JS }, s).then((r) => tab.adScripts.set(s, r.identifier))]);
+}
+const FETCH_ALL = { patterns: [{ urlPattern: '*', requestStage: 'Request' }] };
 let chrome = null;   // { proc, send, ready }
-const tabs = new Map();   // tv id -> { id, targetId, sid, kids, at, cast, vol, frozen, neededAt, loadedAt, page }
+const tabs = new Map();   // tv id -> { id, targetId, sid, kids, adScripts, ads, at, cast, vol, frozen, neededAt, loadedAt, page }
 const tvSessions = new Map();   // CDP session -> tab (the page and its out-of-process iframes)
 const lastFrames = new Map();   // tv id -> { jpeg, saved }
 const resumeAt = new Map();   // tv id -> { url, at }: page a closed tab was showing, reopened if its config hasn't changed
@@ -710,7 +782,7 @@ function stopChrome() {
 }
 
 async function openTab(id) {
-  const tab = { id, kids: new Set(), at: tvs[id].at, cast: 0, vol: -1, frozen: false, neededAt: Date.now(), page: {} };
+  const tab = { id, kids: new Set(), adScripts: new Map(), ads: tvs[id].adblock !== false, at: tvs[id].at, cast: 0, vol: -1, frozen: false, neededAt: Date.now(), page: {} };
   tabs.set(id, tab);
   try {
     await startChrome();
@@ -720,9 +792,11 @@ async function openTab(id) {
     await Promise.all([
       cdp('Page.enable', {}, sid),
       cdp('Page.addScriptToEvaluateOnNewDocument', { source: TV_VOL_JS }, sid),
+      cdp('Fetch.enable', FETCH_ALL, sid),
+      tab.ads && adScript(tab, sid, true),
       cdp('Emulation.setDeviceMetricsOverride', { width: TV_W, height: TV_H, deviceScaleFactor: 1, mobile: false }, sid),
       cdp('Emulation.setFocusEmulationEnabled', { enabled: true }, sid),
-      cdp('Target.setAutoAttach', { autoAttach: true, waitForDebuggerOnStart: false, flatten: true }, sid),
+      cdp('Target.setAutoAttach', { autoAttach: true, waitForDebuggerOnStart: true, flatten: true }, sid),
     ]);
     if (tabs.get(id) !== tab || !tvs[id]) throw new Error('gone');
     tab.sid = sid;
@@ -770,15 +844,30 @@ function cdpEvent(m) {
     case 'Inspector.targetCrashed':
       if (tab && m.sessionId === tab.sid) closeTab(tab);
       return;
-    case 'Target.attachedToTarget':   // out-of-process iframes (e.g. a YouTube embed) need the volume hook too
-      if (!tab || p.targetInfo.type !== 'iframe') { if (p.waitingForDebugger) cdp('Runtime.runIfWaitingForDebugger', {}, p.sessionId).catch(() => {}); return; }
-      tab.kids.add(p.sessionId); tvSessions.set(p.sessionId, tab);
-      cdp('Page.enable', {}, p.sessionId).catch(() => {});
-      cdp('Page.addScriptToEvaluateOnNewDocument', { source: TV_VOL_JS }, p.sessionId).catch(() => {});
-      cdp('Runtime.evaluate', { expression: `${TV_VOL_JS}; window.__tvVol(${tab.vol})` }, p.sessionId).catch(() => {});
+    case 'Fetch.requestPaused': {   // every request a TV makes; the TV's own page always loads
+      const block = tab?.ads && !(p.resourceType === 'Document' && p.frameId === tab.targetId) && isAd(p.request.url);
+      if (block) adsBlocked.set(tab.id, (adsBlocked.get(tab.id) || 0) + 1);
+      cdp(block ? 'Fetch.failRequest' : 'Fetch.continueRequest', block ? { requestId: p.requestId, errorReason: 'BlockedByClient' } : { requestId: p.requestId }, m.sessionId).catch(() => {});
       return;
+    }
+    case 'Target.attachedToTarget': {   // out-of-process iframes (e.g. a YouTube embed) need the volume hook and ad blocker too, workers the blocker
+      const s = p.sessionId, frame = p.targetInfo.type === 'iframe', run = () => cdp('Runtime.runIfWaitingForDebugger', {}, s).catch(() => {});
+      if (!tab || !(frame || /worker/.test(p.targetInfo.type))) { if (p.waitingForDebugger) run(); return; }
+      tvSessions.set(s, tab);
+      const setup = [cdp('Fetch.enable', FETCH_ALL, s)];
+      if (frame) {
+        tab.kids.add(s);
+        setup.push(cdp('Page.enable', {}, s), cdp('Page.addScriptToEvaluateOnNewDocument', { source: TV_VOL_JS }, s),
+          cdp('Target.setAutoAttach', { autoAttach: true, waitForDebuggerOnStart: true, flatten: true }, s), tab.ads && adScript(tab, s, true));
+      }
+      Promise.allSettled(setup).then(() => {   // the frame starts loading only now, so none of its requests slip past
+        run();
+        if (frame) cdp('Runtime.evaluate', { expression: `${TV_VOL_JS}; window.__tvVol(${tab.vol})` }, s).catch(() => {});
+      });
+      return;
+    }
     case 'Target.detachedFromTarget':
-      if (tab) { tab.kids.delete(p.sessionId); tvSessions.delete(p.sessionId); }
+      if (tab) { tab.kids.delete(p.sessionId); tab.adScripts.delete(p.sessionId); tvSessions.delete(p.sessionId); }
       return;
     case 'Target.targetCreated': case 'Target.targetInfoChanged': {
       const ti = p.targetInfo;
@@ -860,10 +949,21 @@ function tvSync() {
     }
     const vol = c.muted || frozen ? 0 : Math.round(c.volume * (fade.get(tab.id) || 0)) / 100;
     if (vol !== tab.vol) setVol(tab, vol);
+    if ((c.adblock !== false) !== tab.ads) {   // switched on the Admin tab: applies at once, ads already loaded stay until a reload
+      tab.ads = c.adblock !== false;
+      for (const s of [tab.sid, ...tab.kids]) {
+        adScript(tab, s, tab.ads).catch(() => {});
+        cdp('Runtime.evaluate', { expression: tab.ads ? ADS_JS : 'window.__tvAds?.(false)' }, s).catch(() => {});
+      }
+    }
     if (frozen && !tab.frozen) life(true);   // after muting: a frozen page runs nothing
   }
 }
 setInterval(tvSync, 1000);
+setInterval(() => {   // per-TV blocked counts for the Admin tab
+  const json = JSON.stringify(Object.fromEntries(adsBlocked));
+  if (json !== (adsSent || '{}')) { adsSent = json; for (const res of clients) res.write(`event: tvads\ndata: ${json}\n\n`); }
+}, 2000);
 setInterval(() => { for (const id of lastFrames.keys()) saveFrame(id); }, 30000);
 const exitTvs = () => { if (chrome?.proc) try { process.kill(-chrome.proc.pid, 'SIGKILL'); } catch {} };
 process.on('exit', exitTvs);
@@ -1107,7 +1207,7 @@ const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://x');
   if (url.pathname === '/events') {
     res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });
-    res.write(`retry: 2000\ndata: ${stateJSON}\n\nevent: tvs\ndata: ${JSON.stringify(tvs)}\n\nevent: office\ndata: ${JSON.stringify(office)}\n\n`);
+    res.write(`retry: 2000\ndata: ${stateJSON}\n\nevent: tvs\ndata: ${JSON.stringify(tvs)}\n\nevent: tvads\ndata: ${adsSent || '{}'}\n\nevent: office\ndata: ${JSON.stringify(office)}\n\n`);
     clients.add(res);
     req.on('close', () => clients.delete(res));
     return;

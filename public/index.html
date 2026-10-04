@@ -51,9 +51,10 @@ body:not([data-view="overview"]) > main, body > #view-admin, body > .conn { disp
 .adm input[type=range] { width: 220px; accent-color: var(--accent); }
 .tv-grid { display: grid; grid-template-columns: 110px minmax(200px, 1fr) 130px auto auto; gap: 8px 10px; align-items: center; font-size: 13px; }
 .tv-grid .vol { display: flex; gap: 6px; align-items: center; }
-.tv-grid .vol input[type=range] { width: 90px; }
+.tv-grid .vol input[type=range] { width: 70px; }
 .tv-grid .vol output { min-width: 36px; font-size: 12px; color: var(--ink-2); }
 .tv-grid .vol button { padding: 5px 8px; }
+.tv-grid .vol button[data-act="ads"]:not([aria-pressed="true"]) { filter: grayscale(1); opacity: .5; } .tv-grid .vol button[data-act="ads"][aria-pressed="true"] { color: var(--accent); background: var(--accent-soft); border-color: transparent; }
 .tv-grid .note { grid-column: 2 / -1; font-size: 12px; margin-top: -4px; }
 .tv-grid .note.bad { color: var(--critical); } .tv-grid .note.warn { color: var(--warning); }
 .conn { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); }
@@ -587,6 +588,7 @@ function connect() {
     for (const cb of dash.listeners) cb(S);
   };
   es.addEventListener('tvs', (m) => { dash.tvs = JSON.parse(m.data); for (const cb of dash.tvListeners) cb(dash.tvs); });
+  es.addEventListener('tvads', (m) => { dash.tvAds = JSON.parse(m.data); for (const cb of dash.tvListeners) cb(dash.tvs); });
   es.addEventListener('office', (m) => { dash.office = JSON.parse(m.data); for (const cb of dash.officeListeners) cb(dash.office); });
   es.onerror = () => { conn.className = 'conn off'; conn.lastChild.textContent = 'reconnecting…'; };
 }
@@ -597,7 +599,7 @@ window.dash = {
   listeners: new Set(),
   onUpdate(cb) { this.listeners.add(cb); if (S) cb(S); },
   openDrawer, closeDrawer, openPanel,
-  tvs: {}, tvListeners: new Set(),
+  tvs: {}, tvAds: {}, tvListeners: new Set(),   // tvAds: id -> ad requests blocked since the server started
   // Wall TVs by id (office.js places them) and the auto-refresh choices, shared by the TV panel and the Admin tab.
   tvList: { 'desks-west': 'Desks west', 'desks-east': 'Desks east', breakroom: 'Breakroom', pingpong: 'Ping pong', lounge: 'Lounge', lobby: 'Lobby' },
   tvRefresh: [[0, 'Off'], [30, 'Every 30 s'], [60, 'Every minute'], [300, 'Every 5 min'], [900, 'Every 15 min'], [3600, 'Every hour']],
@@ -607,7 +609,7 @@ window.dash = {
     if (!r?.error) { const map = { ...dash.tvs }; if (r) map[id] = r; else delete map[id]; dash.tvs = map; for (const cb of dash.tvListeners) cb(map); }
     return r;
   },
-  // Volume / mute: applied here at once (and in every open office via the server's push), saved at most every 150 ms.
+  // Volume / mute / ad blocking: applied here at once (and in every open office via the server's push), saved at most every 150 ms.
   // The server patches only these fields, so the page on the TV keeps playing.
   patchTv(id, patch) {
     const c = dash.tvs[id];
@@ -686,7 +688,7 @@ function buildAdmin() {
   setHTML($('adm-tvs'), Object.entries(dash.tvList).map(([id, name]) => `
     <b>${esc(name)}</b><input type="text" data-tv="${id}" data-f="url" placeholder="Off · paste a URL" spellcheck="false" autocomplete="off">
     <select data-tv="${id}" data-f="refresh" title="Auto-refresh">${dash.tvRefresh.map(([v, l]) => `<option value="${v}">${v ? l : 'No refresh'}</option>`).join('')}</select>
-    <span class="vol"><button data-tv="${id}" data-act="mute" title="Mute / unmute"></button><input type="range" min="0" max="100" data-tv="${id}" data-f="volume" title="Volume"><output data-tv="${id}" data-f="volv"></output></span>
+    <span class="vol"><button data-tv="${id}" data-act="mute" title="Mute / unmute"></button><input type="range" min="0" max="100" data-tv="${id}" data-f="volume" title="Volume"><output data-tv="${id}" data-f="volv"></output><button data-tv="${id}" data-act="ads" title="Block ads on this TV">🛡️</button></span>
     <span style="display:flex;gap:6px"><button class="pri" data-tv="${id}" data-act="save">Save</button><button data-tv="${id}" data-act="off">Turn off</button><a class="btn" data-tv="${id}" target="_blank" rel="noopener">↗</a></span>
     <div class="note muted" data-tv="${id}" data-f="note"></div>`).join(''));
   const adm = $('view-admin');
@@ -699,6 +701,7 @@ function buildAdmin() {
     else if (b.dataset.all) dash.putOffice({ blinds: Object.fromEntries([...adm.querySelectorAll('[data-blind]')].map((s) => [s.dataset.blind, +b.dataset.all])) });
     else if (b.closest('#adm-sound')) dash.setSound({ on: b.dataset.v === '1' });
     else if (b.dataset.act === 'mute') { if (dash.tvs[b.dataset.tv]) dash.patchTv(b.dataset.tv, { muted: !dash.tvs[b.dataset.tv].muted }); }
+    else if (b.dataset.act === 'ads') { if (dash.tvs[b.dataset.tv]) dash.patchTv(b.dataset.tv, { adblock: dash.tvs[b.dataset.tv].adblock === false }); }
     else if (b.dataset.act) {
       const id = b.dataset.tv, q = (f) => adm.querySelector(`[data-tv="${id}"][data-f="${f}"]`), note = q('note');
       const url = b.dataset.act === 'off' ? '' : dash.normUrl(q('url').value), refresh = b.dataset.act === 'off' ? 0 : +q('refresh').value;
@@ -737,14 +740,15 @@ function syncAdmin() {
     const c = dash.tvs[id], q = (f) => adm.querySelector(`[data-tv="${id}"][data-f="${f}"]`), url = q('url'), note = q('note');
     if (!url.dataset.dirty && document.activeElement !== url) { url.value = c?.url || ''; q('refresh').value = String(c?.refresh || 0); }
     const link = adm.querySelector(`a[data-tv="${id}"]`); link.href = c?.url || '#'; link.style.visibility = c ? '' : 'hidden';
-    const vol = q('volume'), mute = adm.querySelector(`[data-tv="${id}"][data-act="mute"]`);
-    vol.disabled = mute.disabled = !c;
+    const vol = q('volume'), mute = adm.querySelector(`[data-tv="${id}"][data-act="mute"]`), ads = adm.querySelector(`[data-tv="${id}"][data-act="ads"]`);
+    vol.disabled = mute.disabled = ads.disabled = !c;
+    ads.setAttribute('aria-pressed', String(!!c && c.adblock !== false));
     if (document.activeElement !== vol) vol.value = c?.volume ?? 100;
     q('volv').textContent = c ? `${c.volume}%` : '';
     mute.textContent = c?.muted ? '🔇' : '🔊'; mute.setAttribute('aria-pressed', String(!!c?.muted));
     if (note.dataset.busy) continue;   // saving, or showing a save error until the URL is edited
     note.className = 'note muted';
-    note.textContent = !c ? 'Off' : `Showing${c.refresh ? ' · refreshes ' + dash.tvRefresh.find(([v]) => v === c.refresh)?.[1].toLowerCase() : ''}${c.muted ? ' · muted' : ''}`;
+    note.textContent = !c ? 'Off' : `Showing${c.refresh ? ' · refreshes ' + dash.tvRefresh.find(([v]) => v === c.refresh)?.[1].toLowerCase() : ''}${c.muted ? ' · muted' : ''}${c.adblock === false ? ' · ads allowed' : dash.tvAds[id] ? ` · ${dash.tvAds[id].toLocaleString()} ads blocked` : ''}`;
   }
 }
 buildAdmin();
