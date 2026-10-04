@@ -35,10 +35,10 @@ main > .kpis:first-child { margin-top: 0; }
 
 #view-office { position: fixed; top: 0; left: 0; right: 0; bottom: 0; display: none; background: var(--page); z-index: 10; overflow: hidden; }
 body[data-view="office"] #view-office { display: block; }
-body[data-view="office"] > main, body[data-view="admin"] > main { display: none; }
+/* The overview and admin pages live in windows on your computer's desktop (desktop.js); the wall TVs get the plain overview. */
+body:not([data-view="overview"]) > main, body > #view-admin, body > .conn { display: none; }
 /* admin */
-#view-admin { display: none; max-width: 1100px; margin: 0 auto; padding: 20px 24px 60px; }
-body[data-view="admin"] #view-admin { display: grid; gap: 16px; }
+#view-admin { display: grid; gap: 16px; max-width: 1100px; margin: 0 auto; padding: 20px 24px 60px; }
 .adm-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 13px; }
 .adm-row + .adm-row { margin-top: 12px; }
 .adm-row > .lbl { width: 110px; color: var(--ink-2); }
@@ -56,14 +56,6 @@ body[data-view="admin"] #view-admin { display: grid; gap: 16px; }
 .tv-grid .vol button { padding: 5px 8px; }
 .tv-grid .note { grid-column: 2 / -1; font-size: 12px; margin-top: -4px; }
 .tv-grid .note.bad { color: var(--critical); } .tv-grid .note.warn { color: var(--warning); }
-/* Corner bar on the overview and admin pages: back into the office, and the other page. Hidden in the office. */
-#corner { position: fixed; top: 14px; right: 18px; z-index: 15; display: flex; align-items: center; gap: 8px; }
-body[data-view="office"] #corner { display: none; }
-body[data-view="overview"] > main, body[data-view="admin"] #view-admin { padding-top: 62px; }   /* room for the corner bar; not on the in-office monitor */
-#corner button { font: inherit; font-size: 13px; font-weight: 550; color: var(--ink-2); background: var(--surface); border: 1px solid var(--border); border-radius: 9px; padding: 6px 13px; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,.15); }
-#corner button:hover { color: var(--ink); border-color: var(--accent); }
-#corner button.exit { background: var(--accent); border-color: var(--accent); color: #fff; }
-body[data-view="overview"] #corner [data-go="overview"], body[data-view="admin"] #corner [data-go="admin"] { display: none; }
 .conn { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); }
 .conn i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
 .conn.on i { background: var(--good); box-shadow: 0 0 0 0 rgba(12,163,12,.6); animation: pulse 2s infinite; }
@@ -188,15 +180,13 @@ tr.click:hover td { background: var(--surface-2); }
 
 @media (max-width: 1200px) { .kpis { grid-template-columns: repeat(3, 1fr); } .split { grid-template-columns: 1fr; } }
 @media (max-width: 700px) { .kpis { grid-template-columns: repeat(2, 1fr); } .metrics, .kv { grid-template-columns: repeat(2, 1fr); } }
+/* In a desktop window the overview reflows to the window, not the screen. */
+@container (max-width: 1200px) { .kpis { grid-template-columns: repeat(3, 1fr); } .split { grid-template-columns: 1fr; } }
+@container (max-width: 700px) { .kpis { grid-template-columns: repeat(2, 1fr); } .metrics { grid-template-columns: repeat(2, 1fr); } }
 </style>
 </head>
 <body>
-<div id="corner">
-  <span class="conn" id="conn" title=""><i></i><span>connecting…</span></span>
-  <button data-go="overview">Overview</button>
-  <button data-go="admin">Admin</button>
-  <button data-go="office" class="exit">Exit to office ✕</button>
-</div>
+<span class="conn" id="conn" title=""><i></i><span>connecting…</span></span>
 <main>
 
   <div class="kpis" id="kpis"></div>
@@ -660,32 +650,34 @@ window.dash = {
   officeName() { const o = dash.config?.owner; return o ? `${o}’s Office` : 'My Office'; },
 };
 
-// ---------- tabs ----------
-// Entering the office zooms out from the dashboard on your monitor; leaving flies back into it.
+// ---------- views ----------
+// The office is home. Your computer's desktop (desktop.js) is on your monitor: clicking it flies you in ('desktop'),
+// Start > Shut down or Esc flies you back out. '#overview', '#admin' and '#messages' open the desktop on that app.
+// The wall TVs (the server's headless Chrome) only ever get the plain overview.
+const IS_TV = /my-office-tv/.test(navigator.userAgent);
+const HASH_APP = { desktop: null, overview: 'dash', admin: 'admin', messages: 'msgs' };
 let office = null, switching = false;
-async function setView(view) {
+async function setView(view, app) {
   const prev = document.body.dataset.view;
-  if (switching || view === prev) return;
+  if (IS_TV) view = 'overview';
+  if (switching) return;
+  if (view === prev) { if (app) dash.desktop?.open(app); return; }
   switching = true;
-  if (location.hash !== '#' + view) history.replaceState(null, '', view === 'office' ? location.pathname : '#' + view);
   try {
     if (view === 'office') {
-      const y = scrollY;
+      if (location.hash) history.replaceState(null, '', location.pathname);
       dash.config ||= await fetch('/api/config').then((r) => r.json()).catch(() => ({}));
-    if (!office) office = (await import('./office.js')).mountOffice($('view-office'));
+      if (!office) office = (await import('./office.js')).mountOffice($('view-office'));
       document.body.dataset.view = 'office';
-      office.show(y);
+      office.show();
     } else {
-      const y = prev === 'office' && office ? await office.hide() : 0;
+      if (prev === 'office' && office) await office.hide();
       document.body.dataset.view = view;
-      scrollTo(0, view === 'overview' ? y : 0);
+      if (view === 'desktop') { if (app) dash.desktop.open(app); else dash.desktop.syncHash(); }
     }
   } finally { switching = false; }
 }
 dash.setView = setView;
-// The office is home; the overview (your monitor) and admin pages have a corner bar to get back.
-$('corner').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) setView(b.dataset.go); });
-setView(['#overview', '#admin'].includes(location.hash) ? location.hash.slice(1) : 'office');
 fetch('/api/config').then((r) => r.json()).then((c) => { dash.config ||= c; for (const el of document.querySelectorAll('[data-office-name]')) el.textContent = dash.officeName(); }).catch(() => {});
 
 // ---------- admin ----------
@@ -759,6 +751,12 @@ buildAdmin();
 connect();
 // Keep relative times ticking between pushes.
 setInterval(() => { for (const el of document.querySelectorAll('[data-rel]')) el.textContent = relText(el.dataset.rel, Number(el.dataset.t)); }, 1000);
+</script>
+<script type="module">
+import { mountDesktop } from './desktop.js';
+if (!IS_TV) dash.desktop = mountDesktop();
+const h = location.hash.slice(1);
+setView(h in HASH_APP && !IS_TV ? 'desktop' : IS_TV ? 'overview' : 'office', HASH_APP[h]);
 </script>
 </body>
 </html>

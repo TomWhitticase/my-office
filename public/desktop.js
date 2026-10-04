@@ -1,0 +1,365 @@
+// Your computer: a pretend Windows-XP-style desktop with three apps, each in a window: the Dashboard (the live overview
+// <main>, moved in, not copied), Office Admin (#view-admin, likewise) and Messages (chat with your sessions, via chat.js).
+// It's what your office monitor and MacBook show, live (inert there: clicking the screen flies you in), and what you use
+// full screen once you've flown in. Window layout and the open conversation persist in localStorage.
+
+import { CAN_CHAT, chatView, escapeHtml, titleOf } from './chat.js';
+
+const dash = window.dash;
+const KEY = 'officeDesktop';
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const svg = (body) => `<svg viewBox="0 0 32 32" aria-hidden="true">${body}</svg>`;
+const APPS = {
+  dash: { title: 'Dashboard', hash: 'overview', sub: 'Live sessions, usage and cost',
+    icon: svg('<rect x="2" y="4" width="28" height="20" rx="2" fill="#e4ebf5" stroke="#3b5f99"/><rect x="4.5" y="6.5" width="23" height="15" fill="#173a78"/><path d="M8 19v-3M12 19v-7M16 19v-5M20 19v-9M24 19v-6" stroke="#7fe07a" stroke-width="2.4"/><path d="M12.5 24h7l1 4h-9z" fill="#98a7bd"/><rect x="9" y="27.5" width="14" height="2" rx="1" fill="#62728a"/>') },
+  admin: { title: 'Office Admin', hash: 'admin', sub: 'Lights, blinds, door, sounds, TVs',
+    icon: svg('<rect x="3" y="3" width="26" height="26" rx="4" fill="#f4f0e2" stroke="#8a7a52"/><path d="M8 10h16M8 16h16M8 22h16" stroke="#8b96a8" stroke-width="2.2" stroke-linecap="round"/><circle cx="13" cy="10" r="3.2" fill="#2f7be8" stroke="#1d4f9e"/><circle cx="21" cy="16" r="3.2" fill="#f0a020" stroke="#9c6408"/><circle cx="11" cy="22" r="3.2" fill="#2fb34a" stroke="#1d7a31"/>') },
+  msgs: { title: 'Messages', hash: 'messages', sub: 'Chat with your Claude sessions',
+    icon: svg('<rect x="2" y="4" width="20" height="14" rx="4" fill="#5aa8f8" stroke="#1f5fbf"/><path d="M7 17.5l-1 5 6-4.5" fill="#5aa8f8" stroke="#1f5fbf" stroke-linejoin="round"/><rect x="11" y="12" width="19" height="13" rx="4" fill="#86d86f" stroke="#3a8a2a"/><path d="M25 24.5l1 4.5-6-4.5" fill="#86d86f" stroke="#3a8a2a" stroke-linejoin="round"/><path d="M15.5 18.5h10" stroke="#fff" stroke-width="2" stroke-linecap="round"/>') },
+};
+const DEFAULT = { dash: { open: true, x: 0.09, y: 0.03, w: 0.72, h: 0.88 }, admin: { x: 0.2, y: 0.06, w: 0.6, h: 0.84 }, msgs: { x: 0.3, y: 0.09, w: 0.6, h: 0.78 } };
+const STATUS = { working: ['Working', 'w'], idle: ['Idle · waiting for you', 'i'], shell: ['Waiting on a shell task', 's'] };
+
+export function mountDesktop() {
+  const style = document.createElement('style');
+  style.textContent = `
+    #xp { position: absolute; inset: 0; overflow: hidden; z-index: 5; user-select: none; color: #fff; background: #3d82e2;
+      font: 12px/1.3 Tahoma, Verdana, "Segoe UI", system-ui, sans-serif; }
+    /* Rolling hills under a blue sky with a few soft clouds. Its own layer, so it's painted once, not under every live update. */
+    .xp-wall { position: absolute; inset: 0; will-change: transform; pointer-events: none;
+      background:
+        radial-gradient(ellipse 95% 46% at 30% 112%, #5cb83a 0, #4fa832 60%, #47a02c 98%, transparent 99.5%),
+        radial-gradient(ellipse 80% 40% at 92% 108%, #3f9427 0, #368524 98%, transparent 99.5%),
+        radial-gradient(ellipse 70% 30% at 66% 88%, #4c9e33 0, #42902b 98%, transparent 99.5%),
+        radial-gradient(ellipse 22% 7% at 26% 21%, rgba(255,255,255,.75), transparent 70%),
+        radial-gradient(ellipse 24% 6% at 76% 16%, rgba(255,255,255,.6), transparent 70%),
+        linear-gradient(#1d5fcb, #3d82e2 30%, #7db4ef 58%, #b9dbf8 72%); }
+    body > #xp { position: fixed; }
+    body:not([data-view="desktop"]) > #xp { display: none; }
+    :where(#xp) button { font: inherit; color: inherit; }
+    .xp-icons { position: absolute; left: 10px; top: 12px; display: grid; gap: 14px; }
+    .xp-icon { width: 84px; display: grid; justify-items: center; gap: 4px; padding: 4px 2px; background: none; border: 1px dotted transparent; cursor: pointer; }
+    .xp-icon svg { width: 40px; height: 40px; }
+    .xp-icon span { padding: 1px 3px; text-shadow: 1px 1px 1px #000, 0 0 3px #000; }
+    .xp-icon:hover span, .xp-icon:focus-visible span { background: #0b61ff; text-shadow: none; }
+    .xp-icon:focus-visible { outline: none; border-color: #fff; }
+    .xp-area { position: absolute; left: 0; top: 0; right: 0; bottom: 30px; z-index: 0; pointer-events: none; }   /* own stacking context: windows stay under the menu and taskbar */
+    .xp-area > * { pointer-events: auto; }
+    .xp-win { position: absolute; display: flex; flex-direction: column; min-width: 300px; min-height: 160px; background: #ece9d8; color: #000;
+      border: 3px solid #0842d0; border-top: 0; border-radius: 8px 8px 0 0; box-shadow: 1px 2px 6px rgba(0,0,0,.35); }
+    .xp-win[hidden] { display: none; }
+    .xp-win.max { border-radius: 0; }
+    .xp-win:not(.on) { border-color: #7a96df; }
+    .xp-tb { height: 28px; flex: none; display: flex; align-items: center; gap: 5px; margin: 0 -3px; padding: 0 5px 0 7px; border-radius: 7px 7px 0 0; touch-action: none;
+      background: linear-gradient(#0997ff, #0053ee 8%, #0050ee 40%, #0066ff 88%, #0066ff 93%, #005bff 95%, #003dd7 96%, #003dd7); color: #fff; }
+    .xp-win.max .xp-tb { border-radius: 0; }
+    .xp-win:not(.on) .xp-tb { background: linear-gradient(#7c9ef0, #7695e6 10%, #7b99e9 85%, #6a87d8); }
+    .xp-tb svg { width: 16px; height: 16px; flex: none; }
+    .xp-tb b { flex: 1; min-width: 0; font-size: 13px; text-shadow: 1px 1px #0f1089; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .xp-tb button { position: relative; width: 21px; height: 21px; flex: none; padding: 0; border: 1px solid #fff; border-radius: 3px; cursor: pointer;
+      background: radial-gradient(circle at 70% 75%, #1a5fe6, #3c86f6 70%, #5c9cfb); }
+    .xp-tb button:hover { filter: brightness(1.15); }
+    .xp-tb button[data-w="close"] { background: radial-gradient(circle at 70% 75%, #c4401f, #e0643e 70%, #ee8a62); }
+    .xp-win:not(.on) .xp-tb button { opacity: .75; }
+    .xp-tb button::before, .xp-tb button::after { content: ""; position: absolute; background: #fff; }
+    .xp-tb [data-w="min"]::before { left: 5px; bottom: 4px; width: 7px; height: 3px; }
+    .xp-tb [data-w="max"]::before { inset: 4px; background: none; border: 1px solid #fff; border-top-width: 3px; }
+    .xp-win.max [data-w="max"]::before { inset: 7px 7px 3px 3px; }
+    .xp-win.max [data-w="max"]::after { inset: 3px 3px 7px 7px; background: none; border: 1px solid #fff; border-top-width: 2px; border-left: 0; border-bottom: 0; }
+    .xp-tb [data-w="close"]::before, .xp-tb [data-w="close"]::after { left: 8.5px; top: 3px; width: 2px; height: 13px; transform: rotate(45deg); }
+    .xp-tb [data-w="close"]::after { transform: rotate(-45deg); }
+    .xp-body { flex: 1; min-height: 0; overflow: auto; background: var(--page); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; user-select: text; container-type: inline-size; }
+    .xp-win[data-app="msgs"] .xp-body { overflow: hidden; }
+    .xp-grip { position: absolute; right: 0; bottom: 0; width: 14px; height: 14px; cursor: nwse-resize; touch-action: none;
+      background: linear-gradient(135deg, transparent 52%, #8a8775 52% 60%, transparent 60% 70%, #8a8775 70% 78%, transparent 78%); }
+    .xp-win.max .xp-grip { display: none; }
+
+    .xp-taskbar { position: absolute; z-index: 1; left: 0; right: 0; bottom: 0; height: 30px; display: flex; align-items: stretch;
+      background: linear-gradient(#3168d5, #4993e6 6%, #2157d7 20%, #2663e0 60%, #1941a5); }
+    .xp-start { display: flex; align-items: center; gap: 5px; padding: 0 18px 2px 10px; border: 0; border-radius: 0 10px 10px 0; cursor: pointer;
+      background: linear-gradient(#5eac56, #3c9c3c 12%, #37a137 55%, #2e8a2e 90%, #296d29); font: italic bold 18px/1 "Trebuchet MS", Tahoma, sans-serif; text-shadow: 1px 1px 2px #1a4e1a; }
+    .xp-start:hover, .xp-start.on { filter: brightness(1.1); }
+    .xp-start svg { width: 18px; height: 18px; font-style: normal; }
+    .xp-tasks { flex: 1; min-width: 0; display: flex; gap: 3px; padding: 3px 6px; }
+    .xp-tasks button { flex: 0 1 160px; min-width: 0; display: flex; align-items: center; gap: 5px; padding: 0 8px; border: 1px solid #1c49b3; border-radius: 3px; cursor: pointer; text-align: left;
+      background: linear-gradient(#5a9bf6, #3c81f3 20%, #3175ee); }
+    .xp-tasks button:hover { background: linear-gradient(#6faaf8, #4f8ff6 20%, #4485f2); }
+    .xp-tasks button.on { background: #1e4fb8; border-color: #12348a; }
+    .xp-tasks svg { width: 16px; height: 16px; flex: none; }
+    .xp-tasks span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .xp-tray { display: flex; align-items: center; gap: 10px; padding: 0 12px; border-left: 1px solid #0d3f9e;
+      background: linear-gradient(#0c9ae8, #19b4f5 8%, #0f93e2 55%, #0d86d6); }
+    .xp-tray .conn { color: #fff; font-size: 11px; }
+    .xp-clock { font-size: 12px; white-space: nowrap; }
+
+    .xp-menu { position: absolute; z-index: 1; left: 0; bottom: 30px; width: min(400px, 92%); display: none; flex-direction: column; border-radius: 8px 8px 0 0; overflow: hidden;
+      border: 1px solid #0b3fae; box-shadow: 2px 2px 6px rgba(0,0,0,.4); }
+    .xp-menu.on { display: flex; }
+    .xp-menu .hd { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: linear-gradient(#1868ce, #0e5bc8 30%, #2b75dc 90%); font-size: 15px; font-weight: bold; text-shadow: 1px 1px #0f1089; }
+    .xp-menu .hd i { width: 40px; height: 40px; border: 2px solid #fff; border-radius: 4px; background: linear-gradient(135deg, #f7c96b, #e08a2c); display: grid; place-items: center; font: normal bold 20px Tahoma, sans-serif; text-shadow: none; color: #fff; }
+    .xp-menu .cols { display: grid; grid-template-columns: 1.15fr 1fr; color: #000; border-top: 2px solid #f19a3c; }
+    .xp-menu .l { background: #fff; padding: 6px 4px; display: grid; gap: 2px; align-content: start; }
+    .xp-menu .r { background: #d3e5fa; border-left: 1px solid #95bdee; padding: 6px 4px; display: grid; gap: 2px; align-content: start; color: #0a246a; }
+    .xp-menu .cols button { display: grid; grid-template-columns: 32px 1fr; align-items: center; gap: 0 8px; padding: 4px 6px; text-align: left; background: none; border: 0; border-radius: 2px; cursor: pointer; color: inherit; }
+    .xp-menu .cols button:hover { background: #316ac5; color: #fff; }
+    .xp-menu .cols button svg { width: 32px; height: 32px; grid-row: span 2; }
+    .xp-menu .cols button b { font-size: 12px; }
+    .xp-menu .cols button small { color: #6b6b6b; font-size: 11px; }
+    .xp-menu .cols button:hover small { color: #dbe6fb; }
+    .xp-menu .r p { margin: 4px 8px; font-size: 11px; color: #3c4f7a; }
+    .xp-menu .ft { display: flex; justify-content: flex-end; gap: 6px; padding: 6px 8px; background: linear-gradient(#2b75dc, #1868ce); }
+    .xp-menu .ft button { display: flex; align-items: center; gap: 6px; padding: 3px 8px; background: none; border: 0; border-radius: 3px; cursor: pointer; }
+    .xp-menu .ft button:hover { background: rgba(255,255,255,.15); }
+    .xp-menu .ft i { width: 22px; height: 22px; border-radius: 4px; border: 1px solid #fff; display: grid; place-items: center; font-style: normal; font-weight: bold; }
+    .xp-menu .ft .off i { background: linear-gradient(135deg, #f08a5d, #c8361a); }
+    .xp-menu .ft .out i { background: linear-gradient(135deg, #f7c96b, #d98a1b); }
+
+    .xp-msgs { height: 100%; display: grid; grid-template-columns: minmax(170px, 34%) minmax(0, 1fr); color-scheme: light; background: #fff; color: #1b1b1b; font: 12px/1.4 Tahoma, Verdana, "Segoe UI", sans-serif; }
+    .xp-buddies { overflow: auto; border-right: 1px solid #b9c9e6; background: linear-gradient(#eef4fd, #dbe7fa); }
+    .xp-buddies h3 { margin: 0; padding: 7px 10px 5px; font-size: 11px; color: #1d3f8a; border-bottom: 1px solid #c3d3ee; }
+    .xp-buddy { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 0 8px; width: 100%; padding: 6px 8px; text-align: left; border: 0; border-bottom: 1px solid #dde6f5; background: none; cursor: pointer; }
+    .xp-buddy:hover { background: #e3edfc; }
+    .xp-buddy.on { background: #cfe0fb; box-shadow: inset 3px 0 #316ac5; }
+    .xp-buddy i { grid-row: span 3; width: 28px; height: 28px; border-radius: 5px; border: 1px solid rgba(0,0,0,.25); display: grid; place-items: center; color: #fff; font: normal bold 13px Tahoma, sans-serif; text-shadow: 0 1px 1px rgba(0,0,0,.4); }
+    .xp-buddy b, .xp-buddy span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .xp-buddy .ps { font-size: 11px; color: #777; }
+    .xp-buddy .ps.w { color: #13871a; } .xp-buddy .ps.s, .xp-buddy .ps.x { color: #b86b00; }
+    .xp-buddy .pv { font-size: 11px; color: #5c5c5c; }
+    .xp-buddies .none { padding: 12px 10px; color: #666; }
+    .xp-conv { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+    .xp-conv .hd { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-bottom: 1px solid #b9c9e6; background: linear-gradient(#fafcff, #e3ecfa); }
+    .xp-conv .hd i { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+    .xp-conv .hd div { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+    .xp-conv .hd b, .xp-conv .hd small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .xp-conv .hd b { font-size: 13px; }
+    .xp-conv .hd small { color: #666; }
+    .xp-conv button { padding: 3px 10px; border: 1px solid #003c74; border-radius: 3px; background: linear-gradient(#fff, #ecebe6 85%, #d6d0c5); color: #000; cursor: pointer; }
+    .xp-conv button:hover:not(:disabled) { box-shadow: inset 0 0 0 1px #f8b636; }
+    .xp-conv button:disabled { color: #a0a0a0; border-color: #c9c7ba; cursor: default; }
+    .xp-chatlog { flex: 1; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; overscroll-behavior: contain; user-select: text; }
+    .xp-chatlog .u { align-self: flex-end; max-width: 85%; background: #dbe9ff; border: 1px solid #a9c4ef; border-radius: 8px 8px 2px 8px; padding: 5px 9px; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .xp-chatlog .u.q { background: #eef4ff; border-style: dashed; }
+    .xp-chatlog .u em { display: block; font-style: normal; font-size: 11px; color: #4a6aa0; margin-top: 2px; }
+    .xp-chatlog .a { white-space: pre-wrap; overflow-wrap: anywhere; }
+    .xp-chatlog .a code { font: 11px ui-monospace, Menlo, monospace; background: #eef0f4; border-radius: 3px; padding: 0 3px; }
+    .xp-chatlog .a pre { font: 11px/1.45 ui-monospace, Menlo, monospace; background: #f3f4f7; border: 1px solid #dde1e8; border-radius: 4px; padding: 6px 8px; margin: 4px 0; overflow-x: auto; white-space: pre; }
+    .xp-chatlog .a .h { font-weight: bold; }
+    .xp-chatlog .t { color: #7a7a7a; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .xp-chatlog details.t[open] { white-space: normal; }
+    .xp-chatlog details.t summary { cursor: pointer; overflow: hidden; text-overflow: ellipsis; }
+    .xp-chatlog details.t div { padding-left: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .xp-chatlog .n { color: #7a7a7a; font-size: 11px; text-align: center; }
+    .xp-chatlog .ts { color: #999; font-size: 10px; text-align: center; margin-top: 4px; }
+    .xp-conv form { display: flex; gap: 6px; align-items: flex-end; padding: 6px 8px 4px; border-top: 1px solid #b9c9e6; background: #eef3fb; }
+    .xp-conv textarea { flex: 1; font: inherit; font-size: 12px; color: #000; background: #fff; border: 1px solid #7f9db9; padding: 5px 7px; resize: none; min-height: 44px; max-height: 30vh; }
+    .xp-conv textarea:disabled { background: #f4f4f0; }
+    .xp-conv form button { padding: 6px 16px; font-weight: bold; }
+    .xp-conv .st { padding: 0 8px 6px; font-size: 11px; color: #666; background: #eef3fb; }
+    .xp-conv .st.ok { color: #13871a; } .xp-conv .st.warn { color: #9a6200; } .xp-conv .st.bad { color: #c0261b; }
+    .xp-conv kbd { font: inherit; font-weight: bold; background: #fff; border: 1px solid #b9c9e6; border-radius: 3px; padding: 0 4px; }
+    .xp-conv.empty form, .xp-conv.empty .st, .xp-conv.empty .hd { display: none; }
+  `;
+  document.head.appendChild(style);
+
+  const el = document.createElement('div');
+  el.id = 'xp';
+  el.innerHTML = `<div class="xp-wall"></div><div class="xp-icons">${Object.entries(APPS).map(([k, a]) => `<button class="xp-icon" data-app="${k}" title="${a.sub}">${a.icon}<span>${a.title}</span></button>`).join('')}</div>
+    <div class="xp-area">${Object.entries(APPS).map(([k, a]) => `<section class="xp-win" data-app="${k}" hidden>
+      <header class="xp-tb">${a.icon}<b>${a.title}</b><button data-w="min" title="Minimise"></button><button data-w="max" title="Maximise"></button><button data-w="close" title="Close"></button></header>
+      <div class="xp-body"></div><i class="xp-grip"></i></section>`).join('')}</div>
+    <div class="xp-menu"><div class="hd"><i></i><span></span></div>
+      <div class="cols"><div class="l">${Object.entries(APPS).map(([k, a]) => `<button data-app="${k}">${a.icon}<b>${a.title}</b><small>${a.sub}</small></button>`).join('')}</div>
+        <div class="r"><button data-act="office">${svg('<path d="M4 29V9l12-6 12 6v20z" fill="#e9eef7" stroke="#3b5f99"/><path d="M8 12h4v4H8zm6 0h4v4h-4zm6 0h4v4h-4zM8 19h4v4H8zm12 0h4v4h-4zm-6 0h4v10h-4z" fill="#5a86c8"/>')}<b>My office</b><small>Walk around</small></button><p></p></div></div>
+      <div class="ft"><button class="out" data-act="office"><i>⇠</i>Log Off</button><button class="off" data-act="office"><i>⏻</i>Shut Down</button></div></div>
+    <div class="xp-taskbar"><button class="xp-start">${svg('<rect x="7" y="3" width="18" height="27" rx="1.5" fill="#fff"/><path d="M10 7h4v4h-4zm8 0h4v4h-4zm-8 7h4v4h-4zm8 0h4v4h-4zm-4 8h4v8h-4z" fill="#2e8a2e"/>')}start</button><div class="xp-tasks"></div>
+      <div class="xp-tray"><span class="xp-clock"></span></div></div>`;
+  document.body.appendChild(el);
+  const area = el.querySelector('.xp-area'), tasks = el.querySelector('.xp-tasks'), menu = el.querySelector('.xp-menu'), startBtn = el.querySelector('.xp-start');
+  const win = (k) => area.querySelector(`.xp-win[data-app="${k}"]`), body = (k) => win(k).querySelector('.xp-body');
+  // The live overview and the admin controls move in; their listeners and live updates come with them.
+  body('dash').appendChild(document.querySelector('body > main'));
+  body('admin').appendChild(document.getElementById('view-admin'));
+  el.querySelector('.xp-tray').prepend(document.getElementById('conn'));
+
+  // ----- state -----
+  let st = null;
+  try { st = JSON.parse(localStorage[KEY] || 'null'); } catch {}
+  st = { z: 0, sel: null, ...st, wins: Object.fromEntries(Object.keys(APPS).map((k) => [k, { open: false, min: false, max: false, z: 0, ...DEFAULT[k], ...st?.wins?.[k] }])) };
+  const save = () => { try { localStorage[KEY] = JSON.stringify(st); } catch {} };
+  const shown = (k) => st.wins[k].open && !st.wins[k].min;
+  const topApp = () => Object.keys(APPS).filter(shown).sort((a, b) => st.wins[b].z - st.wins[a].z)[0] || null;
+  const fullScreen = () => document.body.dataset.view === 'desktop';
+
+  function place(k) {
+    const w = st.wins[k], e = win(k);
+    e.hidden = !shown(k);
+    e.classList.toggle('max', w.max);
+    e.style.zIndex = w.z;
+    Object.assign(e.style, w.max ? { left: 0, top: 0, width: '100%', height: '100%' }
+      : { left: w.x * 100 + '%', top: w.y * 100 + '%', width: w.w * 100 + '%', height: w.h * 100 + '%' });
+    e.querySelector('[data-w="max"]').title = w.max ? 'Restore' : 'Maximise';
+  }
+  function update() {
+    const top = topApp();
+    for (const k of Object.keys(APPS)) { place(k); win(k).classList.toggle('on', k === top); }
+    tasks.innerHTML = Object.keys(APPS).filter((k) => st.wins[k].open)
+      .map((k) => `<button data-app="${k}" class="${k === top ? 'on' : ''}" title="${APPS[k].title}">${APPS[k].icon}<span>${APPS[k].title}</span></button>`).join('');
+    syncHash();
+    syncMsgs();
+    save();
+  }
+  function syncHash() {
+    if (!fullScreen()) return;
+    const h = '#' + (APPS[topApp()]?.hash || 'desktop');
+    if (location.hash !== h) history.replaceState(null, '', h);
+  }
+  function focus(k) {
+    if (topApp() !== k || !st.wins[k].z) st.wins[k].z = ++st.z;
+    update();
+  }
+  function open(k) {
+    Object.assign(st.wins[k], { open: true, min: false });
+    closeMenu();
+    focus(k);
+  }
+
+  // ----- windows: focus, title bar buttons, drag to move, the corner grip to resize -----
+  area.addEventListener('pointerdown', (e) => {
+    const w = e.target.closest('.xp-win');
+    if (!w) return;
+    const k = w.dataset.app, s = st.wins[k], tb = e.target.closest('.xp-tb'), grip = e.target.closest('.xp-grip');
+    if (topApp() !== k) focus(k);
+    if (e.button || !(tb || grip) || e.target.closest('button') || s.max) return;
+    e.preventDefault();
+    const A = area.getBoundingClientRect(), x0 = e.clientX, y0 = e.clientY, r = { x: s.x * A.width, y: s.y * A.height, w: s.w * A.width, h: s.h * A.height };
+    const h = tb || grip;
+    h.setPointerCapture(e.pointerId);
+    const move = (m) => {
+      const dx = m.clientX - x0, dy = m.clientY - y0;
+      if (tb) { s.x = clamp(r.x + dx, 80 - r.w, A.width - 80) / A.width; s.y = clamp(r.y + dy, 0, A.height - 28) / A.height; }
+      else { s.w = clamp(r.w + dx, 300, A.width - r.x) / A.width; s.h = clamp(r.h + dy, 160, A.height - r.y) / A.height; }
+      place(k);
+    };
+    const up = () => { h.removeEventListener('pointermove', move); h.removeEventListener('pointerup', up); h.removeEventListener('pointercancel', up); save(); };
+    h.addEventListener('pointermove', move); h.addEventListener('pointerup', up); h.addEventListener('pointercancel', up);
+  });
+  area.addEventListener('click', (e) => {
+    const b = e.target.closest('.xp-tb button');
+    if (!b) return;
+    const k = b.closest('.xp-win').dataset.app, s = st.wins[k];
+    if (b.dataset.w === 'min') s.min = true;
+    else if (b.dataset.w === 'max') s.max = !s.max;
+    else Object.assign(s, { open: false, min: false });
+    update();
+  });
+  area.addEventListener('dblclick', (e) => {
+    const tb = e.target.closest('.xp-tb');
+    if (!tb || e.target.closest('button')) return;
+    const s = st.wins[tb.closest('.xp-win').dataset.app];
+    s.max = !s.max; update();
+  });
+  // Taskbar: a hidden window comes back; the front one minimises; any other comes to the front.
+  tasks.addEventListener('click', (e) => {
+    const k = e.target.closest('button')?.dataset.app;
+    if (!k) return;
+    if (topApp() === k) { st.wins[k].min = true; update(); } else open(k);
+  });
+  el.querySelector('.xp-icons').addEventListener('click', (e) => { const k = e.target.closest('[data-app]')?.dataset.app; if (k) open(k); });
+
+  // ----- start menu -----
+  function closeMenu() { menu.classList.remove('on'); startBtn.classList.remove('on'); }
+  startBtn.addEventListener('click', () => {
+    if (menu.classList.contains('on')) { closeMenu(); return; }
+    const who = dash.config?.owner || 'You', n = dash.state?.live.length || 0;
+    menu.querySelector('.hd i').textContent = who[0].toUpperCase();
+    menu.querySelector('.hd span').textContent = who;
+    menu.querySelector('.r p').textContent = `${n} Claude session${n === 1 ? '' : 's'} running · Esc also leaves your desk`;
+    menu.classList.add('on'); startBtn.classList.add('on');
+  });
+  menu.addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (b?.dataset.app) open(b.dataset.app);
+    else if (b?.dataset.act === 'office') { closeMenu(); dash.setView('office'); }
+  });
+  el.addEventListener('pointerdown', (e) => { if (!e.target.closest('.xp-menu, .xp-start')) closeMenu(); });
+  // Esc (or Start > Log off / Shut down) gets up from the computer; an open drawer or the start menu closes first.
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape' || !fullScreen() || document.body.classList.contains('drawer')) return;
+    if (menu.classList.contains('on')) { closeMenu(); return; }
+    dash.setView('office');
+  }, true);
+
+  // ----- clock -----
+  const clockEl = el.querySelector('.xp-clock');
+  const tick = () => {
+    const d = new Date(), t = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    if (clockEl.textContent !== t) { clockEl.textContent = t; clockEl.title = d.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }); }
+  };
+  tick(); setInterval(tick, 1000);
+
+  // ----- Messages: your sessions on the left, the conversation on the right -----
+  body('msgs').innerHTML = `<div class="xp-msgs"><div class="xp-buddies"></div>
+    <div class="xp-conv empty"><div class="hd"><i></i><div><b></b><small></small></div><button data-act="details">Details</button></div>
+      <div class="xp-chatlog"><div class="n" style="margin:auto">Pick a session on the left to chat with it.</div></div>
+      <form><textarea rows="2" maxlength="8000" spellcheck="true"></textarea><button>Send</button></form><div class="st"></div></div></div>`;
+  const buddies = body('msgs').querySelector('.xp-buddies'), conv = body('msgs').querySelector('.xp-conv'), log = conv.querySelector('.xp-chatlog');
+  const input = conv.querySelector('textarea');
+  const chat = chatView({ log, input, send: conv.querySelector('form button'), status: conv.querySelector('.st'), onUpdate: renderConvHead, route: fullScreen });
+  let buddiesHtml = '';
+  function renderBuddies() {
+    const S = dash.state;
+    if (!S) return;
+    const last = {};
+    for (const e of S.feed) if ((e.kind === 'say' || e.kind === 'prompt') && !last[e.sessionId]) last[e.sessionId] = e;   // the feed is newest first
+    const live = [...S.live].sort((a, b) => a.startedAt - b.startedAt);
+    const html = `<h3>Online now (${live.length})</h3>` + (live.map((s) => {
+      const id = s.sessionId, e = last[id], [stText, cls] = STATUS[s.status] || [s.status === 'waiting' ? 'Needs you · answer in its terminal' : String(s.status || 'unknown'), 'x'];
+      const pv = e ? (e.kind === 'prompt' ? 'You: ' : '') + e.text : s.transcript?.lastPrompt ? 'You: ' + s.transcript.lastPrompt : 'No messages yet';
+      const name = titleOf(s);
+      return `<button class="xp-buddy${id === st.sel ? ' on' : ''}" data-id="${id}"><i style="background:${dash.colorHex(id)}">${escapeHtml((s.name || name || '?')[0].toUpperCase())}</i>
+        <b>${escapeHtml(name)}</b><span class="ps ${cls}">${escapeHtml(stText)}</span><span class="pv">${escapeHtml(String(pv).slice(0, 140))}</span></button>`;
+    }).join('') || '<div class="none">No Claude sessions running.</div>');
+    if (html !== buddiesHtml) buddies.innerHTML = buddiesHtml = html;
+  }
+  function renderConvHead() {
+    const s = dash.state?.live.find((x) => x.sessionId === st.sel);
+    conv.querySelector('.hd i').style.background = st.sel ? dash.colorHex(st.sel) : '';
+    conv.querySelector('.hd b').textContent = s ? titleOf(s) : 'Session ended';
+    conv.querySelector('.hd small').textContent = s ? `${STATUS[s.status]?.[0] || s.status} · ${s.name} · ${dash.fmt.home(s.cwd)}` : '';
+  }
+  // Poll the open conversation only while the Messages window is up.
+  function syncMsgs() {
+    const on = shown('msgs');
+    conv.classList.toggle('empty', !st.sel);
+    if (on) renderBuddies();
+    if (on && st.sel && chat.id !== st.sel) { chat.open(st.sel); renderConvHead(); }
+    else if (!on && chat.id) chat.close();
+  }
+  buddies.addEventListener('click', (e) => {
+    const id = e.target.closest('[data-id]')?.dataset.id;
+    if (!id) return;
+    st.sel = id; save();
+    syncMsgs();
+    if (CAN_CHAT && fullScreen()) setTimeout(() => input.focus());
+  });
+  conv.querySelector('[data-act="details"]').addEventListener('click', () => { if (st.sel) dash.openDrawer(st.sel); });
+  dash.onUpdate(() => { if (shown('msgs')) { renderBuddies(); if (chat.id) { renderConvHead(); chat.sync(); } } });
+
+  update();
+  return {
+    el, open, syncHash,
+    // On the monitor or MacBook (an office element) the desktop is display-only; on the page it's yours to use.
+    // Moving it resets scroll positions, so they're carried across.
+    mount(parent) {
+      if (el.parentNode === parent) return;
+      const keep = [...el.querySelectorAll('.xp-body, .feed, .xp-chatlog, .xp-buddies')].map((e) => [e, e.scrollTop]);
+      const away = parent !== document.body;
+      if (away && el.contains(document.activeElement)) document.activeElement.blur();
+      closeMenu();
+      parent.appendChild(el);
+      el.inert = away;
+      for (const [e, t] of keep) e.scrollTop = t;
+      syncHash();
+    },
+  };
+}
