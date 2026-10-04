@@ -19,6 +19,7 @@ import { CAN_CHAT, chatView, escapeHtml, titleOf } from './chat.js';
 const dash = window.dash;
 const F = dash.fmt;
 const AISLE = 0.5;
+const PP = { x: -8.6, z: 12.6 };   // ping pong table centre
 const EYE = 1.65, SEATED_EYE = 1.2;
 const ROOM = { minX: -20, maxX: 20, minZ: -15, maxZ: 15, h: 3.3 };
 const LIFT = { x: 18, z: 0.4 };   // lift lobby: the face of the lift core and its call panel, between the two lifts
@@ -1084,6 +1085,7 @@ export function mountOffice(container) {
   rug(-15.9, -12.1, 4.4, 9.6, '#cdb99b', '#8c5a3c');                        // breakroom
   rug(7.4, 12.6, 6.8, 11.2, '#b5654a', '#e2c9a6');                          // lounge
   for (const z of [-3.5, -7.5, -11.5]) rug(-18.7, 2.2, z - 0.75, z + 1.45, '#6f7c6c', '#55614f');
+  for (const z of [4.5, 8.5]) rug(-8.2, 2.2, z - 0.75, z + 1.45, '#6f7c6c', '#55614f');   // the middle desks
 
   // Ceiling with exposed timber beams.
   const ceilingM = new THREE.MeshStandardMaterial({ color: '#efe7da', roughness: 1, emissive: '#efe7da', emissiveIntensity: 0.2 });
@@ -1639,10 +1641,11 @@ export function mountOffice(container) {
   }
 
   // ----- desks -----
-  const desks = [];
+  const desks = [], DESK_XS = [0.5, -3, -6.5, -10, -13.5, -17], MID_XS = [0.5, -3, -6.5];
   const deskTopM = mat('#c49a6c', { roughness: 0.55 }), legM = mat('#2f3236', { metalness: 0.5, roughness: 0.4 });
-  for (const z of [-3.5, -7.5, -11.5]) {
-    for (const x of [0.5, -3, -6.5, -10, -13.5, -17]) {
+  // Three rows along the north wall, plus two shorter rows in the middle of the floor where the ping pong table was.
+  for (const [z, xs] of [[-3.5, DESK_XS], [-7.5, DESK_XS], [-11.5, DESK_XS], [4.5, MID_XS], [8.5, MID_XS]]) {
+    for (const x of xs) {
       box(world, 2.0, 0.04, 0.8, '', x, 0.74, z, { material: deskTopM });
       box(world, 0.04, 0.72, 0.7, '', x - 0.96, 0.36, z, { material: legM });
       box(world, 0.04, 0.72, 0.7, '', x + 0.96, 0.36, z, { material: legM });
@@ -1744,12 +1747,12 @@ export function mountOffice(container) {
   box(world, 1.2, 0.37, 0.55, '#6e5238', -14, 0.185, 7);
   solid(-14, 7, 1.3, 0.65);
   cyl(world, 0.06, 0.06, 0.12, '#2f6f8f', -14.3, 0.49, 7.1); cyl(world, 0.04, 0.035, 0.1, '#f4f1ea', -13.7, 0.48, 6.9);
-  // Ping pong.
-  box(world, 2.74, 0.04, 1.525, '#1d5c3a', -5.6, 0.76, 9.2, { mat: { roughness: 0.5 } });
-  box(world, 2.74, 0.005, 0.02, '#ffffff', -5.6, 0.783, 9.2, { shadow: false });
-  box(world, 0.02, 0.15, 1.6, '#eeeeee', -5.6, 0.86, 9.2, { mat: { transparent: true, opacity: 0.7 } });
-  for (const dx of [-1.2, 1.2]) for (const dz of [-0.65, 0.65]) box(world, 0.05, 0.74, 0.05, '#222', -5.6 + dx, 0.37, 9.2 + dz);
-  solid(-5.6, 9.2, 2.74, 1.525);
+  // Ping pong, by the kitchen (east of the island, clear of the x -11.6 corridor to the kitchen).
+  box(world, 2.74, 0.04, 1.525, '#1d5c3a', PP.x, 0.76, PP.z, { mat: { roughness: 0.5 } });
+  box(world, 2.74, 0.005, 0.02, '#ffffff', PP.x, 0.783, PP.z, { shadow: false });
+  box(world, 0.02, 0.15, 1.6, '#eeeeee', PP.x, 0.86, PP.z, { mat: { transparent: true, opacity: 0.7 } });
+  for (const dx of [-1.2, 1.2]) for (const dz of [-0.65, 0.65]) box(world, 0.05, 0.74, 0.05, '#222', PP.x + dx, 0.37, PP.z + dz);
+  solid(PP.x, PP.z, 2.74, 1.525);
   const ball = new THREE.Mesh(new THREE.SphereGeometry(0.022, 10, 8), mat('#ffffff', { emissive: '#ffffff', emissiveIntensity: 0.3 }));
   ball.castShadow = true; world.add(ball);
   // High table for chats.
@@ -1806,7 +1809,7 @@ export function mountOffice(container) {
   floorLamp(-15.75, 4.95, 10);
   pendant(-14, 7, { light: 14 });
   pendant(-9.6, 4.9, { drop: 1.1, light: 10, shade: '#d97757' });
-  pendant(-6.2, 9.2, { drop: 0.9 }); pendant(-5, 9.2, { drop: 0.9 });
+  pendant(PP.x - 0.6, PP.z, { drop: 0.9 }); pendant(PP.x + 0.6, PP.z, { drop: 0.9 });
   plant(-12, 2.6, 0.8);
   {
     const neon = makeScreen(world, 1.8, 0.45, 720, 180, -19.84, 2.78, 4.6);
@@ -2987,7 +2990,7 @@ export function mountOffice(container) {
     spot(`coffee${i}`, x, z, rotY, 'coffee', R([-11.6, AISLE], [-11.6, 12.6], [x, 12.6])));
   const stool = kitchen.stools.map(({ x, z }, i) => spot(`stool${i}`, x, z, 0, 'stool', R([-11.6, AISLE], [-11.6, 10], [x, 10])));
   const fridge = spot('fridge', -18.55, 12.95, -Math.PI / 2, 'fridge', R([-11.6, AISLE], [-11.6, 12.6], [-18.55, 12.6]));
-  const pp = [spot('pp0', -7.45, 9.2, Math.PI / 2, 'pingpong', R([-7.45, AISLE])), spot('pp1', -3.75, 9.2, -Math.PI / 2, 'pingpong', R([-3.75, AISLE]))];
+  const pp = [spot('pp0', PP.x - 1.85, PP.z, Math.PI / 2, 'pingpong', R([-11.6, AISLE], [-11.6, PP.z], [PP.x - 1.85, PP.z])), spot('pp1', PP.x + 1.85, PP.z, -Math.PI / 2, 'pingpong', R([-4.75, AISLE], [-4.75, 11], [PP.x + 1.85, 11]))];   // up the middle desks' lane, not through them
   const chat = [
     spot('chat0', -10.35, 4.9, Math.PI / 2, 'chat', R([-10.35, AISLE])),
     spot('chat1', -8.85, 4.9, -Math.PI / 2, 'chat', R([-8.85, AISLE])),
@@ -3943,8 +3946,8 @@ export function mountOffice(container) {
     ball.visible = !!rally;
     if (rally) {
       const P = 1.05, k = (t % (2 * P)) / P, dir = k < 1, u = dir ? k : k - 1;
-      const x0 = -5.6 - 1.45, x1 = -5.6 + 1.45;
-      const z = 9.2 + 0.35 * Math.sin(t * 0.9);
+      const x0 = PP.x - 1.45, x1 = PP.x + 1.45;
+      const z = PP.z + 0.35 * Math.sin(t * 0.9);
       ball.position.set(dir ? lerp(x0, x1, u) : lerp(x1, x0, u), 0.79 + 0.32 * Math.abs(Math.sin(u * Math.PI * 2 * 0.75 + 0.1)), z);
       a.swing = dir ? Math.max(0, 1 - u * 4) : Math.max(0, (u - 0.75) * 4);
       b.swing = dir ? Math.max(0, (u - 0.75) * 4) : Math.max(0, 1 - u * 4);
