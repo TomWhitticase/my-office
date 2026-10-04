@@ -543,7 +543,7 @@ class Person {
     if (style === 1) add(this.head, G.hairLong, hairM, 0, -0.1, -0.07);
     if (style === 2) add(this.head, G.bun, hairM, 0, 0.07, -0.11);
     this.arms = [-1, 1].map((side) => {
-      const sh = new THREE.Group(); sh.position.set(0.215 * side, 0.5, 0); this.upper.add(sh);
+      const sh = new THREE.Group(); sh.position.set(0.215 * side, 0.5, 0); sh.rotation.order = 'YXZ'; this.upper.add(sh);   // YXZ: raise forward, then swing in
       add(sh, G.upperArm, shirtM, 0, -0.14, 0);
       const el = new THREE.Group(); el.position.y = -0.29; sh.add(el);
       add(el, G.foreArm, skinM, 0, -0.12, 0);
@@ -575,7 +575,7 @@ class Person {
     this.label.layers.set(1);
     this.root.add(this.label);
 
-    this.j = { bodyY: 0, lean: 0, leg0: 0, leg1: 0, knee0: 0, knee1: 0, sh0: 0, sh1: 0, shz0: -0.07, shz1: 0.07, el0: -0.15, el1: -0.15, headY: 0, headX: 0 };
+    this.j = { bodyY: 0, lean: 0, leg0: 0, leg1: 0, knee0: 0, knee1: 0, sh0: 0, sh1: 0, shz0: -0.07, shz1: 0.07, shy0: 0, shy1: 0, el0: -0.15, el1: -0.15, headY: 0, headX: 0 };
     this.path = [];
     this.spot = null;
     this.desk = null;
@@ -592,7 +592,7 @@ class Person {
 
   targets(t) {
     const ph = this.phase, j = { bodyY: 0, lean: 0.02 * Math.sin(t * 1.3 + ph), leg0: 0, leg1: 0, knee0: 0, knee1: 0,
-      sh0: 0, sh1: 0, shz0: -0.07, shz1: 0.07, el0: -0.15, el1: -0.15, headY: 0, headX: 0 };
+      sh0: 0, sh1: 0, shz0: -0.07, shz1: 0.07, shy0: 0, shy1: 0, el0: -0.15, el1: -0.15, headY: 0, headX: 0 };
     this.mug.visible = false; this.paddle.visible = false; this.phone.visible = false;
     if (this.path.length) {
       const w = this.walkPhase;
@@ -603,11 +603,13 @@ class Person {
     }
     const sit = (seat) => Object.assign(j, { bodyY: seat - 0.9, leg0: -1.5, leg1: -1.5, knee0: 1.5, knee1: 1.5 });
     switch (this.spot?.pose) {
-      case 'type':
+      case 'type': {   // forearms resting on the desk edge, hands angled in onto the keyboard, fingers tapping
         sit(0.47);
-        Object.assign(j, { lean: 0.12, sh0: -0.55, sh1: -0.55, shz0: -0.12, shz1: 0.12, headX: 0.12, headY: 0.05 + 0.2 * Math.sin(t * 0.45 + ph),
-          el0: -1.05 + 0.07 * Math.sin(t * 19 + ph), el1: -1.05 + 0.07 * Math.sin(t * 17 + ph + 1.3) });
+        const tap = (k) => 0.045 * Math.max(0, Math.sin(t * (15 + k * 2.3) + ph + k * 1.7));
+        Object.assign(j, { lean: 0.04, sh0: -1.0, sh1: -1.0, shz0: 0.02, shz1: -0.02, shy0: 0.2, shy1: -0.2, headX: 0.14, headY: 0.04 + 0.12 * Math.sin(t * 0.45 + ph),
+          el0: -0.67 + tap(0), el1: -0.67 + tap(1) });
         break;
+      }
       case 'wait':   // at the desk but the session is waiting (on a shell, a prompt…): see waitStyle()
         sit(0.47);
         if (this.waitStyle() === 'lean')        // leaning right back, hands behind the head
@@ -680,6 +682,7 @@ class Person {
     this.legs[0].knee.rotation.x = j.knee0; this.legs[1].knee.rotation.x = j.knee1;
     this.arms[0].sh.rotation.x = j.sh0; this.arms[1].sh.rotation.x = j.sh1;
     this.arms[0].sh.rotation.z = j.shz0; this.arms[1].sh.rotation.z = j.shz1;
+    this.arms[0].sh.rotation.y = j.shy0; this.arms[1].sh.rotation.y = j.shy1;
     this.arms[0].el.rotation.x = j.el0; this.arms[1].el.rotation.x = j.el1;
     this.head.rotation.y = j.headY; this.head.rotation.x = j.headX;
     this.label.position.y = 2.1 + j.bodyY;
@@ -1610,8 +1613,8 @@ export function mountOffice(container) {
       box(world, 2.0, 0.04, 0.8, '', x, 0.74, z, { material: deskTopM });
       box(world, 0.04, 0.72, 0.7, '', x - 0.96, 0.36, z, { material: legM });
       box(world, 0.04, 0.72, 0.7, '', x + 0.96, 0.36, z, { material: legM });
-      box(world, 0.44, 0.015, 0.14, '#3a3c40', x, 0.765, z + 0.18);
-      box(world, 0.06, 0.02, 0.1, '#3a3c40', x + 0.36, 0.765, z + 0.2);
+      box(world, 0.44, 0.015, 0.14, '#3a3c40', x, 0.765, z + 0.12);   // where a seated worker's hands land (see the 'type' pose)
+      box(world, 0.06, 0.02, 0.1, '#3a3c40', x + 0.36, 0.765, z + 0.14);
       if (hash(String(x * z)) % 3 === 0) cyl(world, 0.04, 0.035, 0.1, '#f4f1ea', x - 0.82, 0.81, z + 0.2);
       box(world, 1.3, 0.035, 0.09, '', x, 2.6, z + 0.1, { material: barM, shadow: false });
       for (const dx of [-0.5, 0.5]) cyl(world, 0.004, 0.004, ROOM.h - 2.6, '#222', x + dx, (ROOM.h + 2.6) / 2, z + 0.1, { shadow: false });
