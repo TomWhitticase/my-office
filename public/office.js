@@ -1084,8 +1084,6 @@ export function mountOffice(container) {
   rug(10.5, 15.5, -11, -7.5, '#d8c7a8', '#33405a');
   rug(-15.9, -12.1, 4.4, 9.6, '#cdb99b', '#8c5a3c');                        // breakroom
   rug(7.4, 12.6, 6.8, 11.2, '#b5654a', '#e2c9a6');                          // lounge
-  for (const z of [-3.5, -7.5, -11.5]) rug(-18.7, 2.2, z - 0.75, z + 1.45, '#6f7c6c', '#55614f');
-  for (const z of [4.5, 8.5]) rug(-8.2, 2.2, z - 0.75, z + 1.45, '#6f7c6c', '#55614f');   // the middle desks
 
   // Ceiling with exposed timber beams.
   const ceilingM = new THREE.MeshStandardMaterial({ color: '#efe7da', roughness: 1, emissive: '#efe7da', emissiveIntensity: 0.2 });
@@ -1641,35 +1639,62 @@ export function mountOffice(container) {
   }
 
   // ----- desks -----
-  const desks = [], DESK_XS = [0.5, -3, -6.5, -10, -13.5, -17], MID_XS = [0.5, -3, -6.5];
+  // Benching pods: runs of desks pushed together side by side, two runs back to back across a felt privacy screen.
+  // Each desk is built in its own group in desk-local space: local +z points from the monitors toward the chair.
+  const desks = [], DESK = { w: 2.0, d: 0.8 }, CHAIR_Z = 0.62, LANE_Z = 1.5;
   const deskTopM = mat('#c49a6c', { roughness: 0.55 }), legM = mat('#2f3236', { metalness: 0.5, roughness: 0.4 });
-  // Three rows along the north wall, plus two shorter rows in the middle of the floor where the ping pong table was.
-  for (const [z, xs] of [[-3.5, DESK_XS], [-7.5, DESK_XS], [-11.5, DESK_XS], [4.5, MID_XS], [8.5, MID_XS]]) {
-    for (const x of xs) {
-      box(world, 2.0, 0.04, 0.8, '', x, 0.74, z, { material: deskTopM });
-      box(world, 0.04, 0.72, 0.7, '', x - 0.96, 0.36, z, { material: legM });
-      box(world, 0.04, 0.72, 0.7, '', x + 0.96, 0.36, z, { material: legM });
-      box(world, 0.44, 0.015, 0.14, '#3a3c40', x, 0.765, z + 0.12);   // where a seated worker's hands land (see the 'type' pose)
-      box(world, 0.06, 0.02, 0.1, '#3a3c40', x + 0.36, 0.765, z + 0.14);
-      if (hash(String(x * z)) % 3 === 0) cyl(world, 0.04, 0.035, 0.1, '#f4f1ea', x - 0.82, 0.81, z + 0.2);
-      box(world, 1.3, 0.035, 0.09, '', x, 2.6, z + 0.1, { material: barM, shadow: false });
-      for (const dx of [-0.5, 0.5]) cyl(world, 0.004, 0.004, ROOM.h - 2.6, '#222', x + dx, (ROOM.h + 2.6) / 2, z + 0.1, { shadow: false });
-      if (hash(`${x}|${z}`) % 3 === 1) smallPlant(world, x + 0.86, 0.76, z + 0.22);
-      const deskChair = officeChair(x, z + 0.68, Math.PI);
-      // Left: session stats. Right: the code it's writing. Both angled in toward the chair.
-      const mon = monitor(world, 0.9, 0.5625, x - 0.47, 0.76, z - 0.2, 0.14);
-      const scr = makeScreen(mon.g, 0.9, 0.5625, 800, 500, 0, mon.screenY, mon.screenZ);
-      const codeMon = monitor(world, 0.9, 0.5625, x + 0.47, 0.76, z - 0.2, -0.14);
-      const codeScr = makeScreen(codeMon.g, 0.9, 0.5625, 800, 500, 0, codeMon.screenY, codeMon.screenZ);
-      drawOff(scr); scr.tex.needsUpdate = true;
-      drawOff(codeScr); codeScr.tex.needsUpdate = true;
-      solid(x, z, 2.0, 0.8);
-      const chair = { x, z: z + 0.62 };
-      const lane = x + 1.75;
-      desks.push({ x, z, scr, codeScr, chair: deskChair, owner: null, spot: { key: `desk:${x},${z}`, kind: 'desk', pos: chair, rotY: Math.PI, pose: 'type',
-        route: [{ x: lane, z: AISLE }, { x: lane, z: chair.z }, chair] } });
-    }
+  const podScreenM = mat('#9aab9f', { roughness: 1 }), podRailM = mat('#b9bcc0', { metalness: 0.7, roughness: 0.35 });
+  // Desk-local (lx, lz) to world, for a desk at (x, z) turned by ry.
+  const deskToWorld = (d, lx, lz) => ({ x: d.x + lx * Math.cos(d.ry) + lz * Math.sin(d.ry), z: d.z - lx * Math.sin(d.ry) + lz * Math.cos(d.ry) });
+  function desk(x, z, ry, walkX) {
+    const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry; world.add(g);
+    box(g, DESK.w - 0.01, 0.04, DESK.d, '', 0, 0.74, 0, { material: deskTopM });
+    box(g, 0.44, 0.015, 0.14, '#3a3c40', 0, 0.765, 0.12);   // where a seated worker's hands land (see the 'type' pose)
+    box(g, 0.06, 0.02, 0.1, '#3a3c40', 0.36, 0.765, 0.14);
+    if (hash(String(x * z)) % 3 === 0) cyl(g, 0.04, 0.035, 0.1, '#f4f1ea', -0.82, 0.81, 0.2);
+    box(g, 1.3, 0.035, 0.09, '', 0, 2.6, 0.1, { material: barM, shadow: false });
+    for (const dx of [-0.5, 0.5]) cyl(g, 0.004, 0.004, ROOM.h - 2.6, '#222', dx, (ROOM.h + 2.6) / 2, 0.1, { shadow: false });
+    // Left: session stats. Right: the code it's writing. Both angled in toward the chair.
+    const mon = monitor(g, 0.9, 0.5625, -0.47, 0.76, -0.2, 0.14);
+    const scr = makeScreen(mon.g, 0.9, 0.5625, 800, 500, 0, mon.screenY, mon.screenZ);
+    const codeMon = monitor(g, 0.9, 0.5625, 0.47, 0.76, -0.2, -0.14);
+    const codeScr = makeScreen(codeMon.g, 0.9, 0.5625, 800, 500, 0, codeMon.screenY, codeMon.screenZ);
+    drawOff(scr); scr.tex.needsUpdate = true;
+    drawOff(codeScr); codeScr.tex.needsUpdate = true;
+    const d = { x, z, ry, rotY: angDiff(0, ry + Math.PI), scr, codeScr, owner: null };
+    if (hash(`${x}|${z}`) % 3 === 1) { const p = deskToWorld(d, 0.86, 0.22); smallPlant(world, p.x, 0.76, p.z); }   // its leaves are world-space instances
+    const seat = deskToWorld(d, 0, 0.68);
+    d.chair = officeChair(seat.x, seat.z, d.rotY);
+    // In from the main aisle down the nearest walkway between pods, along the lane behind the chairs, then sit.
+    const chair = deskToWorld(d, 0, CHAIR_Z), lane = deskToWorld(d, 0, LANE_Z);
+    d.spot = { key: `desk:${x},${z}`, kind: 'desk', pos: chair, rotY: d.rotY, pose: 'type',
+      route: [{ x: walkX, z: AISLE }, { x: walkX, z: lane.z }, lane, chair] };
+    desks.push(d);
+    return d;
   }
+  // A pod of 2 x n desks centred on (cx, cz), runs along x: the south run faces north, the north run faces south.
+  // `walks` are the x of the walkways either side; each desk is reached from the nearer one.
+  function pod(cx, cz, n, walks) {
+    const len = n * DESK.w, x0 = cx - len / 2;
+    rug(x0 - 1.1, x0 + len + 1.1, cz - DESK.d - 1.25, cz + DESK.d + 1.25, '#6f7c6c', '#55614f');
+    for (let i = 0; i <= n; i++) box(world, 0.05, 0.72, 2 * DESK.d - 0.1, '', x0 + i * DESK.w, 0.36, cz, { material: legM });
+    box(world, len, 0.05, 0.05, '', cx, 0.68, cz, { material: legM });
+    box(world, len - 0.2, 0.08, 0.22, '#26282b', cx, 0.6, cz);              // cable tray
+    box(world, len, 0.34, 0.03, '', cx, 0.93, cz, { material: podScreenM });   // privacy screen, ~30 cm above the desktops
+    box(world, len, 0.015, 0.04, '', cx, 1.105, cz, { material: podRailM });
+    for (let i = 0; i < n; i++) box(world, 0.12, 0.04, 0.06, '#d9dcdf', x0 + (i + 0.5) * DESK.w, 0.78, cz);   // power rail sockets
+    solid(cx, cz, len, 2 * DESK.d);
+    const runs = [];
+    for (const [dz, ry] of [[DESK.d / 2, 0], [-DESK.d / 2, Math.PI]]) for (let i = 0; i < n; i++) {
+      const x = x0 + (i + 0.5) * DESK.w;
+      runs.push(desk(x, cz + dz, ry, walks.reduce((a, b) => (Math.abs(b - x) < Math.abs(a - x) ? b : a))));
+    }
+    return runs;
+  }
+  // Two bands of two pods across the desk floor, walkways at the west wall, between the pods (under the big
+  // activity screen) and east of them. Desks fill south band first, nearest the aisle.
+  const DESK_WALKS = [-18.75, -8.3, 2.6];
+  for (const cz of [-5.4, -10.8]) for (const cx of [-3.1, -13.5]) pod(cx, cz, 4, DESK_WALKS);
 
   // Desk clutter: takeaway coffee cups and energy drink cans pile up on the desks of the sessions working hardest
   // (output tokens + time spent busy). Each desk has a fixed, seeded layout of DESK_MAX slots filled in order, so the
@@ -1684,7 +1709,7 @@ export function mountOffice(container) {
   {
     const CUP = ['#f2efe8', '#c9a57a', '#f2efe8', '#e9e4da'], LID = ['#2a2a2a', '#f4f4f4'], CAN = ['#7ed321', '#1f6fd1', '#e3e5e8', '#e0245e', '#151515', '#ffb000'];
     const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), one = new THREE.Vector3(1, 1, 1), c = new THREE.Color();
-    // Free spots on the desk top: beside the monitors and in the front corners clear of keyboard and mouse.
+    // Free spots on the desk top (desk-local): beside the monitors and in the front corners clear of keyboard and mouse.
     const ZONES = [[-0.93, -0.62, -0.34, 0.34], [0.62, 0.93, -0.34, 0.12], [-0.6, -0.3, 0.24, 0.36], [0.5, 0.62, 0.24, 0.36]];
     desks.forEach((d, di) => {
       const R = rng(hash(`clutter|${d.x}|${d.z}`)), placed = [];
@@ -1695,13 +1720,14 @@ export function mountOffice(container) {
         if (base) { x = base.x; z = base.z; y = 0.76 + base.h * 0.105; base.h++; }
         else {
           const [x0, x1, z0, z1] = ZONES[Math.floor(R() * R() * ZONES.length)];
-          x = d.x + x0 + R() * (x1 - x0); z = d.z + z0 + R() * (z1 - z0);
-          if (placed.some((p) => Math.hypot(p.x - x, p.z - z) < 0.09) || Math.hypot(x - (d.x - 0.82), z - (d.z + 0.2)) < 0.09 || Math.hypot(x - (d.x + 0.86), z - (d.z + 0.22)) < 0.12) continue;
+          x = x0 + R() * (x1 - x0); z = z0 + R() * (z1 - z0);
+          if (placed.some((p) => Math.hypot(p.x - x, p.z - z) < 0.09) || Math.hypot(x + 0.82, z - 0.2) < 0.09 || Math.hypot(x - 0.86, z - 0.22) < 0.12) continue;
           lying = kind === 'can' && R() < 0.25;
           placed.push({ kind, x, z, h: 1 });
         }
         e.set(lying ? Math.PI / 2 : 0, R() * Math.PI * 2, 0, 'YXZ');
-        m4.compose(v.set(x, lying ? y + 0.033 : y, z), q.setFromEuler(e), one);
+        const w = deskToWorld(d, x, z);
+        m4.compose(v.set(w.x, lying ? y + 0.033 : y, w.z), q.setFromEuler(e), one);
         const k = di * DESK_MAX + i;
         d.clutter.push({ k, kind, m: m4.clone() });
         if (kind === 'cup') { clutter.cup.setColorAt(k, c.set(CUP[Math.floor(R() * CUP.length)])); clutter.lid.setColorAt(k, c.set(LID[Math.floor(R() * LID.length)])); }
@@ -2991,7 +3017,7 @@ export function mountOffice(container) {
     spot(`coffee${i}`, x, z, rotY, 'coffee', R([-11.6, AISLE], [-11.6, 12.6], [x, 12.6])));
   const stool = kitchen.stools.map(({ x, z }, i) => spot(`stool${i}`, x, z, 0, 'stool', R([-11.6, AISLE], [-11.6, 10], [x, 10])));
   const fridge = spot('fridge', -18.55, 12.95, -Math.PI / 2, 'fridge', R([-11.6, AISLE], [-11.6, 12.6], [-18.55, 12.6]));
-  const pp = [spot('pp0', PP.x - 1.85, PP.z, Math.PI / 2, 'pingpong', R([-11.6, AISLE], [-11.6, PP.z], [PP.x - 1.85, PP.z])), spot('pp1', PP.x + 1.85, PP.z, -Math.PI / 2, 'pingpong', R([-4.75, AISLE], [-4.75, 11], [PP.x + 1.85, 11]))];   // up the middle desks' lane, not through them
+  const pp = [spot('pp0', PP.x - 1.85, PP.z, Math.PI / 2, 'pingpong', R([-11.6, AISLE], [-11.6, PP.z], [PP.x - 1.85, PP.z])), spot('pp1', PP.x + 1.85, PP.z, -Math.PI / 2, 'pingpong', R([-4.75, AISLE], [-4.75, 11], [PP.x + 1.85, 11]))];
   const chat = [
     spot('chat0', -10.35, 4.9, Math.PI / 2, 'chat', R([-10.35, AISLE])),
     spot('chat1', -8.85, 4.9, -Math.PI / 2, 'chat', R([-8.85, AISLE])),
@@ -3663,7 +3689,7 @@ export function mountOffice(container) {
     player.pitch = clamp(player.pitch - e.movementY * 0.0022, -1.4, 1.4);
   });
   const TELEPORTS = {
-    Digit1: () => teleport(-6, 1.4, { x: -8, y: 1.3, z: -10 }),
+    Digit1: () => teleport(-2.5, 0.8, { x: -9, y: 1.0, z: -9 }),
     Digit2: () => teleport(-6.5, 2.2, { x: -13, y: 1.0, z: 8 }),
     Digit3: () => { const p = seatedPose(); teleport(p.x, p.z, { x: screenWorld.x, y: screenWorld.y, z: screenWorld.z }, true); },
     Digit4: () => teleport(14.6, 0.6, { x: LIFT.x, y: 1.6, z: LIFT.z }),
@@ -4228,9 +4254,9 @@ export function mountOffice(container) {
       p.update(t, dt);
       // A desk chair turns with whoever's sitting in it (spinning while they wait), and settles back when they leave it.
       const d = p.desk, seated = d && !p.path.length && p.spot?.key === d.spot.key;
-      if (d) d.chair.rotation.y = seated ? p.rotY : d.chair.rotation.y + angDiff(d.chair.rotation.y, Math.PI) * Math.min(1, dt * 4);
+      if (d) d.chair.rotation.y = seated ? p.rotY : d.chair.rotation.y + angDiff(d.chair.rotation.y, d.rotY) * Math.min(1, dt * 4);
     }
-    for (const d of desks) if (!d.owner && d.chair.rotation.y !== Math.PI) d.chair.rotation.y += angDiff(d.chair.rotation.y, Math.PI) * Math.min(1, dt * 4);
+    for (const d of desks) if (!d.owner && d.chair.rotation.y !== d.rotY) d.chair.rotation.y += angDiff(d.chair.rotation.y, d.rotY) * Math.min(1, dt * 4);
     liftFx(dt);
     // Ping pong rally when both ends are manned and settled.
     const [a, b] = pp.map((q) => q.occupant);
@@ -4293,7 +4319,7 @@ export function mountOffice(container) {
   window.__office = { openChat, closeChat, talk, get mode() { return mode; }, teleport: (k) => TELEPORTS[k](), openTv: (id) => openTvPanel(tvs.find((t) => t.id === id)), useTv: (id) => useTv(tvs.find((t) => t.id === id)), leaveTv,
     boards, useBoard: (id) => useBoard(boards.find((b) => b.id === id)), leaveBoard, wb,
     tvPoint: (id, u, v) => { const t = tvs.find((x) => x.id === id), p = t.scr.mesh.localToWorld(new THREE.Vector3((u - 0.5) * t.w, (0.5 - v) * t.h, 0)).project(camera), r = renderer.domElement.getBoundingClientRect(); return { x: r.left + (p.x + 1) / 2 * r.width, y: r.top + (1 - p.y) / 2 * r.height }; },
-    tvs: () => tvs.map((t) => ({ id: t.id, live: t.live, frame: !!t.frame, url: t.page?.url, title: t.page?.title, dist: t.dist })), seats, sitIn, openLaptop, laptop, kitchen, player, people, blinds, door, doors, collide, colliders, lifts, sfx, mine, arch, callLift, pressFloor, setSpeed, clockState, setTime: (ms) => Object.assign(clockState, { speed: 0.0001, simBase: ms, realBase: Date.now() }) };
+    tvs: () => tvs.map((t) => ({ id: t.id, live: t.live, frame: !!t.frame, url: t.page?.url, title: t.page?.title, dist: t.dist })), seats, sitIn, openLaptop, laptop, kitchen, player, people, blinds, door, doors, collide, colliders, desks, idleSpots, lifts, sfx, mine, arch, callLift, pressFloor, setSpeed, clockState, setTime: (ms) => Object.assign(clockState, { speed: 0.0001, simBase: ms, realBase: Date.now() }) };
 
   return {
     // Adopt your desktop onto the monitor, then pull back from it to the chair.
