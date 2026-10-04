@@ -881,6 +881,7 @@ export function mountOffice(container) {
 
   // ----- sky, sun, moon, time of day -----
   // Sun and moon follow the real sky over the configured location (London by default); time can be sped up from the HUD (or T).
+  let officeExposure = 1.05;
   const hemi = new THREE.HemisphereLight('#e3ecf7', '#b39b80', 0.95);
   const sun = new THREE.DirectionalLight('#fff1dc', 3);
   sun.castShadow = true;
@@ -1019,7 +1020,7 @@ export function mountOffice(container) {
     hemi.groundColor.lerpColors(HEMI.nightGnd, HEMI.dayGnd, dl).lerp(HEMI.sunsetGnd, sunset * 0.5);
     scene.environmentIntensity = lerp(0.1, 0.42, dl);
     scene.fog.color.copy(hor).lerp(horSun, 0.3); scene.background.copy(scene.fog.color);
-    renderer.toneMappingExposure = lerp(1.12, 1.0, dl) + 0.06 * sunset;
+    renderer.toneMappingExposure = officeExposure = lerp(1.12, 1.0, dl) + 0.06 * sunset;
     // Lamps follow the Admin tab: 'auto' keeps them off in daylight (the windows light the office) and fades them up from
     // dusk as the sun drops below ~12°; 'on'/'off' override that. Eased so switching doesn't snap.
     const o = dash.office || {}, lampTo = (o.lights === 'on' ? 1 : o.lights === 'off' ? 0 : 1 - dl) * (o.brightness ?? 1);
@@ -3275,15 +3276,15 @@ export function mountOffice(container) {
   // A bright white void: a seamless floor fading into white haze, a freestanding lift back up, and in the middle one steel
   // filing cabinet (`arch.drawers`: a group per drawer, front at +z in the cabinet's space, so sliding one out is +z).
   // Its own scene and composer; while you're down here the office still runs, but isn't drawn or heard.
-  const ARCH = { x: 4, z: LIFT.z, r: 26 };
+  const ARCH = { x: LIFT.x - 24, z: LIFT.z, r: 34 };   // the cabinet, 24 m out from the lift
   const arch = { on: false, colliders: [], drawers: [], composer: null };
   {
     // Plain white haze, brightened by exposure (see renderArchive): an over-bright background clear gets clamped.
     const S = arch.scene = new THREE.Scene(), haze = new THREE.Color('#ffffff');
     S.background = haze; S.fog = new THREE.Fog(haze, 8, 60);
     S.environment = scene.environment; S.environmentIntensity = 0.7;
-    const key = new THREE.DirectionalLight('#ffffff', 0.75); key.position.set(-6, 14, 5);
-    S.add(new THREE.HemisphereLight('#ffffff', '#dcdcdc', 1.5), key);
+    const key = arch.key = new THREE.DirectionalLight('#ffffff', 0.75); key.position.set(-6, 14, 5);
+    S.add(arch.hemi = new THREE.HemisphereLight('#ffffff', '#dcdcdc', 1.5), key);
     // Unlit and a shade under the haze, so it greys a touch around you and fades into the haze with no horizon at all.
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.87, 0.87, 0.87) }));
     floor.rotation.x = -Math.PI / 2; floor.layers.set(1); S.add(floor);   // layer 1: out of the AO pass, which would draw the horizon back in
@@ -3379,6 +3380,7 @@ export function mountOffice(container) {
     cssRenderer.domElement.style.visibility = on ? 'hidden' : '';
     sfx.setAway(on);
   }
+  const WHITE = new THREE.Color('#ffffff'), GREY_DC = new THREE.Color('#dcdcdc');
   function renderArchive() {
     const w = container.clientWidth, h = container.clientHeight;
     if (!arch.composer) {
@@ -3390,11 +3392,23 @@ export function mountOffice(container) {
       ao.updateGtaoMaterial({ radius: 0.5, distanceExponent: 1.4, thickness: 1, scale: 1.1, samples: 12 });
       const aoRender = ao.render.bind(ao);
       ao.render = (...a) => { camera.layers.disable(1); aoRender(...a); camera.layers.enable(1); };
-      c.addPass(ao); c.addPass(new OutputPass());
+      // The office's bloom and grade too, so the car looks the same on every floor (faded out in the void, see below).
+      arch.bloom = new UnrealBloomPass(new THREE.Vector2(512, 512), bloom.strength, bloom.radius, bloom.threshold);
+      arch.grade = new ShaderPass(grade.material.clone());
+      c.addPass(ao); c.addPass(arch.bloom); c.addPass(new OutputPass()); c.addPass(arch.grade);
       c.setSize(w, h);
     }
     arch.gtao.enabled = hq;
-    renderer.toneMappingExposure = 1.5;
+    // Inside the car it's lit like the office car upstairs; stepping out, your eyes adjust to the void over a few metres.
+    const out = clamp((LIFT.x + 0.1 - player.x) / 3, 0, 1);
+    arch.out = damp(arch.out ?? 0, out, 3, 1 / 60);
+    const k = ease(arch.out);
+    renderer.toneMappingExposure = lerp(officeExposure, 1.5, k);
+    arch.hemi.intensity = lerp(hemi.intensity, 1.5, k); arch.key.intensity = lerp(0, 0.75, k);
+    arch.hemi.color.copy(hemi.color).lerp(WHITE, k); arch.hemi.groundColor.copy(hemi.groundColor).lerp(GREY_DC, k);
+    arch.bloom.enabled = hq && k < 0.99; arch.bloom.strength = bloom.strength * (1 - k);
+    arch.grade.enabled = hq; arch.grade.uniforms.amount.value = 1 - k;
+    arch.scene.environmentIntensity = lerp(scene.environmentIntensity, 0.7, k);
     arch.composer.render();
     renderer.setRenderTarget(null);
     const gl = renderer.getContext();   // full alpha everywhere: no dashboard hole down here (see renderFrame)
@@ -3402,7 +3416,7 @@ export function mountOffice(container) {
     renderer.state.buffers.color.reset();
   }
   function drawArchiveMap() {
-    const c = mapCtx, W = 440, H = 330, k = H / (ARCH.r * 2 + 6), sx = (x) => W / 2 + (x - ARCH.x - 6) * k, sz = (z) => H / 2 + (z - ARCH.z) * k;
+    const c = mapCtx, W = 440, H = 330, k = W / (LIFT.x - ARCH.x + 14), sx = (x) => W / 2 + (x - (ARCH.x + LIFT.x) / 2) * k, sz = (z) => H / 2 + (z - ARCH.z) * k;
     c.clearRect(0, 0, W, H);
     c.fillStyle = 'rgba(255,255,255,.12)'; c.beginPath(); c.arc(sx(ARCH.x), sz(ARCH.z), ARCH.r * k, 0, Math.PI * 2); c.fill();
     c.fillStyle = 'rgba(255,255,255,.55)';
@@ -4173,14 +4187,14 @@ export function mountOffice(container) {
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
   const grade = new ShaderPass({
-    uniforms: { tDiffuse: { value: null } },
+    uniforms: { tDiffuse: { value: null }, amount: { value: 1 } },
     vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-    fragmentShader: `uniform sampler2D tDiffuse; varying vec2 vUv;
+    fragmentShader: `uniform sampler2D tDiffuse; uniform float amount; varying vec2 vUv;
       void main() {
         vec4 c = texture2D(tDiffuse, vUv);
         float l = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722));
-        c.rgb = mix(vec3(l), c.rgb, 1.12);
-        c.rgb *= mix(0.8, 1.0, smoothstep(0.95, 0.35, length(vUv - 0.5)));
+        c.rgb = mix(vec3(l), c.rgb, mix(1.0, 1.12, amount));
+        c.rgb *= mix(1.0, mix(0.8, 1.0, smoothstep(0.95, 0.35, length(vUv - 0.5))), amount);
         gl_FragColor = c;
       }`,
   });
