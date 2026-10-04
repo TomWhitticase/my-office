@@ -31,6 +31,7 @@ const CODE_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
 const CODE_CAP = 8000;            // chars of written code kept per edit
 const CHAT_MAX = 300;             // conversation entries kept per main transcript (the in-office chat)
 const CHAT_CAP = 20000;           // chars kept per chat message
+let chatClock = 0;                // chat seqs come from one clock, so a transcript that is re-read from scratch never repeats one
 
 // ---------- pricing (API-equivalent USD per MTok) ----------
 // [input, output, cacheRead]; cache writes are 1.25x input (5m) or 2x input (1h).
@@ -159,7 +160,7 @@ class Transcript {
 
   say(m) {
     if (this.isSubagent) return;
-    this.chat.push(m); this.chatSeq++;
+    this.chat.push(m); this.chatSeq = ++chatClock;
     if (this.chat.length > CHAT_MAX) this.chat.splice(0, this.chat.length - CHAT_MAX);
   }
 
@@ -180,11 +181,19 @@ class Transcript {
       case 'ai-title': this.title = d.aiTitle; return;
       case 'custom-title': this.customTitle = d.customTitle || d.title; return;
       case 'last-prompt': return;
-      // Messages typed while Claude is busy are queued, then absorbed mid-turn or run as the next turn.
-      case 'queue-operation':
-        if (d.operation === 'enqueue' && d.content) this.say({ t, role: 'user', text: String(d.content).slice(0, CHAT_CAP), queued: true });
-        else if (d.operation === 'remove') { const q = this.chat.findLast((m) => m.queued && m.text === String(d.content).slice(0, CHAT_CAP)); if (q) { q.queued = false; q.ran = true; this.chatSeq++; } }
+      // Messages typed while Claude is busy are queued, then absorbed mid-turn or run as the next turn; popAll pulls them back
+      // into the input box unsent. Background task notifications are queued too, but they aren't yours.
+      case 'queue-operation': {
+        const text = typeof d.content === 'string' ? d.content.slice(0, CHAT_CAP) : '';
+        if (d.operation === 'enqueue' && text.trim() && !text.trimStart().startsWith('<')) this.say({ t, role: 'user', text, queued: true });
+        else if (d.operation === 'remove' && text) { const q = this.chat.findLast((m) => m.queued && m.text === text); if (q) { q.queued = false; q.ran = true; this.chatSeq = ++chatClock; } }
+        else if (d.operation === 'popAll' && text) {
+          const n = this.chat.length;
+          this.chat = this.chat.filter((m) => !(m.queued && text.includes(m.text)));
+          if (this.chat.length !== n) this.chatSeq = ++chatClock;
+        }
         return;
+      }
       case 'permission-mode': this.permissionMode = d.permissionMode; return;
       case 'pr-link': this.prs.set(d.prUrl, { url: d.prUrl, number: d.prNumber, repo: d.prRepository, t }); return;
       case 'system':
@@ -288,9 +297,11 @@ class Transcript {
       this.lastPrompt = clip(text, 300);
       this.lastPromptAt = t;
       this.push({ t, kind: 'prompt', text: clip(text, 600) });
-      // A queued message that later ran as its own turn is already in the chat.
-      const q = this.chat.slice(-30).findLast((m) => m.role === 'user' && m.queued !== undefined && !m.ran && m.text === text.slice(0, CHAT_CAP));
-      if (q) { q.queued = false; q.ran = true; this.chatSeq++; } else this.say({ t, role: 'user', text: text.slice(0, CHAT_CAP) });
+      // Queued messages that later ran as this turn (several queued ones run together) are already in the chat.
+      const qs = this.chat.slice(-30).filter((m) => m.role === 'user' && m.queued !== undefined && !m.ran && text.includes(m.text));
+      for (const q of qs) { q.queued = false; q.ran = true; this.chatSeq = ++chatClock; }
+      const rest = qs.reduce((x, q) => x.replace(q.text, ''), text).trim();
+      if (rest) this.say({ t, role: 'user', text: text.slice(0, CHAT_CAP) });
     } else if (kind === 'task-notification') {
       const s = text.match(/<summary>([\s\S]*?)<\/summary>/);
       this.push({ t, kind: 'notify', text: clip(s ? s[1] : text, 200) });
@@ -1024,9 +1035,10 @@ async function sendToSession(id, text) {
     const t = safeJSON((await run(orca, ['terminal', 'list', '--json'])).out)?.result?.terminals?.find((x) => x.handle === term.handle);
     if (!t) throw new Error('its Orca terminal is gone (did Orca restart?)');
     if (!t.connected || !t.writable) throw new Error('its Orca terminal isn’t accepting input');
-    // Text plus Enter is one prompt to Orca (newlines don't submit early). For an idle session wait for proof the turn started;
-    // a busy one queues the message, so acceptance is all there is to see.
-    const res = await run(orca, ['terminal', 'send', '--terminal', term.handle, `--text=${text}`, '--enter', ...(busy ? [] : ['--wait-submit', '10']), '--json']);
+    // Text plus Enter is one prompt to Orca (newlines don't submit early). For an idle session wait briefly for Orca's proof the
+    // turn started (it can miss very quick turns); a busy one queues the message. Either way the chat confirms delivery when the
+    // message shows up in the transcript.
+    const res = await run(orca, ['terminal', 'send', '--terminal', term.handle, `--text=${text}`, '--enter', ...(busy ? [] : ['--wait-submit', '4']), '--json']);
     const j = safeJSON(res.out);
     if (/agent_prompt_blocked/.test(`${j?.error?.code} ${j?.error?.message}`)) throw new Error('it’s showing a prompt in its terminal (a permission request or question), so Orca didn’t press Enter. Answer the prompt there, and check its input box: your text may be sitting in it');
     if (!j?.ok) throw new Error(j?.error?.message || res.errOut.trim() || 'orca terminal send failed');
@@ -1154,6 +1166,8 @@ const server = http.createServer((req, res) => {
   if (send) {
     if (req.method !== 'POST') { res.writeHead(405); return res.end(); }
     if (deny(req, res)) return;
+    // Driving an agent is for this machine only, even when the dashboard is shared on the network (HOST in config.json).
+    if (!/^(127\.|::1$|::ffff:127\.)/.test(req.socket.remoteAddress || '')) { res.writeHead(403, { 'content-type': 'application/json' }); return res.end(JSON.stringify({ error: 'refused: sending is only allowed from this computer' })); }
     let body = '';
     req.on('data', (c) => { body += c; if (body.length > 65536) req.destroy(); });
     req.on('end', async () => {

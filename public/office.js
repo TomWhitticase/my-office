@@ -3185,7 +3185,7 @@ export function mountOffice(container) {
   const CAN_CHAT = window.top === window && !/HeadlessChrome|my-office-tv/.test(navigator.userAgent);
   const chatEl = hud.querySelector('.of-chat'), chatLog = chatEl.querySelector('.of-chatlog'), chatBar = hud.querySelector('.of-chatbar');
   const chatIn = chatBar.querySelector('textarea'), chatSend = chatBar.querySelector('button'), chatSt = chatBar.querySelector('.st');
-  const talk = { id: null, seq: null, msgs: [], route: null, cantSend: null, outbox: [], note: null, busy: false, timer: 0, routeAt: 0 };
+  const talk = { id: null, seq: null, msgs: [], route: null, cantSend: null, outbox: [], note: null, busy: false, timer: 0, routeAt: 0, polling: false, html: '' };
   const bubble = new THREE.Sprite(new THREE.SpriteMaterial({ depthWrite: false, transparent: true }));
   { const b = makeCanvas(128, 96), c = b.ctx;
     c.fillStyle = '#fff'; c.beginPath(); c.roundRect(8, 6, 112, 64, 22); c.moveTo(40, 68); c.lineTo(30, 92); c.lineTo(62, 68); c.fill();
@@ -3195,7 +3195,8 @@ export function mountOffice(container) {
   function md(text) {
     return String(text).split(/```[^\n]*\n?/).map((part, i) => i % 2 ? `<pre>${escapeHtml(part.replace(/\n$/, ''))}</pre>` :
       escapeHtml(i ? part.replace(/^\n/, '') : part).split('\n').map((l) => {
-        l = l.replace(/`([^`\n]+)`/g, '<code>$1</code>').replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>');
+        // Code spans (any run of backticks, as in CommonMark) first, so ** inside code stays literal.
+        l = l.split(/(`+)(.+?)\1(?!`)/).map((x, j) => j % 3 === 2 ? `<code>${x.replace(/^ (.+) $/, '$1')}</code>` : j % 3 ? '' : x.replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>')).join('');
         const h = l.match(/^#{1,6}\s+(.*)/);
         return h ? `<span class="h">${h[1]}</span>` : l.replace(/^(\s*)[-*] /, '$1• ');
       }).join('\n')).join('');
@@ -3205,6 +3206,7 @@ export function mountOffice(container) {
     if (mode !== 'free' && mode !== 'chat') return;
     if (document.pointerLockElement) document.exitPointerLock();
     if (talk.id !== id) Object.assign(talk, { id, seq: null, msgs: [], route: null, cantSend: null, outbox: [], note: null, routeAt: 0 });
+    talk.html = '';
     mode = 'chat'; keys.clear();
     hud.classList.add('of-chatting');
     const p = people.get(id);
@@ -3227,15 +3229,19 @@ export function mountOffice(container) {
     if (relock) renderer.domElement.requestPointerLock();   // only works from a click; after Esc, click to look around again
   }
   async function pollChat() {
+    if (talk.polling) return;   // one request at a time, so an old answer can't land after a newer one
     const id = talk.id, withRoute = Date.now() - talk.routeAt > 10000;
+    talk.polling = true;
     const r = await fetch(`/api/session/${id}/chat?seq=${talk.seq ?? ''}${withRoute ? '&route' : ''}`).then((x) => x.json()).catch(() => null);
+    talk.polling = false;
     if (!r || id !== talk.id) return;
     if (withRoute) { talk.routeAt = Date.now(); talk.route = r.route || null; talk.cantSend = r.cantSend || null; }
     if (r.messages) { talk.msgs = r.messages; talk.seq = r.seq; }
-    // A sent message stays in the outbox until the transcript has it.
+    // A sent message stays in the outbox until the transcript has it, which is the proof it reached Claude.
+    const n = talk.outbox.length;
     talk.outbox = talk.outbox.filter((o) => !talk.msgs.some((m) => m.role === 'user' && m.text.includes(o.text) && m.t >= o.t - 5000) && Date.now() - o.t < 120000);
-    renderChatHead(); syncChatBar();
-    if (r.messages || withRoute) renderChatLog();
+    if (talk.outbox.length < n && talk.note?.cls === 'ok') talk.note = { cls: 'ok', at: Date.now(), text: 'Delivered · it’s in the conversation' };
+    renderChatHead(); syncChatBar(); renderChatLog();
   }
   function renderChatHead() {
     const s = S?.live.find((x) => x.sessionId === talk.id), st = s ? statusOf(s) : { text: 'ENDED', color: '#9a9890' };
@@ -3269,7 +3275,12 @@ export function mountOffice(container) {
     for (const o of talk.outbox) out.push(`<div class="u q">${escapeHtml(o.text)}<em>${o.queued ? 'queued · Claude will read it when it can' : 'sent'}</em></div>`);
     const s = S?.live.find((x) => x.sessionId === talk.id);
     if (s?.status === 'working') out.push(`<div class="n">${s.transcript?.pendingTool ? `working · ${escapeHtml(s.transcript.pendingTool.name)}` : 'thinking'}…</div>`);
-    chatLog.innerHTML = out.join('') || '<div class="n">No conversation yet</div>';
+    const html = out.join('') || '<div class="n">No conversation yet</div>';
+    if (html === talk.html) return;   // unchanged: leave the DOM (and any selection) alone
+    // Keep expanded tool groups open across updates; they're counted from the top, which only grows.
+    const open = [...chatLog.querySelectorAll('details')].map((d) => d.open);
+    talk.html = chatLog.innerHTML = html;
+    chatLog.querySelectorAll('details').forEach((d, i) => { if (open[i]) d.open = true; });
     if (stick) chatLog.scrollTop = chatLog.scrollHeight;
   }
   function syncChatBar() {
@@ -3277,6 +3288,7 @@ export function mountOffice(container) {
     const why = !s ? 'this session has ended' : talk.cantSend || (!['idle', 'working'].includes(s.status) && `it’s ${s.status === 'waiting' ? 'waiting on a prompt (a permission request or question)' : s.status}: answer it in its terminal`);
     chatIn.disabled = chatSend.disabled = !!why || talk.busy;
     chatIn.placeholder = why ? 'Can’t send from here' : s.status === 'working' ? `Message ${who} · it’s working, so this will be queued` : `Message ${who}`;
+    if (talk.note?.cls === 'ok' && Date.now() - talk.note.at > 8000) talk.note = null;   // success fades; errors stay until you type
     if (talk.note) { chatSt.className = 'st ' + talk.note.cls; chatSt.textContent = talk.note.text; return; }
     chatSt.className = 'st' + (why ? ' bad' : s.status === 'working' ? ' warn' : '');
     chatSt.innerHTML = why ? escapeHtml(why[0].toUpperCase() + why.slice(1)) : s.status === 'working'
@@ -3295,7 +3307,7 @@ export function mountOffice(container) {
     else {
       chatIn.value = ''; chatIn.style.height = '';
       talk.outbox.push({ text, t: Date.now(), queued: r.queued });
-      talk.note = { cls: 'ok', text: r.queued ? 'Delivered · queued until Claude finishes its current step' : r.started ? 'Delivered · Claude is on it' : 'Delivered to the terminal (no reply started yet)' };
+      talk.note = { cls: 'ok', at: Date.now(), text: r.queued ? 'Delivered · queued until Claude finishes its current step' : r.started ? 'Delivered · Claude is on it' : 'Typed into its terminal · waiting to see it in the conversation…' };
       const p = people.get(id);
       if (p) { p.root.add(bubble); bubble.position.y = 2.5; bubble.visible = true; clearTimeout(bubbleT); bubbleT = setTimeout(() => (bubble.visible = false), 4000); }
     }
