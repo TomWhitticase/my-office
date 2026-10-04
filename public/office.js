@@ -446,10 +446,19 @@ function drawWall(scr, S) {
     (i) => (i % 7 === 0 || i === days.length - 1 ? new Date(days[i].date + 'T12:00').toLocaleDateString([], { day: 'numeric', month: 'short' }) : ''), F.usd);
 }
 
+// Today's token total in the board's header rolls up to each new figure like an odometer (see feedRoll in the loop).
+const tokenRoll = { shown: null, target: 0, from: 0, at: 0 };
 function drawFeed(scr, S) {
   const { ctx, W } = scr;
   header(ctx, W, 'Live activity', 'all sessions');
   ctx.fillStyle = '#22c55e'; ctx.beginPath(); ctx.arc(W - 46, 40, 9, 0, Math.PI * 2); ctx.globalAlpha = 0.6 + 0.4 * Math.sin(Date.now() / 300); ctx.fill(); ctx.globalAlpha = 1;
+  const t = S.totals, n = Math.round(tokenRoll.shown ?? t.todayTokens);
+  ctx.textAlign = 'right';
+  ctx.font = `700 34px ${MONO}`; ctx.fillStyle = '#f3f2ec'; ctx.fillText(n.toLocaleString(), W - 74, 52);
+  const nw = ctx.measureText(n.toLocaleString()).width;
+  ctx.font = `600 13px ${FONT}`; ctx.fillStyle = '#8b8a85'; ctx.fillText('TOKENS TODAY', W - 86 - nw, 34);
+  ctx.font = `400 15px ${FONT}`; ctx.fillStyle = '#6f6e69'; ctx.fillText(`${F.tok(t.todayOutput)} output · ${F.usd(t.todayCost)}`, W - 86 - nw, 56);
+  ctx.textAlign = 'left';
   let y = 104;
   for (const e of S.feed.slice(0, 12)) {
     ctx.font = `500 20px ${FONT}`; ctx.fillStyle = '#6f6e69'; ctx.fillText(F.clock(e.t), 30, y);
@@ -3822,6 +3831,7 @@ export function mountOffice(container) {
     drawUsage(usageScr, S); usageScr.tex.needsUpdate = true;
     drawRoster(rosterScr, S); rosterScr.tex.needsUpdate = true;
     drawWall(wallTV, S); wallTV.tex.needsUpdate = true;
+    if (tokenRoll.target !== S.totals.todayTokens) Object.assign(tokenRoll, { from: tokenRoll.shown ?? S.totals.todayTokens, target: S.totals.todayTokens, at: performance.now() });
     drawFeed(feedTV, S); feedTV.tex.needsUpdate = true;
     if (breakBoard.list) breakBoard.dirty = true;
   }
@@ -4576,6 +4586,13 @@ export function mountOffice(container) {
     }
     for (const d of desks) if (!d.owner && d.chair.rotation.y !== d.rotY) d.chair.rotation.y += angDiff(d.chair.rotation.y, d.rotY) * Math.min(1, dt * 4);
     liftFx(dt);
+    // Roll the board's token counter up to the latest total over 1.5 s, repainting the board at ~12 fps while it moves.
+    if (S && tokenRoll.shown !== tokenRoll.target && now - (tokenRoll.painted || 0) > 80) {
+      const u = clamp((now - tokenRoll.at) / 1500, 0, 1);
+      tokenRoll.shown = u >= 1 ? tokenRoll.target : tokenRoll.from + (tokenRoll.target - tokenRoll.from) * ease(u);
+      tokenRoll.painted = now;
+      drawFeed(feedTV, S); feedTV.tex.needsUpdate = true;
+    }
     // Ping pong rally when both ends are manned and settled.
     const [a, b] = pp.map((q) => q.occupant);
     const rally = a && b && !a.path.length && !b.path.length && a.spot === pp[0] && b.spot === pp[1];
