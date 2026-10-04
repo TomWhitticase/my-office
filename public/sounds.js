@@ -11,7 +11,7 @@ const pick = (a) => a[Math.floor(Math.random() * a.length)];
 const noise = () => Math.random() * 2 - 1;
 const clampLook = (d) => Math.max(0, Math.min(d, 0.25));
 const env = (t, a, b, att, rel) => (t < a || t > b ? 0 : Math.min(1, (t - a) / att, (b - t) / rel));
-const SEATED = new Set(['type', 'wait', 'sofa', 'beanbag', 'meeting']);
+const SEATED = new Set(['type', 'wait', 'sofa', 'beanbag', 'meeting', 'stool']);
 const TALK = new Set(['chat', 'sofa', 'beanbag', 'meeting']);
 // Vowel formants (F1, F2, F3) for the babble.
 const VOWELS = [[730, 1090, 2440], [530, 1840, 2480], [270, 2290, 3010], [570, 840, 2410], [300, 870, 2240], [660, 1720, 2410], [490, 1350, 1690]];
@@ -293,6 +293,7 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos }) {
         if (s.next < t) { if (s.next) play(pick(B.key), pos.x + Math.sin(p.rotY) * 0.45, 0.76, pos.z + Math.cos(p.rotY) * 0.45, 0.08, 1.5); s.next = t + rnd(3, 12); }
       } else if (pose === 'coffee' && s.coffeeAt && t > s.coffeeAt && t > machineFree) {
         play(B.espresso, coffee.x, coffee.y, coffee.z, 0.5, rnd(0.97, 1.03));
+        coffee.onBrew?.();
         machineFree = t + 7.5; s.coffeeAt = t + rnd(50, 110);
       }
     }
@@ -337,6 +338,7 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos }) {
     setActive(on) { active = on; if (on && navigator.userActivation?.hasBeenActive) unlock(); else sync(); },
     update, rally,
     ding(at = lift) { play(B?.chime, at.x, 2.4, at.z, 0.35); },
+    espresso() { play(B?.espresso, coffee.x, coffee.y, coffee.z, 0.5); machineFree = lastT + 7.5; },
     slide(at = lift) { play(B?.slide, at.x, 1.2, at.z, 0.22, rnd(0.95, 1.05)); },
     get ready() { return !!ctx && ctx.state; },
     get voices() { return voices; }, played, get buffers() { return B; },
