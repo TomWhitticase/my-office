@@ -18,6 +18,7 @@ const VOWELS = [[730, 1090, 2440], [530, 1840, 2480], [270, 2290, 3010], [570, 8
 
 export function createSounds({ camera, rugs, glass, lift, coffee, doorPos }) {
   let ctx = null, bus = null, master = null, B = null, voices = 0, active = false;
+  let away = false, tone = null, hum = null, humOn = false;   // away: down in the archive, where the office can't be heard
   const played = {};   // debug counts by kind (window.__office.sfx.played)
   const st = new Map();       // person -> sound state
   const convs = new Map();    // chat group key -> conversation
@@ -172,7 +173,33 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos }) {
     lp.type = 'lowpass'; lp.frequency.value = 180; bp.type = 'bandpass'; bp.frequency.value = 450; bp.Q.value = 0.5;
     g.gain.value = 0.05; air.gain.value = 0.012;
     src.connect(lp).connect(g).connect(master); src.connect(bp).connect(air).connect(master);
+    // The archive: a faint high air with a long, bright tail on everything (a big empty room), instead of the HVAC.
+    const hi = ctx.createBiquadFilter(), void_ = ctx.createGain(), verb = ctx.createConvolver(), wet = ctx.createGain();
+    hi.type = 'bandpass'; hi.frequency.value = 2400; hi.Q.value = 0.3; void_.gain.value = 0;
+    src.connect(hi).connect(void_).connect(master);
+    const SR = ctx.sampleRate, ir = ctx.createBuffer(2, SR * 3, SR);
+    for (let c = 0; c < 2; c++) { const d = ir.getChannelData(c); for (let i = 0; i < d.length; i++) d[i] = noise() * Math.exp(-i / SR / 0.7) * Math.min(1, i / (SR * 0.02)); }
+    verb.buffer = ir; wet.gain.value = 0;
+    bus.connect(verb).connect(wet).connect(master);
     src.start();
+    tone = { g, air, void_, wet };
+  }
+  function applyAway() {
+    if (!tone) return;
+    const at = (n, v) => n.gain.setTargetAtTime(v, ctx.currentTime, 0.25);
+    at(tone.g, away ? 0 : 0.05); at(tone.air, away ? 0 : 0.012); at(tone.void_, away ? 0.006 : 0); at(tone.wet, away ? 0.35 : 0);
+  }
+  function liftHum(on) {   // the car's motor and the air in the shaft while you ride
+    humOn = on;
+    if (!ctx) return;
+    if (!hum) {
+      const SR = ctx.sampleRate, b = ctx.createBuffer(1, SR * 2, SR), d = b.getChannelData(0), lp = biq('lp', 220, 0.7);
+      for (let i = 0; i < d.length; i++) { const t = i / SR; d[i] = 0.5 * Math.sin(TAU * 55 * t) + 0.25 * Math.sin(TAU * 110 * t) + 0.08 * Math.sin(TAU * 165 * t) + lp(noise()) * 2.5; }
+      const src = ctx.createBufferSource(); src.buffer = b; src.loop = true;
+      hum = ctx.createGain(); hum.gain.value = 0;
+      src.connect(hum).connect(master); src.start();
+    }
+    hum.gain.setTargetAtTime(on ? 0.05 : 0, ctx.currentTime, on ? 0.5 : 0.25);
   }
   function unlock() {
     if (!dash.sound.on) return;
@@ -184,7 +211,7 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos }) {
       const comp = ctx.createDynamicsCompressor();
       master.connect(comp).connect(ctx.destination);
       bus = ctx.createGain(); bus.connect(master);
-      build(); roomTone(); apply();
+      build(); roomTone(); apply(); applyAway(); if (humOn) liftHum(true);
     }
     sync();
   }
@@ -269,7 +296,7 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos }) {
       li.forwardX.value = fwd.x; li.forwardY.value = fwd.y; li.forwardZ.value = fwd.z; li.upX.value = 0; li.upY.value = 1; li.upZ.value = 0;
     } else { li.setPosition(L.x, L.y, L.z); li.setOrientation(fwd.x, fwd.y, fwd.z, 0, 1, 0); }
     doorK = door.k; look = 0.06 + clampLook(t - lastT) * 1.5; lastT = t;   // schedule past the next frame, even a slow one
-    const now = performance.now(), list = [...people.values()];
+    const now = performance.now(), list = away ? [] : [...people.values()];
     for (const p of list) {
       const s = stateOf(p), pos = p.root.position, walking = p.path.length > 0, pose = p.spot?.pose;
       if (p.root.scale.x < 0.5 || !near(pos.x, pos.z)) { Object.assign(s, { walking, pose, stepN: null }); continue; }
@@ -305,13 +332,13 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos }) {
     lastCam.copy(L);
     if (free && moved > 1.5 && moved < 15) {
       stepAcc += dt;
-      if (stepAcc > (moved > 6 ? 0.3 : 0.42)) { stepAcc = 0; const soft = onRug(L.x, L.z); play(pick(soft ? B.soft : B.step), L.x, 0.05, L.z - 0.01, soft ? 0.03 : 0.045, rnd(0.95, 1.1)); }
+      if (stepAcc > (moved > 6 ? 0.3 : 0.42)) { stepAcc = 0; const soft = !away && onRug(L.x, L.z); play(pick(soft ? B.soft : B.step), L.x, 0.05, L.z - 0.01, soft ? 0.03 : 0.045, rnd(0.95, 1.1)); }
     } else stepAcc = 0.3;
     // Door and blinds: a sound whenever their target changes (clicks here or anywhere else).
-    if (lastDoor !== null && door.to !== lastDoor) play(B.swish, doorPos.x, 1.1, doorPos.z, 0.4, door.to ? 1 : 0.9);
+    if (!away && lastDoor !== null && door.to !== lastDoor) play(B.swish, doorPos.x, 1.1, doorPos.z, 0.4, door.to ? 1 : 0.9);
     lastDoor = door.to;
     for (const b of Object.values(blinds)) {
-      if (lastBlinds[b.key] !== undefined && lastBlinds[b.key] !== b.to) for (const r of b.runs) {   // one rattle per run, from its window nearest you
+      if (!away && lastBlinds[b.key] !== undefined && lastBlinds[b.key] !== b.to) for (const r of b.runs) {   // one rattle per run, from its window nearest you
         let best = null, bd = Infinity;
         for (const [x] of r.cells || [[0]]) { const v = r.slats.localToWorld(_w.set(x, 2.2, 0)), d = v.distanceToSquared(L); if (d < bd) { bd = d; best = v.clone(); } }
         play(B.rattle, best.x, best.y, best.z, 0.25, rnd(0.95, 1.05));
@@ -325,7 +352,7 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos }) {
   const BOUNCE = (Math.PI - 0.1) / (Math.PI * 1.5);
   function rally(k, ball) {
     rallySeen = true;
-    if (!ctx || ctx.state !== 'running') return;
+    if (!ctx || ctx.state !== 'running' || away) return;
     if (prevK !== null) {
       const ph = prevK % 1, u = k % 1;
       if (k < prevK || (prevK < 1 && k >= 1)) play(pick(B.paddle), ball.x, ball.y, ball.z, 0.16, rnd(0.95, 1.05));
@@ -337,9 +364,11 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos }) {
     unlock,
     setActive(on) { active = on; if (on && navigator.userActivation?.hasBeenActive) unlock(); else sync(); },
     update, rally,
-    ding(at = lift) { play(B?.chime, at.x, 2.4, at.z, 0.35); },
-    espresso() { play(B?.espresso, coffee.x, coffee.y, coffee.z, 0.5); machineFree = lastT + 7.5; },
-    slide(at = lift) { play(B?.slide, at.x, 1.2, at.z, 0.22, rnd(0.95, 1.05)); },
+    // `mine`: your own car, the only lift you can hear from the archive.
+    ding(at = lift, mine) { if (!away || mine) play(B?.chime, at.x, 2.4, at.z, 0.35); },
+    espresso() { if (!away) play(B?.espresso, coffee.x, coffee.y, coffee.z, 0.5); machineFree = lastT + 7.5; },
+    slide(at = lift, mine) { if (!away || mine) play(B?.slide, at.x, 1.2, at.z, 0.22, rnd(0.95, 1.05)); },
+    setAway(on) { away = on; applyAway(); }, hum: liftHum,
     get ready() { return !!ctx && ctx.state; },
     get voices() { return voices; }, played, get buffers() { return B; },
   };

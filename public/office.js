@@ -2733,19 +2733,20 @@ export function mountOffice(container) {
     c.font = `400 24px ${FONT}`; c.fillText(fit(c, dash.officeName(), 310), 250, 132); c.fillText('Desks · Meeting rooms · Lounge', 250, 164);
     c.fillStyle = 'rgba(255,255,255,.14)'; c.fillRect(40, 214, 520, 2);
     c.font = `400 22px ${FONT}`; c.fillStyle = '#9a9890';
-    [['50', 'Sky bar · Terrace'], ['49', 'Plant room'], ['47', 'Server hall'], ['G', 'Lobby · Street · Coffee']].forEach(([f, t], i) => {
-      c.fillStyle = '#f2efe8'; c.font = `600 22px ${FONT}`; c.fillText(f, 44, 254 + i * 38); c.fillStyle = '#9a9890'; c.font = `400 22px ${FONT}`; c.fillText(t, 100, 254 + i * 38);
+    [['50', 'Sky bar · Terrace'], ['49', 'Plant room'], ['47', 'Server hall'], ['G', 'Lobby · Street · Coffee'], ['B2', 'The Archive']].forEach(([f, t], i) => {
+      c.fillStyle = '#f2efe8'; c.font = `600 22px ${FONT}`; c.fillText(f, 44, 252 + i * 34); c.fillStyle = '#9a9890'; c.font = `400 22px ${FONT}`; c.fillText(t, 100, 252 + i * 34);
     });
     sign.mesh.material = new THREE.MeshStandardMaterial({ map: sign.tex, roughness: 0.5 }); sign.tex.needsUpdate = true;
   }
   // Hall lantern over each lift: floor and direction, repainted only when they change.
+  const floorName = (f) => (f < 0 ? `B${-f}` : f ? String(f) : 'G');
   function paintIndicator(L) {
     const f = Math.round(L.floor), key = `${f}${L.dir}`;
     if (key === L.indKey) return;
     L.indKey = key;
     const { ctx, W, H } = L.ind;
     ctx.fillStyle = '#0b0b0c'; ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = '#ffb347'; ctx.font = `600 58px ${MONO}`; ctx.textAlign = 'center'; ctx.fillText(f ? String(f) : 'G', W / 2 + 22, 62); ctx.textAlign = 'left';
+    ctx.fillStyle = '#ffb347'; ctx.font = `600 58px ${MONO}`; ctx.textAlign = 'center'; ctx.fillText(floorName(f), W / 2 + 22, 62); ctx.textAlign = 'left';
     if (L.dir) { ctx.beginPath(); ctx.moveTo(26, L.dir > 0 ? 22 : 58); ctx.lineTo(48, L.dir > 0 ? 22 : 58); ctx.lineTo(37, L.dir > 0 ? 8 : 72); ctx.lineTo(26, L.dir > 0 ? 22 : 58); ctx.fill(); ctx.fillRect(33, L.dir > 0 ? 22 : 34, 8, 24); }
     L.ind.tex.needsUpdate = true;
   }
@@ -3019,10 +3020,11 @@ export function mountOffice(container) {
   const carSpot = (L, pos) => ({ key: 'lift', kind: 'lift', pos, rotY: -Math.PI / 2, route: [{ x: LIFT.x - 1.2, z: AISLE }, { x: LIFT.x - 0.6, z: L.z }, pos] });
   const calling = (L) => [...L.callers].some((p) => p.lv.stage !== 'walk');
   const waitAt = (L) => ({ x: LIFT.x - 0.95 - 0.45 * ([...L.callers].filter((q) => q.lv.stage !== 'walk').length % 3), z: L.z + (L === lifts[0] ? -0.6 : 0.6) });
+  const theirs = () => lifts.filter((L) => !L.player);   // the cars sessions may use: not the one you've called
   const inDoorway = (L) => [...people.values()].some((p) => p.lv?.stage !== 'in' && Math.abs(p.root.position.z - L.z) < 0.7 && p.root.position.x > LIFT.x - 0.6 && p.root.position.x < LIFT.x + 0.5);
   function gone(p) { world.remove(p.root); for (const [k, v] of people) if (v === p) people.delete(k); }
   function setLift(L, state) {
-    if ((state === 'opening' || state === 'closing') && L.state !== state) sfx.slide(L.at);
+    if ((state === 'opening' || state === 'closing') && L.state !== state) sfx.slide(L.at, L.player);
     L.state = state; L.t = 0;
   }
   function goTo(L, floor) { L.goal = floor; L.dir = Math.sign(floor - L.floor); setLift(L, 'travel'); }
@@ -3031,8 +3033,8 @@ export function mountOffice(container) {
     p.spot = carSpot(L, inCar(L, L.cargo.size - 1)); p.place(p.spot);
   }
   function arrive(p) {
-    const free = (L) => L.state === 'away' || (L.state === 'travel' && L.goal === 48 && L.dir > 0);
-    const L = lifts.find(free) || lifts.find((x) => x.state === 'home') || lifts.reduce((a, b) => (b.pending.length < a.pending.length ? b : a));
+    const free = (L) => !L.player && (L.state === 'away' || (L.state === 'travel' && L.goal === 48 && L.dir > 0));
+    const L = lifts.find(free) || theirs().find((x) => x.state === 'home') || theirs().reduce((a, b) => (b.pending.length < a.pending.length ? b : a));
     p.root.visible = false; p.lift = L; p.place(carSpot(L, inCar(L, 0)));
     if (free(L)) ride(L, p); else L.pending.push(p);
   }
@@ -3045,8 +3047,8 @@ export function mountOffice(container) {
       C.cargo.delete(p); C.riders.add(p); p.lv = { L: C, stage: 'in' };
       return;
     }
-    const L = lifts.find((x) => x.state === 'open' || x.state === 'opening') || lifts.find(calling) || lifts.find((x) => x.state === 'home')
-      || lifts.reduce((a, b) => (b.callers.size < a.callers.size ? b : a));
+    const L = theirs().find((x) => x.state === 'open' || x.state === 'opening') || theirs().find(calling) || theirs().find((x) => x.state === 'home')
+      || theirs().reduce((a, b) => (b.callers.size < a.callers.size ? b : a));
     const press = !lifts.some(calling) && L.state !== 'open';
     p.lv = { L, stage: 'walk', press };
     L.callers.add(p);
@@ -3072,7 +3074,8 @@ export function mountOffice(container) {
       }
       for (const p of L.exits) if (!p.path.length || p.root.position.x < LIFT.x - 0.8) L.exits.delete(p);
       const holding = [...L.callers].some((p) => p.lv.stage !== 'walk' || Math.hypot(p.root.position.x - LIFT.x, p.root.position.z - L.z) < 4) || L.exits.size || inDoorway(L);   // incl. anyone about to reach it
-      switch (L.state) {
+      if (L.player) myCar(L, dt);
+      else switch (L.state) {
         case 'home':
           if (calling(L)) { sfx.ding(L.at); setLift(L, 'opening'); }
           else if (L.pending.length) goTo(L, 30 + Math.floor(Math.random() * 15));   // fetch them from below
@@ -3112,7 +3115,278 @@ export function mountOffice(container) {
       L.leaves.forEach((m, i) => { m.position.z = L.z + (i ? 1 : -1) * (DOOR.w / 4 + e * DOOR.w * 0.48); });
       paintIndicator(L);
     }
-    lifts.callM.emissiveIntensity = lifts.some((L) => calling(L) && L.state !== 'open') ? 2.5 : 0;
+    lifts.callM.emissiveIntensity = lifts.some((L) => calling(L) && L.state !== 'open') || mine.call ? 2.5 : 0;
+    myLift(dt);
+  }
+
+  // ----- riding the lifts yourself -----
+  // Click the call panel and the nearest car no session needs is yours (`mine.L`, `L.player`) until you step out and it
+  // closes: it opens, you walk in, press a floor on the car panel, and ride. Sessions keep using the other car meanwhile.
+  // B2 is THE ARCHIVE, a separate scene: the swap happens behind closed doors, and the car stays down there for you.
+  const ARCHIVE = -2;
+  const mine = { L: null, call: false, goal: null, from: 48, to: 48, k: 0, dur: 1 };
+  const inMyCar = () => !!mine.L && player.x > LIFT.x + 0.3 && Math.abs(player.z - mine.L.z) < CAR.w / 2;
+  const atMyDoor = () => !!mine.L && player.x > LIFT.x - 0.7 && player.x < LIFT.x + 0.45 && Math.abs(player.z - mine.L.z) < DOOR.w / 2 + 0.1;
+  const spare = (L) => !L.player && !L.pending.length && !L.cargo.size && !L.callers.size && !L.riders.size && !L.exits.size && ['home', 'away', 'open', 'closing'].includes(L.state);
+  function carPanel(parent, z) {   // the car's floor buttons, on the return beside the doors: 48 over B2
+    const scr = makeScreen(parent, 0.1, 0.34, 80, 272, LIFT.x + 0.3615, 1.2, z + 0.68);
+    scr.mesh.rotation.y = Math.PI / 2;
+    Object.assign(scr.mesh.userData, { action: 'liftpanel', reach: 2.2, floorAt: (uv) => (uv.y > 0.5 ? 48 : ARCHIVE) });
+    return scr;
+  }
+  function paintPanel(scr, lit) {
+    const { ctx: c, W } = scr;
+    c.fillStyle = '#4d5157'; c.fillRect(0, 0, W, scr.H); c.textAlign = 'center';
+    [[48, 'OFFICE'], [ARCHIVE, 'ARCHIVE']].forEach(([f, t], i) => {
+      const y = 78 + i * 112;
+      c.beginPath(); c.arc(W / 2, y, 27, 0, Math.PI * 2); c.fillStyle = '#d9dcdf'; c.fill();
+      c.lineWidth = 5; c.strokeStyle = f === lit ? '#ffb347' : '#8b9096'; c.stroke();
+      c.fillStyle = '#26282b'; c.font = `600 24px ${FONT}`; c.fillText(floorName(f), W / 2, y + 8);
+      c.fillStyle = '#e8e6e1'; c.font = `600 12px ${FONT}`; c.fillText(t, W / 2, y + 48);
+    });
+    c.textAlign = 'left'; scr.tex.needsUpdate = true;
+  }
+  const hitBox = (parent, w, h, d, x, y, z, ud) => { const m = box(parent, w, h, d, '#fff', x, y, z, { shadow: false }); m.visible = false; Object.assign(m.userData, ud); return m; };
+  lifts.callHit = hitBox(world, 0.06, 0.42, 0.22, LIFT.x - 0.03, 1.1, LIFT.z, { action: 'liftcall', reach: 2.5 });
+  for (const L of lifts) { L.panel = carPanel(world, L.z); paintPanel(L.panel, null); }
+
+  function callLift() {
+    const L = mine.L;
+    if (L) { if (L.state === 'closing' || L.state === 'parked') setLift(L, 'opening'); return; }
+    if (!mine.call) toast('Lift called');
+    mine.call = true;
+  }
+  function pressFloor(f) {
+    const L = mine.L;
+    if (!L || L.state === 'travel') return;
+    mine.goal = f === Math.round(L.floor) ? null : f;
+    if (mine.goal === null && L.state !== 'open') setLift(L, 'opening');
+    for (const P of [L.panel, arch.panel]) paintPanel(P, mine.goal);
+  }
+  function travelTo(L, f) {
+    Object.assign(mine, { from: L.floor, to: f, k: 0, dur: clamp(Math.abs(f - L.floor) / 11, 2.5, 5.5) });
+    L.goal = f; L.dir = Math.sign(f - L.floor); setLift(L, 'travel');
+    if (inMyCar()) { setArchive(f === ARCHIVE); sfx.hum(true); }
+  }
+  function release(L) {   // back to the sessions, closed at whatever floor it's on
+    L.player = false; L.floor = Math.round(L.floor); L.dir = 0; L.doorK = 0;
+    setLift(L, L.floor === 48 ? 'home' : 'away');
+    Object.assign(mine, { L: null, goal: null });
+    paintPanel(L.panel, null);
+  }
+  function myCar(L, dt) {
+    const inside = inMyCar(), door = atMyDoor(), here = Math.round(L.floor);
+    switch (L.state) {
+      case 'opening':
+        L.doorK = Math.min(1, L.doorK + dt / 1.1);
+        if (L.doorK === 1) setLift(L, 'open');
+        break;
+      case 'open':
+        if ((mine.goal !== null && inside && !door && L.t > 0.6) || (!inside && !door && L.t > 4)) setLift(L, 'closing');
+        break;
+      case 'closing':
+        L.doorK = Math.max(0, L.doorK - dt / 1.3);
+        if (door) setLift(L, 'opening');
+        else if (L.doorK === 0) setLift(L, 'parked');
+        break;
+      case 'parked':
+        if (inside && mine.goal !== null) travelTo(L, mine.goal);
+        else if (!inside && here === 48 && !arch.on) release(L);
+        break;
+      case 'travel':
+        mine.k = Math.min(1, mine.k + dt / mine.dur);
+        L.floor = lerp(mine.from, mine.to, ease(mine.k));
+        if (mine.k === 1) {
+          L.floor = mine.to; L.dir = 0; mine.goal = null; sfx.hum(false);
+          for (const P of [L.panel, arch.panel]) paintPanel(P, null);
+          sfx.ding(L.at, true); setLift(L, 'opening');
+          if (arch.on) toast('<b>THE ARCHIVE</b> · B2');
+        }
+        break;
+    }
+  }
+  function myLift() {
+    if (mine.call && !mine.L) {   // the nearest car nobody else needs (one already here first) comes for you
+      const L = lifts.filter(spare).sort((a, b) => Math.abs(a.floor - 48) - Math.abs(b.floor - 48) || Math.abs(a.z - player.z) - Math.abs(b.z - player.z))[0];
+      if (L) {
+        mine.call = false; mine.L = L; L.player = true; mine.goal = null;
+        if (L.state === 'home') { sfx.ding(L.at, true); setLift(L, 'opening'); }
+        else if (L.state === 'away') travelTo(L, 48);
+        else if (L.state === 'closing') setLift(L, 'opening');
+      }
+    }
+    const L = mine.L;
+    if (!arch.on || !L) return;
+    const e = ease(L.doorK);
+    arch.leaves.forEach((m, i) => { m.position.z = (i ? 1 : -1) * (DOOR.w / 4 + e * DOOR.w * 0.48); });
+    Object.assign(arch.ind, { floor: L.floor, dir: L.dir }); paintIndicator(arch.ind);
+    arch.callM.emissiveIntensity = L.state === 'opening' ? 2.5 : 0;
+  }
+  function resetLift() {   // leaving the 3D view: you're back at your desk and the car goes back to the sessions
+    mine.call = false;
+    if (mine.L) release(mine.L);
+    sfx.hum(false);
+    setArchive(false);
+  }
+  // Your car while it's yours: its walls, and the doorway while the doors are open (the core's collider rules otherwise).
+  function carCollide(p) {
+    const L = mine.L;
+    if (!L) return false;
+    const r = 0.25, front = LIFT.x + 0.1, open = L.doorK > 0.75, half = DOOR.w / 2 - r, inCar = p.x > front;
+    if (!inCar && !(open && p.x > LIFT.x - 0.6 && Math.abs(p.z - L.z) < DOOR.w / 2)) return false;
+    if (!inCar && p.x < LIFT.x - r) return true;   // in front of the open doors: nothing to bump into
+    p.x = Math.min(p.x, front + CAR.d - r);
+    p.z = clamp(p.z, L.z - CAR.w / 2 + r, L.z + CAR.w / 2 - r);
+    if (!open) p.x = Math.max(p.x, front + 0.05 + r);
+    else if (p.x < front + r && Math.abs(p.z - L.z) > half) {   // a jamb: push out the shorter way
+      const dz = Math.abs(p.z - L.z) - half, dx = front + r - p.x;
+      if (dx < dz) p.x = front + r; else p.z = L.z + Math.sign(p.z - L.z) * half;
+    }
+    return true;
+  }
+
+  // ----- THE ARCHIVE (B2) -----
+  // A bright white void: a seamless floor fading into white haze, a freestanding lift back up, and in the middle one steel
+  // filing cabinet (`arch.drawers`: a group per drawer, front at +z in the cabinet's space, so sliding one out is +z).
+  // Its own scene and composer; while you're down here the office still runs, but isn't drawn or heard.
+  const ARCH = { x: 4, z: LIFT.z, r: 26 };
+  const arch = { on: false, colliders: [], drawers: [], composer: null };
+  {
+    // Plain white haze, brightened by exposure (see renderArchive): an over-bright background clear gets clamped.
+    const S = arch.scene = new THREE.Scene(), haze = new THREE.Color('#ffffff');
+    S.background = haze; S.fog = new THREE.Fog(haze, 8, 60);
+    S.environment = scene.environment; S.environmentIntensity = 0.7;
+    const key = new THREE.DirectionalLight('#ffffff', 0.75); key.position.set(-6, 14, 5);
+    S.add(new THREE.HemisphereLight('#ffffff', '#dcdcdc', 1.5), key);
+    // Unlit and a shade under the haze, so it greys a touch around you and fades into the haze with no horizon at all.
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.87, 0.87, 0.87) }));
+    floor.rotation.x = -Math.PI / 2; floor.layers.set(1); S.add(floor);   // layer 1: out of the AO pass, which would draw the horizon back in
+    // Soft contact shadows: a blurred black rectangle, a tight dark one and a wide faint one under each thing.
+    const blob = makeCanvas(256, 256);
+    blob.ctx.filter = 'blur(26px)'; blob.ctx.fillStyle = '#000'; blob.ctx.fillRect(64, 64, 128, 128); blob.tex.needsUpdate = true;
+    const shadow = (parent, w, d, x, z, o) => {
+      for (const [k, a] of [[1.15, o], [2.4, o * 0.35]]) {   // the dark core is the middle half of the texture
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(w * 4 * k, d * 4 * k), new THREE.MeshBasicMaterial({ map: blob.tex, color: '#000', transparent: true, opacity: a, depthWrite: false }));
+        m.rotation.x = -Math.PI / 2; m.position.set(x, 0.002, z); m.layers.set(1); parent.add(m);
+      }
+    };
+    // THE ARCHIVE in the floor, reading as you walk from the lift to the cabinet.
+    const word = makeCanvas(2048, 256), wc = word.ctx;
+    wc.font = `200 150px ${FONT}`; wc.letterSpacing = '60px'; wc.fillStyle = '#ffffff'; wc.textAlign = 'center'; wc.textBaseline = 'middle';
+    wc.fillText('THE ARCHIVE', 1024 + 30, 132); word.tex.needsUpdate = true;
+    const words = new THREE.Mesh(new THREE.PlaneGeometry(8, 1), new THREE.MeshBasicMaterial({ map: word.tex, color: new THREE.Color(0.55, 0.55, 0.55), transparent: true, depthWrite: false }));
+    words.rotation.order = 'YXZ'; words.rotation.set(-Math.PI / 2, Math.PI / 2, 0); words.position.set(ARCH.x + 3.2, 0.003, ARCH.z); words.layers.set(1);
+    S.add(words);
+
+    // The filing cabinet: powder-coated putty steel, a little scuffed, four drawers with pulls, label cards and a lock.
+    const wear = makeCanvas(256, 512), R = rng(48), w = wear.ctx;
+    w.fillStyle = '#9ea198'; w.fillRect(0, 0, 256, 512);
+    for (let i = 0; i < 2500; i++) { w.fillStyle = `rgba(${R() > 0.5 ? '255,255,255' : '40,40,36'},${R() * 0.05})`; w.fillRect(R() * 256, R() * 512, 1 + R() * 3, 1 + R() * 3); }
+    for (let i = 0; i < 22; i++) { w.strokeStyle = `rgba(${R() > 0.4 ? '210,212,205' : '70,70,64'},${0.12 + R() * 0.2})`; w.lineWidth = 0.6 + R(); const x = R() * 256, y = R() * 512; w.beginPath(); w.moveTo(x, y); w.lineTo(x + (R() - 0.5) * 40, y + (R() - 0.5) * 10); w.stroke(); }
+    const edge = w.createLinearGradient(0, 0, 256, 0); edge.addColorStop(0, 'rgba(60,60,55,.18)'); edge.addColorStop(0.06, 'rgba(0,0,0,0)'); edge.addColorStop(0.94, 'rgba(0,0,0,0)'); edge.addColorStop(1, 'rgba(60,60,55,.18)');
+    w.fillStyle = edge; w.fillRect(0, 0, 256, 512); wear.tex.needsUpdate = true;
+    const bodyM = new THREE.MeshStandardMaterial({ map: wear.tex, metalness: 0.35, roughness: 0.48 }), chromeM = mat('#d7dade', { metalness: 1, roughness: 0.18 });
+    const cab = arch.cabinet = new THREE.Group(), W = 0.47, H = 1.32, D = 0.62, base = 0.08, gap = 0.008, dh = (H - base - 0.012 - gap * 5) / 4;
+    cab.position.set(ARCH.x, 0, ARCH.z); cab.rotation.y = Math.PI / 2;   // fronts face the lift
+    cab.add(mergedBoxes([[0.012, H - base, D, -W / 2 + 0.006, base + (H - base) / 2, 0], [0.012, H - base, D, W / 2 - 0.006, base + (H - base) / 2, 0],
+      [W, 0.012, D, 0, H - 0.006, 0], [W, H - base, 0.012, 0, base + (H - base) / 2, -D / 2 + 0.006]], bodyM));
+    cab.add(mergedBoxes([[W - 0.03, 0.075, D - 0.05, 0, 0.0375, -0.01, '#2d2f2c'], [W - 0.024, H - base - 0.012, 0.004, 0, base + (H - base) / 2, D / 2 - 0.024, '#1e1f1d']], mat('#ffffff', { vertexColors: true, roughness: 0.7 })));
+    ['A – F', 'G – L', 'M – R', 'S – Z'].reverse().forEach((t, i) => {
+      const g = new THREE.Group(), fz = D / 2 - 0.011;
+      g.position.set(0, base + gap + i * (dh + gap) + dh / 2, 0);
+      g.add(mergedBoxes([[W - 0.024 - gap, dh, 0.02, 0, 0, fz]], bodyM));
+      g.add(mergedBoxes([[0.15, 0.016, 0.014, 0, -0.035, fz + 0.03], [0.012, 0.016, 0.03, -0.068, -0.035, fz + 0.016], [0.012, 0.016, 0.03, 0.068, -0.035, fz + 0.016],
+        [0.104, 0.054, 0.003, 0, 0.07, fz + 0.011]], chromeM));
+      const card = makeCanvas(192, 96);
+      card.ctx.fillStyle = '#f1ead9'; card.ctx.fillRect(0, 0, 192, 96); card.ctx.fillStyle = '#2b2a28'; card.ctx.font = `600 40px "Courier New", ${MONO}`; card.ctx.textAlign = 'center'; card.ctx.fillText(t, 96, 62);
+      card.tex.needsUpdate = true;
+      const lab = new THREE.Mesh(new THREE.PlaneGeometry(0.09, 0.044), new THREE.MeshStandardMaterial({ map: card.tex, roughness: 0.9 }));
+      lab.position.set(0, 0.07, fz + 0.0128); g.add(lab);
+      if (i === 3) { const lock = cyl(g, 0.011, 0.011, 0.012, '', W / 2 - 0.06, dh / 2 - 0.035, fz + 0.014, { material: chromeM, seg: 20 }); lock.rotation.x = Math.PI / 2; }
+      cab.add(g); arch.drawers.push({ g, label: t, open: 0 });
+    });
+    arch.drawers.reverse();   // top drawer first
+    arch.cabHit = hitBox(cab, W, H, D + 0.06, 0, H / 2, 0.03, { action: 'cabinet', reach: 4 });
+    S.add(cab);
+    shadow(S, D / 2 + 0.03, W / 2 + 0.03, ARCH.x, ARCH.z, 0.75);
+    arch.colliders.push({ minX: ARCH.x - D / 2, maxX: ARCH.x + D / 2, minZ: ARCH.z - W / 2, maxZ: ARCH.z + W / 2 });
+
+    // The lift back up: a freestanding stone shaft, the same car as upstairs, so the swap behind its doors is seamless.
+    // Built about z = 0 and moved onto your car's z when you arrive (see setArchive).
+    const lift = arch.lift = new THREE.Group(), fx = LIFT.x + 0.05, front = LIFT.x + 0.1, cx = front + CAR.d / 2, back = front + CAR.d, sw = CAR.w / 2 + 0.3, top = ROOM.h;
+    const stone = [[0.1, top, sw - DOOR.w / 2, fx, top / 2, -(sw + DOOR.w / 2) / 2], [0.1, top, sw - DOOR.w / 2, fx, top / 2, (sw + DOOR.w / 2) / 2], [0.1, top - DOOR.h, DOOR.w, fx, (top + DOOR.h) / 2, 0],
+      [back + 0.2 - front, top, 0.3, (front + back + 0.2) / 2, top / 2, -sw + 0.15], [back + 0.2 - front, top, 0.3, (front + back + 0.2) / 2, top / 2, sw - 0.15],
+      [0.2, top, CAR.w, back + 0.1, top / 2, 0], [back + 0.2 - front, top - CAR.h - 0.04, CAR.w, (front + back + 0.2) / 2, (top + CAR.h + 0.04) / 2, 0]];
+    for (let y = 0.9; y < top; y += 0.9) for (const s of y > DOOR.h ? [0] : [-1, 1]) stone.push([0.012, 0.006, s ? sw - DOOR.w / 2 - 0.08 : sw * 2, LIFT.x - 0.001, y, s * (sw + DOOR.w / 2 + 0.08) / 2]);   // panel joints, not across the doorway
+    lift.add(mergedBoxes(stone.map((b) => [...b, b[1] === 0.006 ? '#5d5852' : '#77716a']), mat('#ffffff', { vertexColors: true, roughness: 0.55 })));
+    const steel = [[0.05, 0.08, DOOR.w + 0.16, LIFT.x - 0.02, DOOR.h + 0.04, 0], [0.34, 0.012, DOOR.w, fx + 0.02, 0.006, 0], [0.04, 0.26, 0.56, LIFT.x - 0.02, 2.5, 0],
+      [0.02, 0.38, 0.15, LIFT.x - 0.01, 1.1, DOOR.w / 2 + 0.3], [back + 0.24 - LIFT.x, 0.03, sw * 2 + 0.02, (LIFT.x + back + 0.24) / 2, top + 0.015, 0]];
+    for (const s of [-1, 1]) steel.push([0.05, DOOR.h + 0.08, 0.08, LIFT.x - 0.02, (DOOR.h + 0.08) / 2, s * (DOOR.w / 2 + 0.04)]);
+    const steelM = mat('#c9cdd2', { metalness: 0.85, roughness: 0.32 });
+    lift.add(mergedBoxes(steel, steelM));
+    const car = [[CAR.d, 0.02, CAR.w, cx, 0.01, 0, '#2c2b2a'], [CAR.d, 0.04, CAR.w, cx, CAR.h, 0, '#232426'], [0.04, CAR.h, CAR.w, back, CAR.h / 2, 0, '#8a6446'],
+      [0.035, 0.035, CAR.w - 0.2, back - 0.06, 0.95, 0, '#dfe2e5'], [0.02, 0.4, 0.16, LIFT.x + 0.35, 1.2, CAR.w / 2 - 0.03, '#5a5f66']];
+    for (const s of [-1, 1]) car.push([CAR.d, CAR.h, 0.04, cx, CAR.h / 2, s * CAR.w / 2, '#aeb4ba'], [CAR.d - 0.3, 0.035, 0.035, cx + 0.1, 0.95, s * (CAR.w / 2 - 0.06), '#dfe2e5']);
+    lift.add(mergedBoxes(car, mat('#ffffff', { vertexColors: true, roughness: 0.45, metalness: 0.35 })), mergedBoxes([[0.01, 1.05, CAR.w - 0.3, back - 0.025, 1.65, 0]], mat('#dfe4e8', { metalness: 1, roughness: 0.05 })),
+      mergedBoxes([[CAR.d - 0.5, 0.01, CAR.w - 0.45, cx, CAR.h - 0.025, 0]], new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: '#fff3df', emissiveIntensity: 1.6 })));
+    arch.leaves = [-1, 1].map((s) => box(lift, 0.03, DOOR.h, DOOR.w / 2 + 0.01, '', LIFT.x + 0.13, DOOR.h / 2, s * DOOR.w / 4, { material: steelM, shadow: false }));
+    arch.ind = { ind: makeScreen(lift, 0.48, 0.2, 192, 80, LIFT.x - 0.045, 2.5, 0), floor: ARCHIVE, dir: 0 };
+    arch.ind.ind.mesh.rotation.y = -Math.PI / 2;
+    arch.callM = new THREE.MeshStandardMaterial({ color: '#e6e3dc', emissive: '#ffb347', emissiveIntensity: 0, roughness: 0.4 });
+    for (const y of [1.16, 1.04]) cyl(lift, 0.026, 0.026, 0.02, '', LIFT.x - 0.025, y, DOOR.w / 2 + 0.3, { material: y > 1.1 ? mat('#e6e3dc', { roughness: 0.4 }) : arch.callM, seg: 16, shadow: false }).rotation.z = Math.PI / 2;
+    arch.callHit = hitBox(lift, 0.06, 0.42, 0.22, LIFT.x - 0.03, 1.1, DOOR.w / 2 + 0.3, { action: 'liftcall', reach: 2.5 });
+    arch.panel = carPanel(lift, 0); paintPanel(arch.panel, null);
+    shadow(lift, (back + 0.2 - LIFT.x) / 2, sw, (LIFT.x + back + 0.2) / 2, 0, 0.6);
+    S.add(lift);
+    arch.hits = [arch.cabHit, arch.callHit, arch.panel.mesh, cab, lift];
+  }
+  function setArchive(on) {
+    if (arch.on === on) return;
+    arch.on = on;
+    if (on) {
+      const z = mine.L.z, x1 = LIFT.x + 0.3 + CAR.d;
+      arch.lift.position.z = z; arch.scene.updateMatrixWorld();
+      arch.colliders.length = 1;
+      arch.colliders.push({ minX: LIFT.x, maxX: x1, minZ: z - CAR.w / 2 - 0.3, maxZ: z + CAR.w / 2 + 0.3 });
+      tvQuiet();
+    }
+    cssRenderer.domElement.style.visibility = on ? 'hidden' : '';
+    sfx.setAway(on);
+  }
+  function renderArchive() {
+    const w = container.clientWidth, h = container.clientHeight;
+    if (!arch.composer) {
+      const c = arch.composer = new EffectComposer(renderer);
+      c.setPixelRatio(renderer.getPixelRatio());
+      c.addPass(new RenderPass(arch.scene, camera));
+      const ao = arch.gtao = new GTAOPass(arch.scene, camera, 512, 512);
+      ao.blendIntensity = 0.8;
+      ao.updateGtaoMaterial({ radius: 0.5, distanceExponent: 1.4, thickness: 1, scale: 1.1, samples: 12 });
+      const aoRender = ao.render.bind(ao);
+      ao.render = (...a) => { camera.layers.disable(1); aoRender(...a); camera.layers.enable(1); };
+      c.addPass(ao); c.addPass(new OutputPass());
+      c.setSize(w, h);
+    }
+    arch.gtao.enabled = hq;
+    renderer.toneMappingExposure = 1.5;
+    arch.composer.render();
+    renderer.setRenderTarget(null);
+    const gl = renderer.getContext();   // full alpha everywhere: no dashboard hole down here (see renderFrame)
+    gl.colorMask(false, false, false, true); gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT); gl.colorMask(true, true, true, true);
+    renderer.state.buffers.color.reset();
+  }
+  function drawArchiveMap() {
+    const c = mapCtx, W = 440, H = 330, k = H / (ARCH.r * 2 + 6), sx = (x) => W / 2 + (x - ARCH.x - 6) * k, sz = (z) => H / 2 + (z - ARCH.z) * k;
+    c.clearRect(0, 0, W, H);
+    c.fillStyle = 'rgba(255,255,255,.12)'; c.beginPath(); c.arc(sx(ARCH.x), sz(ARCH.z), ARCH.r * k, 0, Math.PI * 2); c.fill();
+    c.fillStyle = 'rgba(255,255,255,.55)';
+    for (const b of arch.colliders) c.fillRect(sx(b.minX), sz(b.minZ), Math.max(3, (b.maxX - b.minX) * k), Math.max(3, (b.maxZ - b.minZ) * k));
+    c.font = '600 20px system-ui'; c.fillText('THE ARCHIVE · B2', 16, 30);
+    c.font = '600 15px system-ui'; c.fillStyle = 'rgba(255,255,255,.55)'; c.fillText('Lift', sx(LIFT.x) - 6, sz(arch.lift.position.z) - 18); c.fillText('Cabinet', sx(ARCH.x) - 26, sz(ARCH.z) + 26);
+    const px = sx(camera.position.x), pz = sz(camera.position.z);
+    c.save(); c.translate(px, pz); c.rotate(-camera.rotation.y);
+    c.fillStyle = '#fff'; c.beginPath(); c.moveTo(0, -14); c.lineTo(9, 10); c.lineTo(0, 5); c.lineTo(-9, 10); c.closePath(); c.fill();
+    c.restore();
   }
 
   // ----- sounds (see sounds.js; M mutes) -----
@@ -3303,7 +3577,8 @@ export function mountOffice(container) {
   }
 
   function collide(p, r = 0.3) {
-    for (const b of colliders) {
+    if (p === player && carCollide(p)) return;
+    for (const b of arch.on ? arch.colliders : colliders) {
       const cx = clamp(p.x, b.minX, b.maxX), cz = clamp(p.z, b.minZ, b.maxZ);
       const dx = p.x - cx, dz = p.z - cz, d2 = dx * dx + dz * dz;
       if (d2 >= r * r) continue;
@@ -3312,6 +3587,11 @@ export function mountOffice(container) {
         const pen = [[p.x - b.minX, -1, 0], [b.maxX - p.x, 1, 0], [p.z - b.minZ, 0, -1], [b.maxZ - p.z, 0, 1]].sort((a, c) => a[0] - c[0])[0];
         if (pen[1]) p.x = pen[1] < 0 ? b.minX - r : b.maxX + r; else p.z = pen[2] < 0 ? b.minZ - r : b.maxZ + r;
       }
+    }
+    if (arch.on) {   // the void goes on forever; you don't
+      const dx = p.x - ARCH.x, dz = p.z - ARCH.z, d = Math.hypot(dx, dz);
+      if (d > ARCH.r) { p.x = ARCH.x + (dx / d) * ARCH.r; p.z = ARCH.z + (dz / d) * ARCH.r; }
+      return;
     }
     p.x = clamp(p.x, ROOM.minX + 0.4, ROOM.maxX - 0.4);
     p.z = clamp(p.z, ROOM.minZ + 0.4, ROOM.maxZ - 0.4);
@@ -3358,6 +3638,9 @@ export function mountOffice(container) {
     else if (hover.action === 'laptop') openLaptop();
     else if (hover.action === 'board') useBoard(hover.board);
     else if (hover.action === 'coffee') kitchen.brew();
+    else if (hover.action === 'liftcall') callLift();
+    else if (hover.action === 'liftpanel') pressFloor(hover.floor);
+    else if (hover.action === 'cabinet') toast('The filing cabinet opens soon');
     else if (hover.sessionId && hover.screen) { document.exitPointerLock(); dash.openDrawer(hover.sessionId); }
     else if (hover.sessionId) openChat(hover.sessionId);
     else if (hover.action === 'blinds') { hover.blind.to = hover.blind.to === 1 ? 0 : hover.blind.to + 0.5; dash.putOffice({ blinds: { [hover.blind.key]: hover.blind.to } }); }
@@ -3387,7 +3670,7 @@ export function mountOffice(container) {
   };
   document.addEventListener('keydown', (e) => {
     if (!active || mode !== 'free' || e.metaKey || e.ctrlKey || e.target.closest?.('input, select, textarea')) return;
-    if (TELEPORTS[e.code]) { TELEPORTS[e.code](); return; }
+    if (TELEPORTS[e.code]) { if (arch.on || (mine.L?.state === 'travel' && inMyCar())) toast('Take the lift back to the office'); else TELEPORTS[e.code](); return; }
     if (e.code === 'KeyG') { setQuality(!hq); return; }
     if (e.code === 'KeyH') { setOverlays(!overlays); return; }
     if (e.code === 'KeyM') { dash.setSound({ on: !dash.sound.on }); sfx.unlock(); toast(`Sounds ${dash.sound.on ? 'on' : 'off'} · <kbd>M</kbd> to ${dash.sound.on ? 'mute' : 'unmute'}`); return; }
@@ -3739,15 +4022,15 @@ export function mountOffice(container) {
     hover = null;
     if (locked && mode === 'free') {
       ray.setFromCamera(new THREE.Vector2(0, 0), camera);
-      const targets = [hole, laptop.g, kitchen.hit, ...doors.map((d) => d.pivot), ...desks.flatMap((d) => [d.scr.mesh, d.codeScr.mesh]), ...tvs.map((t) => t.scr.mesh), ...boards.map((b) => b.scr.mesh)];
-      targets.push(...new Set(Object.values(blinds).flatMap((b) => b.runs.map((r) => r.slats.parent))));
-      world.children.forEach((o) => { if (o.userData.glass) targets.push(o); });
-      for (const p of people.values()) targets.push(p.root);
-      for (const st of seats) if (st.obj !== player.seat?.obj && Math.hypot(st.x - player.x, st.z - player.z) < 4) targets.push(st.obj);
+      const targets = arch.on ? [...arch.hits] : [lifts.callHit, ...lifts.map((L) => L.panel.mesh), hole, laptop.g, kitchen.hit, ...doors.map((d) => d.pivot), ...desks.flatMap((d) => [d.scr.mesh, d.codeScr.mesh]), ...tvs.map((t) => t.scr.mesh), ...boards.map((b) => b.scr.mesh)];
+      if (!arch.on) targets.push(...new Set(Object.values(blinds).flatMap((b) => b.runs.map((r) => r.slats.parent))));
+      if (!arch.on) world.children.forEach((o) => { if (o.userData.glass) targets.push(o); });
+      if (!arch.on) for (const p of people.values()) targets.push(p.root);
+      if (!arch.on) for (const st of seats) if (st.obj !== player.seat?.obj && Math.hypot(st.x - player.x, st.z - player.z) < 4) targets.push(st.obj);
       for (const hit of ray.intersectObjects(targets, true)) {
         const ud = hit.object.userData;
         if (ud.reach && hit.distance > ud.reach) { if (ud.glass || hit.object.material.transparent) continue; break; }
-        if (ud.action) { hover = { action: ud.action, door: ud.door, board: ud.board, blind: ud.blind || ud.blindAt?.(hit.point) }; break; }
+        if (ud.action) { hover = { action: ud.action, door: ud.door, board: ud.board, blind: ud.blind || ud.blindAt?.(hit.point), floor: ud.floorAt?.(hit.uv) }; break; }
         if (ud.tv) { hover = { tv: tvs.find((t) => t.id === ud.tv) }; break; }
         if (ud.sessionId) { hover = { sessionId: ud.sessionId, screen: !!ud.screen }; break; }
         if ((ud.seat || ud.seatAt) && hit.distance < 3) { hover = { seat: ud.seat || ud.seatAt(hit.point) }; break; }
@@ -3759,6 +4042,13 @@ export function mountOffice(container) {
     if (hover.action === 'computer' || hover.action === 'laptop') {
       targetEl.innerHTML = hover.action === 'computer' && !laptop.shown ? '<b>Your computer</b><div class="k">Click to sit down and use it</div>'
         : `<b>Your MacBook</b><div class="k">${laptop.shown ? 'Click to use it' : laptop.open ? 'Waking up…' : 'Click to sit down and open it'}</div>`;
+      return;
+    }
+    if (hover.action === 'liftcall' || hover.action === 'liftpanel' || hover.action === 'cabinet') {
+      const L = mine.L, f = hover.floor;
+      targetEl.innerHTML = hover.action === 'cabinet' ? '<b>Filing cabinet</b><div class="k">Coming soon</div>'
+        : hover.action === 'liftpanel' ? `<b>${f === 48 ? '48 · Office' : 'B2 · The Archive'}</b><div class="k">${!L || L.state === 'travel' ? '' : f === Math.round(L.floor) ? 'You’re here · click to open the doors' : mine.goal === f ? 'On its way' : 'Click to go'}</div>`
+        : `<b>Lift</b><div class="k">${mine.call ? 'Called · waiting for a free car' : L && (L.state === 'open' || L.state === 'opening') ? 'Doors open · walk in' : L?.state === 'travel' ? 'On its way' : 'Click to call it'}</div>`;
       return;
     }
     if (hover.action === 'coffee') {
@@ -3794,6 +4084,7 @@ export function mountOffice(container) {
 
   // ----- minimap -----
   function drawMap() {
+    if (arch.on) { drawArchiveMap(); return; }
     const c = mapCtx, W = 440, H = 330, sx = (x) => ((x - ROOM.minX) / 40) * W, sz = (z) => ((z - ROOM.minZ) / 30) * H;
     c.clearRect(0, 0, W, H);
     c.fillStyle = 'rgba(181,138,95,.35)'; c.fillRect(sx(-19.9), sz(2.6), sx(-2) - sx(-19.9), sz(14.9) - sz(2.6));
@@ -3961,17 +4252,23 @@ export function mountOffice(container) {
     officeFx(dt);
     kitchen.update(dt, t);
     if (mode === 'free') movePlayer(dt);
+    if (mode === 'free' && mine.L?.state === 'travel' && inMyCar()) {   // the ride: a faint sway, strongest mid-shaft
+      const k = Math.sin(Math.PI * mine.k);
+      camera.position.y += Math.sin(t * 11) * 0.003 * k - 0.012 * Math.sin(Math.PI * Math.min(1, mine.k * 6));
+      camera.rotation.z = Math.sin(t * 1.9) * 0.0035 * k;
+    }
     laptopFx(dt);
     stepTween(now);
     sfx.update(t, dt, { people, door, blinds, free: mode === 'free' });
     paintScreens(false);
     for (const b of boards) if (b.dirty) paintBoard(b);
     if (tvMove) { tvMouse(tvMove, 'mouseMoved'); tvMove = null; }
-    updateTVs(now);
+    if (!arch.on) updateTVs(now);
     for (const d of desks) if (d.codeAnim) paintCode(d, performance.now(), false);
     updateHover();
     drawMap();
     sky.position.copy(camera.position);
+    if (arch.on) { renderArchive(); return; }
     renderFrame();
     syncCss();
     cssRenderer.render(cssScene, camera);
@@ -3987,19 +4284,21 @@ export function mountOffice(container) {
     camera.updateProjectionMatrix();
     layoutCenterMonitor(w, h);
     composer.setSize(w, h);
-    if (active) renderFrame();   // setSize clears the canvas; redraw now so the blank frame never reaches the screen
+    arch.composer?.setSize(w, h);
+    if (active) (arch.on ? renderArchive : renderFrame)();   // setSize clears the canvas; redraw now so the blank frame never reaches the screen
   }
   new ResizeObserver(resize).observe(container);
 
   window.__office = { openChat, closeChat, talk, get mode() { return mode; }, teleport: (k) => TELEPORTS[k](), openTv: (id) => openTvPanel(tvs.find((t) => t.id === id)), useTv: (id) => useTv(tvs.find((t) => t.id === id)), leaveTv,
     boards, useBoard: (id) => useBoard(boards.find((b) => b.id === id)), leaveBoard, wb,
     tvPoint: (id, u, v) => { const t = tvs.find((x) => x.id === id), p = t.scr.mesh.localToWorld(new THREE.Vector3((u - 0.5) * t.w, (0.5 - v) * t.h, 0)).project(camera), r = renderer.domElement.getBoundingClientRect(); return { x: r.left + (p.x + 1) / 2 * r.width, y: r.top + (1 - p.y) / 2 * r.height }; },
-    tvs: () => tvs.map((t) => ({ id: t.id, live: t.live, frame: !!t.frame, url: t.page?.url, title: t.page?.title, dist: t.dist })), seats, sitIn, openLaptop, laptop, kitchen, player, people, blinds, door, doors, collide, colliders, lifts, sfx, setSpeed, clockState, setTime: (ms) => Object.assign(clockState, { speed: 0.0001, simBase: ms, realBase: Date.now() }) };
+    tvs: () => tvs.map((t) => ({ id: t.id, live: t.live, frame: !!t.frame, url: t.page?.url, title: t.page?.title, dist: t.dist })), seats, sitIn, openLaptop, laptop, kitchen, player, people, blinds, door, doors, collide, colliders, lifts, sfx, mine, arch, callLift, pressFloor, setSpeed, clockState, setTime: (ms) => Object.assign(clockState, { speed: 0.0001, simBase: ms, realBase: Date.now() }) };
 
   return {
     // Adopt your desktop onto the monitor, then pull back from it to the chair.
     show() {
       active = true;
+      resetLift();
       tvSocket();
       sfx.setActive(true);
       dash.desktop?.mount(domScreen);
@@ -4025,6 +4324,7 @@ export function mountOffice(container) {
         dash.closeDrawer();
         if (using) { using.dirty = true; using = null; hud.classList.remove('of-using'); }
         leaveBoard();
+        if (arch.on) { resetLift(); setCam(seatedPose()); }
         hud.classList.add('hidden');
         mode = 'outro';
         if (laptop.open) { laptop.k = 1; laptopFx(0); }
