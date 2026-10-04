@@ -22,6 +22,8 @@ const EYE = 1.65, SEATED_EYE = 1.2;
 const ROOM = { minX: -20, maxX: 20, minZ: -15, maxZ: 15, h: 3.3 };
 const LIFT = { x: 18, z: 0.4 };   // lift lobby: the face of the lift core and its call panel, between the two lifts
 const FONT = 'system-ui, -apple-system, "Segoe UI", sans-serif';
+const MARKER = '"Marker Felt", "Chalkboard SE", "Comic Sans MS", cursive';
+const WB_COLORS = ['#1c1f24', '#1f5fbf', '#c0392b', '#2e8b57', '#d97757', '#7a3fb0'];
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // ---------- small helpers ----------
@@ -713,7 +715,7 @@ export function mountOffice(container) {
     .of-dom { background: var(--page); overflow: hidden; pointer-events: none; }
     .of-hud { position: absolute; inset: 0; z-index: 2; pointer-events: none; font: 13px/1.4 system-ui, -apple-system, sans-serif; color: #fff; transition: opacity .4s; }
     .of-hud.hidden { opacity: 0; }
-    .of-bare > :not(.of-cross, .of-toast, .of-tvbar, .of-osd, .of-chat, .of-chatbar) { display: none !important; }   /* a TV in use keeps its bar, an open chat stays */
+    .of-bare > :not(.of-cross, .of-toast, .of-tvbar, .of-osd, .of-chat, .of-chatbar, .of-wbbar, .of-wbtext) { display: none !important; }   /* a TV in use keeps its bar, an open chat stays */
     .of-toast { position: absolute; left: 50%; top: 18px; transform: translateX(-50%); background: rgba(15,16,19,.82); border: 1px solid rgba(255,255,255,.14); border-radius: 10px; padding: 6px 12px; color: #c3c2b7; font-size: 12px; opacity: 0; transition: opacity .3s; }
     .of-toast.on { opacity: 1; }
     .of-toast kbd { font: inherit; font-weight: 600; color: #fff; background: rgba(255,255,255,.12); border-radius: 4px; padding: 0 5px; }
@@ -749,6 +751,19 @@ export function mountOffice(container) {
     .of-tvhint { position: absolute; left: 50%; top: 16px; transform: translateX(-50%); display: none; background: rgba(15,16,19,.72); border: 1px solid rgba(255,255,255,.1); border-radius: 10px; padding: 7px 11px; color: #c3c2b7; font-size: 12px; white-space: nowrap; }
     .of-tvhint b { color: #fff; }
     .of-using .of-tvhint { display: block; }
+    .of-wbbar { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); max-width: calc(100% - 32px); display: none; flex-wrap: wrap; justify-content: center; align-items: center; gap: 5px; background: rgba(15,16,19,.86); border: 1px solid rgba(255,255,255,.14); border-radius: 12px; padding: 6px 8px; pointer-events: auto; }
+    .of-boarding .of-wbbar, .of-boarding .of-wbhint { display: flex; }
+    .of-boarding .of-legend, .of-boarding .of-start, .of-boarding .of-map, .of-boarding .of-count, .of-boarding .of-time, .of-boarding .of-target { display: none; }
+    .of-wbbar button { font: inherit; font-size: 13px; color: #e8e6df; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12); border-radius: 7px; padding: 4px 9px; cursor: pointer; white-space: nowrap; }
+    .of-wbbar button:hover { color: #fff; background: rgba(255,255,255,.14); }
+    .of-wbbar button[aria-pressed="true"] { background: #3987e5; border-color: #3987e5; color: #fff; }
+    .of-wbbar button:disabled { opacity: .4; cursor: default; }
+    .of-wbbar button.sw { width: 24px; height: 24px; padding: 0; border-radius: 50%; border: 2px solid rgba(255,255,255,.2); }
+    .of-wbbar button.sw[aria-pressed="true"] { border-color: #fff; box-shadow: 0 0 0 2px #3987e5; }
+    .of-wbbar i { width: 1px; height: 20px; background: rgba(255,255,255,.15); margin: 0 3px; }
+    .of-wbbar kbd { font: inherit; font-weight: 600; color: #fff; background: rgba(255,255,255,.12); border-radius: 4px; padding: 0 5px; }
+    .of-wbhint { gap: 4px; align-items: center; }
+    .of-wbtext { position: absolute; display: none; pointer-events: auto; background: rgba(255,255,255,.7); border: 1px dashed #3987e5; border-radius: 3px; outline: none; padding: 0 3px; min-width: 140px; font-family: ${MARKER}; line-height: 1.15; }
     .of-osd { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%); background: rgba(15,16,19,.84); border-radius: 14px; padding: 14px 24px; font-size: 22px; font-weight: 600; white-space: pre; opacity: 0; transition: opacity .3s; }
     .of-osd.on { opacity: 1; }
     .of-chat { position: absolute; right: 16px; top: 16px; bottom: 112px; width: min(500px, calc(100% - 32px)); display: none; flex-direction: column; background: rgba(15,16,19,.86); border: 1px solid rgba(255,255,255,.12); border-radius: 12px; pointer-events: auto; overflow: hidden; }
@@ -830,6 +845,13 @@ export function mountOffice(container) {
       <form><input name="u" type="text" spellcheck="false" autocomplete="off" placeholder="Go to a URL"></form>
       <button data-act="mute"></button><input type="range" min="0" max="100" title="TV volume"><button data-act="setup" title="Set up this TV">⚙</button><button data-act="leave">Done <kbd>Esc</kbd></button></div>
     <div class="of-osd"></div>
+    <div class="of-tvhint of-wbhint">Drawing on the <b class="of-wbname"></b> · <kbd>P</kbd> pen <kbd>E</kbd> eraser <kbd>T</kbd> text <kbd>1</kbd>–<kbd>6</kbd> colours · <kbd>${IS_MAC ? '⌘' : 'Ctrl+'}Z</kbd> undo · <kbd>Esc</kbd> back to walking</div>
+    <div class="of-wbbar">${WB_COLORS.map((c, i) => `<button class="sw" data-c="${c}" style="background:${c}" title="Colour (${i + 1})"></button>`).join('')}<i></i>
+      <button data-t="pen" title="Pen (P)">✎ Pen</button><button data-t="eraser" title="Eraser (E)">⌫ Eraser</button><button data-t="text" title="Text (T): click where to write">T Text</button><i></i>
+      <button data-s="S" title="Thin">S</button><button data-s="M" title="Medium">M</button><button data-s="L" title="Thick">L</button><i></i>
+      <button data-a="undo" title="Undo (${IS_MAC ? '⌘' : 'Ctrl+'}Z)">↶</button><button data-a="redo" title="Redo (${IS_MAC ? '⇧⌘' : 'Ctrl+Shift+'}Z)">↷</button>
+      <button data-a="list" title="Show or hide today's shipped list under your drawing">Shipped list</button><button data-a="reset" title="Put back what was on the board originally">Reset</button><button data-a="wipe" title="Wipe the board clean">Wipe</button><button data-a="leave">Done <kbd>Esc</kbd></button></div>
+    <input class="of-wbtext" type="text" spellcheck="false" autocomplete="off" placeholder="Type, then Enter">
     <div class="of-chat"><div class="hd"><i></i><div class="tt"><b></b><small></small></div><button data-act="details">Details</button><button data-act="close">Close <kbd>Esc</kbd></button></div><div class="of-chatlog"></div></div>
     <div class="of-chatbar"><form><textarea rows="1" maxlength="8000" spellcheck="true"></textarea><button class="pri">Send</button></form><div class="st"></div></div>`;
   container.appendChild(hud);
@@ -1738,10 +1760,40 @@ export function mountOffice(container) {
     const b = new THREE.Mesh(new THREE.SphereGeometry(0.5, 18, 14), mat(z < 8 ? '#c0573e' : '#e0a63a', { roughness: 1 }));
     b.scale.set(1, 0.55, 1); b.position.set(-18.35, 0.26, z); b.castShadow = true; b.receiveShadow = true; world.add(b);
   }
-  // Whiteboard.
+  // ----- whiteboards -----
+  // Every whiteboard can be drawn on (see useBoard). What's on one is a transparent ink layer over the board (plain, or the
+  // breakroom's live shipped list), saved per board to localStorage. A board's printed sketch starts out as ink, so it can be
+  // erased, and Reset puts it back.
+  const boards = [], WB_BG = '#f7f7f4';
+  function whiteboard(scr, id, name, draw, live = false) {
+    const ink = document.createElement('canvas');
+    ink.width = scr.W; ink.height = scr.H;
+    const b = { id, name, scr, draw, live, list: live && localStorage[`officeBoardList:${id}`] !== 'off', ink, ictx: ink.getContext('2d'), undo: [], redo: [], dirty: true,
+      w: scr.mesh.geometry.parameters.width, h: scr.mesh.geometry.parameters.height };
+    scr.mesh.material = new THREE.MeshStandardMaterial({ map: scr.tex, roughness: 0.6 });
+    scr.mesh.userData = { action: 'board', board: b, reach: 5 };
+    const saved = localStorage[`officeBoard:${id}`];
+    if (saved) { const img = new Image(); img.onload = () => { b.ictx.drawImage(img, 0, 0); b.dirty = true; }; img.src = saved; }
+    else inkDefault(b);
+    boards.push(b);
+    return b;
+  }
+  function inkDefault(b) {
+    const c = b.ictx;
+    c.clearRect(0, 0, b.ink.width, b.ink.height);
+    if (!b.draw) return;
+    c.save(); c.lineCap = c.lineJoin = 'round'; c.lineWidth = 5; b.draw(c, b.ink.width, b.ink.height); c.restore();
+  }
+  function paintBoard(b) {
+    const { ctx, W, H } = b.scr;
+    if (b.live && b.list && S) drawBoard(b.scr, S); else { ctx.fillStyle = WB_BG; ctx.fillRect(0, 0, W, H); }
+    ctx.drawImage(b.ink, 0, 0);
+    b.scr.tex.needsUpdate = true; b.dirty = false;
+  }
+  // Breakroom whiteboard: today's shipped list, drawn over.
   const board = makeScreen(world, 2.4, 1.3, 1024, 560, -19.86, 1.6, 4.6);
   board.mesh.rotation.y = Math.PI / 2;
-  board.mesh.material = new THREE.MeshStandardMaterial({ map: board.tex, roughness: 0.6 });
+  const breakBoard = whiteboard(board, 'breakroom', 'breakroom whiteboard', null, true);
   box(world, 0.04, 1.38, 2.48, '#b9bcc0', -19.9, 1.6, 4.6, { shadow: false });
   plant(-2.6, 14.3, 1.1); plant(-19.3, 3.1); plant(-11, 14.3, 0.9);
 
@@ -2082,7 +2134,7 @@ export function mountOffice(container) {
     wg.add(mergedBoxes([[1.76, 1.02, 0.04, 0, 1.4, -0.01, '#b9bcc0'], [0.04, 1.85, 0.04, -0.86, 0.93, -0.03, '#8d9399'], [0.04, 1.85, 0.04, 0.86, 0.93, -0.03, '#8d9399'],
       [0.06, 0.04, 0.5, -0.86, 0.08, -0.03, '#5a5f66'], [0.06, 0.04, 0.5, 0.86, 0.08, -0.03, '#5a5f66'], [1.7, 0.03, 0.06, 0, 0.87, 0.03, '#b9bcc0']],
     mat('#ffffff', { vertexColors: true, roughness: 0.5, metalness: 0.3 })));
-    markerBoard(makeScreen(wg, 1.7, 0.96, 768, 434, 0, 1.4, 0.012), (c) => {
+    markerBoard('office', 'whiteboard', makeScreen(wg, 1.7, 0.96, 768, 434, 0, 1.4, 0.012), (c) => {
       const node = (x, y, t, col) => { c.strokeStyle = col; c.strokeRect(x - 90, y - 34, 180, 68); c.fillStyle = col; c.font = `600 30px "Marker Felt", "Comic Sans MS", ${FONT}`; c.textAlign = 'center'; c.fillText(t, x, y + 10); };
       node(130, 90, '~/.claude', '#1f6fd1'); node(384, 90, 'server', '#2e8b57'); node(638, 90, 'office', '#c0392b');
       c.strokeStyle = '#333';
@@ -2246,15 +2298,8 @@ export function mountOffice(container) {
     for (const dx of [-1, 1]) cyl(world, 0.004, 0.004, ROOM.h - 2.6, '#222', r.tx + dx * r.len * 0.25, (ROOM.h + 2.6) / 2, r.tz, { shadow: false });
     addLamp(r.tx, 2.4, r.tz, 8);
   }
-  // Whiteboards drawn once: marker writing in a few colours.
-  function markerBoard(scr, draw) {
-    const { ctx, W, H } = scr;
-    ctx.fillStyle = '#f7f7f4'; ctx.fillRect(0, 0, W, H);
-    ctx.lineCap = ctx.lineJoin = 'round'; ctx.lineWidth = 5;
-    draw(ctx, W, H);
-    scr.mesh.material = new THREE.MeshStandardMaterial({ map: scr.tex, roughness: 0.6 });
-    scr.tex.needsUpdate = true;
-  }
+  // Whiteboards with a marker sketch on them to start with.
+  function markerBoard(id, name, scr, draw) { return whiteboard(scr, id, name, draw); }
   {
     // South east room: a wall screen with a slide up.
     const scr = makeScreen(world, 2.4, 1.35, 1024, 576, 17.2, 1.6, 7.4);
@@ -2276,7 +2321,7 @@ export function mountOffice(container) {
     const wb = makeScreen(world, 2.4, 1.2, 1024, 512, 17.2, 1.55, 7.6);
     box(world, 2.48, 1.28, 0.03, '#b9bcc0', 17.2, 1.55, 7.575, { shadow: false });
     box(world, 1.2, 0.03, 0.07, '#b9bcc0', 17.2, 0.93, 7.62, { shadow: false });
-    markerBoard(wb, (c) => {
+    markerBoard('meet-north', 'meeting room whiteboard', wb, (c) => {
       const node = (x, y, t, col) => { c.strokeStyle = col; c.strokeRect(x - 105, y - 42, 210, 84); c.fillStyle = col; c.font = `600 34px "Marker Felt", "Comic Sans MS", ${FONT}`; c.textAlign = 'center'; c.fillText(t, x, y + 12); };
       const arrow = (x0, x1, y) => { c.strokeStyle = '#333'; c.beginPath(); c.moveTo(x0, y); c.lineTo(x1, y); c.lineTo(x1 - 16, y - 12); c.moveTo(x1, y); c.lineTo(x1 - 16, y + 12); c.stroke(); };
       node(170, 150, 'idea', '#1f6fd1'); node(512, 150, 'plan', '#2e8b57'); node(854, 150, 'ship ✦', '#c0392b');
@@ -2292,7 +2337,7 @@ export function mountOffice(container) {
       [0.06, 0.04, 0.5, -0.66, 0.08, -0.03, '#5a5f66'], [0.06, 0.04, 0.5, 0.66, 0.08, -0.03, '#5a5f66'], [1.3, 0.03, 0.06, 0, 0.92, 0.03, '#b9bcc0']],
     mat('#ffffff', { vertexColors: true, roughness: 0.5, metalness: 0.3 })));
     const hb = makeScreen(g, 1.3, 0.86, 640, 424, 0, 1.4, 0.012);
-    markerBoard(hb, (c) => {
+    markerBoard('meet-small', 'meeting room whiteboard', hb, (c) => {
       c.fillStyle = '#1f2a44'; c.font = `400 38px "Marker Felt", "Comic Sans MS", ${FONT}`;
       ['standup notes', '- review open PRs', '- fix flaky test'].forEach((t, i) => c.fillText(t, 40, 110 + i * 92));
       c.strokeStyle = '#c0392b'; c.beginPath(); c.moveTo(40, 128); c.lineTo(330, 128); c.stroke();
@@ -2876,7 +2921,7 @@ export function mountOffice(container) {
     drawRoster(rosterScr, S); rosterScr.tex.needsUpdate = true;
     drawWall(wallTV, S); wallTV.tex.needsUpdate = true;
     drawFeed(feedTV, S); feedTV.tex.needsUpdate = true;
-    drawBoard(board, S); board.tex.needsUpdate = true;
+    if (breakBoard.list) breakBoard.dirty = true;
   }
   // Typing animation: a new edit is revealed over 1.5-9 s (faster for big edits); already-seen edits show in full.
   function paintCode(d, now, force) {
@@ -3031,6 +3076,7 @@ export function mountOffice(container) {
     if (!hover) return;
     if (hover.action === 'computer') { document.exitPointerLock(); dash.setView('overview'); }
     else if (hover.action === 'laptop') openLaptop();
+    else if (hover.action === 'board') useBoard(hover.board);
     else if (hover.sessionId && hover.screen) { document.exitPointerLock(); dash.openDrawer(hover.sessionId); }
     else if (hover.sessionId) openChat(hover.sessionId);
     else if (hover.action === 'blinds') { hover.blind.to = hover.blind.to === 1 ? 0 : hover.blind.to + 0.5; dash.putOffice({ blinds: { [hover.blind.key]: hover.blind.to } }); }
@@ -3177,6 +3223,172 @@ export function mountOffice(container) {
     if (mode !== 'tv' || !using || e.target.closest?.('input, textarea')) return;
     e.preventDefault();
     tvSend({ t: 'text', id: using.id, text: e.clipboardData.getData('text') });
+  });
+
+  // ----- drawing on a whiteboard -----
+  // Clicking a board frames it square-on and frees the mouse (or pen): the pointer draws through the board's UVs into its ink
+  // layer, which is saved to localStorage shortly after each change. Esc (or Done) goes back to walking.
+  const wbBar = hud.querySelector('.of-wbbar'), wbIn = hud.querySelector('.of-wbtext'), WB_SIZES = { S: 4, M: 8, L: 15 };
+  const wb = { b: null, tool: 'pen', color: WB_COLORS[0], size: 'M', stroke: null, text: null, saveT: 0 };
+  const wbRay = new THREE.Raycaster(), wbNdc = new THREE.Vector2(), wbV = new THREE.Vector3(), wbQ = new THREE.Quaternion();
+  function useBoard(b) {
+    if (!b || !active || mode !== 'free') return;
+    if (document.pointerLockElement) document.exitPointerLock();
+    wb.b = b; mode = 'board'; keys.clear();
+    if (wb.tool === 'text') wb.tool = 'pen';
+    hud.classList.add('of-boarding');
+    hud.querySelector('.of-wbname').textContent = b.name;
+    wbSync();
+    const m = b.scr.mesh, c = m.getWorldPosition(new THREE.Vector3()), n = new THREE.Vector3(0, 0, 1).applyQuaternion(m.getWorldQuaternion(wbQ));
+    const half = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)), d = Math.max(b.h / 2 / half / 0.72, b.w / 2 / (half * camera.aspect) / 0.84);
+    tween(camPose(), { x: c.x + n.x * d, y: c.y, z: c.z + n.z * d, yaw: Math.atan2(n.x, n.z), pitch: 0 }, 700);
+  }
+  function leaveBoard(relock) {
+    if (!wb.b) return;
+    wbText(false); wbEnd(); wbSave(true);
+    wb.b = null;
+    hud.classList.remove('of-boarding');
+    gl.style.cursor = '';
+    if (mode !== 'board') return;
+    tween(camPose(), { x: player.x, y: player.eye, z: player.z, yaw: player.yaw, pitch: player.pitch }, 600, () => { if (mode === 'board') mode = 'free'; });
+    if (relock) renderer.domElement.requestPointerLock();   // only works from a click; after Esc, click to look around again
+  }
+  function wbSync() {
+    const b = wb.b;
+    if (!b) return;
+    for (const el of wbBar.querySelectorAll('button')) {
+      const { c, t, s: sz, a } = el.dataset;
+      if (c || t || sz) el.setAttribute('aria-pressed', String(c ? c === wb.color && wb.tool !== 'eraser' : t ? t === wb.tool : sz === wb.size));
+      if (a === 'undo') el.disabled = !b.undo.length;
+      if (a === 'redo') el.disabled = !b.redo.length;
+      if (a === 'list') { el.hidden = !b.live; el.setAttribute('aria-pressed', String(b.list)); }
+      if (a === 'reset') el.hidden = !b.draw;
+    }
+    gl.style.cursor = wb.tool === 'text' ? 'text' : wb.tool === 'eraser' ? 'cell' : 'crosshair';
+  }
+  // Pointer to board canvas pixels, or null off the board.
+  function wbAt(e) {
+    const r = gl.getBoundingClientRect();
+    wbNdc.set(((e.clientX - r.left) / r.width) * 2 - 1, 1 - ((e.clientY - r.top) / r.height) * 2);
+    wbRay.setFromCamera(wbNdc, camera);
+    const hit = wbRay.intersectObject(wb.b.scr.mesh)[0];
+    return hit ? { x: hit.uv.x * wb.b.scr.W, y: (1 - hit.uv.y) * wb.b.scr.H } : null;
+  }
+  const wbK = (b) => b.scr.W / b.w / 430;   // line widths are tuned for ~430 px per metre of board
+  function wbPush() {
+    const b = wb.b;
+    b.undo.push(b.ictx.getImageData(0, 0, b.ink.width, b.ink.height));
+    if (b.undo.length > 20) b.undo.shift();
+    b.redo.length = 0;
+    wbSync();
+  }
+  function wbLine(a, z, pressure) {
+    const b = wb.b, c = b.ictx, er = wb.tool === 'eraser';
+    c.save();
+    c.globalCompositeOperation = er ? 'destination-out' : 'source-over';
+    c.strokeStyle = wb.color; c.lineCap = c.lineJoin = 'round';
+    c.lineWidth = WB_SIZES[wb.size] * wbK(b) * (er ? 5 : 1) * (pressure > 0 && pressure !== 0.5 ? 0.5 + pressure : 1);   // pens: pressure; mice report 0.5
+    c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(z.x + 0.01, z.y); c.stroke();
+    c.restore();
+    b.dirty = true;
+  }
+  function wbEnd() {
+    if (!wb.stroke) return;
+    wb.stroke = null;
+    wbSave();
+  }
+  function wbSave(now) {
+    clearTimeout(wb.saveT);
+    const b = wb.b;
+    if (!b) return;
+    const save = () => {
+      try { localStorage[`officeBoard:${b.id}`] = b.ink.toDataURL('image/png'); }
+      catch { toast("Couldn't save the whiteboard: browser storage is full"); }
+    };
+    if (now) save(); else wb.saveT = setTimeout(save, 400);
+  }
+  function wbHistory(from, to) {
+    const b = wb.b;
+    if (!b || !from.length) return;
+    to.push(b.ictx.getImageData(0, 0, b.ink.width, b.ink.height));
+    b.ictx.putImageData(from.pop(), 0, 0);
+    b.dirty = true; wbSave(); wbSync();
+  }
+  // Text: an input floats where you clicked, at the size it'll be on the board; Enter (or clicking elsewhere) writes it.
+  function wbText(open, e, at) {
+    if (wb.text) {
+      const t = wb.text, v = wbIn.value.trim();
+      wb.text = null; wbIn.style.display = 'none';
+      if (v && t.b === wb.b) {
+        wbPush();
+        const c = t.b.ictx;
+        c.font = `400 ${t.px}px ${MARKER}`; c.fillStyle = t.color; c.fillText(v, t.x, t.y);
+        t.b.dirty = true; wbSave();
+      }
+    }
+    if (!open) return;
+    const b = wb.b, px = (18 + WB_SIZES[wb.size] * 3) * wbK(b) * 1.4;
+    // Board pixels to screen pixels, from the board's projected height.
+    const m = b.scr.mesh, r = gl.getBoundingClientRect(), hr = hud.getBoundingClientRect();
+    const top = m.localToWorld(wbV.set(0, b.h / 2, 0)).project(camera).y, bot = m.localToWorld(wbV.set(0, -b.h / 2, 0)).project(camera).y;
+    const scale = ((top - bot) / 2 * r.height) / b.scr.H, fs = px * scale;
+    wb.text = { b, x: at.x, y: at.y, px, color: wb.color };
+    Object.assign(wbIn.style, { display: 'block', left: `${e.clientX - hr.left}px`, top: `${e.clientY - hr.top - fs * 0.95}px`, fontSize: `${fs}px`, color: wb.color });
+    wbIn.value = '';
+    setTimeout(() => wbIn.focus());
+  }
+  wbIn.addEventListener('keydown', (e) => {
+    e.stopPropagation();
+    if (e.key === 'Enter') { e.preventDefault(); wbText(false); }
+    if (e.key === 'Escape') { e.preventDefault(); wbIn.value = ''; wbText(false); }
+  });
+  wbIn.addEventListener('blur', () => setTimeout(() => { if (wb.text && document.activeElement !== wbIn) wbText(false); }, 0));
+  gl.addEventListener('pointerdown', (e) => {
+    if (mode !== 'board' || !wb.b || anim || e.button !== 0) return;
+    const p = wbAt(e);
+    if (wb.tool === 'text') { if (p) { e.preventDefault(); wbText(true, e, p); } else wbText(false); return; }
+    if (!p) return;
+    wbText(false); wbPush();
+    wb.stroke = { last: p };
+    gl.setPointerCapture(e.pointerId);
+    wbLine(p, p, e.pressure);
+  });
+  gl.addEventListener('pointermove', (e) => {
+    if (!wb.stroke || mode !== 'board') return;
+    for (const ev of e.getCoalescedEvents?.() || [e]) {
+      const p = wbAt(ev);
+      if (p) { wbLine(wb.stroke.last || p, p, ev.pressure); }
+      wb.stroke.last = p;   // off the board breaks the line
+    }
+  });
+  gl.addEventListener('pointerup', wbEnd);
+  gl.addEventListener('pointercancel', wbEnd);
+  wbBar.addEventListener('click', (e) => {
+    const el = e.target.closest('button'), b = wb.b;
+    if (!el || !b) return;
+    const { c, t, s: sz, a } = el.dataset;
+    if (c) { wb.color = c; if (wb.tool === 'eraser') wb.tool = 'pen'; }
+    if (t) wb.tool = t;
+    if (sz) wb.size = sz;
+    if (a === 'undo') wbHistory(b.undo, b.redo);
+    if (a === 'redo') wbHistory(b.redo, b.undo);
+    if (a === 'wipe' || a === 'reset') { wbPush(); a === 'wipe' ? b.ictx.clearRect(0, 0, b.ink.width, b.ink.height) : inkDefault(b); b.dirty = true; wbSave(); }
+    if (a === 'list') { b.list = !b.list; localStorage[`officeBoardList:${b.id}`] = b.list ? 'on' : 'off'; b.dirty = true; }
+    if (a === 'leave') { leaveBoard(true); return; }
+    wbSync();
+    el.blur();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (mode !== 'board' || !wb.b || e.target.closest?.('input, select, textarea, #drawer')) return;
+    const cmd = e.metaKey || e.ctrlKey;
+    if (e.code === 'Escape') { e.preventDefault(); leaveBoard(); return; }
+    if (cmd && (e.code === 'KeyZ' || e.code === 'KeyY')) { e.preventDefault(); e.shiftKey || e.code === 'KeyY' ? wbHistory(wb.b.redo, wb.b.undo) : wbHistory(wb.b.undo, wb.b.redo); return; }
+    if (cmd || e.altKey) return;
+    const tool = { KeyP: 'pen', KeyB: 'pen', KeyE: 'eraser', KeyT: 'text' }[e.code], n = /^Digit([1-6])$/.exec(e.code);
+    if (tool) wb.tool = tool;
+    else if (n) { wb.color = WB_COLORS[n[1] - 1]; if (wb.tool === 'eraser') wb.tool = 'pen'; }
+    else return;
+    e.preventDefault(); wbSync();
   });
 
   // ----- talking to a session -----
@@ -3341,7 +3553,7 @@ export function mountOffice(container) {
     hover = null;
     if (locked && mode === 'free') {
       ray.setFromCamera(new THREE.Vector2(0, 0), camera);
-      const targets = [hole, laptop.g, ...doors.map((d) => d.pivot), ...desks.flatMap((d) => [d.scr.mesh, d.codeScr.mesh]), ...tvs.map((t) => t.scr.mesh)];
+      const targets = [hole, laptop.g, ...doors.map((d) => d.pivot), ...desks.flatMap((d) => [d.scr.mesh, d.codeScr.mesh]), ...tvs.map((t) => t.scr.mesh), ...boards.map((b) => b.scr.mesh)];
       targets.push(...new Set(Object.values(blinds).flatMap((b) => b.runs.map((r) => r.slats.parent))));
       world.children.forEach((o) => { if (o.userData.glass) targets.push(o); });
       for (const p of people.values()) targets.push(p.root);
@@ -3349,7 +3561,7 @@ export function mountOffice(container) {
       for (const hit of ray.intersectObjects(targets, true)) {
         const ud = hit.object.userData;
         if (ud.reach && hit.distance > ud.reach) { if (ud.glass || hit.object.material.transparent) continue; break; }
-        if (ud.action) { hover = { action: ud.action, door: ud.door, blind: ud.blind || ud.blindAt?.(hit.point) }; break; }
+        if (ud.action) { hover = { action: ud.action, door: ud.door, board: ud.board, blind: ud.blind || ud.blindAt?.(hit.point) }; break; }
         if (ud.tv) { hover = { tv: tvs.find((t) => t.id === ud.tv) }; break; }
         if (ud.sessionId) { hover = { sessionId: ud.sessionId, screen: !!ud.screen }; break; }
         if ((ud.seat || ud.seatAt) && hit.distance < 3) { hover = { seat: ud.seat || ud.seatAt(hit.point) }; break; }
@@ -3365,6 +3577,10 @@ export function mountOffice(container) {
     }
     if (hover.action === 'blinds' || hover.action === 'door') {
       targetEl.innerHTML = hover.action === 'door' ? `<b>${hover.door.name}</b><div class="k">Click to ${hover.door.to ? 'close' : 'open'}</div>` : `<b>${hover.blind.name}</b><div class="k">Click to ${['lower the blinds', 'close the slats', 'raise the blinds'][hover.blind.to * 2]}</div>`;
+      return;
+    }
+    if (hover.action === 'board') {
+      targetEl.innerHTML = `<b>${hover.board.name[0].toUpperCase() + hover.board.name.slice(1)}</b><div class="k">Click to draw on it</div>`;
       return;
     }
     if (hover.seat) {
@@ -3559,6 +3775,7 @@ export function mountOffice(container) {
     stepTween(now);
     sfx.update(t, dt, { people, door, blinds, free: mode === 'free' });
     paintScreens(false);
+    for (const b of boards) if (b.dirty) paintBoard(b);
     if (tvMove) { tvMouse(tvMove, 'mouseMoved'); tvMove = null; }
     updateTVs(now);
     for (const d of desks) if (d.codeAnim) paintCode(d, performance.now(), false);
@@ -3585,6 +3802,7 @@ export function mountOffice(container) {
   new ResizeObserver(resize).observe(container);
 
   window.__office = { openChat, closeChat, talk, get mode() { return mode; }, teleport: (k) => TELEPORTS[k](), openTv: (id) => openTvPanel(tvs.find((t) => t.id === id)), useTv: (id) => useTv(tvs.find((t) => t.id === id)), leaveTv,
+    boards, useBoard: (id) => useBoard(boards.find((b) => b.id === id)), leaveBoard, wb,
     tvPoint: (id, u, v) => { const t = tvs.find((x) => x.id === id), p = t.scr.mesh.localToWorld(new THREE.Vector3((u - 0.5) * t.w, (0.5 - v) * t.h, 0)).project(camera), r = renderer.domElement.getBoundingClientRect(); return { x: r.left + (p.x + 1) / 2 * r.width, y: r.top + (1 - p.y) / 2 * r.height }; },
     tvs: () => tvs.map((t) => ({ id: t.id, live: t.live, frame: !!t.frame, url: t.page?.url, title: t.page?.title, dist: t.dist })), seats, sitIn, openLaptop, laptop, player, people, blinds, door, doors, collide, colliders, lifts, sfx, setSpeed, clockState, setTime: (ms) => Object.assign(clockState, { speed: 0.0001, simBase: ms, realBase: Date.now() }) };
 
@@ -3618,6 +3836,7 @@ export function mountOffice(container) {
         closeChat();
         dash.closeDrawer();
         if (using) { using.dirty = true; using = null; hud.classList.remove('of-using'); }
+        leaveBoard();
         hud.classList.add('hidden');
         mode = 'outro';
         if (laptop.open) { laptop.k = 1; laptopFx(0); }
