@@ -1,5 +1,5 @@
 // Ambient office sounds: typing, footsteps, chatter, ping pong, the coffee machine, and a few fixtures (lift chime and doors, door, blinds,
-// chairs, room tone). No assets: every sound is synthesised once into a short buffer, then played through a panner with
+// chairs, room tone), plus the wind on the roof. No assets: every sound is synthesised once into a short buffer, then played through a panner with
 // random pitch/gain so repeats don't sound canned. Nothing is scheduled for sources more than CULL metres away.
 import * as THREE from 'three';
 
@@ -16,9 +16,9 @@ const TALK = new Set(['chat', 'sofa', 'beanbag', 'meeting']);
 // Vowel formants (F1, F2, F3) for the babble.
 const VOWELS = [[730, 1090, 2440], [530, 1840, 2480], [270, 2290, 3010], [570, 840, 2410], [300, 870, 2240], [660, 1720, 2410], [490, 1350, 1690]];
 
-export function createSounds({ camera, rugs, glass, lift, coffee, doorPos }) {
+export function createSounds({ camera, rugs, glass, lift, coffee, doorPos, roof }) {
   let ctx = null, bus = null, master = null, B = null, voices = 0, active = false;
-  let away = false, tone = null, hum = null, humOn = false;   // away: down in the archive, where the office can't be heard
+  let away = false, tone = null, hum = null, humOn = false;   // away: off the office floor, where it can't be heard ('roof' up top, true in the archive)
   const played = {};   // debug counts by kind (window.__office.sfx.played)
   const st = new Map();       // person -> sound state
   const convs = new Map();    // chat group key -> conversation
@@ -181,13 +181,30 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos }) {
     for (let c = 0; c < 2; c++) { const d = ir.getChannelData(c); for (let i = 0; i < d.length; i++) d[i] = noise() * Math.exp(-i / SR / 0.7) * Math.min(1, i / (SR * 0.02)); }
     verb.buffer = ir; wet.gain.value = 0;
     bus.connect(verb).connect(wet).connect(master);
-    src.start();
-    tone = { g, air, void_, wet };
+    // The roof: wind. A low roar all round that gusts, and a brighter rush off the nearest edge (placed in update).
+    const wind = ctx.createBufferSource(), wlp = ctx.createBiquadFilter(), wbp = ctx.createBiquadFilter(), roar = ctx.createGain(), rush = ctx.createGain(), edge = ctx.createPanner();
+    wind.buffer = make(4, noise); wind.loop = true;
+    wlp.type = 'lowpass'; wlp.frequency.value = 260; wbp.type = 'bandpass'; wbp.frequency.value = 900; wbp.Q.value = 0.7;
+    roar.gain.value = rush.gain.value = 0;
+    edge.panningModel = 'HRTF'; edge.distanceModel = 'inverse'; edge.refDistance = 2; edge.rolloffFactor = 0.8;
+    wind.connect(wlp).connect(roar).connect(master); wind.connect(wbp).connect(rush).connect(edge).connect(master);
+    src.start(); wind.start(ctx.currentTime + 1.3);   // offset, so the two loops of noise don't line up
+    tone = { g, air, void_, wet, roar, rush, edge, wbp };
   }
   function applyAway() {
     if (!tone) return;
-    const at = (n, v) => n.gain.setTargetAtTime(v, ctx.currentTime, 0.25);
-    at(tone.g, away ? 0 : 0.05); at(tone.air, away ? 0 : 0.012); at(tone.void_, away ? 0.006 : 0); at(tone.wet, away ? 0.35 : 0);
+    const at = (n, v) => n.gain.setTargetAtTime(v, ctx.currentTime, 0.25), arch = away && away !== 'roof';
+    at(tone.g, away ? 0 : 0.05); at(tone.air, away ? 0 : 0.012); at(tone.void_, arch ? 0.006 : 0); at(tone.wet, arch ? 0.35 : 0);
+    if (away !== 'roof') { at(tone.roar, 0); at(tone.rush, 0); }
+  }
+  function windFx(t) {   // gusts: two slow sines beating; the rush comes from the point on the edge nearest you
+    const gust = 0.55 + 0.45 * Math.sin(t * 0.21) * Math.sin(t * 0.077 + 1.3), now = ctx.currentTime;
+    tone.roar.gain.setTargetAtTime(0.035 * (0.4 + 0.6 * gust), now, 0.3);
+    tone.rush.gain.setTargetAtTime(0.06 * gust, now, 0.3);
+    tone.wbp.frequency.setTargetAtTime(650 + 650 * gust, now, 0.5);
+    const d = [[L.x - roof.minX, roof.minX, L.z], [roof.maxX - L.x, roof.maxX, L.z], [L.z - roof.minZ, L.x, roof.minZ], [roof.maxZ - L.z, L.x, roof.maxZ]].sort((a, b) => a[0] - b[0])[0];
+    const [, x, z] = d, e = tone.edge;
+    if (e.positionX) { e.positionX.value = x; e.positionY.value = L.y; e.positionZ.value = z; } else e.setPosition(x, L.y, z);
   }
   function liftHum(on) {   // the car's motor and the air in the shaft while you ride
     humOn = on;
@@ -296,6 +313,7 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos }) {
       li.forwardX.value = fwd.x; li.forwardY.value = fwd.y; li.forwardZ.value = fwd.z; li.upX.value = 0; li.upY.value = 1; li.upZ.value = 0;
     } else { li.setPosition(L.x, L.y, L.z); li.setOrientation(fwd.x, fwd.y, fwd.z, 0, 1, 0); }
     doorK = door.k; look = 0.06 + clampLook(t - lastT) * 1.5; lastT = t;   // schedule past the next frame, even a slow one
+    if (away === 'roof' && tone && roof) windFx(t);
     const now = performance.now(), list = away ? [] : [...people.values()];
     for (const p of list) {
       const s = stateOf(p), pos = p.root.position, walking = p.path.length > 0, pose = p.spot?.pose;
@@ -368,7 +386,7 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos }) {
     ding(at = lift, mine) { if (!away || mine) play(B?.chime, at.x, 2.4, at.z, 0.35); },
     espresso() { if (!away) play(B?.espresso, coffee.x, coffee.y, coffee.z, 0.5); machineFree = lastT + 7.5; },
     slide(at = lift, mine) { if (!away || mine) play(B?.slide, at.x, 1.2, at.z, 0.22, rnd(0.95, 1.05)); },
-    setAway(on) { away = on; applyAway(); }, hum: liftHum,
+    setAway(on, kind) { away = on && (kind || true); applyAway(); }, hum: liftHum,
     get ready() { return !!ctx && ctx.state; },
     get voices() { return voices; }, played, get buffers() { return B; },
   };
