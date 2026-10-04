@@ -1750,8 +1750,8 @@ export function mountOffice(container) {
   solid(10, 9, 3, 1.2);
   for (const dx of [-1, 0, 1]) { officeChair(10 + dx, 8.15, 0, '#7a8796'); officeChair(10 + dx, 9.85, Math.PI, '#7a8796'); }
   plant(3.5, 3.4); plant(19.2, 14.2, 1.2); plant(5.4, -2.9, 0.9);
-  // Corner nook: two armchairs turned slightly towards each other, a low table between them.
-  sofa(15.75, 13.95, Math.PI - 0.25, 1.05, '#8a6f5a'); sofa(17.65, 13.95, Math.PI + 0.25, 1.05, '#8a6f5a');
+  // Corner nook: two armchairs facing each other across a low table.
+  sofa(15.85, 13.95, Math.PI / 2, 1.05, '#8a6f5a'); sofa(17.55, 13.95, -Math.PI / 2, 1.05, '#8a6f5a');
   box(world, 0.6, 0.04, 0.5, '#8a6a4a', 16.7, 0.38, 14.05, { mat: { roughness: 0.6 } });
   for (const [dx, dz] of [[-0.25, -0.2], [0.25, -0.2], [-0.25, 0.2], [0.25, 0.2]]) box(world, 0.035, 0.36, 0.035, '', 16.7 + dx, 0.18, 14.05 + dz, { material: legM });
   box(world, 0.22, 0.03, 0.16, '#3f4a6b', 16.6, 0.415, 14.1).rotation.y = 0.3; cyl(world, 0.04, 0.035, 0.1, '#f4f1ea', 16.88, 0.45, 13.95);
