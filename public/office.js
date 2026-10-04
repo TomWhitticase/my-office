@@ -1773,8 +1773,90 @@ export function mountOffice(container) {
   sofa(15.85, 13.95, Math.PI / 2, 1.05, '#8a6f5a'); sofa(17.55, 13.95, -Math.PI / 2, 1.05, '#8a6f5a');
   box(world, 0.6, 0.04, 0.5, '#8a6a4a', 16.7, 0.38, 14.05, { mat: { roughness: 0.6 } });
   for (const [dx, dz] of [[-0.25, -0.2], [0.25, -0.2], [-0.25, 0.2], [0.25, 0.2]]) box(world, 0.035, 0.36, 0.035, '', 16.7 + dx, 0.18, 14.05 + dz, { material: legM });
-  box(world, 0.22, 0.03, 0.16, '#3f4a6b', 16.6, 0.415, 14.1).rotation.y = 0.3; cyl(world, 0.04, 0.035, 0.1, '#f4f1ea', 16.88, 0.45, 13.95);
+  box(world, 0.22, 0.03, 0.16, '#3f4a6b', 16.66, 0.415, 14.21).rotation.y = 0.1; cyl(world, 0.04, 0.035, 0.1, '#f4f1ea', 16.95, 0.45, 14.21);
   solid(16.7, 14.05, 0.6, 0.5);
+  const laptop = macbook(seats.slice(-2));
+
+  // Your MacBook, on the nook table facing whichever armchair you open it from. 14" proportions; the lid hinges at the back
+  // (pivot.rotation.x: PI/2 shut, LID_OPEN tilted back). While it's open the dashboard screen moves onto it (see placeHole).
+  function macbook(nookSeats) {
+    const W = 0.312, D = 0.221, T = 0.011, LT = 0.0045, LH = 0.215;
+    const alu = new THREE.MeshStandardMaterial({ color: '#c6c8cc', metalness: 0.65, roughness: 0.3 });
+    // A rounded-rectangle plate in x-y, extruded `t` back along -z, with softened edges.
+    function plate(w, h, t, r) {
+      const b = Math.min(0.0015, t / 3), s = new THREE.Shape(), x = -w / 2 + b, y = -h / 2 + b, iw = w - 2 * b, ih = h - 2 * b;
+      s.moveTo(x + r, y); s.lineTo(x + iw - r, y); s.quadraticCurveTo(x + iw, y, x + iw, y + r); s.lineTo(x + iw, y + ih - r);
+      s.quadraticCurveTo(x + iw, y + ih, x + iw - r, y + ih); s.lineTo(x + r, y + ih); s.quadraticCurveTo(x, y + ih, x, y + ih - r);
+      s.lineTo(x, y + r); s.quadraticCurveTo(x, y, x + r, y);
+      return new THREE.ExtrudeGeometry(s, { depth: t - 2 * b, bevelThickness: b, bevelSize: b, bevelSegments: 2, curveSegments: 6 }).translate(0, 0, -t + b);
+    }
+    const g = new THREE.Group(); world.add(g);
+    const base = new THREE.Mesh(plate(W, D, T, 0.012).rotateX(-Math.PI / 2), alu);
+    base.position.y = T; base.castShadow = base.receiveShadow = true; g.add(base);
+    // Deck: keyboard well, keycaps, speaker grilles and trackpad on one canvas; the legends double as the backlight.
+    const deck = makeCanvas(1024, 726), glow = makeCanvas(1024, 726), c = deck.ctx, e = glow.ctx;
+    c.fillStyle = '#c3c5c9'; c.fillRect(0, 0, 1024, 726);
+    e.fillStyle = '#000'; e.fillRect(0, 0, 1024, 726);
+    c.fillStyle = '#0c0c0d'; c.beginPath(); c.roundRect(128, 34, 768, 352, 10); c.fill();
+    c.fillStyle = '#9fa2a7';
+    for (const x0 of [44, 914]) for (let y = 50; y < 370; y += 9) for (let x = x0; x < x0 + 66; x += 9) c.fillRect(x, y, 3, 3);
+    const ROWS = [
+      [[1.5, 'esc'], ...'F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12'.split(' ').map((k) => [1, k]), [1, '']],
+      [...'` 1 2 3 4 5 6 7 8 9 0 - ='.split(' ').map((k) => [1, k]), [1.5, 'delete']],
+      [[1.5, 'tab'], ...'Q W E R T Y U I O P [ ] \\'.split(' ').map((k) => [1, k])],
+      [[1.8, 'caps'], ...'A S D F G H J K L ; \''.split(' ').map((k) => [1, k]), [1.7, 'return']],
+      [[2.3, 'shift'], ...'Z X C V B N M , . /'.split(' ').map((k) => [1, k]), [2.2, 'shift']],
+      [[1, 'fn'], [1, 'ctrl'], [1, 'opt'], [1.25, 'cmd'], [5.1, ''], [1.25, 'cmd'], [1, 'opt'], [1, '◀'], [1, '▲▼'], [1, '▶']],
+    ];
+    ROWS.forEach((row, i) => {
+      const sum = row.reduce((a, k) => a + k[0], 0), u = 744 / sum, h = i ? 54 : 30, y = i ? 82 + (i - 1) * 59 : 44;
+      let x = 140;
+      for (const [w, label] of row) {
+        c.fillStyle = '#1e1f21'; c.beginPath(); c.roundRect(x + 2, y, w * u - 5, h, 6); c.fill();
+        if (label) {
+          e.font = `500 ${label.length > 2 ? 13 : 19}px ${FONT}`; e.fillStyle = '#fff'; e.textAlign = 'center';
+          e.fillText(label, x + (w * u) / 2, y + h / 2 + 6);
+          c.font = e.font; c.fillStyle = '#6d6f73'; c.textAlign = 'center'; c.fillText(label, x + (w * u) / 2, y + h / 2 + 6);
+        }
+        x += w * u;
+      }
+    });
+    c.fillStyle = '#b9bbbf'; c.strokeStyle = '#a7a9ad'; c.lineWidth = 3;
+    c.beginPath(); c.roundRect(292, 420, 440, 276, 16); c.fill(); c.stroke();
+    deck.tex.needsUpdate = true; glow.tex.needsUpdate = true;
+    const deckM = new THREE.MeshStandardMaterial({ map: deck.tex, metalness: 0.45, roughness: 0.38, emissive: '#cfe2ff', emissiveMap: glow.tex, emissiveIntensity: 0 });
+    const top = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.006, D - 0.006), deckM);
+    top.rotation.x = -Math.PI / 2; top.position.y = T + 0.0003; top.receiveShadow = true; g.add(top);
+    const hinge = new THREE.Mesh(new THREE.CylinderGeometry(0.0042, 0.0042, W - 0.05, 12).rotateZ(Math.PI / 2), mat('#2b2c2f', { metalness: 0.5, roughness: 0.4 }));
+    hinge.position.set(0, T - 0.0005, -D / 2 + 0.0045); g.add(hinge);
+    // Lid: aluminium back, black glass bezel with the notch, and the logo. The screen itself is the punched hole.
+    const pivot = new THREE.Group(); pivot.position.set(0, T + 0.0022, -D / 2 + 0.003); g.add(pivot);
+    const lid = new THREE.Mesh(plate(W, LH, LT, 0.012).translate(0, LH / 2, 0), alu);
+    lid.castShadow = true; pivot.add(lid);
+    const bezel = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.004, LH - 0.004), new THREE.MeshStandardMaterial({ color: '#050506', roughness: 0.15, metalness: 0.2 }));
+    bezel.position.set(0, LH / 2, 0.0003); pivot.add(bezel);
+    const notch = new THREE.Mesh(new THREE.PlaneGeometry(0.03, 0.0065), bezel.material);
+    notch.position.set(0, LH - 0.002 - 0.0033, 0.0018); pivot.add(notch);
+    const logo = makeCanvas(256, 256), l = logo.ctx;
+    l.fillStyle = '#fff';
+    for (const [x, y, rx, ry] of [[100, 140, 72, 74], [156, 140, 72, 74], [128, 184, 82, 58]]) { l.beginPath(); l.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); l.fill(); }
+    l.beginPath(); l.ellipse(144, 40, 13, 30, 0.7, 0, Math.PI * 2); l.fill();
+    l.globalCompositeOperation = 'destination-out';
+    for (const [x, y, r] of [[128, 62, 18], [128, 246, 16], [236, 132, 34]]) { l.beginPath(); l.arc(x, y, r, 0, Math.PI * 2); l.fill(); }
+    logo.tex.needsUpdate = true;
+    const apple = new THREE.Mesh(new THREE.PlaneGeometry(0.046, 0.046), new THREE.MeshStandardMaterial({ color: '#f1f2f4', metalness: 1, roughness: 0.08, alphaMap: logo.tex, alphaTest: 0.5, emissive: '#ffffff', emissiveIntensity: 0.06 }));
+    apple.rotation.y = Math.PI; apple.position.set(0, LH / 2 + 0.006, -LT - 0.0002); pivot.add(apple);
+    // The screen's light on the keys and on you.
+    const light = new THREE.PointLight('#d6e4ff', 0, 1.6, 2);
+    light.position.set(0, LH * 0.5, 0.16); pivot.add(light);
+    g.traverse((o) => { if (o.isMesh) Object.assign(o.userData, { action: 'laptop', reach: 3.2 }); });
+    // Rest on the table edge nearest `st`, facing it.
+    const poseFor = (st) => ({ x: 16.7 - Math.sin(st.rotY) * 0.09, z: 13.96, r: st.rotY + Math.PI });
+    const L = { g, pivot, lid, light, deckM, W, LH, seats: nookSeats, seat: nookSeats[0], open: false, shown: false, k: 0, poseFor };
+    const p0 = poseFor(L.seat);
+    g.position.set(p0.x, 0.4, p0.z); g.rotation.y = p0.r; pivot.rotation.x = Math.PI / 2;
+    return L;
+  }
 
   pendant(9.3, 9, { light: 14, shade: '#2f463b' }); pendant(10.7, 9, { shade: '#2f463b' });
   floorLamp(18.55, 14.3, 10);
@@ -1950,19 +2032,44 @@ export function mountOffice(container) {
   const cssObj = new CSS3DObject(domScreen);
   cssObj.element.style.pointerEvents = 'none';
   cssScene.add(cssObj);
-  const screenWorld = new THREE.Vector3();
+  const screenWorld = new THREE.Vector3(), lapScr = { w: 0.3, h: 0.19 }, cssPx = { w: 1, h: 1 }, cssS = new THREE.Vector3();
+  // While the MacBook's open the one live page sits on its lid instead, and the monitor says where it went.
+  const awayScr = makeScreen(centerMon.g, 1, 1, 640, 360, 0, 0, 0.011);
+  awayScr.mesh.visible = false;
+  {
+    const { ctx: a } = awayScr, gr = a.createLinearGradient(0, 0, 640, 360);
+    gr.addColorStop(0, '#1b2433'); gr.addColorStop(1, '#0d1118'); a.fillStyle = gr; a.fillRect(0, 0, 640, 360);
+    a.textAlign = 'center'; a.fillStyle = '#e8e6df'; a.font = `600 30px ${FONT}`; a.fillText('Open on your MacBook', 320, 178);
+    a.fillStyle = '#8d96a6'; a.font = `400 18px ${FONT}`; a.fillText('Lounge · corner nook', 320, 212);
+    awayScr.tex.needsUpdate = true;
+  }
   function layoutCenterMonitor(pxW, pxH) {
     center.h = center.w * pxH / pxW;
-    hole.scale.set(center.w, center.h, 1);
-    hole.position.set(0, 0.12 + center.h / 2, 0.012);
+    // The lid's display area (302 × 196 mm), fitted to the viewport's aspect and hung from the top bezel.
+    lapScr.w = Math.min(0.302, 0.196 * pxW / pxH); lapScr.h = lapScr.w * pxH / pxW;
     centerMon.bezel.scale.set(center.w + 0.03, center.h + 0.03, 1);
     centerMon.bezel.position.y = 0.12 + center.h / 2;
+    awayScr.mesh.scale.set(center.w, center.h, 1); awayScr.mesh.position.y = 0.12 + center.h / 2;
     domScreen.style.width = pxW + 'px';
     domScreen.style.height = pxH + 'px';
+    Object.assign(cssPx, { w: pxW, h: pxH });
+    placeHole();
+  }
+  function placeHole() {
+    const lap = laptop.shown, s = lap ? lapScr : center;
+    (lap ? laptop.pivot : centerMon.g).add(hole);
+    hole.scale.set(s.w, s.h, 1);
+    if (lap) hole.position.set(0, laptop.LH - 0.004 - s.h / 2, 0.001); else hole.position.set(0, 0.12 + center.h / 2, 0.012);
+    awayScr.mesh.visible = lap;
+    centerMon.g.updateWorldMatrix(true, true);
+    (lap ? awayScr.mesh : hole).getWorldPosition(screenWorld);
+    syncCss();
+  }
+  // The CSS3D page follows the hole (the lid moves), at one CSS pixel per screen pixel.
+  function syncCss() {
     hole.updateWorldMatrix(true, false);
-    hole.getWorldPosition(screenWorld);
-    cssObj.position.copy(screenWorld);
-    cssObj.scale.setScalar(center.w / pxW);
+    hole.matrixWorld.decompose(cssObj.position, cssObj.quaternion, cssS);
+    cssObj.scale.setScalar(cssS.x / cssPx.w);
   }
 
   // ----- meeting rooms -----
@@ -2696,13 +2803,56 @@ export function mountOffice(container) {
   const keys = new Set();
   let locked = false, active = false, mode = 'idle', anim = null;
 
+  // Square-on to whichever screen holds the page (the monitor, or the open MacBook), filling the view.
+  const lapAt = new THREE.Vector3(), lapN = new THREE.Vector3();
   function fillPose() {
-    const d = (center.h / 2) / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
-    return { x: screenWorld.x, y: screenWorld.y, z: screenWorld.z + d, yaw: 0, pitch: 0 };
+    if (!laptop.shown) {
+      const d = (center.h / 2) / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+      return { x: screenWorld.x, y: screenWorld.y, z: screenWorld.z + d, yaw: 0, pitch: 0 };
+    }
+    const d = (lapScr.h / 2) / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+    lapScreen();
+    return { x: lapAt.x + lapN.x * d, y: lapAt.y + lapN.y * d, z: lapAt.z + lapN.z * d, yaw: Math.atan2(lapN.x, lapN.z), pitch: Math.asin(-lapN.y) };
   }
   function seatedPose() {
+    if (laptop.shown) {
+      const st = laptop.seat, y = st.eye;
+      lapScreen();
+      return { x: st.x, y, z: st.z, yaw: Math.atan2(st.x - lapAt.x, st.z - lapAt.z), pitch: Math.atan2(lapAt.y - y, Math.hypot(lapAt.x - st.x, lapAt.z - st.z)), seat: st };
+    }
     const x = OWNER.x, z = OWNER.z + 1.45, y = SEATED_EYE;
     return { x, y, z, yaw: 0, pitch: Math.atan2(screenWorld.y - y, z - screenWorld.z) };
+  }
+  function lapScreen() {
+    hole.updateWorldMatrix(true, false);
+    hole.getWorldPosition(lapAt);
+    lapN.set(0, 0, 1).transformDirection(hole.matrixWorld);
+  }
+  // Clicking the MacBook sits you in the nearer free armchair (or the one you're in) and opens it toward you; it shuts when
+  // you get up. Once the screen's awake, clicking it again flies into the dashboard like the office computer.
+  function openLaptop() {
+    const L = laptop;
+    if (L.open) { if (L.shown) { document.exitPointerLock(); dash.setView('overview'); } return; }
+    const near = (st) => Math.hypot(st.x - player.x, st.z - player.z);
+    const st = L.seats.includes(player.seat) ? player.seat : L.seats.filter((q) => !seatTaken(q)).sort((a, b) => near(a) - near(b))[0];
+    if (!st) return;
+    sitIn(st);
+    if (player.seat !== st) return;
+    Object.assign(L, { seat: st, open: true });
+    player.pitch = Math.atan2(0.52 - st.eye, 0.9);
+  }
+  function laptopFx(dt) {
+    const L = laptop, p = L.poseFor(L.seat);
+    if (L.open && mode === 'free' && player.seat !== L.seat) L.open = false;
+    L.g.position.x = damp(L.g.position.x, p.x, 8, dt); L.g.position.z = damp(L.g.position.z, p.z, 8, dt);
+    L.g.rotation.y += angDiff(L.g.rotation.y, p.r) * Math.min(1, dt * 8);
+    L.k = L.open ? Math.min(1, L.k + dt / 0.8) : Math.max(0, L.k - dt / 0.8);
+    L.pivot.rotation.x = lerp(Math.PI / 2, -0.38, ease(L.k));
+    // The screen wakes partway up and goes dark the moment you stand.
+    const shown = L.open && L.k > 0.55;
+    if (shown !== L.shown) { L.shown = shown; placeHole(); }
+    L.light.intensity = shown ? 0.35 + 0.5 * (1 - daylight) : 0;
+    L.deckM.emissiveIntensity = ease(L.k) * (1 - daylight) * 0.9;
   }
   function setCam(p) { camera.position.set(p.x, p.y, p.z); camera.rotation.set(p.pitch, p.yaw, 0); }
   function camPose() { return { x: camera.position.x, y: camera.position.y, z: camera.position.z, yaw: camera.rotation.y, pitch: camera.rotation.x }; }
@@ -2774,6 +2924,7 @@ export function mountOffice(container) {
     if (!locked) { renderer.domElement.requestPointerLock(); return; }
     if (!hover) return;
     if (hover.action === 'computer') { document.exitPointerLock(); dash.setView('overview'); }
+    else if (hover.action === 'laptop') openLaptop();
     else if (hover.sessionId && hover.screen) { document.exitPointerLock(); dash.openDrawer(hover.sessionId); }
     else if (hover.sessionId) openChat(hover.sessionId);
     else if (hover.action === 'blinds') { hover.blind.to = hover.blind.to === 1 ? 0 : hover.blind.to + 0.5; dash.putOffice({ blinds: { [hover.blind.key]: hover.blind.to } }); }
@@ -3072,7 +3223,7 @@ export function mountOffice(container) {
     hover = null;
     if (locked && mode === 'free') {
       ray.setFromCamera(new THREE.Vector2(0, 0), camera);
-      const targets = [hole, ...doors.map((d) => d.pivot), ...desks.flatMap((d) => [d.scr.mesh, d.codeScr.mesh]), ...tvs.map((t) => t.scr.mesh)];
+      const targets = [hole, laptop.g, ...doors.map((d) => d.pivot), ...desks.flatMap((d) => [d.scr.mesh, d.codeScr.mesh]), ...tvs.map((t) => t.scr.mesh)];
       targets.push(...new Set(Object.values(blinds).flatMap((b) => b.runs.map((r) => r.slats.parent))));
       world.children.forEach((o) => { if (o.userData.glass) targets.push(o); });
       for (const p of people.values()) targets.push(p.root);
@@ -3089,8 +3240,9 @@ export function mountOffice(container) {
     }
     if (!hover) { targetEl.style.display = 'none'; return; }
     targetEl.style.display = 'block';
-    if (hover.action === 'computer') {
-      targetEl.innerHTML = '<b>Your computer</b><div class="k">Click to sit down and open the dashboard</div>';
+    if (hover.action === 'computer' || hover.action === 'laptop') {
+      targetEl.innerHTML = hover.action === 'computer' && !laptop.shown ? '<b>Your computer</b><div class="k">Click to sit down and open the dashboard</div>'
+        : `<b>Your MacBook</b><div class="k">${laptop.shown ? 'Click to open the dashboard' : laptop.open ? 'Waking up…' : 'Click to sit down and open it'}</div>`;
       return;
     }
     if (hover.action === 'blinds' || hover.action === 'door') {
@@ -3285,6 +3437,7 @@ export function mountOffice(container) {
     updateClocks(simDate);
     officeFx(dt);
     if (mode === 'free') movePlayer(dt);
+    laptopFx(dt);
     stepTween(now);
     sfx.update(t, dt, { people, door, blinds, free: mode === 'free' });
     paintScreens(false);
@@ -3295,6 +3448,7 @@ export function mountOffice(container) {
     drawMap();
     sky.position.copy(camera.position);
     renderFrame();
+    syncCss();
     cssRenderer.render(cssScene, camera);
   }
 
@@ -3314,7 +3468,7 @@ export function mountOffice(container) {
 
   window.__office = { openChat, closeChat, talk, get mode() { return mode; }, teleport: (k) => TELEPORTS[k](), openTv: (id) => openTvPanel(tvs.find((t) => t.id === id)), useTv: (id) => useTv(tvs.find((t) => t.id === id)), leaveTv,
     tvPoint: (id, u, v) => { const t = tvs.find((x) => x.id === id), p = t.scr.mesh.localToWorld(new THREE.Vector3((u - 0.5) * t.w, (0.5 - v) * t.h, 0)).project(camera), r = renderer.domElement.getBoundingClientRect(); return { x: r.left + (p.x + 1) / 2 * r.width, y: r.top + (1 - p.y) / 2 * r.height }; },
-    tvs: () => tvs.map((t) => ({ id: t.id, live: t.live, frame: !!t.frame, url: t.page?.url, title: t.page?.title, dist: t.dist })), seats, sitIn, player, people, blinds, door, doors, collide, colliders, lifts, sfx, setSpeed, clockState, setTime: (ms) => Object.assign(clockState, { speed: 0.0001, simBase: ms, realBase: Date.now() }) };
+    tvs: () => tvs.map((t) => ({ id: t.id, live: t.live, frame: !!t.frame, url: t.page?.url, title: t.page?.title, dist: t.dist })), seats, sitIn, openLaptop, laptop, player, people, blinds, door, doors, collide, colliders, lifts, sfx, setSpeed, clockState, setTime: (ms) => Object.assign(clockState, { speed: 0.0001, simBase: ms, realBase: Date.now() }) };
 
   return {
     // Adopt the overview page onto the monitor, then pull back from it to the chair.
@@ -3334,7 +3488,7 @@ export function mountOffice(container) {
       raf = requestAnimationFrame(frame);
       const seat = seatedPose();
       setTimeout(() => tween(fillPose(), seat, 2600, () => {
-        Object.assign(player, { x: seat.x, z: seat.z, eye: SEATED_EYE, yaw: seat.yaw, pitch: seat.pitch, seated: true, seat: null });
+        Object.assign(player, { x: seat.x, z: seat.z, eye: seat.y, yaw: seat.yaw, pitch: seat.pitch, seated: true, seat: seat.seat ?? null });
         mode = 'free';
         hud.classList.remove('hidden');
       }), REDUCED ? 0 : 350);
@@ -3348,6 +3502,7 @@ export function mountOffice(container) {
         if (using) { using.dirty = true; using = null; hud.classList.remove('of-using'); }
         hud.classList.add('hidden');
         mode = 'outro';
+        if (laptop.open) { laptop.k = 1; laptopFx(0); }
         const from = camPose(), to = fillPose();
         const dist = Math.hypot(from.x - to.x, from.y - to.y, from.z - to.z);
         tween(from, to, clamp(dist * 260, 1100, 2800), () => {
