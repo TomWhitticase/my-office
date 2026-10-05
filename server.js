@@ -1338,6 +1338,37 @@ const repoDetail = (o, n) => cached(`repo:${o}/${n}`, async () => {
     commits: (Array.isArray(commits) ? commits : []).map((c) => ({ sha: c.sha.slice(0, 7), message: c.commit.message.split('\n')[0], author: c.commit.author?.name || c.author?.login || '', date: c.commit.author?.date })),
   };
 });
+// The tesseract: the whole tree (paths and sizes, at HEAD) and the last commits with the files each touched, so the office can
+// rebuild the tree as it was before each one. Commit details are one call each, a few at a time.
+const TREE_MAX = 5000, HISTORY = 30, EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';   // (GitHub 404s on git's empty tree)
+async function pool(list, n, fn) {
+  const out = new Array(list.length);
+  let i = 0;
+  await Promise.all(Array.from({ length: n }, async () => { while (i < list.length) { const j = i++; out[j] = await fn(list[j]).catch(() => null); } }));
+  return out;
+}
+const repoTree = (o, n) => cached(`tree:${o}/${n}`, async () => {
+  const log = await gh(['api', `repos/${o}/${n}/commits?per_page=${HISTORY}`]).catch((e) => { if (/409|empty/i.test(e.message)) return []; throw e; });
+  if (!log.length) return { head: null, truncated: false, files: [], commits: [] };
+  const head = log[0].sha, tree = log[0].commit.tree.sha === EMPTY_TREE ? { tree: [] } : await gh(['api', `repos/${o}/${n}/git/trees/${log[0].commit.tree.sha}?recursive=1`]);
+  const blobs = tree.tree.filter((e) => e.type === 'blob');
+  const changes = await pool(log, 6, (c) => gh(['api', `repos/${o}/${n}/commits/${c.sha}`, '--jq', '[.files[]? | [.filename, .status, .previous_filename // ""]]']));
+  return {
+    head, truncated: !!tree.truncated || blobs.length > TREE_MAX,
+    files: blobs.slice(0, TREE_MAX).map((e) => [e.path, e.size || 0]),
+    commits: log.map((c, i) => ({ sha: c.sha, message: c.commit.message.split('\n')[0], author: c.commit.author?.name || c.author?.login || '', date: c.commit.author?.date, files: changes[i] || [] })),
+  };
+});
+// One file at one commit, as text (or a note that it's binary or too big).
+const BLOB_MAX = 160000;
+const repoBlob = (o, n, ref, file) => cached(`blob:${o}/${n}@${ref}:${file}`, async () => {
+  const j = await gh(['api', `repos/${o}/${n}/contents/${file.split('/').map(encodeURIComponent).join('/')}?ref=${ref}`]);
+  if (Array.isArray(j) || j.type !== 'file') throw new Error('not a file');
+  if (!j.content) return { size: j.size, text: null, why: 'too big to read here' };
+  const buf = Buffer.from(j.content, 'base64');
+  if (buf.subarray(0, 8000).includes(0)) return { size: j.size, text: null, why: 'binary' };
+  return { size: j.size, text: buf.toString('utf8', 0, BLOB_MAX), cut: buf.length > BLOB_MAX };
+});
 
 // ---------- http ----------
 // Anything that changes state must come from this dashboard: JSON (a foreign page then needs a CORS preflight, which is never
@@ -1449,13 +1480,15 @@ const server = http.createServer((req, res) => {
     return;
   }
   // Your GitHub repos, for THE ARCHIVE. Private ones included, so: our own Host, never a TV, and no cross-site fetches.
-  const repo = url.pathname.match(/^\/api\/repos(?:\/([\w.-]{1,100})\/([\w.-]{1,100}))?$/);
+  const repo = url.pathname.match(/^\/api\/repos(?:\/([\w.-]{1,100})\/([\w.-]{1,100})(?:\/(tree|blob))?)?$/);
   if (repo) {
     const ua = req.headers['user-agent'] || '', reply = (code, o) => { res.writeHead(code, { 'content-type': 'application/json', 'cache-control': 'no-store' }); res.end(JSON.stringify(o)); };
     if (req.method !== 'GET') return reply(405, { error: 'GET only' });
     if (/^\.\.?$/.test(repo[1]) || /^\.\.?$/.test(repo[2])) return reply(400, { error: 'bad repo' });
     if (!trustedHost(req.headers.host || '') || ua.includes(TV_UA_TAG) || /^(cross-site|same-site)$/.test(req.headers['sec-fetch-site'] || '')) return reply(403, { error: 'refused' });
-    (repo[1] ? repoDetail(repo[1], repo[2]) : listRepos()).then((o) => reply(200, o), (e) => reply(e.signin ? 401 : 502, { error: e.message, signin: !!e.signin }));
+    const ref = url.searchParams.get('ref') || '', file = url.searchParams.get('path') || '';
+    if (repo[3] === 'blob' && (!/^[0-9a-f]{40}$/i.test(ref) || !file || file.length > 1024 || file.split('/').some((x) => !x || x === '.' || x === '..'))) return reply(400, { error: 'bad path or ref' });
+    (repo[3] === 'tree' ? repoTree(repo[1], repo[2]) : repo[3] === 'blob' ? repoBlob(repo[1], repo[2], ref, file) : repo[1] ? repoDetail(repo[1], repo[2]) : listRepos()).then((o) => reply(200, o), (e) => reply(e.signin ? 401 : 502, { error: e.message, signin: !!e.signin }));
     return;
   }
   if (url.pathname === '/api/state') {
