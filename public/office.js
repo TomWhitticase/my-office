@@ -2517,7 +2517,8 @@ export function mountOffice(container) {
     // Closed smooth outline through points; optional scale about (0, cy).
     const outline = (pts, k = 1, cy = 0) => {
       const v = pts.map(([x, y]) => new THREE.Vector2(x * k, (y - cy) * k + cy)), s = new THREE.Shape();
-      s.moveTo(v[0].x, v[0].y); s.splineThru([...v.slice(1), v[0]]);
+      s.moveTo(v[0].x, v[0].y);
+      if (pts.length > 40) v.slice(1).forEach((p) => s.lineTo(p.x, p.y)); else s.splineThru([...v.slice(1), v[0]]);   // traced outlines are dense already
       return s;
     };
     const rrect = (hw, hh, r) => {
@@ -2618,28 +2619,33 @@ export function mountOffice(container) {
 
     const chromeM = mat('#eceef0', { metalness: 1, roughness: 0.15 }), goldM = mat('#e2b85c', { metalness: 1, roughness: 0.22 }), steelM = mat('#8f9297', { metalness: 1, roughness: 0.35 });
     const blackM = mat('#111111', { roughness: 0.3 }), ivoryM = mat('#ece2c4', { roughness: 0.4 }), stringM = mat('#d7d9dc', { metalness: 1, roughness: 0.3 });
-    // Body outlines after the Fender and Gibson templates (metres, butt end at y 0, bass side -x). Strat: 406 x 324 mm, the
-    // bass horn longer than the treble, neck pocket at the 16th fret. Les Paul: 438 x 330 mm, one rounded treble cutaway.
-    const STRAT = [[0, 0], [0.08, 0.007], [0.122, 0.025], [0.148, 0.052], [0.16, 0.085], [0.161, 0.12], [0.152, 0.155], [0.138, 0.19], [0.131, 0.225],
-      [0.137, 0.255], [0.141, 0.29], [0.136, 0.318], [0.128, 0.343], [0.117, 0.365], [0.105, 0.379], [0.092, 0.382], [0.08, 0.374], [0.072, 0.358], [0.068, 0.338],
-      [0.063, 0.318], [0.055, 0.306], [0.045, 0.303], [0.036, 0.308], [0.03, 0.322], [0.028, 0.34], [0.028, 0.359], [0, 0.36], [-0.028, 0.359], [-0.029, 0.34],
-      [-0.032, 0.325], [-0.04, 0.317], [-0.05, 0.318], [-0.057, 0.328], [-0.061, 0.345], [-0.063, 0.368], [-0.066, 0.39], [-0.073, 0.405], [-0.085, 0.413],
-      [-0.098, 0.413], [-0.11, 0.403], [-0.12, 0.385], [-0.129, 0.36], [-0.137, 0.33], [-0.142, 0.3], [-0.14, 0.26], [-0.131, 0.225], [-0.138, 0.19], [-0.152, 0.155],
-      [-0.161, 0.12], [-0.16, 0.085], [-0.148, 0.052], [-0.122, 0.025], [-0.08, 0.007]];
-    const LP = [[0, 0], [0.06, 0.004], [0.11, 0.022], [0.145, 0.055], [0.163, 0.1], [0.165, 0.14], [0.156, 0.185], [0.138, 0.225], [0.125, 0.258], [0.124, 0.285],
-      [0.13, 0.315], [0.133, 0.345], [0.13, 0.372], [0.122, 0.395], [0.11, 0.412], [0.097, 0.42], [0.085, 0.417], [0.077, 0.405], [0.072, 0.385], [0.066, 0.365],
-      [0.057, 0.35], [0.045, 0.344], [0.035, 0.35], [0.03, 0.365], [0.03, 0.42], [0, 0.428], [-0.03, 0.426], [-0.052, 0.438], [-0.078, 0.441], [-0.102, 0.433],
-      [-0.121, 0.416], [-0.134, 0.39], [-0.139, 0.36], [-0.136, 0.328], [-0.128, 0.298], [-0.124, 0.268], [-0.13, 0.235], [-0.148, 0.192], [-0.162, 0.145],
-      [-0.163, 0.1], [-0.145, 0.055], [-0.11, 0.022], [-0.06, 0.004]];
-    // Strat scratchplate: round the neck pocket, into both horns' roots, above the bridge, a lobe down round the controls.
-    const PG = [[-0.03, 0.352], [-0.032, 0.33], [-0.037, 0.312], [-0.048, 0.306], [-0.058, 0.314], [-0.068, 0.334], [-0.082, 0.35], [-0.098, 0.354],
-      [-0.112, 0.342], [-0.122, 0.315], [-0.127, 0.285], [-0.12, 0.25], [-0.115, 0.225], [-0.11, 0.2], [-0.1, 0.175], [-0.078, 0.145], [-0.05, 0.128], [0, 0.124],
-      [0.042, 0.124], [0.052, 0.112], [0.06, 0.092], [0.075, 0.075], [0.098, 0.068], [0.12, 0.078], [0.132, 0.1], [0.137, 0.13], [0.133, 0.165], [0.124, 0.195],
-      [0.12, 0.225], [0.124, 0.26], [0.126, 0.29], [0.12, 0.315], [0.11, 0.338], [0.096, 0.352], [0.084, 0.346], [0.076, 0.325], [0.068, 0.306], [0.056, 0.294],
-      [0.045, 0.291], [0.036, 0.297], [0.031, 0.315], [0.03, 0.352]];
-    // Les Paul's raised guard: a long teardrop from under the cutaway down beside the bridge pickup.
-    const LPG = [[0.046, 0.334], [0.056, 0.338], [0.064, 0.35], [0.072, 0.372], [0.08, 0.392], [0.094, 0.403], [0.106, 0.396], [0.115, 0.375], [0.119, 0.345],
-      [0.116, 0.305], [0.106, 0.268], [0.092, 0.237], [0.076, 0.218], [0.061, 0.215], [0.05, 0.23], [0.045, 0.26], [0.044, 0.3]];
+    // Body outlines traced from full-size templates (cho2/guitar-shape, CC BY-SA 4.0), in mm: butt end at y 0, neck centreline x 0,
+    // bass side -x. Strat 457 x 321 mm, neck pocket edge 396 mm up; Les Paul 438 x 331 mm (waist 186, upper bout 234), neck joint 438 up.
+    const mm = (t) => t.split(/\s+/).map((p) => p.split(',').map((v) => v / 1000));
+    const STRAT = mm(`-125,228 -130,217 -134,207 -138,197 -143,186 -146,175 -150,164 -153,154 -156,143 -158,132 -160,120 -162,109 -162,97 -162,85 -160,73 -157,62
+      -152,52 -146,43 -138,34 -129,26 -120,19 -110,14 -100,10 -89,6 -78,4 -66,2 -54,1 -42,0 -30,0 -18,0 -6,0 7,0 19,0 32,0 44,0 56,1 68,2 79,4
+      90,7 101,11 111,16 121,22 130,29 138,38 145,47 150,57 154,68 156,80 158,91 158,103 157,115 155,127 152,138 149,149 145,160 142,170 137,180
+      133,191 128,201 124,211 119,221 115,232 112,243 112,255 114,266 117,277 121,288 125,298 130,308 133,319 136,331 137,342 137,354 136,366
+      132,376 127,386 117,393 106,392 98,384 95,373 92,362 88,351 81,342 71,336 60,333 48,334 37,338 28,344 27,356 27,368 27,380 27,392 18,397
+      6,397 -7,397 -19,397 -29,393 -35,383 -45,378 -57,378 -67,382 -77,389 -84,398 -89,409 -91,420 -92,432 -93,444 -99,453 -109,457 -120,453
+      -128,445 -134,435 -137,424 -140,413 -140,401 -140,389 -140,377 -138,366 -136,354 -133,343 -130,332 -126,322 -122,311 -119,300 -116,289
+      -115,277 -115,265 -116,254 -120,243 -123,232`);
+    const LP = mm(`29,438 17,438 5,438 -8,438 -20,438 -32,438 -44,436 -56,434 -68,431 -79,426 -89,420 -98,412 -106,403 -112,393 -116,381 -118,370 -117,358
+      -114,346 -109,334 -104,324 -98,312 -94,301 -92,289 -93,277 -98,266 -105,256 -112,247 -120,238 -128,229 -135,220 -142,210 -148,199 -153,188
+      -158,177 -160,165 -162,154 -163,141 -163,129 -162,117 -160,105 -156,94 -152,82 -147,71 -141,61 -134,52 -126,43 -117,35 -107,28 -97,21 -86,16
+      -75,10 -63,6 -52,4 -40,2 -28,1 -16,0 -4,0 9,0 21,0 33,1 45,2 57,5 68,8 80,12 91,16 102,22 112,29 121,36 130,44 138,53 146,62 152,72 157,83
+      161,95 165,106 167,118 168,130 168,142 166,155 164,166 161,178 157,189 152,200 145,211 138,221 131,230 123,239 115,248 107,257 100,266
+      94,277 92,289 94,301 98,312 103,323 109,334 113,345 117,357 118,369 117,381 111,391 100,392 93,382 85,373 74,368 62,366 50,369 40,375 34,385
+      31,396 30,408 29,421 29,433`);
+    // Strat scratchplate: 9 mm in from the treble edge and cutaways, part way up the treble horn, clear of the bass horn,
+    // ~25 mm in down the bass side, across just above the bridge, and a lobe down round the controls.
+    const PG = mm(`148,108 147,119 145,130 142,141 139,152 135,162 131,172 127,182 122,192 118,202 113,212 108,223 106,229 104,235 103,242 103,249 103,255
+      104,262 105,268 106,274 110,286 115,296 119,306 123,316 126,327 128,338 128,348 128,358 126,368 104,371 103,365 101,358 98,353 96,347 92,341
+      87,336 81,331 74,328 68,325 61,324 53,324 46,325 39,327 33,329 30,360 -30,360 -29,376 -36,372 -43,369 -51,369 -58,370 -65,372 -72,374
+      -109,333 -103,324 -100,319 -97,312 -95,307 -93,301 -92,294 -90,286 -90,279 -89,271 -90,264 -90,256 -92,248 -94,242 -96,235 -98,229 -100,222
+      -105,212 -103,215 -92,197 -75,179 -52,170 -20,168 20,168 50,167 68,146 82,124 96,103 112,93 130,94`);
+    // Les Paul's raised guard: a narrow teardrop from under the cutaway down beside the bridge pickup.
+    const LPG = mm(`44,355 52,357 62,358 72,361 82,366 90,372 97,374 102,366 103,350 100,330 90,305 83,280 75,255 66,235 56,228 49,238 45,265 44,310`);
     const SHEAD = [[-0.0215, 0], [-0.026, 0.04], [-0.03, 0.1], [-0.034, 0.15], [-0.036, 0.175], [-0.028, 0.192], [-0.008, 0.196], [0.018, 0.19], [0.042, 0.178],
       [0.052, 0.162], [0.045, 0.148], [0.026, 0.13], [0.016, 0.1], [0.016, 0.05], [0.0215, 0.008]];
     const LHEAD = [[-0.0215, 0], [-0.034, 0.05], [-0.045, 0.12], [-0.047, 0.168], [-0.038, 0.18], [-0.015, 0.176], [0, 0.168], [0.015, 0.176], [0.038, 0.18],
@@ -2647,7 +2653,7 @@ export function mountOffice(container) {
 
     // A guitar standing upright, front facing +z, bass side on the left, body bottom at y 0. Returns the group and its output jack.
     function guitar(o) {
-      const g = new THREE.Group(), strat = o.kind === 'strat', S = strat ? 0.648 : 0.628, Ny = strat ? 0.748 : 0.8, By = Ny - S, FZ = strat ? 0.0225 : 0.0275;
+      const g = new THREE.Group(), strat = o.kind === 'strat', S = strat ? 0.648 : 0.628, Ny = strat ? 0.785 : 0.81, By = Ny - S, FZ = strat ? 0.0225 : 0.0275;
       const E = Ny - S * (1 - 2 ** (-22 / 12)) - 0.006, wN = 0.043, wE = strat ? 0.057 : 0.056;
       const hw = [], poles = [], knobs = [], tips = [], blacks = [], strings = [];
       const xn = (i) => -0.0175 + i * 0.007, xb = (i) => -0.026 + i * 0.0104, xAt = (i, y) => lerp(xb(i), xn(i), (y - By) / (Ny - By));
@@ -2660,7 +2666,7 @@ export function mountOffice(container) {
         add(g, slab(outline(LP), 0.0195, 0.004), [o.body, ivoryM]);                 // cream binding round the top
         add(g, slab(outline(LP, 0.86, 0.21), 0.0175, 0.002, 0.008), o.body);          // the carved top's arch
         add(g, slab(outline(LPG), FZ + 0.006, 0.0018), ivoryM);                      // raised pickguard
-        hw.push(bGeo(0.004, 0.006, 0.006, 0.095, 0.395, FZ + 0.006));
+        hw.push(bGeo(0.004, 0.006, 0.006, 0.098, 0.363, FZ + 0.006));
       }
       // Neck, fretboard (bound on the Les Paul), nut.
       const n0 = strat ? 0.3 : 0.33;
@@ -2696,7 +2702,7 @@ export function mountOffice(container) {
         }
       };
       if (strat) {
-        o.pickups.forEach((k, i) => pickup(k, By + [0.14, 0.094, 0.046][i], i < 2 ? 0 : k === 'H' ? -0.05 : -0.17));
+        o.pickups.forEach((k, i) => pickup(k, By + [0.166, 0.105, 0.048][i], i < 2 ? 0 : k === 'H' ? -0.05 : -0.17));
         // Bridge: a vintage trem (plate, six saddles, the arm swung out to the treble side), or a hardtail: a heavier plate
         // with a raised back lip, strings through the body, no arm.
         if (o.hardtail) {
@@ -2708,36 +2714,36 @@ export function mountOffice(container) {
           hw.push(rodGeo(V(0.031, By - 0.02, FZ + 0.003), V(0.033, By - 0.022, FZ + 0.03), 0.0018), rodGeo(V(0.033, By - 0.022, FZ + 0.03), V(0.085, By - 0.145, FZ + 0.042), 0.0018));
           tips.push(rodGeo(V(0.075, By - 0.12, FZ + 0.0395), V(0.087, By - 0.15, FZ + 0.0425), 0.0035, 10));
         }
-        for (const [x, y] of [[0.078, 0.165], [0.096, 0.132], [0.108, 0.1]]) knobs.push(czGeo(0.0105, 0.016, x, y, top, 20, 0.0118));
-        hw.push(rodGeo(V(0.09, 0.204, top), V(0.093, 0.2, top + 0.014), 0.0012));
-        tips.push(czGeo(0.003, 0.008, 0.093, 0.2, top + 0.012, 10));
-        hw.push(new THREE.CylinderGeometry(0.0115, 0.0115, 0.003, 20).rotateX(Math.PI / 2).scale(1.35, 1, 1).translate(0.12, 0.048, FZ + 0.0015));
-        blacks.push(czGeo(0.0045, 0.001, 0.12, 0.048, FZ + 0.003));
-        hw.push(new THREE.CylinderGeometry(0.005, 0.006, 0.012, 12).translate(0, -0.012, 0), new THREE.CylinderGeometry(0.005, 0.006, 0.012, 12).translate(-0.092, 0.42, 0));
+        for (const [x, y] of [[0.068, 0.176], [0.094, 0.152], [0.115, 0.124]]) knobs.push(czGeo(0.0105, 0.016, x, y, top, 20, 0.0118));
+        hw.push(rodGeo(V(0.085, 0.218, top), V(0.088, 0.214, top + 0.014), 0.0012));
+        tips.push(czGeo(0.003, 0.008, 0.088, 0.214, top + 0.012, 10));
+        hw.push(new THREE.CylinderGeometry(0.0115, 0.0115, 0.003, 20).rotateX(Math.PI / 2).scale(1.35, 1, 1).translate(0.115, 0.075, FZ + 0.0015));
+        blacks.push(czGeo(0.0045, 0.001, 0.115, 0.075, FZ + 0.003));
+        hw.push(new THREE.CylinderGeometry(0.005, 0.006, 0.012, 12).translate(0, -0.012, 0), new THREE.CylinderGeometry(0.005, 0.006, 0.012, 12).translate(-0.109, 0.462, 0));
         for (let i = 0; i < 6; i++) {   // strings: saddle to nut to post
           const r = 0.00056 - i * 0.00005, [px, py] = posts[i], p = V(px + 0.0034, py, 0.008).applyMatrix4(hsM);
           strings.push(rodGeo(V(xb(i), By - 0.003, FZ + 0.013), V(xn(i), Ny - 0.001, FZ + 0.0085), r), rodGeo(V(xn(i), Ny - 0.001, FZ + 0.0085), p, r));
         }
       } else {
-        for (const y of [0.31, 0.205]) add(g, slab(rrect(0.043, 0.025, 0.006), FZ - 0.001, 0.004).translate(0, y, 0), ivoryM);   // mounting rings
-        pickup('H', 0.31, 0); pickup('H', 0.205, 0);
+        for (const y of [By + 0.138, By + 0.033]) add(g, slab(rrect(0.043, 0.025, 0.006), FZ - 0.001, 0.004).translate(0, y, 0), ivoryM);   // mounting rings
+        pickup('H', By + 0.138, 0); pickup('H', By + 0.033, 0);
         // Tune-o-matic bridge on its thumbwheels, stopbar tailpiece on studs.
         hw.push(bGeo(0.082, 0.012, 0.008, 0, By, FZ + 0.009));
-        for (const s of [-1, 1]) hw.push(czGeo(0.0052, 0.006, s * 0.041, By, FZ), czGeo(0.0062, 0.009, s * 0.04, 0.123, FZ));
-        hw.push(rodGeo(V(-0.044, 0.123, FZ + 0.008), V(0.044, 0.123, FZ + 0.008), 0.0055, 12));
+        for (const s of [-1, 1]) hw.push(czGeo(0.0052, 0.006, s * 0.041, By, FZ), czGeo(0.0062, 0.009, s * 0.04, By - 0.049, FZ));
+        hw.push(rodGeo(V(-0.044, By - 0.049, FZ + 0.008), V(0.044, By - 0.049, FZ + 0.008), 0.0055, 12));
         for (const [x, y] of [[0.072, 0.128], [0.112, 0.148], [0.085, 0.085], [0.125, 0.104]]) knobs.push(czGeo(0.0105, 0.016, x, y, FZ, 20, 0.012), czGeo(0.0145, 0.003, x, y, FZ, 20));
-        add(g, slab(new THREE.Shape().absarc(0, 0, 0.017, 0, Math.PI * 2), FZ - 0.001, 0.002, 0, 16).translate(-0.09, 0.37, 0), ivoryM);   // toggle ring
-        hw.push(rodGeo(V(-0.09, 0.37, FZ), V(-0.092, 0.375, FZ + 0.03), 0.0014));
-        tips.push(czGeo(0.0042, 0.009, -0.092, 0.375, FZ + 0.026, 10));
+        add(g, slab(new THREE.Shape().absarc(0, 0, 0.017, 0, Math.PI * 2), FZ - 0.001, 0.002, 0, 16).translate(-0.085, 0.39, 0), ivoryM);   // toggle ring
+        hw.push(rodGeo(V(-0.085, 0.39, FZ), V(-0.087, 0.395, FZ + 0.03), 0.0014));
+        tips.push(czGeo(0.0042, 0.009, -0.087, 0.395, FZ + 0.026, 10));
         hw.push(new THREE.CylinderGeometry(0.005, 0.006, 0.012, 12).translate(0, -0.012, 0));
         for (let i = 0; i < 6; i++) {   // strings: tailpiece over the bridge to nut to post
           const r = 0.00056 - i * 0.00005, [px, py] = posts[i < 3 ? i : 8 - i], p = V(px + (i < 3 ? 0.0034 : -0.0034), py, 0.008).applyMatrix4(hsM);
-          const tail = V(xb(i) * 1.05, 0.123, FZ + 0.0135), br = V(xb(i), By, FZ + 0.0135), nut = V(xn(i), Ny - 0.001, FZ + 0.0085);
+          const tail = V(xb(i) * 1.05, By - 0.049, FZ + 0.0135), br = V(xb(i), By, FZ + 0.0135), nut = V(xn(i), Ny - 0.001, FZ + 0.0085);
           strings.push(rodGeo(tail, br, r), rodGeo(br, nut, r), rodGeo(nut, p, r));
         }
       }
       merged(g, hw, o.hw); merged(g, poles, steelM); merged(g, knobs, o.knob); merged(g, tips, o.tip); merged(g, blacks, blackM); merged(g, keys, o.keys); merged(g, strings, stringM);
-      return { g, jack: V(0.12, 0.048, FZ + 0.004) };
+      return { g, jack: V(0.115, 0.075, FZ + 0.004) };
     }
 
     // An A-frame stand: a padded cradle under the body, a post up behind it to a yoke round the neck, three legs.
