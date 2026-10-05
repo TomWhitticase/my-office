@@ -1,5 +1,10 @@
 [
   "[refused] POST /api/john: missing or foreign Origin (origin http://evil.example, host 127.0.0.1:<port>)",
+  "[refused] POST /api/receptionist/tv: missing or foreign Origin (origin http://evil.example, host 127.0.0.1:<port>)",
+  "[refused] POST /api/receptionist: Content-Type must be application/json (origin http://127.0.0.1:<port>, host 127.0.0.1:<port>)",
+  "[refused] POST /api/receptionist: missing or foreign Origin (origin http://evil.example, host 127.0.0.1:<port>)",
+  "[refused] POST /api/receptionist: not from a TV or headless browser (origin http://127.0.0.1:<port>, host 127.0.0.1:<port>)",
+  "[refused] POST /api/receptionist: not from a TV or headless browser (origin http://127.0.0.1:<port>, host 127.0.0.1:<port>)",
   "[refused] POST /api/session/aaaaaaaa-0000-4000-8000-000000000001/send: Content-Type must be application/json (origin http://127.0.0.1:<port>, host 127.0.0.1:<port>)",
   "[refused] POST /api/session/aaaaaaaa-0000-4000-8000-000000000001/send: missing or foreign Origin (origin http://evil.example, host 127.0.0.1:<port>)",
   "[refused] POST /api/session/aaaaaaaa-0000-4000-8000-000000000001/send: not from a TV or headless browser (origin http://127.0.0.1:<port>, host 127.0.0.1:<port>)",

@@ -8,7 +8,8 @@
 //   ~/.claude/powerline/usage/day-*.json       claude-powerline's daily cost cache (history)
 //
 // This file is the entry point: config, http routing and the /events stream. The work is in server/: transcripts, state (the
-// registry and the state pushed every second), sessions-send, tv-browser, repos, john, machine, office-settings, security, util.
+// registry and the state pushed every second), sessions-send, tv-browser, repos, john, receptionist, machine, office-settings,
+// security, util.
 
 const fs = require('fs');
 const path = require('path');
@@ -22,6 +23,7 @@ const S = require('./server/state');   // live values: S.registry, S.procStats, 
 const { readRegistry, pollProcs, tick, transcriptSummary, subagentsOf } = S;
 const { machineJSON } = require('./server/machine');
 const { JOHN, askJohn } = require('./server/john');
+const { RCP, askReceptionist, searchTv } = require('./server/receptionist');
 const { SEND_MAX, sending, routeOf, sendToSession } = require('./server/sessions-send');
 const TV = require('./server/tv-browser');   // live values: TV.tvs, TV.adsSent
 const { putTv, tvUpgrade } = TV;
@@ -114,6 +116,34 @@ const server = http.createServer((req, res) => {
       try { reply(200, await askJohn(text, history)); }
       catch (e) { reply(500, { error: e.message }); }
       finally { JOHN.busy = false; }
+    });
+    return;
+  }
+  // Rosie at reception: her answer and a checked plan of office-admin actions; /tv has her find something on a TV.
+  if (url.pathname === '/api/receptionist' || url.pathname === '/api/receptionist/tv') {
+    if (req.method !== 'POST') { res.writeHead(405); return res.end(); }
+    if (deny(req, res)) return;
+    if (!/^(127\.|::1$|::ffff:127\.)/.test(req.socket.remoteAddress || '')) { res.writeHead(403, { 'content-type': 'application/json' }); return res.end(JSON.stringify({ error: 'refused: Rosie only takes requests from this computer' })); }
+    let body = '';
+    req.on('data', (c) => { body += c; if (body.length > 32768) req.destroy(); });
+    req.on('end', async () => {
+      const reply = (code, o) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(o)); };
+      const j = safeJSON(body) || {};
+      if (url.pathname === '/api/receptionist/tv') {
+        try { return reply(200, await searchTv(String(j.id ?? ''), j.search, j.kind)); }
+        catch (e) { return reply(e.status || 502, { error: e.message }); }
+      }
+      const text = String(j.text ?? '').replace(/\s+/g, ' ').trim();
+      if (!text) return reply(400, { error: 'empty message' });
+      if (text.length > RCP.max) return reply(400, { error: `too long (${text.length} of ${RCP.max} characters)` });
+      const now = Date.now(); RCP.at = RCP.at.filter((t) => now - t < 60e3);
+      if (RCP.busy) return reply(429, { error: 'Rosie’s still on the last one' });
+      if (RCP.at.length >= RCP.perMin) return reply(429, { error: 'Rosie holds up a finger: give her a minute' });
+      const history = (Array.isArray(j.history) ? j.history : []).slice(-10).map((h) => ({ role: h?.role === 'rosie' ? 'rosie' : 'user', text: String(h?.text ?? '').slice(0, RCP.max) }));
+      RCP.busy = true; RCP.at.push(now);
+      try { reply(200, await askReceptionist(text, history, j.local)); }
+      catch (e) { reply(500, { error: e.message }); }
+      finally { RCP.busy = false; }
     });
     return;
   }

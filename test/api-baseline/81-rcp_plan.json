@@ -1,0 +1,68 @@
+{
+  "status": 200,
+  "type": "application/json",
+  "cache": null,
+  "body": {
+    "say": "On it!",
+    "actions": [
+      {
+        "do": "setLights",
+        "mode": "on",
+        "brightness": 2
+      },
+      {
+        "do": "setBlinds",
+        "group": "all",
+        "state": "closed"
+      },
+      {
+        "do": "setBlinds",
+        "group": "north",
+        "state": "open"
+      },
+      {
+        "do": "setDoor",
+        "id": "office",
+        "open": true
+      },
+      {
+        "do": "setSounds",
+        "on": true,
+        "volume": 100
+      },
+      {
+        "do": "tv",
+        "id": "pingpong",
+        "search": "lofi hip hop playlist",
+        "kind": "playlist",
+        "volume": 40
+      },
+      {
+        "do": "tv",
+        "id": "breakroom",
+        "search": "news",
+        "kind": "any"
+      },
+      {
+        "do": "tv",
+        "id": "lobby",
+        "url": "https://www.youtube.com/@SkyNews/live",
+        "volume": 0,
+        "muted": false,
+        "adblock": true,
+        "refresh": 60
+      },
+      {
+        "do": "tv",
+        "id": "lobby",
+        "volume": 30
+      },
+      {
+        "do": "tv",
+        "id": "lounge",
+        "power": false
+      }
+    ],
+    "rejected": []
+  }
+}

@@ -112,6 +112,15 @@ export async function collect(server) {
   out['POST /api/john (no Origin)'] = await put('/api/john', { text: 'hi' }, { 'content-type': 'application/json' }, 'POST');
   out['POST /api/john (empty)'] = await put('/api/john', { text: '  ' }, ok, 'POST');
   out['POST /api/john (too long)'] = await put('/api/john', { text: 'x'.repeat(700) }, ok, 'POST');
+  // Rosie at reception: the same checks as John's (her plans, with a stand-in claude, are in test/api-baseline/snap.mjs).
+  out['GET /api/receptionist'] = await put('/api/receptionist', undefined, {}, 'GET');
+  out['POST /api/receptionist (no Origin)'] = await put('/api/receptionist', { text: 'hi' }, { 'content-type': 'application/json' }, 'POST');
+  out['POST /api/receptionist (foreign Origin)'] = await put('/api/receptionist', { text: 'hi' }, { ...ok, origin: 'http://evil.example' }, 'POST');
+  out['POST /api/receptionist (TV browser)'] = await put('/api/receptionist', { text: 'hi' }, { ...ok, 'user-agent': UA + ' my-office-tv' }, 'POST');
+  out['POST /api/receptionist (empty)'] = await put('/api/receptionist', { text: '  ' }, ok, 'POST');
+  out['POST /api/receptionist (too long)'] = await put('/api/receptionist', { text: 'x'.repeat(700) }, ok, 'POST');
+  out['POST /api/receptionist/tv (bad id)'] = await put('/api/receptionist/tv', { id: '../x', search: 'news' }, ok, 'POST');
+  out['POST /api/receptionist/tv (TV browser)'] = await put('/api/receptionist/tv', { id: 'lobby', search: 'news' }, { ...ok, 'user-agent': UA + ' my-office-tv' }, 'POST');
   out['GET /api/session/:id/send'] = await put(`/api/session/${SESSION_IDS[0]}/send`, undefined, {}, 'GET');
   out['POST /api/session/:id/send (no Origin)'] = await put(`/api/session/${SESSION_IDS[0]}/send`, { text: 'hi' }, { 'content-type': 'application/json' }, 'POST');
   out['POST /api/session/:id/send (empty)'] = await put(`/api/session/${SESSION_IDS[0]}/send`, { text: '' }, ok, 'POST');

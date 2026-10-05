@@ -1,0 +1,109 @@
+{
+  "status": 200,
+  "type": "application/json",
+  "cache": null,
+  "body": {
+    "say": "Busy day",
+    "actions": [
+      {
+        "do": "setLights",
+        "mode": "auto"
+      },
+      {
+        "do": "setLights",
+        "mode": "auto"
+      },
+      {
+        "do": "setLights",
+        "mode": "auto"
+      },
+      {
+        "do": "setLights",
+        "mode": "auto"
+      },
+      {
+        "do": "setLights",
+        "mode": "auto"
+      },
+      {
+        "do": "setLights",
+        "mode": "auto"
+      },
+      {
+        "do": "setLights",
+        "mode": "auto"
+      },
+      {
+        "do": "setLights",
+        "mode": "auto"
+      },
+      {
+        "do": "setLights",
+        "mode": "auto"
+      },
+      {
+        "do": "setLights",
+        "mode": "auto"
+      },
+      {
+        "do": "setLights",
+        "mode": "auto"
+      },
+      {
+        "do": "setLights",
+        "mode": "auto"
+      },
+      {
+        "do": "setLights",
+        "mode": "auto"
+      },
+      {
+        "do": "setLights",
+        "mode": "auto"
+      },
+      {
+        "do": "setLights",
+        "mode": "auto"
+      },
+      {
+        "do": "setLights",
+        "mode": "auto"
+      },
+      {
+        "do": "setLights",
+        "mode": "auto"
+      },
+      {
+        "do": "setLights",
+        "mode": "auto"
+      },
+      {
+        "do": "setLights",
+        "mode": "auto"
+      },
+      {
+        "do": "setLights",
+        "mode": "auto"
+      },
+      {
+        "do": "setLights",
+        "mode": "auto"
+      },
+      {
+        "do": "setLights",
+        "mode": "auto"
+      },
+      {
+        "do": "setLights",
+        "mode": "auto"
+      },
+      {
+        "do": "setLights",
+        "mode": "auto"
+      }
+    ],
+    "rejected": [
+      "only the first 24 actions"
+    ]
+  }
+}

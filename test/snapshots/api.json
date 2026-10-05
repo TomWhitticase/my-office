@@ -4071,6 +4071,52 @@
    "error": "too long (700 of 600 characters)"
   }
  },
+ "GET /api/receptionist": {
+  "status": 405,
+  "body": ""
+ },
+ "POST /api/receptionist (no Origin)": {
+  "status": 403,
+  "body": {
+   "error": "refused: missing or foreign Origin"
+  }
+ },
+ "POST /api/receptionist (foreign Origin)": {
+  "status": 403,
+  "body": {
+   "error": "refused: missing or foreign Origin"
+  }
+ },
+ "POST /api/receptionist (TV browser)": {
+  "status": 403,
+  "body": {
+   "error": "refused: not from a TV or headless browser"
+  }
+ },
+ "POST /api/receptionist (empty)": {
+  "status": 400,
+  "body": {
+   "error": "empty message"
+  }
+ },
+ "POST /api/receptionist (too long)": {
+  "status": 400,
+  "body": {
+   "error": "too long (700 of 600 characters)"
+  }
+ },
+ "POST /api/receptionist/tv (bad id)": {
+  "status": 400,
+  "body": {
+   "error": "no such TV"
+  }
+ },
+ "POST /api/receptionist/tv (TV browser)": {
+  "status": 403,
+  "body": {
+   "error": "refused: not from a TV or headless browser"
+  }
+ },
  "GET /api/session/:id/send": {
   "status": 405,
   "body": ""

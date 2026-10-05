@@ -15,6 +15,7 @@ let tvs = readJSON(TVS_FILE) || {};
 for (const c of Object.values(tvs)) { delete c.src; delete c.blocked; c.volume ??= 100; c.muted ??= false; c.adblock ??= true; c.at ??= 0; }   // pre-browser entries
 function sendTvs() { const json = JSON.stringify(tvs); for (const res of clients) res.write(`event: tvs\ndata: ${json}\n\n`); }
 function putTv(id, body) {
+  if (!/^[\w-]{1,40}$/.test(id) || id in Object.prototype) throw new Error('bad TV id');   // '__proto__', 'constructor'…
   const prev = tvs[id], vol = (v, d) => Number.isFinite(v) ? Math.min(100, Math.max(0, Math.round(v))) : d;
   const refresh = (v, d) => 'refresh' in body ? Math.min(86400, Math.max(0, Math.round(Number(v) || 0))) : d;
   const adblock = 'adblock' in body ? !!body.adblock : prev?.adblock ?? true;
@@ -132,6 +133,7 @@ const tabs = new Map();   // tv id -> { id, targetId, sid, kids, adScripts, ads,
 const tvSessions = new Map();   // CDP session -> tab (the page and its out-of-process iframes)
 const lastFrames = new Map();   // tv id -> { jpeg, saved }
 const resumeAt = new Map();   // tv id -> { url, at }: page a closed tab was showing, reopened if its config hasn't changed
+const heldUntil = new Map();   // tv id -> time: kept open (and awake) with nobody watching, while the receptionist works it
 
 function startChrome() {
   if (chrome) return chrome.ready;
@@ -325,13 +327,14 @@ function tvSync() {
     for (const [id, f] of Object.entries(cl.fade)) fade.set(id, Math.max(fade.get(id) || 0, f));
     if (cl.use) tvUsed = cl.use;
   }
-  for (const id of Object.keys(tvs)) if ((watch.has(id) || fade.get(id) > 0) && !tabs.has(id) && tabs.size < TV_MAX_TABS) openTab(id);
+  const held = (id) => heldUntil.get(id) > now;
+  for (const id of Object.keys(tvs)) if ((watch.has(id) || fade.get(id) > 0 || held(id)) && !tabs.has(id) && tabs.size < TV_MAX_TABS) openTab(id);
   let casts = 0;
   for (const tab of [...tabs.values()].sort((a, b) => (watch.get(a.id) || 9) - (watch.get(b.id) || 9))) {
     const c = tvs[tab.id];
     if (!c) { lastFrames.delete(tab.id); fs.rm(path.join(TV_FRAMES, `${tab.id}.jpg`), { force: true }, () => {}); closeTab(tab); continue; }
     if (!tab.sid) continue;   // still opening
-    if (watch.has(tab.id) || fade.get(tab.id) > 0) tab.neededAt = now;
+    if (watch.has(tab.id) || fade.get(tab.id) > 0 || held(tab.id)) tab.neededAt = now;
     const idle = now - tab.neededAt;
     if (idle > 180e3) { closeTab(tab); continue; }
     if (tab.at !== c.at) { tab.at = c.at; lastFrames.delete(tab.id); navTab(tab, c.url); }
@@ -377,6 +380,50 @@ for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(sig, () => {
   chrome.send('Browser.close').catch(() => {});   // let it flush cookies, so TV logins stick
   setTimeout(() => process.exit(0), 1500);
 });
+
+// ---------- the receptionist's remote ----------
+// "Put some music on": a YouTube search on the TV itself (the results show on it while she looks), then the first suitable
+// result picked from the page (not an ad, a Short or a shelf; a live stream, playlist or video as asked) and played as the
+// TV's URL, so it sticks like one set from the Admin tab. The tab is held open meanwhile, even with nobody near it.
+const SEARCH_SP = { live: 'EgJAAQ%3D%3D', playlist: 'EgIQAw%3D%3D', video: 'EgIQAQ%3D%3D' };
+const PICK_JS = (kind) => `(() => { if (location.pathname !== '/results') return null;
+  const skip = 'ytd-ad-slot-renderer, ytd-in-feed-ad-layout-renderer, ytd-promoted-sparkles-web-renderer, ytd-promoted-video-renderer, grid-shelf-view-model, ytd-reel-shelf-renderer, ytd-shelf-renderer, ytd-horizontal-card-list-renderer';
+  for (const el of document.querySelectorAll('ytd-video-renderer, yt-lockup-view-model, ytd-playlist-renderer, ytd-radio-renderer')) {
+    if (el.closest(skip) || !el.getClientRects().length) continue;
+    const a = el.querySelector('a#video-title[href]') || el.querySelector('a[class*="MetadataViewModelTitle"][href]'), href = a?.getAttribute('href') || '';
+    const title = (a?.getAttribute('title') || a?.textContent || '').replace(/\\s+/g, ' ').trim();
+    if (!/^\\/watch\\?/.test(href) || !title) continue;
+    const u = new URL(href, location.origin), list = u.searchParams.get('list');
+    const live = !!el.querySelector('.badge-style-type-live-now-alternate, .badge-shape-wiz--thumbnail-live, [aria-label="LIVE"]') || ${JSON.stringify(kind)} === 'live';
+    if (${JSON.stringify(kind)} === 'playlist' && !list) continue;
+    return { url: 'https://www.youtube.com/watch?v=' + encodeURIComponent(u.searchParams.get('v')) + (list ? '&list=' + encodeURIComponent(list) : ''), title: title.slice(0, 140), live, playlist: !!list };
+  }
+  return null; })()`;
+async function tvSearch(id, query, kind) {
+  const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(query).replace(/%20/g, '+')}${SEARCH_SP[kind] ? `&sp=${SEARCH_SP[kind]}` : ''}`;
+  if (!CHROME) throw new Error('no Chrome for the TVs');
+  putTv(id, { url });
+  const at = tvs[id].at;
+  heldUntil.set(id, Date.now() + 60e3);
+  tvSync();
+  try {
+    for (let n = 0; n < 50; n++) {   // ~30 s
+      await new Promise((r) => setTimeout(r, 600));
+      if (tvs[id]?.at !== at) throw new Error('someone else changed that TV');
+      const tab = tabs.get(id);
+      if (!tab?.sid || tab.at !== at) continue;
+      const r = await cdp('Runtime.evaluate', { expression: PICK_JS(kind), returnByValue: true }, tab.sid).catch(() => null);
+      const pick = r?.result?.value;
+      if (!pick?.url) continue;
+      await new Promise((r) => setTimeout(r, 1200));   // let the results sit on screen a moment, as if read
+      if (tvs[id]?.at !== at) throw new Error('someone else changed that TV');
+      putTv(id, { url: pick.url });
+      return pick;
+    }
+    throw new Error('nothing suitable came up');
+  } finally { heldUntil.set(id, Date.now() + 15e3); }
+}
+const pages = () => Object.fromEntries([...tabs.values()].filter((t) => t.page.url).map((t) => [t.id, t.page]));
 
 // ---------- TV socket ----------
 // A minimal WebSocket server (RFC 6455, no deps) at /tv: one socket per office client. The client sends JSON (which TVs
@@ -464,4 +511,4 @@ function tvMessage(cl, m) {
   }
 }
 
-module.exports = { get tvs() { return tvs; }, get adsSent() { return adsSent; }, putTv, tvUpgrade };
+module.exports = { get tvs() { return tvs; }, get adsSent() { return adsSent; }, putTv, tvUpgrade, tvSearch, pages };

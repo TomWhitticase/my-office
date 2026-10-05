@@ -4451,14 +4451,14 @@
  ],
  "scenes": {
   "office": {
-   "objects": 2399,
+   "objects": 2488,
    "types": {
     "Scene": 1,
     "HemisphereLight": 1,
     "DirectionalLight": 2,
     "Object3D": 2,
-    "Mesh": 2097,
-    "Group": 379,
+    "Mesh": 2161,
+    "Group": 404,
     "PointLight": 15,
     "Sprite": 9,
     "LineSegments": 1,
@@ -4474,10 +4474,12 @@
     "liftcall": 2,
     "liftpanel": 3,
     "pint": 1,
-    "heli": 2
+    "heli": 2,
+    "lightpanel": 5,
+    "rosie": 57
    },
-   "ordered": "20806991",
-   "sorted": "455a4d11"
+   "ordered": "7ec8208b",
+   "sorted": "25b97e2b"
   },
   "servers": {
    "objects": 271,
