@@ -48,7 +48,8 @@ export function install(ctx) {
       }`,
   });
   composer.addPass(rays);
-  const bloom = new UnrealBloomPass(new THREE.Vector2(512, 512), 0.38, 0.55, 1.3);
+  // Bloom: only the brightest highlights (lamps, screens, the sun) glow, softly. Every floor's bloom scales from this one.
+  const bloom = new UnrealBloomPass(new THREE.Vector2(512, 512), 0.22, 0.4, 1.55);
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
   const grade = new ShaderPass({
