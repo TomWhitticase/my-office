@@ -43,6 +43,8 @@ export async function collect(server) {
   out['GET /api/state'] = await get('/api/state');
   const cfg = await get('/api/config');
   out['GET /api/config'] = { ...cfg, body: shape(cfg.body) };   // values come from this checkout's config.json
+  const build = await get('/api/build');
+  out['GET /api/build'] = { ...build, body: { build: /^[0-9a-f]{40}$/.test(build.body?.build) ? '<commit>' : build.body?.build } };   // this checkout's HEAD
   out['GET /api/office'] = await get('/api/office');
   out['GET /api/tvs'] = await get('/api/tvs');
   for (const id of SESSION_IDS) out[`GET /api/session/${id}`] = await get(`/api/session/${id}`);

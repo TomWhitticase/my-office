@@ -1381,6 +1381,14 @@
    "owner": "string"
   }
  },
+ "GET /api/build": {
+  "status": 200,
+  "type": "application/json",
+  "cache": "no-store",
+  "body": {
+   "build": "<commit>"
+  }
+ },
  "GET /api/office": {
   "status": 200,
   "type": "application/json",

@@ -34,6 +34,20 @@ const PORT = Number(process.env.PORT || CONFIG.port || 7777);
 const HOST = process.env.HOST || CONFIG.host || '127.0.0.1';
 
 // ---------- http ----------
+// The commit this checkout is on, read fresh each time (a deploy can move it without restarting the server for
+// front-end-only changes). Open pages poll /api/build and reload when it changes.
+function buildId() {
+  try {
+    let git = path.join(__dirname, '.git');
+    if (fs.statSync(git).isFile()) git = path.resolve(__dirname, fs.readFileSync(git, 'utf8').trim().replace(/^gitdir: /, ''));
+    const head = fs.readFileSync(path.join(git, 'HEAD'), 'utf8').trim();
+    if (!head.startsWith('ref: ')) return head;
+    const ref = head.slice(5), loose = [git, path.join(git, '..', '..')].map((d) => path.join(d, ref)).find((f) => fs.existsSync(f));
+    if (loose) return fs.readFileSync(loose, 'utf8').trim();
+    const packed = [git, path.join(git, '..', '..')].map((d) => path.join(d, 'packed-refs')).find((f) => fs.existsSync(f));
+    return (fs.readFileSync(packed, 'utf8').match(new RegExp(`^([0-9a-f]{40}) ${ref.replace(/[/.]/g, '\\$&')}$`, 'm')) || [])[1] || 'dev';
+  } catch { return 'dev'; }
+}
 const INDEX = path.join(__dirname, 'public', 'index.html');
 const STATIC_ROOTS = [
   ['/vendor/three/', path.join(__dirname, 'node_modules', 'three')],
@@ -63,6 +77,10 @@ const server = http.createServer((req, res) => {
     clients.add(res);
     req.on('close', () => clients.delete(res));
     return;
+  }
+  if (url.pathname === '/api/build') {
+    res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+    return res.end(JSON.stringify({ build: buildId() }));
   }
   if (url.pathname === '/api/config') {
     res.writeHead(200, { 'content-type': 'application/json' });
