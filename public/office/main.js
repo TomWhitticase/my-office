@@ -33,6 +33,7 @@ import { install as installArchive } from './floors/archive.js';
 import { install as installGateway } from './floors/gateway.js';
 import { install as installRoof } from './floors/roof.js';
 import { install as installHelicopter } from './floors/helicopter.js';
+import { install as installRoofBar } from './floors/roof-bar.js';
 import { install as installServerHall } from './floors/server-hall.js';
 import { install as installCctv } from './systems/cctv.js';
 import { install as installTerminals } from './systems/terminals.js';
@@ -165,6 +166,7 @@ export function mountOffice(container) {
   installRoof(ctx);
   const { EDGE, roof } = ctx;
   installHelicopter(ctx);
+  installRoofBar(ctx);   // the bar on the roof terrace
 
   installServerHall(ctx);
   const { srv } = ctx;
