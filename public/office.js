@@ -4413,6 +4413,576 @@ export function mountOffice(container) {
     c.restore();
   }
 
+  // ----- SERVER HALL (47) -----
+  // This machine as a comms room: a vestibule off the lift with an access-controlled door, then a raised-floor hall with two
+  // contained cold aisles of 42U racks (rows A-D), cable trays, CRACs, a fire suppression panel and a KVM crash cart.
+  // In the first cold aisle, row A's first three racks hold a 2U unit per live Claude session (`srv.slots`, colour-coded like
+  // the people, LEDs blinking with what it's doing, click for its details) and row B's first three are the machine itself:
+  // CPU per core, memory, load, top processes, a disk array per volume, the network switches and the UPS (polled from
+  // /api/machine every 3 s while you're here). The NOC screen on the far wall graphs it all.
+  // Built about the car at z = 0 in `srv.root`, moved onto your car's z when you arrive. All LEDs are one InstancedMesh.
+  const SV = { x0: 2.5, x1: 14.5, z0: -7.2, z1: 4.4, vz: 2.2 }, RK = { w: 0.6, d: 1.07, h: 2.0, U: 0.04445, base: 0.08, fw: 0.45 };
+  const ROWS = [{ id: 'A', z: -1.135, f: 1 }, { id: 'B', z: 1.135, f: -1 }, { id: 'C', z: -3.405, f: -1 }, { id: 'D', z: -5.675, f: 1 }];
+  const RACKX = (i) => 12.1 - i * RK.w, AISLES = [0, -4.54], SLOTS = 54;
+  const srv = { n: 47, label: 'SERVERS', title: 'Server Hall', on: false, composer: null, colliders: [], fixed: [], hits: [], slots: [], m: null,
+    hist: { cpu: [], mem: [], load: [], sess: [], net: [] }, polledAt: 0, tick: 0, paintAt: 0, nocAt: 0, doors: [] };
+  const lbl = (c, text, x, y, font, color, align = 'left') => { c.font = font; c.fillStyle = color; c.textAlign = align; c.fillText(text, x, y); c.textAlign = 'left'; };
+  {
+    const SC = srv.scene = new THREE.Scene(), root = srv.root = new THREE.Group();
+    SC.background = new THREE.Color('#0d1117');
+    SC.environment = scene.environment; SC.environmentIntensity = 0.35;
+    const key = new THREE.DirectionalLight('#e6efff', 0.8); key.position.set(4, 10, 3); key.target.position.set(8, 0, -1); root.add(key.target);
+    SC.add(srv.hemi = new THREE.HemisphereLight('#dfe9ff', '#3a4250', 1.0), key, root);
+    srv.look = { exposure: 1.0, hemi: 1.0, sky: new THREE.Color('#dfe9ff'), ground: new THREE.Color('#3a4250'), env: 0.35, bloom: 1.5, grade: 1, lights: [[key, 0.8]] };
+    const R = rng(47), H = ROOM.h;
+    // A face of `w` x `h` at (x, y, z) facing rotY, textured from a canvas rect [px, py, pw, ph] of a W x H canvas.
+    const quads = (list, material, cw, ch) => {
+      const pos = [], uv = [], idx = [];
+      for (const [x, y, z, w, h, rotY, [px, py, pw, ph]] of list) {
+        const rx = Math.cos(rotY) * w / 2, rz = -Math.sin(rotY) * w / 2, n = pos.length / 3;
+        pos.push(x - rx, y - h / 2, z - rz, x + rx, y - h / 2, z + rz, x + rx, y + h / 2, z + rz, x - rx, y + h / 2, z - rz);
+        const u0 = px / cw, u1 = (px + pw) / cw, v0 = 1 - (py + ph) / ch, v1 = 1 - py / ch;
+        uv.push(u0, v0, u1, v0, u1, v1, u0, v1);
+        idx.push(n, n + 1, n + 2, n, n + 2, n + 3);
+      }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
+      const m = new THREE.Mesh(g, material); root.add(m); return m;
+    };
+    const sign = (w, h, x, y, z, rotY, ppm, draw, o = {}) => {
+      const c = makeCanvas(Math.round(w * ppm), Math.round(h * ppm)); draw(c.ctx, c.W, c.H); c.tex.needsUpdate = true;
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), o.basic ? new THREE.MeshBasicMaterial({ map: c.tex }) : new THREE.MeshStandardMaterial({ map: c.tex, roughness: 0.6, ...o.mat }));
+      m.position.set(x, y, z); m.rotation.y = rotY; root.add(m); return Object.assign(m, { c });
+    };
+
+    // Floors: raised-floor tiles (perforated in the cold aisles), anti-static vinyl in the vestibule; dark open ceiling.
+    const tile = (perf) => {
+      const t = makeCanvas(256, 256), c = t.ctx;
+      c.fillStyle = '#b4b9c0'; c.fillRect(0, 0, 256, 256);
+      for (let i = 0; i < 900; i++) { c.fillStyle = `rgba(${R() > 0.5 ? '255,255,255' : '50,55,60'},${R() * 0.06})`; c.fillRect(R() * 256, R() * 256, 2, 2); }
+      if (perf) { c.fillStyle = '#23272c'; for (let i = 0; i < 16; i++) for (let j = 0; j < 16; j++) { c.beginPath(); c.arc(20 + i * 14.4, 20 + j * 14.4, 4.2, 0, Math.PI * 2); c.fill(); } }
+      c.strokeStyle = '#5e646c'; c.lineWidth = 6; c.strokeRect(0, 0, 256, 256);
+      t.tex.wrapS = t.tex.wrapT = THREE.RepeatWrapping; t.tex.needsUpdate = true; return t.tex;
+    };
+    const floorTex = tile(false), perfTex = tile(true), hallW = SV.x1 - SV.x0, hallD = SV.z1 - SV.z0;
+    floorTex.repeat.set(hallW / 0.6, hallD / 0.6);
+    const fl = new THREE.Mesh(new THREE.PlaneGeometry(hallW, hallD), new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.55, metalness: 0.1 }));
+    fl.rotation.x = -Math.PI / 2; fl.position.set((SV.x0 + SV.x1) / 2, 0, (SV.z0 + SV.z1) / 2); root.add(fl);
+    for (const z of AISLES) {
+      const t = perfTex.clone(); t.repeat.set(11, 2); t.needsUpdate = true;
+      const p = new THREE.Mesh(new THREE.PlaneGeometry(6.6, 1.2), new THREE.MeshStandardMaterial({ map: t, roughness: 0.5, metalness: 0.15 }));
+      p.rotation.x = -Math.PI / 2; p.position.set(9.4, 0.003, z); root.add(p);
+    }
+    const vin = new THREE.Mesh(new THREE.PlaneGeometry(LIFT.x - SV.x1, SV.vz * 2), mat('#3b3f45', { roughness: 0.7 }));
+    vin.rotation.x = -Math.PI / 2; vin.position.set((SV.x1 + LIFT.x) / 2, 0, 0); root.add(vin);
+    const ceil = new THREE.Mesh(new THREE.PlaneGeometry(LIFT.x - SV.x0, hallD), mat('#20242a', { roughness: 0.9 }));
+    ceil.rotation.x = Math.PI / 2; ceil.position.set((SV.x0 + LIFT.x) / 2, H, (SV.z0 + SV.z1) / 2); root.add(ceil);
+
+    // Walls: the hall, the vestibule, and the partition between them with a doorway at z = 0.
+    const wallC = '#c4c8ce', sk = '#2b2f35', t = 0.12, walls = [];
+    const wall = (x0, x1, z0, z1) => walls.push([x1 - x0 || t, H, z1 - z0 || t, (x0 + x1) / 2, H / 2, (z0 + z1) / 2, wallC]);
+    wall(SV.x0 - t, SV.x0 - t, SV.z0, SV.z1); wall(SV.x0, SV.x1, SV.z0 - t / 2, SV.z0 - t / 2); wall(SV.x0, SV.x1, SV.z1 + t / 2, SV.z1 + t / 2);
+    wall(SV.x1, SV.x1, SV.z0, -0.55); wall(SV.x1, SV.x1, 0.55, SV.z1);
+    walls.push([t, H - 2.15, 1.1, SV.x1, (H + 2.15) / 2, 0, wallC]);
+    wall(SV.x1, LIFT.x, -SV.vz - t / 2, -SV.vz - t / 2); wall(SV.x1, LIFT.x, SV.vz + t / 2, SV.vz + t / 2);
+    for (const s of [-1, 1]) walls.push([0.1, H, SV.vz - CAR.w / 2 - 0.3, LIFT.x + 0.05, H / 2, s * (SV.vz + CAR.w / 2 + 0.3) / 2, '#77716a']);
+    for (const [x0, x1, z] of [[SV.x0, SV.x1, SV.z0 + 0.01], [SV.x0, SV.x1, SV.z1 - 0.01], [SV.x1 + 0.07, LIFT.x, -SV.vz + 0.01], [SV.x1 + 0.07, LIFT.x, SV.vz - 0.01]]) walls.push([x1 - x0, 0.1, 0.02, (x0 + x1) / 2, 0.05, z, sk]);
+    root.add(mergedBoxes(walls, mat('#ffffff', { vertexColors: true, roughness: 0.85 })));
+    srv.fixed.push({ minX: SV.x1 - 0.08, maxX: SV.x1 + 0.08, minZ: SV.z0, maxZ: -0.55 }, { minX: SV.x1 - 0.08, maxX: SV.x1 + 0.08, minZ: 0.55, maxZ: SV.z1 });
+
+    // Ceiling light: long cold-white LED battens over the aisles (emissive only; the bloom does the rest).
+    const battens = [];
+    for (const z of [0, -2.27, -4.54, 2.9, -6.6]) battens.push([6.4, 0.04, 0.12, 9.4, H - 0.03, z]);
+    battens.push([2.4, 0.04, 0.12, (SV.x1 + LIFT.x) / 2, H - 0.03, 0]);
+    root.add(mergedBoxes(battens, new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: '#e4efff', emissiveIntensity: 2.2 })));
+
+    // The rack face atlas: generic servers (1U, 2U with 12 or 24 bays, 4U, a switch, a patch panel, blanking) and rears.
+    const FA = makeCanvas(512, 768), fc = FA.ctx;
+    const DES = { '1U': [0, 52], blank: [52, 52], sw: [104, 52], patch: [156, 52], '2U12': [208, 104], '2U24': [312, 104], '4U': [416, 208], rear: [624, 104] };
+    const bez = (y, h, col) => { fc.fillStyle = col; fc.fillRect(0, y, 512, h); fc.fillStyle = 'rgba(255,255,255,.08)'; fc.fillRect(0, y, 512, 2); fc.fillStyle = 'rgba(0,0,0,.5)'; fc.fillRect(0, y + h - 2, 512, 2); };
+    const vents = (x0, y0, w, h, step = 6) => { fc.fillStyle = '#0b0c0e'; for (let x = x0; x < x0 + w; x += step) for (let y = y0; y < y0 + h; y += step) fc.fillRect(x, y, step - 2, step - 2); };
+    bez(0, 52, '#2a2d32'); vents(20, 10, 300, 32); fc.fillStyle = '#c8ccd2'; fc.fillRect(340, 18, 60, 14); lbl(fc, 'R640', 344, 30, `600 11px ${FONT}`, '#2a2d32');
+    bez(52, 52, '#1b1d20'); for (let x = 24; x < 490; x += 18) { fc.fillStyle = '#111214'; fc.fillRect(x, 66, 10, 24); }
+    bez(104, 52, '#24272b'); for (let i = 0; i < 24; i++) for (let j = 0; j < 2; j++) { fc.fillStyle = '#0a0b0c'; fc.fillRect(40 + i * 17, 110 + j * 21, 13, 14); }
+    bez(156, 52, '#1d1f22'); for (let i = 0; i < 24; i++) { fc.fillStyle = '#e8e8e8'; fc.fillRect(40 + i * 17, 168, 13, 11); fc.fillStyle = ['#2a6fd6', '#e3c23a', '#d9534f', '#3a3d42'][i % 7 % 4]; fc.fillRect(42 + i * 17, 182, 9, 10); }
+    bez(208, 104, '#2b2e33'); for (let i = 0; i < 4; i++) for (let j = 0; j < 3; j++) { fc.fillStyle = '#16181b'; fc.fillRect(30 + i * 100, 216 + j * 30, 92, 26); fc.fillStyle = '#3a3e44'; fc.fillRect(34 + i * 100, 220 + j * 30, 60, 18); }
+    bez(312, 104, '#2b2e33'); for (let i = 0; i < 24; i++) { fc.fillStyle = '#16181b'; fc.fillRect(24 + i * 18, 320, 15, 88); fc.fillStyle = '#4a4e55'; fc.fillRect(26 + i * 18, 324, 11, 6); }
+    bez(416, 208, '#2a2c30'); vents(24, 432, 380, 120, 8); fc.fillStyle = '#d97757'; fc.fillRect(24, 570, 70, 22); lbl(fc, 'STORAGE', 100, 587, `600 15px ${FONT}`, '#9aa0a8');
+    bez(624, 104, '#18191c'); for (let i = 0; i < 2; i++) { fc.fillStyle = '#2c2f34'; fc.fillRect(20 + i * 90, 634, 80, 84); vents(28 + i * 90, 642, 64, 50, 6); }
+    for (let i = 0; i < 9; i++) { fc.strokeStyle = ['#2a6fd6', '#e3c23a', '#2a6fd6', '#7a7f87', '#d9534f'][i % 5]; fc.lineWidth = 5; fc.beginPath(); fc.moveTo(220 + i * 30, 640); fc.bezierCurveTo(230 + i * 30, 700, 300 + i * 18, 690, 330 + i * 18, 728); fc.stroke(); }
+    FA.tex.needsUpdate = true;
+    const faceM = new THREE.MeshStandardMaterial({ map: FA.tex, roughness: 0.55, metalness: 0.35 });
+
+    // LEDs: one InstancedMesh; `leds` holds every one's position and how to colour it (`dyn`: those that change).
+    const leds = [], dyn = [], C = (r, g, b, k = 1) => new THREE.Color(r * k, g * k, b * k);
+    const LED = { g: C(0.15, 1, 0.3, 3), b: C(0.2, 0.5, 1, 3.2), a: C(1, 0.55, 0.05, 3), r: C(1, 0.08, 0.05, 3), w: C(0.9, 0.95, 1, 2.6), off: C(0.03, 0.035, 0.04) };
+    const led = (x, y, z, col, fn) => { const o = { x, y, z, col, fn }; leds.push(o); if (fn) dyn.push(o); return o; };
+    // Where a pixel of a face lands: face centre (x, y, z), facing f (+1: +z), w x h metres for a pw x ph pixel rect.
+    const at = (x, y, z, f, w, h, pw, ph) => (px, py, cb) => led(x + f * (px / pw - 0.5) * w, y + (0.5 - py / ph) * h, z + f * 0.004, ...cb);
+    const blinky = (duty, col) => [LED.off, (o) => (Math.random() < duty ? col : LED.off)];
+    const faces = [], rears = [], bodies = [], doors = [], tags = [];
+    const unitY = (u, n) => RK.base + (u - 1 + n / 2) * RK.U;
+    const face = (rx, row, u, d) => {
+      const [py, ph] = DES[d], n = Math.round(ph / 52), y = unitY(u, n), z = row.z + row.f * (RK.d / 2 - 0.03), h = n * RK.U - 0.002;
+      faces.push([rx, y, z, RK.fw, h, row.f > 0 ? 0 : Math.PI, [0, py, 512, ph]]);
+      const p = at(rx, y, z, row.f, RK.fw, h, 512, ph), act = 0.04 + R() * 0.5, col = R() < 0.8 ? LED.g : LED.b;
+      if (d === '1U') { p(470, 26, [LED.g]); p(486, 26, blinky(act, col)); }
+      if (d === '2U12') { for (let i = 0; i < 4; i++) for (let j = 0; j < 3; j++) p(104 + i * 100, 230 + j * 30 - py, R() < 0.85 ? blinky(act * 0.6, LED.g) : [LED.off]); p(486, 20, [LED.b]); }
+      if (d === '2U24') { for (let i = 0; i < 24; i += 2) p(31 + i * 18, 404 - py, blinky(act * 0.5, LED.g)); p(486, 20, [LED.g]); }
+      if (d === '4U') { p(470, 60, [LED.g]); p(486, 60, blinky(act, LED.a)); }
+      if (d === 'sw') for (let i = 0; i < 24; i++) p(46 + i * 17, 26, R() < 0.75 ? blinky(0.15 + R() * 0.5, LED.g) : [LED.off]);
+      return n;
+    };
+    // The racks: steel frames, the faces (generic servers, except the live racks filled in below), rears, mesh doors, tags.
+    const meshTex = (() => {
+      const t = makeCanvas(64, 64), c = t.ctx;
+      c.fillStyle = '#fff'; c.fillRect(0, 0, 64, 64); c.fillStyle = '#000';
+      for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { c.beginPath(); c.arc(8 + i * 16 + (j % 2) * 8, 8 + j * 16, 6, 0, Math.PI * 2); c.fill(); }
+      t.tex.wrapS = t.tex.wrapT = THREE.RepeatWrapping; t.tex.repeat.set(14, 46); t.tex.colorSpace = THREE.NoColorSpace; t.tex.needsUpdate = true; return t.tex;
+    })();
+    const live = new Set(['A0', 'A1', 'A2', 'B0', 'B1', 'B2']);
+    srv.racks = [];
+    for (const row of ROWS) for (let i = 0; i < 10; i++) {
+      const x = RACKX(i), z = row.z, f = row.f, fz = z + f * RK.d / 2, name = `${row.id}${String(i + 1).padStart(2, '0')}`;
+      bodies.push([0.02, RK.h, RK.d, x - RK.w / 2 + 0.01, RK.h / 2, z, '#15171a'], [0.02, RK.h, RK.d, x + RK.w / 2 - 0.01, RK.h / 2, z, '#15171a'],
+        [RK.w, 0.04, RK.d, x, RK.h - 0.02, z, '#15171a'], [RK.w, RK.base, RK.d, x, RK.base / 2, z, '#0c0d0f'], [RK.w - 0.04, RK.h - 0.12, 0.01, x, RK.h / 2, z, '#0f1012']);
+      for (const s of [-1, 1]) bodies.push([0.016, RK.h - 0.12, 0.012, x + s * 0.232, RK.h / 2, fz - f * 0.035, '#9ca2aa']);   // front rails
+      for (let u = 1; u <= 42; u += 2) rears.push([x, unitY(u, 2), z - f * (RK.d / 2 - 0.03), RK.fw, 2 * RK.U - 0.002, f > 0 ? Math.PI : 0, [0, 624, 512, 104]]);
+      tags.push({ name, x, z: fz, f });
+      srv.racks.push({ name, x, z, f });
+      if (live.has(row.id + i)) continue;
+      doors.push([x, RK.h / 2 + 0.03, fz + f * 0.01, RK.w - 0.03, RK.h - 0.1, f > 0 ? 0 : Math.PI, [0, 0, 64, 64]]);
+      const empty = R() < 0.12 ? 18 + Math.floor(R() * 14) : 43;   // a few half-empty racks
+      face(x, row, 42, R() < 0.7 ? 'sw' : 'patch');
+      for (let u = 1; u < 42;) {
+        if (u >= empty) { face(x, row, u, 'blank'); u++; continue; }
+        const r = R(), d = u <= 38 && r < 0.08 ? '4U' : u <= 40 && r < 0.34 ? '2U12' : u <= 40 && r < 0.48 ? '2U24' : r < 0.86 ? '1U' : 'blank';
+        u += face(x, row, u, d);
+      }
+    }
+    for (const row of ROWS) srv.fixed.push({ minX: RACKX(9) - RK.w / 2, maxX: RACKX(0) + RK.w / 2, minZ: row.z - RK.d / 2, maxZ: row.z + RK.d / 2 });
+    srv.body = mergedBoxes(bodies, mat('#ffffff', { vertexColors: true, roughness: 0.5, metalness: 0.5 })); root.add(srv.body);
+    srv.rear = quads(rears, faceM, 512, 768);
+    quads(faces, faceM, 512, 768);
+    const doorM = new THREE.MeshStandardMaterial({ color: '#1a1c20', metalness: 0.6, roughness: 0.45, alphaMap: meshTex, transparent: true, opacity: 0.92, side: THREE.DoubleSide, depthWrite: false });
+    quads(doors, doorM, 64, 64);
+    {   // rack tags over each front, from one canvas
+      const T = makeCanvas(512, 256), c = T.ctx;
+      tags.forEach((g, i) => { const px = (i % 8) * 64, py = Math.floor(i / 8) * 32; c.fillStyle = '#e9ecef'; c.fillRect(px + 2, py + 2, 60, 28); lbl(c, g.name, px + 32, py + 23, `700 19px ${MONO}`, '#14161a', 'center'); });
+      T.tex.needsUpdate = true;
+      quads(tags.map((g, i) => [g.x, RK.h - 0.06, g.z + g.f * 0.012, 0.12, 0.06, g.f > 0 ? 0 : Math.PI, [(i % 8) * 64, Math.floor(i / 8) * 32, 64, 32]]), new THREE.MeshStandardMaterial({ map: T.tex, roughness: 0.6 }), 512, 256);
+    }
+
+    // The live racks' faces: an atlas per kind, self-lit a little (LCDs, backlit plates), repainted a couple of times a second.
+    const atlas = (w, h) => { const a = makeCanvas(w, h); return { a, m: new THREE.MeshStandardMaterial({ map: a.tex, emissiveMap: a.tex, emissive: '#ffffff', emissiveIntensity: 0.6, roughness: 0.5, metalness: 0.3 }) }; };
+    // Sessions: 18 x 2U per rack in A01-A03, top down; a cell of 340 x 70 px each.
+    const SA = srv.sa = atlas(1020, 1260), slotFaces = [];
+    for (let k = 0; k < SLOTS; k++) {
+      const r = Math.floor(k / 18), j = k % 18, row = ROWS[0], x = RACKX(r), u = 37 - j * 2, y = unitY(u, 2), z = row.z + RK.d / 2 - 0.03, h = 2 * RK.U - 0.002;
+      const cell = [(k % 3) * 340, Math.floor(k / 3) * 70, 340, 70];
+      slotFaces.push([x, y, z, RK.fw, h, 0, cell]);
+      const p = at(x, y, z, 1, RK.fw, h, 340, 70), s = { k, cell, sid: null, state: 'empty', since: 0, dirty: true };
+      s.hit = hitBox(root, RK.fw, h, 0.03, x, y, z + 0.01, { screen: true, reach: 4 });
+      const on = () => s.state === 'live' || s.state === 'boot';
+      p(326, 16, [LED.off, () => (on() ? LED.b : LED.off)]);
+      p(326, 35, [LED.off, (o, t) => {   // activity: busy with work, a slow blink idle, off when down
+        if (!on()) return LED.off;
+        const ss = s.sess;
+        if (s.state === 'boot') return (t * 8 + k) % 2 < 1 ? LED.a : LED.off;
+        if (ss?.status === 'working') return Math.random() < 0.35 + 0.6 * Math.min(1, (ss.proc?.cpu || 0) / 80) ? LED.g : LED.off;
+        return (t + k * 0.37) % 2.5 < 0.12 ? LED.g : LED.off;
+      }]);
+      p(326, 54, [LED.off, (o, t) => !on() ? LED.off : s.sess?.status === 'working' || s.state === 'boot' ? LED.g : s.sess?.status === 'idle' ? C(0.15, 1, 0.3, 1.2) : (t % 1 < 0.5 ? LED.a : LED.off)]);
+      for (let b = 0; b < 4; b++) p(272 + b * 13, 62, [LED.off, () => (on() && s.sess?.status === 'working' && Math.random() < 0.25 + 0.5 * Math.min(1, (s.sess?.proc?.cpu || 0) / 100) ? LED.g : LED.off)]);
+      srv.slots.push(s);
+    }
+    quads(slotFaces, SA.m, 1020, 1260);
+    for (let r = 0; r < 3; r++) for (const [u, d] of [[42, 'sw'], [41, 'patch'], [40, 'blank'], [39, 'blank'], [2, 'blank'], [1, 'blank']]) face(RACKX(r), ROWS[0], u, d);
+
+    // The machine: CPU, memory, load and the top processes in B01; a disk array per volume and the UPS in B02; switches in B03.
+    const IA = srv.ia = atlas(1024, 1024), infraFaces = [], cols = [0, 0];
+    const lit = (k, n) => (k / n < 0.6 ? LED.g : k / n < 0.85 ? LED.a : LED.r);
+    srv.units = [];
+    const unit = (r, u, n, title, paint, ledsFn, info) => {
+      const row = ROWS[1], x = RACKX(r), y = unitY(u, n), z = row.z - RK.d / 2 + 0.03, h = n * RK.U - 0.002, ph = n * 44, col = cols[0] <= cols[1] ? 0 : 1;
+      const cell = [col * 512, cols[col], 512, ph]; cols[col] += ph;
+      infraFaces.push([x, y, z, RK.fw, h, Math.PI, cell]);
+      const p = at(x, y, z, -1, RK.fw, h, 512, ph), U = { title, cell, paint, info };
+      ledsFn?.((px, py, fn) => p(px, py, [LED.off, fn]));
+      U.hit = hitBox(root, RK.fw, h, 0.03, x, y, z - 0.01, { action: 'info', reach: 4, info: () => `<b>${title}</b><div class="m">${info?.() || ''}</div>` });
+      srv.units.push(U);
+    };
+    const m = () => srv.m, cores = () => m()?.cores || [];
+    const NC = Math.max(1, navigator.hardwareConcurrency || 8);
+    unit(0, 36, 6, 'Compute', (c, W, H) => {
+      const cs = cores();
+      lbl(c, (m()?.hostname || 'this machine').toUpperCase(), 14, 30, `700 20px ${MONO}`, '#e8eef6');
+      lbl(c, fit(c, m()?.cpuModel || '', 200), 14, 52, `400 13px ${FONT}`, '#8a93a0');
+      lbl(c, `CPU ${Math.round(cs.reduce((a, b) => a + b, 0) / (cs.length || 1))}%`, 14, 92, `700 26px ${MONO}`, '#5dff9b');
+      lbl(c, `${cs.length || NC} cores`, 14, 116, `400 13px ${FONT}`, '#8a93a0');
+    }, (p) => { for (let i = 0; i < Math.min(16, NC); i++) for (let j = 0; j < 12; j++) p(240 + i * 16, 250 - j * 19, () => ((cores()[i] || 0) > (j + 0.5) * 100 / 12 ? lit(j, 12) : LED.off)); },
+    () => `${cores().length} cores · ${cores().map((v) => v + '%').join(' ')}`);
+    const mem = () => (m()?.mem ? m().mem.used / m().mem.total : 0), GB = (b) => (b / 2 ** 30).toFixed(1);
+    unit(0, 32, 3, 'Memory', (c) => {
+      lbl(c, 'MEMORY', 14, 30, `700 18px ${MONO}`, '#e8eef6');
+      if (m()?.mem) lbl(c, `${GB(m().mem.used)} / ${GB(m().mem.total)} GB · ${Math.round(mem() * 100)}%`, 14, 58, `600 15px ${MONO}`, '#5dff9b');
+      for (let i = 0; i < 16; i++) { c.fillStyle = '#16191d'; c.fillRect(240 + i * 16, 10, 12, 100); c.fillStyle = '#2d6b3c'; c.fillRect(242 + i * 16, 14, 8, 86); }
+    }, (p) => { for (let i = 0; i < 30; i++) p(14 + i * 7.6, 112, () => (mem() > (i + 0.5) / 30 ? lit(i, 30) : LED.off)); }, () => m()?.mem ? `${GB(m().mem.used)} of ${GB(m().mem.total)} GB in use` : '');
+    unit(0, 28, 3, 'Load', (c) => {
+      lbl(c, 'LOAD', 14, 30, `700 18px ${MONO}`, '#e8eef6');
+      (m()?.load || []).forEach((v, i) => lbl(c, `${['1m', '5m', '15m'][i]} ${v.toFixed(2)}`, 14 + i * 150, 60, `600 15px ${MONO}`, '#5dff9b'));
+    }, (p) => { for (let r = 0; r < 3; r++) for (let i = 0; i < 40; i++) p(14 + i * 12, 80 + r * 14, () => ((m()?.load?.[r] || 0) / NC > (i + 0.5) / 40 * 1.5 ? lit(i, 40) : LED.off)); },
+    () => `load ${(m()?.load || []).map((v) => v.toFixed(2)).join(' · ')} on ${NC} cores`);
+    unit(0, 14, 12, 'Top processes', (c, W, H) => {
+      c.fillStyle = '#04100a'; c.fillRect(12, 12, W - 24, H - 24);
+      lbl(c, 'PID     CPU%    RSS   COMMAND', 24, 42, `600 17px ${MONO}`, '#3fbf74');
+      (m()?.top || []).slice(0, 8).forEach((q, i) => lbl(c, `${String(q.pid).padEnd(7)} ${q.cpu.toFixed(1).padStart(5)} ${String(q.rssMB).padStart(5)}M  ${q.name}`.slice(0, 44), 24, 80 + i * 52, `500 17px ${MONO}`, q.cpu > 50 ? '#ffb347' : '#5dff9b'));
+    }, null, () => (m()?.top || []).slice(0, 5).map((q) => `${escapeHtml(q.name)} ${q.cpu.toFixed(0)}%`).join(' · '));
+    const disk = (v) => m()?.disks?.[v];
+    for (let v = 0; v < 6; v++) unit(1, 37 - v * 3, 2, `Disk array ${v + 1}`, (c) => {
+      const d = disk(v);
+      for (let i = 0; i < 6; i++) for (let j = 0; j < 2; j++) { c.fillStyle = '#16181b'; c.fillRect(200 + i * 50, 8 + j * 38, 46, 34); c.fillStyle = d ? '#3a3e44' : '#22252a'; c.fillRect(204 + i * 50, 12 + j * 38, 30, 26); }
+      lbl(c, d ? fit(c, d.mount, 170) : 'NO VOLUME', 12, 30, `700 15px ${MONO}`, d ? '#e8eef6' : '#5a6068');
+      if (d) lbl(c, `${GB(d.used)}/${GB(d.size)} GB`, 12, 58, `500 13px ${MONO}`, '#8ab4ff');
+      if (d) lbl(c, `${Math.round(d.used / d.size * 100)}%`, 12, 80, `700 15px ${MONO}`, d.used / d.size > 0.85 ? '#ff6b5b' : '#5dff9b');
+    }, (p) => { for (let i = 0; i < 6; i++) for (let j = 0; j < 2; j++) { const b = j * 6 + i; p(240 + i * 50, 16 + j * 38, () => { const d = disk(v); return !d ? LED.off : b < Math.ceil(d.used / d.size * 12) ? (Math.random() < 0.06 ? LED.w : LED.b) : C(0.1, 0.25, 0.5, 0.4); }); } },
+    () => { const d = disk(v); return d ? `${escapeHtml(d.mount)} · ${GB(d.used)} of ${GB(d.size)} GB used (${escapeHtml(d.dev)})` : 'Empty bay: no volume'; });
+    const batt = () => m()?.battery;
+    unit(1, 3, 3, 'UPS', (c) => {
+      lbl(c, 'UPS', 14, 30, `700 18px ${MONO}`, '#e8eef6');
+      const b = batt();
+      lbl(c, b ? `${b.pct}% · ${b.ac ? 'ON MAINS' : 'ON BATTERY'}` : 'MAINS · NO BATTERY', 14, 60, `600 15px ${MONO}`, b && !b.ac ? '#ffb347' : '#5dff9b');
+      if (m()) lbl(c, `UP ${F.dur(m().uptime * 1000)}`, 14, 90, `500 14px ${MONO}`, '#8a93a0');
+    }, (p) => { for (let i = 0; i < 20; i++) p(260 + i * 11, 40, () => ((batt()?.pct ?? 100) > (i + 0.5) * 5 ? lit(19 - i, 20) : LED.off)); p(260, 90, () => (batt()?.ac === false ? LED.a : LED.g)); },
+    () => (batt() ? `Battery ${batt().pct}% · ${escapeHtml(batt().state)}` : 'On mains') + (m() ? ` · up ${F.dur(m().uptime * 1000)}` : ''));
+    const rate = (b) => (b > 2 ** 20 ? `${(b / 2 ** 20).toFixed(1)} MB/s` : `${(b / 1024).toFixed(0)} KB/s`), traffic = () => (m()?.net ? m().net.rx + m().net.tx : 0);
+    for (const [u, k] of [[38, 0], [36, 1]]) unit(2, u, 1, `Switch ${k + 1}`, (c) => {
+      for (let i = 0; i < 24; i++) for (let j = 0; j < 1; j++) { c.fillStyle = '#0a0b0c'; c.fillRect(96 + i * 17, 10, 13, 16); }
+      lbl(c, `SW${k + 1}`, 12, 28, `700 15px ${MONO}`, '#e8eef6');
+    }, (p) => { for (let i = 0; i < 24; i++) { const up = i < 18 - k * 6; p(102 + i * 17, 34, () => (!up ? LED.off : Math.random() < Math.min(0.9, 0.05 + Math.log10(1 + traffic() / 2048) * 0.22) ? LED.a : LED.g)); } },
+    () => (m()?.net ? `↓ ${rate(m().net.rx)} · ↑ ${rate(m().net.tx)}` : ''));
+    unit(2, 31, 2, 'Uplink', (c) => {
+      lbl(c, 'UPLINK', 14, 30, `700 18px ${MONO}`, '#e8eef6');
+      if (m()?.net) { lbl(c, `↓ ${rate(m().net.rx)}`, 14, 62, `600 15px ${MONO}`, '#8ab4ff'); lbl(c, `↑ ${rate(m().net.tx)}`, 200, 62, `600 15px ${MONO}`, '#5dff9b'); }
+    }, (p) => { p(470, 30, () => LED.g); p(486, 30, () => (Math.random() < 0.2 + Math.min(0.7, traffic() / 2 ** 20) ? LED.a : LED.off)); }, () => (m()?.net ? `↓ ${rate(m().net.rx)} · ↑ ${rate(m().net.tx)}` : ''));
+    quads(infraFaces, IA.m, 1024, 1024);
+    {   // the rest of the machine racks: patch panels and blanking
+      const used = new Map([[0, [[36, 6], [32, 3], [28, 3], [14, 12]]], [1, [...Array(6)].map((_, v) => [37 - v * 3, 2]).concat([[3, 3]])], [2, [[38, 1], [36, 1], [31, 2]]]]);
+      for (const [r, list] of used) for (let u = 1; u <= 42; u++) if (!list.some(([a, n]) => u >= a && u < a + n)) face(RACKX(r), ROWS[1], u, r === 2 && u % 4 === 1 ? 'patch' : 'blank');
+    }
+
+    // Containment: glass roofs over the cold aisles, sliding end doors that open as you come.
+    const glassM = new THREE.MeshStandardMaterial({ color: '#cfe0ff', transparent: true, opacity: 0.16, roughness: 0.05, metalness: 0.1, depthWrite: false, side: THREE.DoubleSide });
+    const alu = [], x0 = RACKX(9) - RK.w / 2 - 0.3, x1 = RACKX(0) + RK.w / 2 + 0.3;
+    for (const z of AISLES) {
+      const roof = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, 1.2), glassM); roof.rotation.x = -Math.PI / 2; roof.position.set((x0 + x1) / 2, RK.h + 0.05, z); root.add(roof);
+      for (const s of [-1, 1]) alu.push([x1 - x0, 0.05, 0.04, (x0 + x1) / 2, RK.h + 0.05, z + s * 0.6]);
+      for (const x of [x0, x1]) {
+        alu.push([0.06, 0.12, 1.3, x, RK.h + 0.02, z]);
+        for (const s of [-1, 1]) alu.push([0.06, RK.h, 0.05, x, RK.h / 2, z + s * 0.65]);
+        const leaves = [-1, 1].map((s) => {
+          const g = new THREE.Group(), l = new THREE.Mesh(new THREE.BoxGeometry(0.02, RK.h - 0.06, 0.6), glassM);
+          g.add(l, mergedBoxes([[0.03, 0.04, 0.6, 0, (RK.h - 0.06) / 2, 0], [0.03, 0.04, 0.6, 0, -(RK.h - 0.06) / 2, 0], [0.03, RK.h - 0.06, 0.03, 0, 0, -s * 0.285]], mat('#aab0b8', { metalness: 0.8, roughness: 0.3 })));
+          g.position.set(x, RK.h / 2 - 0.02, z + s * 0.3); root.add(g); return g;
+        });
+        const sg = sign(0.5, 0.12, x + (x === x1 ? 0.02 : -0.02), RK.h - 0.25, z, x === x1 ? Math.PI / 2 : -Math.PI / 2, 600, (c, W, H) => { c.fillStyle = '#1f5fbf'; c.fillRect(0, 0, W, H); lbl(c, `COLD AISLE ${z ? 2 : 1}`, W / 2, H * 0.7, `700 ${H * 0.55}px ${FONT}`, '#fff', 'center'); });
+        sg.position.y = 1.75;
+        srv.doors.push({ x, z, leaves, k: 0, sign: sg, w: 0.6, axis: 'z' });
+      }
+    }
+    root.add(mergedBoxes(alu, mat('#aab0b8', { metalness: 0.8, roughness: 0.3 })));
+
+    // Overhead: wire-basket cable trays over every row with bundles, drops into the racks, and the red suppression pipework.
+    const tray = [], cable = [], pipe = [];
+    for (const row of ROWS) {
+      const z = row.z, y = 2.45, xa = RACKX(9) - 0.5, xb = RACKX(0) + 0.6;
+      for (const s of [-1, 1]) tray.push([xb - xa, 0.05, 0.012, (xa + xb) / 2, y, z + s * 0.15]);
+      for (let x = xa; x < xb; x += 0.1) tray.push([0.008, 0.008, 0.3, x, y - 0.025, z]);
+      for (let x = xa + 0.6; x < xb; x += 1.2) tray.push([0.01, H - y, 0.01, x, (H + y) / 2, z - 0.15], [0.01, H - y, 0.01, x, (H + y) / 2, z + 0.15]);
+      [['#2a6fd6', -0.08], ['#e3c23a', 0], ['#7a7f87', 0.08]].forEach(([col, dz], i) => cable.push([xb - xa, 0.035 + i * 0.01, 0.07, (xa + xb) / 2, y - 0.002 + 0.02, z + dz, col]));
+      for (let i = 0; i < 10; i += 2) cable.push([0.05, y - RK.h, 0.05, RACKX(i), (y + RK.h) / 2, z - row.f * 0.3, i % 4 ? '#e3c23a' : '#2a6fd6']);
+    }
+    for (const z of [-2.27, 2.9, -6.6]) {
+      pipe.push([SV.x1 - SV.x0 - 0.4, 0.05, 0.05, (SV.x0 + SV.x1) / 2, H - 0.25, z]);
+      for (let x = SV.x0 + 1.5; x < SV.x1; x += 3) pipe.push([0.03, 0.12, 0.03, x, H - 0.33, z], [0.07, 0.03, 0.07, x, H - 0.4, z]);
+    }
+    pipe.push([0.05, 0.05, 4, SV.x1 - 0.3, H - 0.25, (-2.27 + 2.9) / 2 - 0.3]);
+    root.add(mergedBoxes(tray, mat('#b8bec6', { metalness: 0.85, roughness: 0.35 })), mergedBoxes(cable, mat('#ffffff', { vertexColors: true, roughness: 0.7 })), mergedBoxes(pipe, mat('#b3261e', { roughness: 0.45, metalness: 0.2 })));
+
+    // CRACs on the far wall at the ends of the hot aisles: cream cabinets with grilles and a display (return air follows the CPU).
+    srv.cracs = [];
+    for (const [z, nm] of [[-2.27, 'CRAC-01'], [2.9, 'CRAC-02']]) {
+      const x = SV.x0 + 0.45;
+      root.add(mergedBoxes([[0.85, 1.95, 1.8, x, 0.975, z, '#d9d6cd'], [0.02, 0.7, 1.6, x + 0.43, 1.45, z, '#2c2e31'], [0.02, 0.5, 1.6, x + 0.43, 0.4, z, '#3a3c3f']], mat('#ffffff', { vertexColors: true, roughness: 0.6, metalness: 0.2 })));
+      const g = sign(1.58, 0.68, x + 0.442, 1.45, z, Math.PI / 2, 200, (c, W, H) => { c.fillStyle = '#26282b'; c.fillRect(0, 0, W, H); c.fillStyle = '#121315'; for (let y = 4; y < H; y += 9) c.fillRect(4, y, W - 8, 5); }, { mat: { metalness: 0.5 } });
+      g.renderOrder = 1;
+      const d = makeScreen(root, 0.26, 0.12, 208, 96, x + 0.444, 0.95, z + 0.55); d.mesh.rotation.y = Math.PI / 2;
+      srv.cracs.push({ nm, d, z });
+      srv.fixed.push({ minX: SV.x0, maxX: x + 0.43, minZ: z - 0.9, maxZ: z + 0.9 });
+      srv.units.push({ hit: hitBox(root, 0.9, 1.95, 1.8, x, 0.975, z, { action: 'info', reach: 4, info: () => `<b>${nm}</b><div class="m">${cracText(z).join(' · ')}</div>` }) });
+    }
+    const cracText = (z) => { const cs = cores(), load = cs.length ? cs.reduce((a, b) => a + b, 0) / cs.length : 20; return [`SUPPLY ${(17.6 + (z > 0 ? 0.4 : 0)).toFixed(1)}°C`, `RETURN ${(23 + load * 0.09 + (z > 0 ? 0.3 : 0)).toFixed(1)}°C`, `RH ${44 + (z > 0 ? 2 : 0)}%`]; };
+    srv.paintCracs = () => { for (const { nm, d, z } of srv.cracs) { const c = d.ctx; c.fillStyle = '#071019'; c.fillRect(0, 0, d.W, d.H); lbl(c, nm, 8, 20, `700 16px ${MONO}`, '#8ab4ff'); cracText(z).forEach((tx, i) => lbl(c, tx, 8, 44 + i * 20, `500 14px ${MONO}`, '#cfe3ff')); d.tex.needsUpdate = true; } };
+
+    // The NOC screen on the far wall, at the end of the first cold aisle.
+    const noc = srv.noc = makeScreen(root, 2.6, 1.4625, 1280, 720, SV.x0 + 0.06, 1.75, 0); noc.mesh.rotation.y = Math.PI / 2;
+    root.add(mergedBoxes([[0.05, 1.54, 2.68, SV.x0 + 0.03, 1.75, 0]], mat('#0c0d0f', { roughness: 0.4 })));
+    Object.assign(noc.mesh.userData, { action: 'info', reach: 9, info: () => '<b>NOC</b><div class="m">This machine, live</div>' });
+    srv.units.push({ hit: noc.mesh });
+
+    // The KVM crash cart, parked by the end of the cold aisles.
+    {
+      const x = 4.6, z = -1.9, g = new THREE.Group(), steel = mat('#5d636b', { metalness: 0.7, roughness: 0.4 });
+      g.position.set(x, 0, z); g.rotation.y = 1.3; root.add(g);   // screen towards the aisles
+      const parts = [[0.5, 0.02, 0.4, 0, 0.9, 0], [0.5, 0.02, 0.4, 0, 0.35, 0], [0.12, 0.3, 0.02, 0, 1.06, -0.12]];
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) parts.push([0.025, 0.86, 0.025, sx * 0.23, 0.48, sz * 0.18]);
+      g.add(mergedBoxes(parts, steel));
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) cyl(g, 0.03, 0.03, 0.025, '#111', sx * 0.23, 0.03, sz * 0.18, { seg: 10 }).rotation.z = Math.PI / 2;
+      box(g, 0.42, 0.28, 0.025, '#151618', 0, 1.25, -0.12);
+      const scr = makeScreen(g, 0.39, 0.25, 312, 200, 0, 1.25, -0.106), c = scr.ctx;
+      c.fillStyle = '#000'; c.fillRect(0, 0, 312, 200);
+      srv.kvm = scr;
+      box(g, 0.4, 0.015, 0.14, '#202226', 0, 0.918, 0.06); box(g, 0.05, 0.012, 0.08, '#202226', 0.16, 0.918, 0.07);
+      box(g, 0.3, 0.12, 0.22, '#2a2c30', 0, 0.42, 0);
+      srv.fixed.push({ minX: x - 0.35, maxX: x + 0.35, minZ: z - 0.35, maxZ: z + 0.35 });
+      srv.units.push({ hit: hitBox(g, 0.5, 1.4, 0.4, 0, 0.7, 0, { action: 'info', reach: 3, info: () => `<b>KVM crash cart</b><div class="m">Console on ${escapeHtml(m()?.hostname || 'this machine')}</div>` }) });
+    }
+
+    // The vestibule: signage, the fire suppression panel and the access-controlled door into the hall.
+    sign(1.6, 0.55, SV.x1 + 0.07, 2.55, 0, Math.PI / 2, 400, (c, W, H) => {
+      c.fillStyle = '#1d2228'; c.fillRect(0, 0, W, H); c.fillStyle = '#d97757'; c.fillRect(24, 26, 8, H - 52);
+      lbl(c, '47  SERVER HALL', 50, 92, `300 70px ${FONT}`, '#f2efe8'); lbl(c, 'AUTHORISED PERSONNEL ONLY · CARD ACCESS', 52, 150, `600 22px ${FONT}`, '#c3c2b7');
+      lbl(c, 'Cold aisles 1–2 · Rows A–D · NOC', 52, 190, `400 22px ${FONT}`, '#9a9890');
+    });
+    for (const s of [-1, 1]) sign(0.42, 0.56, SV.x1 + 0.07, 1.5, s * 1.1, Math.PI / 2, 400, s < 0 ? (c, W, H) => {
+      c.fillStyle = '#f5f5f2'; c.fillRect(0, 0, W, H); c.fillStyle = '#b3261e'; c.fillRect(0, 0, W, 56);
+      lbl(c, 'WARNING', W / 2, 40, `800 32px ${FONT}`, '#fff', 'center');
+      ['This room is protected', 'by an FM-200 gaseous', 'fire suppression', 'system. On alarm,', 'leave the room', 'immediately.'].forEach((tx, i) => lbl(c, tx, W / 2, 96 + i * 24, `500 15px ${FONT}`, '#222', 'center'));
+    } : (c, W, H) => {
+      c.fillStyle = '#f5f5f2'; c.fillRect(0, 0, W, H); c.fillStyle = '#1f5fbf'; c.fillRect(0, 0, W, 56);
+      lbl(c, 'NOTICE', W / 2, 40, `800 32px ${FONT}`, '#fff', 'center');
+      ['No food or drink', 'beyond this point.', '', 'ESD: earth yourself', 'before touching', 'any equipment.'].forEach((tx, i) => lbl(c, tx, W / 2, 96 + i * 24, `500 18px ${FONT}`, '#222', 'center'));
+    });
+    {
+      const z = SV.vz, x = 16.2;
+      root.add(mergedBoxes([[0.42, 0.56, 0.08, x, 1.45, z - 0.04, '#b3261e'], [0.22, 0.3, 0.06, x + 0.45, 1.3, z - 0.03, '#f2c230'], [0.14, 0.14, 0.05, x - 0.42, 1.35, z - 0.025, '#1f5fbf']], mat('#ffffff', { vertexColors: true, roughness: 0.5 })));
+      const fp = sign(0.36, 0.42, x, 1.47, z - 0.081, Math.PI, 500, (c, W, H) => {
+        c.fillStyle = '#e9e6df'; c.fillRect(0, 0, W, H); lbl(c, 'FM-200', W / 2, 34, `800 26px ${FONT}`, '#b3261e', 'center'); lbl(c, 'EXTINGUISHING CONTROL', W / 2, 58, `600 12px ${FONT}`, '#333', 'center');
+        c.fillStyle = '#071019'; c.fillRect(20, 70, W - 40, 50); lbl(c, 'SYSTEM HEALTHY · ARMED', W / 2, 101, `600 14px ${MONO}`, '#5dff9b', 'center');
+        ['POWER', 'ARMED', 'FAULT', 'DISCHARGE', 'ALARM'].forEach((tx, i) => lbl(c, tx, 52, 146 + i * 13, `600 10px ${FONT}`, '#333'));
+      });
+      const p = (px, py, col, fn) => led(fp.position.x - (px / 180 - 0.5) * 0.36, 1.47 + (0.5 - py / 210) * 0.42, z - 0.085, col, fn);
+      p(34, 142, LED.g); p(34, 155, LED.a); p(34, 168, LED.off); p(34, 181, LED.off); p(34, 194, LED.off);
+      sign(0.2, 0.06, x + 0.45, 1.5, z - 0.061, Math.PI, 500, (c, W, H) => { c.fillStyle = '#f2c230'; c.fillRect(0, 0, W, H); lbl(c, 'MANUAL RELEASE', W / 2, H * 0.68, `800 ${H * 0.5}px ${FONT}`, '#222', 'center'); });
+      cyl(root, 0.06, 0.06, 0.05, '#e9e6df', 16.2, 2.6, z - 0.03, { seg: 20 }).rotation.x = Math.PI / 2;   // sounder/strobe
+      srv.units.push({ hit: hitBox(root, 1.2, 0.6, 0.12, x, 1.45, z - 0.06, { action: 'info', reach: 3, info: () => '<b>Fire suppression</b><div class="m">FM-200 clean agent · system healthy · armed</div>' }) });
+    }
+    {   // the access door: a steel leaf that slides into the wall once the reader lets you through, either way
+      const leaf = new THREE.Group(), x = SV.x1;
+      leaf.add(mergedBoxes([[0.05, 2.1, 1.0, 0, 1.05, 0, '#8d949c'], [0.06, 0.5, 0.22, 0, 1.55, 0.2, '#3d4a57']], mat('#ffffff', { vertexColors: true, metalness: 0.6, roughness: 0.25 })));
+      leaf.position.set(x, 0, 0); root.add(leaf);
+      box(root, 0.04, 0.14, 0.09, '#1a1c20', x + 0.08, 1.2, 0.8);
+      const r = led(x + 0.102, 1.24, 0.8, LED.r, () => (srv.doors[srv.doors.length - 1]?.k > 0.05 ? LED.g : LED.r));
+      r.side = 'x';
+      srv.doors.push({ x, z: 0, leaves: [leaf], k: 0, w: 1.0, access: true });
+      sign(0.3, 0.12, x - 0.07, 2.3, 0, -Math.PI / 2, 500, (c, W, H) => { c.fillStyle = '#1b7f3a'; c.fillRect(0, 0, W, H); lbl(c, 'EXIT  ➜', W / 2, H * 0.72, `800 ${H * 0.55}px ${FONT}`, '#fff', 'center'); }, { basic: true });
+    }
+    const lifted = sign(0.6, 0.6, 9.4, 0.004, -2.27 + 0.3, 0, 100, (c, W, H) => { c.fillStyle = '#05070a'; c.fillRect(0, 0, W, H); c.strokeStyle = '#e3c23a'; c.lineWidth = 3; for (let i = 0; i < 6; i++) { c.beginPath(); c.moveTo(0, 8 + i * 9); c.bezierCurveTo(20, 20 + i * 4, 40, 10, W, 14 + i * 7); c.stroke(); } });   // one tile up in the hot aisle
+    lifted.rotation.x = -Math.PI / 2;
+
+    // LEDs: instanced boxes, unlit and bright enough to bloom.
+    const ledM = new THREE.MeshBasicMaterial({ toneMapped: false });
+    const inst = srv.leds = new THREE.InstancedMesh(new THREE.BoxGeometry(0.007, 0.005, 0.004), ledM, leds.length), mx = new THREE.Matrix4();
+    leds.forEach((o, i) => { mx.makeTranslation(o.x, o.y, o.z); if (o.side) mx.makeRotationY(Math.PI / 2).setPosition(o.x, o.y, o.z); inst.setMatrixAt(i, mx); inst.setColorAt(i, o.col); o.i = i; });
+    inst.instanceMatrix.needsUpdate = true; root.add(inst);
+    srv.dyn = dyn;
+    Object.assign(srv, liftShaft()); root.add(srv.lift);
+    srv.hits = [srv.callHit, srv.panel.mesh, ...srv.slots.map((s) => s.hit), ...srv.units.map((u) => u.hit), srv.body, srv.rear];
+    srv.sound = { tone: 'fans', hums: [[9.4, 1.4, 0, 0.9], [9.4, 1.4, -4.54, 0.7], [SV.x0 + 0.9, 1.2, -2.27, 0.6], [SV.x0 + 0.9, 1.2, 2.9, 0.6]], clicks: srv.racks.map((r) => [r.x, 1, r.z]), relays: [[SV.x0 + 0.9, 1.0, -2.27], [SV.x0 + 0.9, 1.0, 2.9], [16.2, 1.5, SV.vz]] };
+    srv.baseSound = JSON.parse(JSON.stringify(srv.sound));
+    srv.atlases = [SA, IA];
+    addFloor(srv);
+  }
+  srv.enter = (z) => {
+    srv.root.position.z = z;
+    srv.colliders = srv.fixed.map((b) => ({ ...b, minZ: b.minZ + z, maxZ: b.maxZ + z }));
+    srv.static = srv.colliders.length;
+    for (const k of ['hums', 'clicks', 'relays']) srv.sound[k] = srv.baseSound[k].map(([x, y, zz, g]) => [x, y, zz + z, g]);
+    srv.polledAt = 0; srv.paintAt = srv.nocAt = 0;
+  };
+  srv.bound = (p) => {
+    const z0 = srv.root.position.z, lz = p.z - z0;
+    if (p.x > SV.x1 + 0.06) { p.z = z0 + clamp(lz, -SV.vz + 0.3, SV.vz - 0.3); p.x = Math.min(p.x, LIFT.x - 0.3); }
+    else { p.x = Math.max(p.x, SV.x0 + 0.3); p.z = z0 + clamp(lz, SV.z0 + 0.3, SV.z1 - 0.3); }
+  };
+  async function pollMachine() {
+    srv.polledAt = performance.now();
+    try {
+      const m = srv.m = await (await fetch('/api/machine')).json(), h = srv.hist, push = (k, v) => { h[k].push(v); if (h[k].length > 120) h[k].shift(); };
+      push('cpu', m.cores.length ? m.cores.reduce((a, b) => a + b, 0) / m.cores.length : 0);
+      push('mem', m.mem ? m.mem.used / m.mem.total * 100 : 0);
+      push('load', m.load[0]);
+      push('sess', S?.live.length || 0);
+      push('net', m.net ? (m.net.rx + m.net.tx) / 1024 : 0);
+      srv.nocAt = 0;
+    } catch {}
+  }
+  // Sessions into slots: a new session takes the slot that's been empty longest and boots; one that ends powers down,
+  // its plate stays a minute, then the slot is blanked.
+  function syncSlots(now) {
+    const live = new Map((S?.live || []).map((s) => [s.sessionId, s]));
+    for (const s of srv.slots) {
+      const ss = s.sid && live.get(s.sid);
+      if (ss) { s.sess = ss; if (s.state === 'off') { s.state = 'boot'; s.since = now; } if (s.state === 'boot' && now - s.since > 2500) s.state = 'live'; live.delete(s.sid); }
+      else if (s.sid && s.state !== 'off') { s.state = 'off'; s.since = now; }
+      else if (s.state === 'off' && now - s.since > 60e3) Object.assign(s, { sid: null, sess: null, state: 'empty', since: now });
+      s.hit.userData.sessionId = s.state === 'live' || s.state === 'boot' ? s.sid : null;
+    }
+    for (const ss of live.values()) {
+      const s = srv.slots.filter((x) => x.state === 'empty').sort((a, b) => a.since - b.since || a.k - b.k)[0];
+      if (!s) break;
+      Object.assign(s, { sid: ss.sessionId, sess: ss, state: 'boot', since: now });
+      s.hit.userData.sessionId = ss.sessionId;
+    }
+  }
+  const sessName = (s) => s.name || s.statusline?.name || s.transcript?.title || s.sessionId.slice(0, 8);
+  function paintSlot(s, now) {
+    const c = srv.sa.a.ctx, [x, y, w, h] = s.cell, ss = s.sess, col = s.sid ? dash.colorHex(s.sid) : '#444';
+    c.save(); c.beginPath(); c.rect(x, y, w, h); c.clip(); c.translate(x, y);
+    if (s.state === 'empty') {
+      c.fillStyle = '#1b1d20'; c.fillRect(0, 0, w, h);
+      for (let i = 18; i < w - 10; i += 14) { c.fillStyle = '#101113'; c.fillRect(i, 14, 8, h - 28); }
+    } else {
+      const off = s.state === 'off';
+      c.fillStyle = '#25292e'; c.fillRect(0, 0, w, h); c.fillStyle = 'rgba(255,255,255,.08)'; c.fillRect(0, 0, w, 2); c.fillStyle = '#0d0f11'; c.fillRect(0, h - 3, w, 3);
+      c.fillStyle = off ? '#3a3d42' : col; c.fillRect(6, 6, 8, h - 12);
+      c.fillStyle = off ? '#55585e' : col; c.fillRect(20, 12, 100, h - 24);
+      const name = ss ? sessName(ss) : '';
+      c.font = `700 9px ${MONO}`; c.fillStyle = 'rgba(0,0,0,.6)'; c.fillText(`CC-${String(s.k + 1).padStart(2, '0')}`, 25, 24);
+      c.font = `700 15px ${FONT}`; c.fillStyle = '#111'; c.fillText(fit(c, name, 92), 25, 44);
+      c.fillStyle = '#05080a'; c.fillRect(128, 9, 134, h - 18);
+      if (!off) {
+        const lines = s.state === 'boot' ? ['BOOTING…', `POST ${'█'.repeat(1 + Math.floor((now - s.since) / 350) % 8)}`, ''] : [
+          name, `CPU ${(ss?.proc?.cpu ?? 0).toFixed(1).padStart(5)}%  ${String(ss?.proc?.rssMB ?? 0).padStart(4)}M`,
+          ss?.status === 'working' ? 'WORKING' : ss?.status === 'idle' ? `IDLE ${F.dur(now - (ss.statusSince || now))}` : String(ss?.status || '').toUpperCase()];
+        lines.forEach((tx, i) => { c.font = `600 ${i ? 12 : 13}px ${MONO}`; c.fillStyle = i === 2 && ss?.status !== 'working' && ss?.status !== 'idle' ? '#ffb347' : '#5dff9b'; c.fillText(fit(c, tx, 124), 133, 24 + i * 16); });
+      } else { c.font = `600 10px ${MONO}`; c.fillStyle = '#5a6068'; c.fillText('POWERED OFF', 140, h / 2 + 4); }
+      for (let b = 0; b < 4; b++) { c.fillStyle = '#16181b'; c.fillRect(266 + b * 13, 9, 11, h - 18); c.fillStyle = '#3a3e44'; c.fillRect(268 + b * 13, 12, 7, h - 34); }
+    }
+    c.restore();
+  }
+  function paintUnits() {
+    const c = srv.ia.a.ctx;
+    for (const U of srv.units) {
+      if (!U.paint) continue;
+      const [x, y, w, h] = U.cell;
+      c.save(); c.beginPath(); c.rect(x, y, w, h); c.clip(); c.translate(x, y);
+      c.fillStyle = '#23272c'; c.fillRect(0, 0, w, h); c.fillStyle = 'rgba(255,255,255,.08)'; c.fillRect(0, 0, w, 2); c.fillStyle = '#0d0f11'; c.fillRect(0, h - 3, w, 3);
+      U.paint(c, w, h);
+      c.restore();
+    }
+  }
+  function paintNoc(now) {
+    const { ctx: c, W, H } = srv.noc, m = srv.m, h = srv.hist;
+    c.fillStyle = '#070b10'; c.fillRect(0, 0, W, H);
+    c.fillStyle = '#0f1620'; c.fillRect(0, 0, W, 64);
+    lbl(c, 'NOC', 28, 43, `800 30px ${FONT}`, '#d97757');
+    lbl(c, m ? `${m.hostname} · ${m.os} · ${m.arch} · up ${F.dur(m.uptime * 1000)}` : 'waiting for /api/machine…', 100, 42, `500 22px ${FONT}`, '#c9d4e3');
+    lbl(c, new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }), W - 28, 43, `600 26px ${MONO}`, '#e8eef6', 'right');
+    const tileT = (x, y, w, hh, title, big, sub, vals, color, max) => {
+      c.fillStyle = '#0d131b'; c.fillRect(x, y, w, hh); c.strokeStyle = '#1b2633'; c.lineWidth = 2; c.strokeRect(x + 1, y + 1, w - 2, hh - 2);
+      lbl(c, title, x + 18, y + 32, `700 16px ${FONT}`, '#7f8da0');
+      lbl(c, big, x + 18, y + 78, `700 40px ${MONO}`, '#f2f5f9');
+      if (sub) lbl(c, fit(c, sub, w - 36), x + 18, y + 104, `500 15px ${FONT}`, '#7f8da0');
+      if (vals?.length > 1) {   // the last 6 minutes, against `max` (or its own peak)
+        const gx = x + 18, gy = y + 120, gw = w - 36, gh = hh - 136, top = max ?? (Math.max(...vals) * 1.15 || 1);
+        c.strokeStyle = '#1b2633'; c.lineWidth = 1; for (let i = 0; i <= 2; i++) { c.beginPath(); c.moveTo(gx, gy + gh * i / 2); c.lineTo(gx + gw, gy + gh * i / 2); c.stroke(); }
+        const px = (i) => gx + gw * (1 - (vals.length - 1 - i) / 119);
+        c.beginPath();
+        vals.forEach((v, i) => { const py = gy + gh * (1 - Math.min(1, v / top)); i ? c.lineTo(px(i), py) : c.moveTo(px(i), py); });
+        c.strokeStyle = color; c.lineWidth = 2.5; c.stroke();
+        c.lineTo(px(vals.length - 1), gy + gh); c.lineTo(px(0), gy + gh); c.closePath(); c.globalAlpha = 0.18; c.fillStyle = color; c.fill(); c.globalAlpha = 1;
+      }
+    };
+    const cs = m?.cores || [], cpu = h.cpu.at(-1) ?? 0;
+    const col = (v) => (v < 60 ? '#5dff9b' : v < 85 ? '#ffb347' : '#ff6b5b');
+    tileT(24, 84, 400, 300, 'CPU', `${Math.round(cpu)}%`, `${cs.length} cores · ${m?.cpuModel || ''}`, h.cpu, col(cpu), 100);
+    {   // per-core bars under the CPU tile's number
+      const x = 230, y = 104, bw = Math.min(14, 170 / Math.max(1, cs.length));
+      cs.forEach((v, i) => { c.fillStyle = '#16202b'; c.fillRect(x + i * (bw + 3), y, bw, 60); c.fillStyle = col(v); c.fillRect(x + i * (bw + 3), y + 60 - v * 0.6, bw, v * 0.6); });
+    }
+    const memP = h.mem.at(-1) ?? 0;
+    tileT(440, 84, 400, 300, 'MEMORY', `${Math.round(memP)}%`, m?.mem ? `${(m.mem.used / 2 ** 30).toFixed(1)} of ${(m.mem.total / 2 ** 30).toFixed(1)} GB` : '', h.mem, col(memP), 100);
+    tileT(856, 84, 400, 300, 'LOAD', m ? m.load[0].toFixed(2) : '–', m ? `5m ${m.load[1].toFixed(2)} · 15m ${m.load[2].toFixed(2)}` : '', h.load, '#8ab4ff');
+    const live = S?.live || [], working = live.filter((s) => s.status === 'working').length;
+    tileT(24, 400, 400, 296, 'CLAUDE SESSIONS', String(live.length), `${working} working · today ${F.usd(S?.totals?.todayCost || 0)} API-eq.`, h.sess, '#d97757');
+    {   // disks
+      const x = 440, y = 400, w = 400;
+      c.fillStyle = '#0d131b'; c.fillRect(x, y, w, 296); c.strokeStyle = '#1b2633'; c.lineWidth = 2; c.strokeRect(x + 1, y + 1, w - 2, 294);
+      lbl(c, 'DISKS', x + 18, y + 32, `700 16px ${FONT}`, '#7f8da0');
+      (m?.disks || []).slice(0, 5).forEach((d, i) => {
+        const p = d.used / d.size, yy = y + 64 + i * 46;
+        lbl(c, fit(c, d.mount, 230), x + 18, yy, `500 16px ${MONO}`, '#c9d4e3'); lbl(c, `${Math.round(p * 100)}% of ${(d.size / 2 ** 30).toFixed(0)} GB`, x + w - 18, yy, `500 15px ${MONO}`, '#7f8da0', 'right');
+        c.fillStyle = '#16202b'; c.fillRect(x + 18, yy + 8, w - 36, 10); c.fillStyle = col(p * 100); c.fillRect(x + 18, yy + 8, (w - 36) * p, 10);
+      });
+    }
+    const net = m?.net, rate = (b) => (b > 2 ** 20 ? `${(b / 2 ** 20).toFixed(1)} MB/s` : `${(b / 1024).toFixed(0)} KB/s`);
+    tileT(856, 400, 400, 296, 'NETWORK', net ? rate(net.rx + net.tx) : '–', net ? `↓ ${rate(net.rx)} · ↑ ${rate(net.tx)}${m.battery ? ` · battery ${m.battery.pct}%${m.battery.ac ? ' (AC)' : ''}` : ''}` : '', h.net, '#8ab4ff');
+    srv.noc.tex.needsUpdate = true;
+  }
+  function paintKvm() {
+    const { ctx: c, W, H } = srv.kvm, m = srv.m;
+    c.fillStyle = '#000'; c.fillRect(0, 0, W, H);
+    const lines = [`${m?.os || 'macOS'} (${m?.hostname || 'localhost'}) (console)`, '', `${m?.hostname || 'localhost'} login: root`, 'Password:', `Last login: ${new Date(Date.now() - 864e5).toDateString()} on console`, `root@${m?.hostname || 'localhost'}:~# uptime`,
+      m ? ` up ${F.dur(m.uptime * 1000)}, load averages: ${m.load.map((v) => v.toFixed(2)).join(' ')}` : '', `root@${m?.hostname || 'localhost'}:~# ${Date.now() % 1000 < 500 ? '█' : ''}`];
+    lines.forEach((tx, i) => lbl(c, fit(c, tx, W - 16), 8, 20 + i * 18, `500 12px ${MONO}`, '#c8c8c8'));
+    srv.kvm.tex.needsUpdate = true;
+  }
+  // Per frame while you're here: doors, LEDs (15 Hz), faces (2 Hz), the NOC (1 Hz), polling (every 3 s).
+  srv.fx = (dt, t) => {
+    const now = Date.now(), z0 = srv.root.position.z;
+    if (performance.now() - srv.polledAt > 3000) pollMachine();
+    srv.colliders.length = srv.static;
+    for (const d of srv.doors) {
+      const near = Math.hypot(player.x - d.x, player.z - z0 - d.z) < (d.access ? 1.6 : 1.9), was = d.k;
+      d.k = clamp(d.k + (near ? dt / 0.7 : -dt / 0.9), 0, 1);
+      if (!was && d.k) sfx.slide({ x: d.x, z: d.z + z0 }, true);
+      const e = ease(d.k);
+      if (d.access) d.leaves[0].position.z = e * 1.02;
+      else d.leaves.forEach((g, i) => { g.position.z = d.z + (i ? 1 : -1) * (0.3 + e * 0.58); });
+      if (d.k < 0.7) srv.colliders.push(d.access ? { minX: d.x - 0.08, maxX: d.x + 0.08, minZ: z0 - 0.55, maxZ: z0 + 0.55 } : { minX: d.x - 0.05, maxX: d.x + 0.05, minZ: z0 + d.z - 0.6, maxZ: z0 + d.z + 0.6 });
+    }
+    if ((srv.tick += dt) > 1 / 15) {
+      srv.tick = 0;
+      for (const o of srv.dyn) srv.leds.setColorAt(o.i, o.fn(o, t));
+      srv.leds.instanceColor.needsUpdate = true;
+    }
+    if (now - srv.paintAt > 500) {
+      srv.paintAt = now;
+      syncSlots(now);
+      for (const s of srv.slots) paintSlot(s, now);
+      paintUnits(); srv.paintCracs();
+      for (const A of srv.atlases) A.a.tex.needsUpdate = true;
+      paintKvm();
+    }
+    if (now - srv.nocAt > 1000) { srv.nocAt = now; paintNoc(now); }
+  };
+  srv.map = () => {
+    const c = mapCtx, W = 440, H = 330, z0 = srv.root.position.z, k = Math.min(W / (LIFT.x + 2.5 - SV.x0), H / (SV.z1 - SV.z0 + 1)), sx = (x) => 10 + (x - SV.x0) * k, sz = (z) => H / 2 + (z - z0 - (SV.z0 + SV.z1) / 2) * k;
+    c.clearRect(0, 0, W, H);
+    c.fillStyle = 'rgba(255,255,255,.1)'; c.fillRect(sx(SV.x0), sz(SV.z0 + z0), (SV.x1 - SV.x0) * k, (SV.z1 - SV.z0) * k); c.fillRect(sx(SV.x1), sz(-SV.vz + z0), (LIFT.x - SV.x1) * k, SV.vz * 2 * k);
+    c.fillStyle = 'rgba(80,140,255,.25)'; for (const z of AISLES) c.fillRect(sx(RACKX(9) - 0.3), sz(z - 0.6 + z0), 6.6 * k, 1.2 * k);
+    c.fillStyle = 'rgba(255,255,255,.55)'; for (const b of srv.colliders) c.fillRect(sx(b.minX), sz(b.minZ), Math.max(2, (b.maxX - b.minX) * k), Math.max(2, (b.maxZ - b.minZ) * k));
+    c.font = '600 20px system-ui'; c.fillText('SERVER HALL · 47', 16, 30);
+    c.font = '600 13px system-ui'; c.fillStyle = 'rgba(255,255,255,.6)';
+    for (const r of ROWS) c.fillText(r.id, sx(RACKX(0) + 0.5), sz(r.z + z0) + 5);
+    c.fillText('NOC', sx(SV.x0) + 4, sz(z0) + 5); c.fillText('Lift', sx(LIFT.x) - 30, sz(z0) - 12);
+    const px = sx(camera.position.x), pz = sz(camera.position.z);
+    c.save(); c.translate(px, pz); c.rotate(-camera.rotation.y);
+    c.fillStyle = '#fff'; c.beginPath(); c.moveTo(0, -14); c.lineTo(9, 10); c.lineTo(0, 5); c.lineTo(-9, 10); c.closePath(); c.fill();
+    c.restore();
+  };
+
   // ----- sounds (see sounds.js; M mutes) -----
   const sfx = createSounds({ camera, rugs, glass: { minX: 6, maxX: 20, minZ: -15, maxZ: -3.5 }, lift: LIFT, coffee: { x: -16.5, y: 1.25, z: 14.5, onBrew: () => kitchen.brew(false) }, doorPos: { x: 7.7, z: -3.5 },
     roof: { minX: -EDGE.x, maxX: EDGE.x, minZ: -EDGE.z, maxZ: EDGE.z } });
@@ -5054,7 +5624,7 @@ export function mountOffice(container) {
       for (const hit of ray.intersectObjects(targets, true)) {
         const ud = hit.object.userData;
         if (ud.reach && hit.distance > ud.reach) { if (ud.glass || hit.object.material.transparent) continue; break; }
-        if (ud.action) { hover = { action: ud.action, door: ud.door, board: ud.board, blind: ud.blind || ud.blindAt?.(hit.point), floor: ud.floorAt?.(hit.uv), drawer: ud.drawerAt?.(hit.point), folder: ud.folderAt?.(hit.instanceId) }; break; }
+        if (ud.action) { hover = { action: ud.action, door: ud.door, board: ud.board, blind: ud.blind || ud.blindAt?.(hit.point), floor: ud.floorAt?.(hit.uv), drawer: ud.drawerAt?.(hit.point), folder: ud.folderAt?.(hit.instanceId), info: ud.info }; break; }
         if (ud.tv) { hover = { tv: tvs.find((t) => t.id === ud.tv) }; break; }
         if (ud.sessionId) { hover = { sessionId: ud.sessionId, screen: !!ud.screen }; break; }
         if ((ud.seat || ud.seatAt) && hit.distance < 3) { hover = { seat: ud.seat || ud.seatAt(hit.point) }; break; }
@@ -5075,6 +5645,7 @@ export function mountOffice(container) {
         : `<b>Lift</b><div class="k">${mine.call ? 'Called · waiting for a free car' : L && (L.state === 'open' || L.state === 'opening') ? 'Doors open · walk in' : L?.state === 'travel' ? 'On its way' : 'Click to call it'}</div>`;
       return;
     }
+    if (hover.action === 'info') { targetEl.innerHTML = hover.info(); return; }
     if (hover.action === 'coffee') {
       targetEl.innerHTML = `<b>Coffee machine</b><div class="k">${kitchen.brewing() ? 'Brewing…' : 'Click to make a flat white'}</div>`;
       return;
@@ -5324,7 +5895,13 @@ export function mountOffice(container) {
   window.__office = { openChat, closeChat, talk, get mode() { return mode; }, teleport: (k) => TELEPORTS[k](), openTv: (id) => openTvPanel(tvs.find((t) => t.id === id)), useTv: (id) => useTv(tvs.find((t) => t.id === id)), leaveTv,
     boards, useBoard: (id) => useBoard(boards.find((b) => b.id === id)), leaveBoard, wb,
     tvPoint: (id, u, v) => { const t = tvs.find((x) => x.id === id), p = t.scr.mesh.localToWorld(new THREE.Vector3((u - 0.5) * t.w, (0.5 - v) * t.h, 0)).project(camera), r = renderer.domElement.getBoundingClientRect(); return { x: r.left + (p.x + 1) / 2 * r.width, y: r.top + (1 - p.y) / 2 * r.height }; },
-    tvs: () => tvs.map((t) => ({ id: t.id, live: t.live, frame: !!t.frame, url: t.page?.url, title: t.page?.title, dist: t.dist })), seats, sitIn, openLaptop, laptop, kitchen, player, people, blinds, door, doors, collide, colliders, desks, idleSpots, lifts, sfx, mine, arch, roof, FLOORS, setFloor, get away() { return away; }, callLift, pressFloor, setSpeed, clockState, setTime: (ms) => Object.assign(clockState, { speed: 0.0001, simBase: ms, realBase: Date.now() }) };
+    tvs: () => tvs.map((t) => ({ id: t.id, live: t.live, frame: !!t.frame, url: t.page?.url, title: t.page?.title, dist: t.dist })), seats, sitIn, openLaptop, laptop, kitchen, player, people, blinds, door, doors, collide, colliders, desks, idleSpots, lifts, sfx, mine, arch, roof, srv, FLOORS, setFloor, get away() { return away; }, callLift,
+    goFloor: (n) => {   // debug: straight into your car at floor n, doors opening (headless tests can't sit through a ride)
+      const L = mine.L || lifts.find(spare); if (!L) return false;
+      Object.assign(mine, { L, call: false, goal: null }); L.player = true;
+      Object.assign(player, { x: LIFT.x + 1, z: L.z, seated: false, seat: null, eye: EYE });
+      L.floor = n; L.dir = 0; setFloor(n === 48 ? null : FLOORS.find((F) => F.n === n)); setLift(L, 'opening'); return true;
+    }, pressFloor, setSpeed, clockState, setTime: (ms) => Object.assign(clockState, { speed: 0.0001, simBase: ms, realBase: Date.now() }) };
 
   return {
     // Adopt your desktop onto the monitor, then pull back from it to the chair.
