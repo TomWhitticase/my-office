@@ -1,6 +1,6 @@
 // Security cameras round the building and the feeds for the Security app on your desktop (desktop.js). Each camera is
 // a small dome on a ceiling or a bullet on a bracket, with an LED that's red while its feed is being watched and green
-// otherwise. The archive and the gateway have none.
+// otherwise. The archive has one, in its entrance hall; the void and the gateway have none.
 //
 // Feeds are drawn only while the app shows them: desktop.js calls dash.cctv.want([{ id, canvas }]) with the canvases on
 // screen (none when the window's closed, minimised or covered), and they're refreshed round-robin, one a frame at a few
@@ -33,6 +33,9 @@ const CAMS = [
   { id: 'hall-noc', n: 47, name: 'NOC', kind: 'wall', p: [-17.4, 2.7, 18.5], wall: [-17.1, 2.7, 18.9], at: [-18.8, 0.9, 12.6], pan: 40 },
   { id: 'roof-terrace', n: 50, name: 'Roof terrace', kind: 'pole', p: [17.4, 3.4, -13.6], at: [0, 0.2, -6] },
   { id: 'roof-helipad', n: 50, name: 'Helipad', kind: 'pole', p: [-1.6, 3.6, 3.6], at: [-9.5, 0.4, 8.6] },
+  // The archive's entrance hall (floors/archive-entrance.js, about the car's z): high in the corner by the vault door,
+  // looking back at the lift and the counter. The void itself has none.
+  { id: 'archive-hall', n: -2, name: 'Entrance hall', kind: 'wall', fov: 70, p: [7.45, 3.55, 3.25], wall: [7.04, 3.55, 3.45], at: [16, 0.6, -1.2], pan: 50 },
 ];
 const LAYER = 3;   // the cameras' own bodies: the office's view sees them, the feeds don't (no lens in its own shot)
 const SLOT = 1;    // feeds refreshed per frame at most
@@ -249,7 +252,7 @@ function build(ctx) {
     if (skyAt) ctx.sky.position.copy(skyAt);
     undo?.();
     gradeM.uniforms.tDiffuse.value = T.hdr.texture;
-    gradeM.uniforms.exposure.value = F.look?.exposure ?? ctx.officeExposure;
+    gradeM.uniforms.exposure.value = F.cctv?.exposure ?? F.look?.exposure ?? ctx.officeExposure;   // (a floor whose look changes as you go gives its own)
     gradeM.uniforms.seed.value = (seed = (seed + 1) % 97);
     gradeM.uniforms.res.value.set(W, H);
     const gl = renderer.domElement, pr = renderer.getPixelRatio();

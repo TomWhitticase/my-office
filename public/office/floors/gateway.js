@@ -4,7 +4,7 @@
 
 import * as THREE from 'three';
 import { escapeHtml } from '../../chat.js';
-import { angDiff, box, clamp, damp, ease, EYE, fit, FONT, hash, lerp, makeCanvas, makeScreen, mat, mergedBoxes, REDUCED, rng } from '../util.js';
+import { angDiff, box, clamp, damp, ease, EYE, fit, FONT, hash, lerp, makeCanvas, makeScreen, mat, mergedBoxes, REDUCED, rng, sstep } from '../util.js';
 import { MONO } from '../painters.js';
 
 /** @param {import('../ctx.js').OfficeCtx} ctx */
@@ -21,9 +21,14 @@ export function install(ctx) {
   const coordOf = (f) => hash(`${f.owner}/${f.name}`).toString(16).toUpperCase().padStart(8, '0');
   const fmtCoord = (c) => `${c.slice(0, 4)}·${c.slice(4)}`;
   const fmtSize = (b) => (b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : b >= 1024 ? `${(b / 1024).toFixed(1)} KB` : `${b} B`);
-  // Out on its own, 70 m left of the cabinet, up on a plinth with steps either side (PL high, its top PW wide and PD deep). The
-  // ring stands in a slot cut through the plinth, touching nothing, its foot just off the floor and its portal level with the top.
-  const GATE = { x: ARCH.x - 14, z: ARCH.z + 68, y: 2.82, R: 2.6, tube: 0.2, PL: 0.9, PW: 6.4, PD: 3.6, STEP: 0.35, SLOT: 0.3, CUT: 2.2 };
+  // Out on its own, 74 m on down the line from the doorway through the cabinet (see archive.js ARCH), up on a plinth with
+  // steps either side (PL high, its top PW wide and PD deep). The ring stands in a slot cut through the plinth, touching
+  // nothing, its foot just off the floor and its portal level with the top. It's laid out in its own frame (L: you come up
+  // its steps going +z, the ring across your way along x), turned to face back down the line: its +z is the world's -x.
+  const GATE = { x: ARCH.x - 74, z: ARCH.z, y: 2.82, R: 2.6, tube: 0.2, PL: 0.9, PW: 6.4, PD: 3.6, STEP: 0.35, SLOT: 0.3, CUT: 2.2, rot: -Math.PI / 2 };
+  // Between its frame and the world's: a point (local x, z about the ring) and back; a box (axis-aligned either way).
+  const toW = (lx, lz) => ({ x: GATE.x - lz, z: GATE.z + lx }), toL = (x, z) => ({ x: z - GATE.z, z: GATE.x - x });
+  const boxW = (x0, x1, z0, z1) => ({ minX: GATE.x - z1, maxX: GATE.x - z0, minZ: GATE.z + x0, maxZ: GATE.z + x1 });
   const portalMat = (core, rim) => new THREE.ShaderMaterial({
     uniforms: { uOpen: { value: 0 }, uTime: { value: 0 }, uHaze: { value: 0 }, uReady: { value: 0 }, uFlash: { value: 0 },
       uCore: { value: new THREE.Color(...core) }, uRim: { value: new THREE.Color(...rim) } },
@@ -53,9 +58,9 @@ export function install(ctx) {
     d.tex.needsUpdate = true;
     return d.tex;
   })();
-  function makeGate(parent, x, y, z, core, rim) {   // a ring facing ±z, its portal on layer 1 (out of the AO)
+  function makeGate(parent, x, y, z, core, rim, rot = 0) {   // a ring facing ±z (turned by rot), its portal on layer 1 (out of the AO)
     const g = new THREE.Group(), { R, tube } = GATE;
-    g.position.set(x, y, z);
+    g.position.set(x, y, z); g.rotation.y = rot;
     const ring = new THREE.Mesh(new THREE.TorusGeometry(R, tube, 24, 128), mat('#2a2622', { metalness: 0.85, roughness: 0.32 }));
     const lip = new THREE.Mesh(new THREE.TorusGeometry(R - tube - 0.02, 0.025, 8, 128), mat('#b08a4a', { metalness: 1, roughness: 0.3 }));
     const dial = new THREE.Mesh(new THREE.RingGeometry(R - tube - 0.5, R - tube - 0.05, 128),
@@ -69,7 +74,7 @@ export function install(ctx) {
   // The gateway in the archive, and its keypad on a lectern beside it.
   const gate = arch.gate = { code: '', msg: 'ENTER COORDINATES', repo: null, open: 0, to: 0, ready: false, side: -1, hot: null, hotT: 0, bad: false,
     clear: false,
-    ...makeGate(arch.scene, GATE.x, GATE.y, GATE.z, [0.3, 0.17, 0.06], [0.012, 0.009, 0.006]) };
+    ...makeGate(arch.scene, GATE.x, GATE.y, GATE.z, [0.3, 0.17, 0.06], [0.012, 0.009, 0.006], GATE.rot) };
   const GATE_P = new THREE.Vector3(GATE.x, GATE.y, GATE.z);
   {
     // The plinth: dark stone, four steps up from the cabinet's side and four down the far side, the ring standing in the middle.
@@ -82,23 +87,25 @@ export function install(ctx) {
       j % 2 ? '#2e2a26' : '#332e29']);
     for (const s of [-1, 1]) stone.push([PW + 0.02, 0.02, 0.04, 0, PL + 0.01, s * (PD / 2 - 0.02), '#b08a4a']);   // brass nosing at the top step
     const plinth = mergedBoxes(stone, mat('#ffffff', { vertexColors: true, roughness: 0.7, metalness: 0.2 }));
-    plinth.position.set(GATE.x, 0, GATE.z); arch.scene.add(plinth);
-    const psh = new THREE.Mesh(new THREE.PlaneGeometry(PW * 1.7, (PD + 2 * run) * 1.5),
+    // A centimetre up: its bottom step's top would lie in the floor.
+    plinth.position.set(GATE.x, 0.01, GATE.z); plinth.rotation.y = GATE.rot; arch.scene.add(plinth);
+    const psh = new THREE.Mesh(new THREE.PlaneGeometry((PD + 2 * run) * 1.5, PW * 1.7),
       new THREE.MeshBasicMaterial({ map: arch.blob, color: '#000', transparent: true, opacity: 0.4, depthWrite: false }));
     psh.rotation.x = -Math.PI / 2; psh.position.set(GATE.x, 0.002, GATE.z); psh.layers.set(1); arch.scene.add(psh);
     for (const s of [-1, 1]) {   // the ring's feet, and the plinth's sides (you go up by the steps)
-      arch.colliders.push({ minX: GATE.x + s * 1.4, maxX: GATE.x + s * (CUT + 0.1), minZ: GATE.z - SLOT, maxZ: GATE.z + SLOT });
-      arch.colliders.push({ minX: GATE.x + s * PW / 2 - 0.05, maxX: GATE.x + s * PW / 2 + 0.05, minZ: GATE.z - PD / 2 - run, maxZ: GATE.z + PD / 2 + run });
+      arch.colliders.push(boxW(Math.min(s * 1.4, s * (CUT + 0.1)), Math.max(s * 1.4, s * (CUT + 0.1)), -SLOT, SLOT));
+      arch.colliders.push(boxW(s * PW / 2 - 0.05, s * PW / 2 + 0.05, -PD / 2 - run, PD / 2 + run));
     }
     // How high the ground is here: the plinth's top, a step, or the floor (see movePlayer).
-    arch.ground = (x, z) => {
-      if (Math.abs(x - GATE.x) > PW / 2) return 0;
-      const d = Math.abs(z - GATE.z) - PD / 2;
+    arch.ground = (wx, wz) => {
+      const { x, z } = toL(wx, wz);
+      if (Math.abs(x) > PW / 2) return 0;
+      const d = Math.abs(z) - PD / 2;
       return d < 0 ? PL : Math.max(0, PL - Math.ceil(d / STEP + 1e-6) * 0.15);   // (you step over the slot)
     };
     // The lectern, on the floor to the right of the steps: the keypad on a sloped brass board, clear of everything.
-    const ped = new THREE.Group(), PX = GATE.x + 2.6, PZ = GATE.z - PD / 2 - run - 1.2;
-    ped.position.set(PX, 0, PZ); ped.rotation.y = Math.PI + 0.25;   // facing you as you come along the path
+    const { x: PX, z: PZ } = toW(2.6, -PD / 2 - run - 1.2), ped = new THREE.Group();
+    ped.position.set(PX, 0, PZ); ped.rotation.y = Math.PI + 0.25 + GATE.rot;   // facing you as you come along the path
     ped.add(mergedBoxes([[0.62, 0.08, 0.5, 0, 0.04, 0, '#1f1d1b'], [0.32, 1.1, 0.26, 0, 0.63, -0.03, '#2a2622']],
       mat('#ffffff', { vertexColors: true, metalness: 0.6, roughness: 0.4 })));
     const pad = gate.pad = makeScreen(ped, 0.34, 0.51, 340, 510, 0, 1.35, 0.01);
@@ -110,6 +117,7 @@ export function install(ctx) {
       new THREE.MeshBasicMaterial({ map: arch.blob, color: '#000', transparent: true, opacity: 0.5, depthWrite: false }));
     sh.rotation.x = -Math.PI / 2; sh.position.set(PX, 0.002, PZ); sh.layers.set(1);
     arch.scene.add(ped, sh);
+    gate.parts = [gate.g, plinth, psh, ped, sh];
     arch.colliders.push({ minX: PX - 0.3, maxX: PX + 0.3, minZ: PZ - 0.3, maxZ: PZ + 0.3 });
     arch.hits.push(pad.mesh);
     arch.nFixed = arch.colliders.length;   // the cabinet, its drawer and the gateway (the lift's goes after, see arch.enter)
@@ -188,20 +196,25 @@ export function install(ctx) {
     u.uOpen.value = Math.max(ease(gate.open), (0.3 + 0.45 * gate.charge) * flick); u.uTime.value = t;
     u.uReady.value = damp(u.uReady.value, gate.ready ? 1 : 0.3 * gate.charge, 2, dt);
     gate.flash = Math.max(0, (gate.flash || 0) - dt / 0.9); u.uFlash.value = gate.flash ** 1.5;
-    u.uHaze.value = clamp((Math.hypot(camera.position.x - GATE.x, camera.position.z - GATE.z) - 8) / 87, 0, 1) * 0.9;   // the scene's fog
+    // The scene's fog (8-95 m), the glow showing through a little, then not at all as it reaches the fog's far end; past
+    // that it isn't drawn (even fully fogged, its depth would still shade the AO): from the doorway, there's no gateway.
+    const far = Math.hypot(camera.position.x - GATE.x, camera.position.z - GATE.z);
+    u.uHaze.value = clamp((far - 8) / 87, 0, 1) * 0.9 + 0.1 * sstep(80, 95, far);
+    for (const o of gate.parts) o.visible = far < 96;
     gate.dial.rotation.z += dt * (0.02 + 0.25 * gate.open + (loading ? 0.4 + 2.4 * gate.charge : 0));
     if (gate.hot && performance.now() > gate.hotT) { gate.hot = null; paintPad(); }
-    if (loading && ctx.mode === 'free' && gate.side < 0 && Math.abs(ctx.player.x - GATE.x) < 1.5 && ctx.player.z > GATE.z - 0.45) {   // not yet: a soft bounce
-      ctx.player.z = GATE.z - 0.45;
+    const me = toL(ctx.player.x, ctx.player.z);   // you, in the gateway's frame
+    if (loading && ctx.mode === 'free' && gate.side < 0 && Math.abs(me.x) < 1.5 && me.z > -0.45) {   // not yet: a soft bounce
+      ctx.player.x = toW(me.x, -0.45).x; me.z = -0.45;
       if (t > (gate.bumpT || 0)) { gate.bumpT = t + 1.2; ctx.sfx.cabinet('buzz', GATE_P, 0.25); }
     }
-    const side = Math.sign(ctx.player.z - GATE.z) || 1;
-    if (side > 0 && gate.side < 0 && gate.ready && gate.open > 0.9 && Math.abs(ctx.player.x - GATE.x) < 1.3 && ctx.mode === 'free') enterTess();
+    const side = Math.sign(me.z) || 1;
+    if (side > 0 && gate.side < 0 && gate.ready && gate.open > 0.9 && Math.abs(me.x) < 1.3 && ctx.mode === 'free') enterTess();
     gate.side = side;
     const d = Math.hypot(ctx.player.x - GATE.x, ctx.player.z - GATE.z);
     if (d > PULL + 0.5) gate.armed = true;   // (not straight back in when you've just come out)
     const s = gate.ready && gate.open > 0.9 && gate.armed && side < 0 && ctx.mode === 'free' ? pullOf(d) : 0;
-    if (s) { pullTo(dt, s, GATE.x, GATE.y, GATE.z + 0.8, false); ctx.collide(ctx.player); }
+    if (s) { const to = toW(0, 0.8); pullTo(dt, s, to.x, GATE.y, to.z, false); ctx.collide(ctx.player); }
     pullFx(s, WARP_IN, GATE_P);
   }
 
@@ -291,8 +304,8 @@ export function install(ctx) {
   const exitTess = () => warp(WARP_OUT, () => {
     setFloor(arch);
     arch.out = 1;   // straight into the void's own light
-    // on the plinth, looking back down the path
-    Object.assign(ctx.player, { x: GATE.x, z: GATE.z - 1.2, eye: EYE, fy: GATE.PL, yaw: 0, pitch: -0.05, seated: false, seat: null });
+    // on the plinth, looking back down the path (towards the cabinet)
+    Object.assign(ctx.player, { ...toW(0, -1.2), eye: EYE, fy: GATE.PL, yaw: GATE.rot, pitch: -0.05, seated: false, seat: null });
     gate.side = -1; gate.armed = false;
   });
 

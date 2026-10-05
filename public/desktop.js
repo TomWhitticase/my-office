@@ -17,12 +17,12 @@ const APPS = {
     icon: svg('<rect x="3" y="3" width="26" height="26" rx="4" fill="#f4f0e2" stroke="#8a7a52"/><path d="M8 10h16M8 16h16M8 22h16" stroke="#8b96a8" stroke-width="2.2" stroke-linecap="round"/><circle cx="13" cy="10" r="3.2" fill="#2f7be8" stroke="#1d4f9e"/><circle cx="21" cy="16" r="3.2" fill="#f0a020" stroke="#9c6408"/><circle cx="11" cy="22" r="3.2" fill="#2fb34a" stroke="#1d7a31"/>') },
   msgs: { title: 'Messages', hash: 'messages', sub: 'Chat with your Claude sessions',
     icon: svg('<rect x="2" y="4" width="20" height="14" rx="4" fill="#5aa8f8" stroke="#1f5fbf"/><path d="M7 17.5l-1 5 6-4.5" fill="#5aa8f8" stroke="#1f5fbf" stroke-linejoin="round"/><rect x="11" y="12" width="19" height="13" rx="4" fill="#86d86f" stroke="#3a8a2a"/><path d="M25 24.5l1 4.5-6-4.5" fill="#86d86f" stroke="#3a8a2a" stroke-linejoin="round"/><path d="M15.5 18.5h10" stroke="#fff" stroke-width="2" stroke-linecap="round"/>') },
-  cctv: { title: 'Security', hash: 'security', sub: 'Cameras: office, server hall, roof',
+  cctv: { title: 'Security', hash: 'security', sub: 'Cameras: office, server hall, roof, archive',
     icon: svg('<rect x="3" y="24" width="10" height="3" rx="1" fill="#6b7686"/><path d="M8 24v-6" stroke="#6b7686" stroke-width="2.4"/><g transform="rotate(-14 16 14)"><rect x="5" y="9" width="21" height="9" rx="3" fill="#eef1f4" stroke="#56606e"/><rect x="5" y="7.5" width="22" height="2.4" rx="1" fill="#c9cfd6" stroke="#56606e" stroke-width=".8"/><rect x="24.5" y="10" width="4" height="7" rx="1.2" fill="#1d232b"/><circle cx="9" cy="15" r="1.4" fill="#ff3b2f"/></g>') },
 };
 const DEFAULT = { dash: { open: true, x: 0.09, y: 0.03, w: 0.72, h: 0.88 }, admin: { x: 0.2, y: 0.06, w: 0.6, h: 0.84 }, msgs: { x: 0.3, y: 0.09, w: 0.6, h: 0.78 },
   cctv: { x: 0.12, y: 0.04, w: 0.74, h: 0.86 } };
-const FLOOR_TABS = [['all', 'All'], [48, 'Office'], [47, 'Server Hall'], [50, 'Roof']];
+const FLOOR_TABS = [['all', 'All'], [48, 'Office'], [47, 'Server Hall'], [50, 'Roof'], [-2, 'Archive']];
 const stamp = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${d.toTimeString().slice(0, 8)}`;
 const STATUS = { working: ['Working', 'w'], idle: ['Idle · waiting for you', 'i'], shell: ['Waiting on a shell task', 's'] };
 
@@ -423,7 +423,7 @@ export function mountDesktop() {
   const ccBar = cc.querySelector('.cc-bar'), ccGrid = cc.querySelector('.cc-grid'), ccOne = cc.querySelector('.cc-one'), oneCanvas = ccOne.querySelector('canvas');
   let camList = null, tiles = new Map(), ccKey = '', oneId = null;
   const camLabel = (c) => `CAM ${String(camList.indexOf(c) + 1).padStart(2, '0')} · ${c.name}`;
-  const floorLabel = (c) => `${c.floor === 50 ? 'R' : c.floor} · ${c.where.toUpperCase()}`;
+  const floorLabel = (c) => `${c.floor === 50 ? 'R' : c.floor < 0 ? `B${-c.floor}` : c.floor} · ${c.where.toUpperCase()}`;
   const inFloor = () => camList.filter((c) => st.cam.floor === 'all' || c.floor === st.cam.floor);
   const camSet = (id) => ({ on: true, pan: 0, tilt: 0, zoom: 1, ...dash.office.cameras?.[id] });
   function buildCctv() {

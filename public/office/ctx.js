@@ -35,6 +35,7 @@
  * @property {any[]} [hits]               what you can point at there
  * @property {boolean} [on]               you're on it
  * @property {boolean} [carless]          no lift to arrive by (inside a repo)
+ * @property {boolean} [liftGone]         its lift isn't there just now (out in the archive's void): no car to stand in
  * @property {boolean} [fly]              you fly rather than walk
  * @property {any} [sound]                its ambience for sounds.js
  * @property {(z: number) => void} [enter]          you've arrived, in a car at z

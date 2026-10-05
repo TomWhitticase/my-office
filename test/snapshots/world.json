@@ -4509,13 +4509,14 @@
    "sorted": "2435ad31"
   },
   "archive": {
-   "objects": 200,
+   "objects": 212,
    "types": {
     "Scene": 1,
     "HemisphereLight": 1,
     "DirectionalLight": 1,
-    "Mesh": 172,
-    "Group": 19,
+    "Mesh": 179,
+    "Group": 23,
+    "PerspectiveCamera": 1,
     "PointLight": 4,
     "SpotLight": 1,
     "Object3D": 1
@@ -4527,12 +4528,12 @@
     "gatekey": 1,
     "vault": 1,
     "ledger": 1,
+    "capsule": 8,
     "bell": 1,
-    "banker": 1,
-    "capsule": 8
+    "banker": 1
    },
-   "ordered": "a931ef61",
-   "sorted": "a24e3f47"
+   "ordered": "52a57496",
+   "sorted": "43f81f1c"
   }
  }
 }
