@@ -94,6 +94,11 @@ export function install(ctx) {
   lifts.forEach(paintIndicator);
   Object.assign(ctx, { lifts, ROOF, DOOR, CAR, floorName, CORE });
   Object.defineProperty(ctx, 'liftSteelM', { get: () => liftSteelM, set: (v) => { liftSteelM = v; }, enumerable: true });
+  ctx.minimap((c, sx, sz) => {   // the lifts
+    c.fillStyle = 'rgba(200,205,212,.9)';
+    for (const L of lifts) c.fillRect(sx(LIFT.x) - 3, sz(L.z - DOOR.w / 2), 4, sz(L.z + DOOR.w / 2) - sz(L.z - DOOR.w / 2));
+    c.font = '600 15px system-ui'; c.fillStyle = 'rgba(255,255,255,.55)'; c.fillText('Lifts', sx(LIFT.x) - 44, sz(-2.6));
+  }, 20);
 }
 
 export function installCycle(ctx) {
@@ -207,6 +212,7 @@ export function installCycle(ctx) {
     lifts.callM.emissiveIntensity = lifts.some((L) => calling(L) && L.state !== 'open') || ctx.mine.call ? 2.5 : 0;
     ctx.myLift(dt);
   }
+  ctx.onFrame((dt) => liftFx(dt), 20);
 }
 
 export function installRiding(ctx) {
@@ -347,6 +353,14 @@ export function installRiding(ctx) {
   }
   Object.assign(ctx, { ARCHIVE, mine, FLOORS, hitBox, addFloor, inMyCar, spare });
   Object.defineProperty(ctx, 'away', { get: () => away, set: (v) => { away = v; }, enumerable: true });
+  const liftHover = (h) => {
+    const L = mine.L, f = h.floor;
+    return h.action === 'liftpanel' ? `<b>${floorName(f)} · ${FLOORS.find((F) => F.n === f)?.title}</b><div class="k">${!L || L.state === 'travel' ? '' : f === Math.round(L.floor) ? 'You’re here · click to open the doors' : mine.goal === f ? 'On its way' : 'Click to go'}</div>`
+      : `<b>Lift</b><div class="k">${mine.call ? 'Called · waiting for a free car' : L && (L.state === 'open' || L.state === 'opening') ? 'Doors open · walk in' : L?.state === 'travel' ? 'On its way' : 'Click to call it'}</div>`;
+  };
+  ctx.action('liftcall', { hover: liftHover, click: () => callLift() });
+  ctx.action('liftpanel', { hover: liftHover, click: (h) => pressFloor(h.floor) });
+  ctx.hoverTargets(() => [lifts.callHit, ...lifts.map((L) => L.panel.mesh)], 10);
 }
 
 export function installShafts(ctx) {

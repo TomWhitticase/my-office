@@ -380,4 +380,23 @@ export function installSync(ctx) {
   Object.assign(ctx, { people, routeOut });
   Object.defineProperty(ctx, 'overlays', { get: () => overlays, set: (v) => { overlays = v; }, enumerable: true });
   Object.defineProperty(ctx, 'state', { get: () => S, set: (v) => { S = v; }, enumerable: true });   // the latest state from the server
+  ctx.onFrame((dt, t) => {
+    for (const [id, p] of people) {
+      p.update(t, dt);
+      // A desk chair turns with whoever's sitting in it (spinning while they wait), and settles back when they leave it.
+      const d = p.desk, seated = d && !p.path.length && p.spot?.key === d.spot.key;
+      if (d) d.chair.rotation.y = seated ? p.rotY : d.chair.rotation.y + angDiff(d.chair.rotation.y, d.rotY) * Math.min(1, dt * 4);
+    }
+    for (const d of desks) if (!d.owner && d.chair.rotation.y !== d.rotY) d.chair.rotation.y += angDiff(d.chair.rotation.y, d.rotY) * Math.min(1, dt * 4);
+  }, 10);
+  ctx.onFrame(() => paintScreens(false), 120);
+  ctx.onFrame(() => { for (const d of desks) if (d.codeAnim) paintCode(d, performance.now(), false); }, 150);
+  ctx.hoverTargets(() => [...people.values()].map((p) => p.root), 110);
+  ctx.minimap((c, sx, sz) => {   // everyone, ringed green while they work
+    for (const p of people.values()) {
+      if (!p.root.visible) continue;
+      c.fillStyle = p.color; c.beginPath(); c.arc(sx(p.root.position.x), sz(p.root.position.z), 7, 0, Math.PI * 2); c.fill();
+      if (p.session?.status === 'working') { c.strokeStyle = '#22c55e'; c.lineWidth = 3; c.stroke(); }
+    }
+  }, 30);
 }

@@ -2,7 +2,7 @@
 // glass doors, yours shared with every browser through /api/office; officeFx eases the blinds and doors each frame.
 
 import * as THREE from 'three';
-import { artTexture, box, clamp, colliders, cyl, ease, FONT, lerp, makeCanvas, makeScreen, mat, mergedBoxes, ROOM, solid } from '../util.js';
+import { artTexture, box, clamp, colliders, cyl, dash, ease, FONT, lerp, makeCanvas, makeScreen, mat, mergedBoxes, ROOM, solid } from '../util.js';
 import { CSS3DObject } from 'three/addons/renderers/CSS3DRenderer.js';
 
 export function install(ctx) {
@@ -136,6 +136,14 @@ export function install(ctx) {
     }
   }
   Object.assign(ctx, { blinds, door, doors, glassM, frostTex, BL });
+  ctx.onFrame((dt) => officeFx(dt), 60);
+  ctx.action('blinds', { hover: (h) => `<b>${h.blind.name}</b><div class="k">Click to ${['lower the blinds', 'close the slats', 'raise the blinds'][h.blind.to * 2]}</div>`,
+    click: (h) => { h.blind.to = h.blind.to === 1 ? 0 : h.blind.to + 0.5; dash.putOffice({ blinds: { [h.blind.key]: h.blind.to } }); } });
+  ctx.action('door', { hover: (h) => `<b>${h.door.name}</b><div class="k">Click to ${h.door.to ? 'close' : 'open'}</div>`,
+    click: (h) => { const d = h.door; d.to = d.to ? 0 : 1; if (d === door) dash.putOffice({ door: d.to }); } });
+  ctx.hoverTargets(() => doors.map((d) => d.pivot), 50);
+  ctx.hoverTargets(() => [...new Set(Object.values(blinds).flatMap((b) => b.runs.map((r) => r.slats.parent)))], 90);
+  ctx.hoverTargets(() => world.children.filter((o) => o.userData.glass), 100);
 }
 
 export function installScreen(ctx) {

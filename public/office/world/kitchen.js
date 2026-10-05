@@ -296,4 +296,7 @@ export function install(ctx) {
     plate.mesh.material.transparent = true; plate.tex.needsUpdate = true;
   }
   Object.assign(ctx, { kitchen });
+  ctx.onFrame((dt, t) => kitchen.update(dt, t), 70);
+  ctx.action('coffee', { hover: () => `<b>Coffee machine</b><div class="k">${kitchen.brewing() ? 'Brewing…' : 'Click to make a flat white'}</div>`, click: () => kitchen.brew() });
+  ctx.hoverTargets(() => [kitchen.hit], 40);
 }
