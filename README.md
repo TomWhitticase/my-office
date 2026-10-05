@@ -6,7 +6,7 @@ A first-person 3D office where every Claude Code session on your machine is a pe
 - **Your computer**: click your monitor for an XP-style desktop with three apps: **Dashboard** (running sessions, 5-hour and weekly plan limits, context and prompt cache, API-equivalent cost, live activity, charts, per-session timelines including subagents), **Office Admin** (lights, blinds, door, sounds, TVs) and **Messages** (read and reply to your sessions). A MacBook in the lounge shows the same desktop.
 - **Talk to them**: click a person to see their conversation and send them a message.
 - **Wall TVs**: show any web page, live and usable (YouTube, dashboards…), with ad blocking, per-TV volume that fades with distance, and auto-refresh.
-- **Other floors, by lift**: a roof terrace; the Server Hall (a rack per session plus this machine's live CPU, memory, disks and network, and John the sysadmin, who answers questions about it); and THE ARCHIVE, a white void with a filing cabinet of your GitHub repos and a gateway into them.
+- **Other floors, by lift**: a roof terrace with a little helicopter you can fly round the city (click it; W/S, A/D, Space/Shift, R to fly home, F to get out); the Server Hall (a rack per session plus this machine's live CPU, memory, disks and network, and John the sysadmin, who answers questions about it); and THE ARCHIVE, a white void with a filing cabinet of your GitHub repos and a gateway into them.
 
 Everything runs locally and reads Claude Code's own files under `~/.claude`. The only things that leave your machine are the ones you use: TVs load the pages you pick, the archive asks GitHub for your repos via `gh`, and John asks Claude via your `claude` CLI.
 

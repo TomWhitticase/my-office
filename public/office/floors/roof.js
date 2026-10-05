@@ -337,5 +337,5 @@ export function install(ctx) {
     c.fillStyle = '#fff'; c.beginPath(); c.moveTo(0, -14); c.lineTo(9, 10); c.lineTo(0, 5); c.lineTo(-9, 10); c.closePath(); c.fill();
     c.restore();
   }
-  Object.assign(ctx, { EDGE, roof });
+  Object.assign(ctx, { EDGE, HELI, roof });
 }

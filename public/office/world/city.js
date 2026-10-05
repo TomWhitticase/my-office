@@ -36,7 +36,7 @@ export function install(ctx) {
     // A river runs north-south just west of us, and the west side is low-rise, so sunsets have a clear view.
     const riverX = (z) => -230 + 60 * Math.sin(z / 250) + 20 * Math.sin(z / 90), RIVER_W = 42;
     const bigPark = (gx, gz) => gx >= 2 && gx <= 4 && gz >= -3 && gz <= -1;
-    const geos = [], av = [], trees = [], parks = [], ponds = [];
+    const geos = [], av = [], trees = [], parks = [], ponds = [], boxes = [];   // boxes: each building's footprint and top, for the helicopter
     const TINTS = ['#ffffff', '#e8dccb', '#cfd8e3', '#d9d2c5', '#bfc6cc', '#f0e6d8', '#a9b4c0', '#c9b8a6'];
     const addB = (w, h, d, x, z, tintHex, uo, vo) => {
       const g = new THREE.BoxGeometry(w, h, d);
@@ -49,7 +49,7 @@ export function install(ctx) {
         col[i * 3] = tint.r; col[i * 3 + 1] = tint.g; col[i * 3 + 2] = tint.b;
       }
       g.setAttribute('color', new THREE.BufferAttribute(col, 3));
-      geos.push(g);
+      geos.push(g); boxes.push({ x, z, w, d, top: GROUND + h });
     };
     const tree = (x, z, scale = 1) => trees.push([x, z, (8 + R() * 7) * scale, (2.6 + R() * 1.9) * scale]);
     addB(40.6, -GROUND - 0.05, 30.6, 0, 0, '#d8d2c8', 0, 0);                // our own tower, below the office
@@ -266,7 +266,7 @@ export function install(ctx) {
     world.add(clouds);
 
     return {
-      mat: cityMat, ground: groundMat, av: avMat, mtn: mtnMat, ridge: ridgeDeg,
+      mat: cityMat, ground: groundMat, av: avMat, mtn: mtnMat, ridge: ridgeDeg, boxes, GROUND,
       setEnv(tex) { for (const m of [cityMat, waterMat]) { if (!m.envMap) m.needsUpdate = true; m.envMap = tex; } },
     };
   }
