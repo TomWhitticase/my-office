@@ -135,6 +135,23 @@ export const POSES = [
     await stepUntil(o, () => document.querySelectorAll('.cc-tile canvas[data-live]').length === 12, 200);
     await o.step(4); await o.idle();
   }],
+  ['archive-hall', async (o) => {   // back into the office and down to the archive's entrance hall, the vault shut
+    await o.eval(() => { window.dash.setView('office'); });
+    await o.step(1, 400); await o.step(1, 2700);
+    await stepUntil(o, () => window.__office.mode === 'free');
+    await o.eval(() => window.__office.goFloor(-2));
+    await stepUntil(o, () => window.__office.mine.L?.state === 'open', 80);
+    const z = await o.eval(() => window.__office.mine.L.z);   // the hall is laid out about your car
+    await stand(o, 16.6, z + 0.4, { x: 7, y: 1.8, z });
+    await o.step(60);   // out of the car's light into the hall's
+  }],
+  ['archive-vault', async (o) => {   // the vault swung open on the void, eyes adjusted to the glare
+    const z = await o.eval(() => window.__office.mine.L.z);
+    await stand(o, 12.4, z - 0.5, { x: 7, y: 1.5, z });
+    await o.eval(() => window.__office.arch.openVault());
+    await stepUntil(o, () => window.__office.arch.vault.state === 'open', 200);
+    await o.step(60);
+  }],
 ];
 
 // Compares two PNGs in the page: counts pixels where any channel differs by more than `tol`.

@@ -20,6 +20,7 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos, roof 
   let ctx = null, bus = null, master = null, B = null, voices = 0, active = false;
   let away = false, tone = null, hum = null, humOn = false, pullV = null, heliV = null;   // away: off the office floor, where it can't be heard ('roof' up top, true in the archive)
   let room = null, fans = [], clickAt = 0, relayAt = 0;   // room: a floor's own sound (see setAway), fans: its hum loops
+  let voidK = 1;   // the archive: 1 out in the void, 0 in its entrance hall (see voidMix)
   const played = {};   // debug counts by kind (window.__office.sfx.played)
   const st = new Map();       // person -> sound state
   const convs = new Map();    // chat group key -> conversation
@@ -233,6 +234,47 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos, roof 
     for (let i = 0; i < n; i++) d[i] *= 0.8 / m;
     return b;
   }
+  // The archive's entrance hall: the vault door's wheel ratcheting round and its bolts drawing back, the door swinging on its
+  // hinge (a low grinding groan), the clang as it shuts; a capsule rushing through a pneumatic tube; the clock; the desk bell.
+  function bolts() {
+    const tick = biq('bp', 2600, 3), body = biq('bp', 420, 2), lo = biq('lp', 160, 0.9), ring = biq('bp', 780, 9);
+    const clicks = [];
+    for (let t = 0.05, gap = 0.16; t < 1.6; t += gap, gap = Math.max(0.05, gap * 0.86)) clicks.push(t);
+    return make(2.3, (t) => {
+      let e = 0; for (const k of clicks) if (t >= k) e += Math.exp(-(t - k) / 0.004);
+      let c = 0; for (const k of [1.68, 1.8, 1.95]) if (t >= k) c += Math.exp(-(t - k) / 0.04);   // the bolts, one after another
+      const n = noise();
+      return tick(n * e) * 0.7 + body(n * e) * 0.4 + lo(n * c) * 5 + ring(n * c) * 1.2 + Math.sin(TAU * 70 * t) * c * 0.5;
+    });
+  }
+  function swing() {
+    const grind = biq('lp', 90, 0.8), groan = svf(), hi = biq('bp', 1300, 4);
+    return make(4.4, (t) => {
+      const e = env(t, 0, 4.3, 0.6, 1.2), n = noise(), f = 150 - 40 * (t / 4.4) + 10 * Math.sin(TAU * 0.7 * t);
+      return grind(n) * 4 * e + groan(n * e, f, 0.05) * 0.35 + Math.sin(TAU * 38 * t) * e * 0.25 + hi(n * e * (0.5 + 0.5 * Math.sin(TAU * 3.1 * t))) * 0.08;
+    });
+  }
+  function clang() {
+    const lo = biq('lp', 180, 0.8), r1 = biq('bp', 310, 12), r2 = biq('bp', 523, 14), r3 = biq('bp', 871, 16);
+    return make(2.4, (t) => {
+      const n = noise(), e = Math.exp(-t / 0.05), tail = Math.exp(-t / 0.7);
+      return lo(n * e) * 6 + Math.sin(TAU * (42 + 30 * Math.exp(-t / 0.08)) * t) * Math.exp(-t / 0.5) * 0.9 + (r1(n) * 0.9 + r2(n) * 0.6 + r3(n) * 0.35) * tail * 0.6 + r1(n * e) * 2;
+    });
+  }
+  function tube() {
+    const f = svf(), pop = biq('lp', 300, 0.9);
+    return make(1.4, (t) => {
+      const u = t / 1.4, e = Math.sin(Math.PI * Math.min(1, u * 1.2)) ** 2;
+      return f(noise() * e, 500 + 2600 * Math.sin(Math.PI * u), 0.55) * 0.8 + pop(noise() * Math.exp(-t / 0.02)) * 2;
+    });
+  }
+  const clockTick = (hi) => { const bp = biq('bp', hi ? 3400 : 2700, 5), body = biq('bp', 900, 3);
+    return make(0.06, (t) => { const x = noise() * Math.exp(-t / 0.0015); return bp(x) + body(x) * 0.6; }); };
+  function bell() {
+    const f = 2380, strike = biq('bp', 5000, 1);
+    return make(2.4, (t) => Math.sin(TAU * f * t) * Math.exp(-t / 0.9) + 0.5 * Math.sin(TAU * f * 2.71 * t) * Math.exp(-t / 0.35)
+      + 0.25 * Math.sin(TAU * f * 5.2 * t) * Math.exp(-t / 0.12) + 0.12 * Math.sin(TAU * (f + 3) * t) * Math.exp(-t / 1.2) + strike(noise() * Math.exp(-t / 0.002)) * 0.6);
+  }
   function seek() {   // a hard disk seeking: a few tiny head clicks a few ms apart
     const ticks = [0], n = Math.round(rnd(2, 7)), bp = biq('bp', rnd(2800, 4200), 4), body = biq('bp', rnd(600, 900), 3);
     for (let i = 1; i < n; i++) ticks.push(ticks[i - 1] + rnd(0.006, 0.03));
@@ -271,6 +313,7 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos, roof 
       beep: n(2, beep), buzz: buzz(), accept: accept(), spinup: spinUp(), spindown: null, whoosh: whoosh(), boom: boom(), pull: pullLoop(), book: n(2, bookSlide),
       seek: n(6, seek), relay: n(2, relay), thwop: thwop(), whine: whine(),
       pour: pour(),
+      bolts: bolts(), swing: swing(), clang: clang(), tube: n(2, tube), tick: [clockTick(true), clockTick(false)], bell: bell(),
     };
     B.spindown = ctx.createBuffer(1, B.spinup.length, ctx.sampleRate);   // the gateway closing: its spin-up, backwards
     B.spindown.getChannelData(0).set(B.spinup.getChannelData(0).slice().reverse());
@@ -333,8 +376,9 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos, roof 
   }
   function applyAway() {
     if (!tone) return;
-    const at = (n, v) => n.gain.setTargetAtTime(v, ctx.currentTime, 0.25), arch = away && away !== 'roof' && !room;
-    at(tone.g, away ? 0 : 0.05); at(tone.air, away ? 0 : 0.012); at(tone.void_, arch ? 0.006 : 0); at(tone.wet, arch ? 0.35 : 0);
+    const at = (n, v) => n.gain.setTargetAtTime(v, ctx.currentTime, 0.25);
+    at(tone.air, away ? 0 : 0.012);
+    mix();
     if (away !== 'roof') { at(tone.roar, 0); at(tone.rush, 0); }
     if (away === 'tess' && !tone.organ) {
       const src = ctx.createBufferSource(); src.buffer = organ(); src.loop = true;
@@ -353,6 +397,12 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos, roof 
       src.connect(lp).connect(g).connect(pan).connect(master); src.start();
       fans.push({ src, g });
     }
+  }
+  // The office's HVAC, or the archive's air and long tail: in its entrance hall a muffled room tone and a short echo instead.
+  function mix() {
+    if (!tone) return;
+    const at = (n, v) => n.gain.setTargetAtTime(v, ctx.currentTime, 0.25), arch = away && away !== 'roof' && !room;
+    at(tone.g, !away ? 0.05 : arch ? 0.03 * (1 - voidK) : 0); at(tone.void_, arch ? 0.006 * voidK : 0); at(tone.wet, arch ? 0.1 + 0.25 * voidK : 0);
   }
   function windFx(t) {   // gusts: two slow sines beating; the rush comes from the point on the edge nearest you
     const gust = 0.55 + 0.45 * Math.sin(t * 0.21) * Math.sin(t * 0.077 + 1.3), now = ctx.currentTime;
@@ -549,7 +599,9 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos, roof 
     slide(at = lift, mine) { if (!away || mine) play(B?.slide, at.x, 1.2, at.z, 0.22, rnd(0.95, 1.05)); },
     // kind: 'roof' up top, or a floor's own sound { hums: [[x, y, z, gain]], clicks, relays: [[x, y, z]] } (the server hall);
     // none is the archive's vast quiet.
-    setAway(on, kind) { away = on && (kind || true); room = on && typeof kind === 'object' ? kind : null; applyAway(); }, hum: liftHum,
+    setAway(on, kind) { away = on && (kind || true); room = on && typeof kind === 'object' ? kind : null; voidK = 1; applyAway(); }, hum: liftHum,
+    // The archive: how far out into the void you are (0 in the entrance hall, 1 out in it), set each frame while you're there.
+    voidMix(k) { k = Math.round(k * 20) / 20; if (k !== voidK) { voidK = k; mix(); } },
     // The archive's things (the filing cabinet, the gateway, the books inside a repo): only ever heard away from the office. `p` is a world position.
     cabinet(kind, p, gain = 0.4) { if (away && B) play(pick([B[kind]].flat()), p.x, p.y, p.z, gain, rnd(0.94, 1.06)); },
     // The drawer rolling for `dur` s, loudest and highest at its fastest (the eased slide's speed). move(p) as it goes; stop() cuts it.

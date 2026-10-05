@@ -4384,7 +4384,7 @@
    "fly": false,
    "sound": null,
    "colliders": 7,
-   "hits": 6,
+   "hits": 16,
    "hooks": [
     "enter",
     "leave",
@@ -4509,22 +4509,30 @@
    "sorted": "2435ad31"
   },
   "archive": {
-   "objects": 67,
+   "objects": 200,
    "types": {
     "Scene": 1,
     "HemisphereLight": 1,
     "DirectionalLight": 1,
-    "Mesh": 56,
-    "Group": 8
+    "Mesh": 172,
+    "Group": 19,
+    "PointLight": 4,
+    "SpotLight": 1,
+    "Object3D": 1
    },
    "actions": {
     "cabinet": 5,
     "liftcall": 1,
     "liftpanel": 1,
-    "gatekey": 1
+    "gatekey": 1,
+    "vault": 1,
+    "ledger": 1,
+    "bell": 1,
+    "banker": 1,
+    "capsule": 8
    },
-   "ordered": "ad67a239",
-   "sorted": "fec9187"
+   "ordered": "a931ef61",
+   "sorted": "a24e3f47"
   }
  }
 }

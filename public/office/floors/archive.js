@@ -117,6 +117,7 @@ export function install(ctx) {
     const c = mapCtx, W = 440, H = 330, sx = (x) => W / 2 + (x - (x0 + x1) / 2) * k, sz = (z) => H / 2 + 18 + (z - (z0 + z1) / 2) * k;
     c.clearRect(0, 0, W, H);
     c.fillStyle = 'rgba(255,255,255,.12)'; c.beginPath(); c.arc(sx(ARCH.x), sz(ARCH.z), ARCH.r * k, 0, Math.PI * 2); c.fill();
+    arch.mapHall?.(c, sx, sz, k);   // the entrance hall (archive-entrance.js)
     c.fillStyle = 'rgba(255,255,255,.55)';
     for (const b of arch.colliders) c.fillRect(sx(b.minX), sz(b.minZ), Math.max(3, (b.maxX - b.minX) * k), Math.max(3, (b.maxZ - b.minZ) * k));
     c.font = '600 20px system-ui'; c.fillText('THE ARCHIVE · B2', 16, 30);
