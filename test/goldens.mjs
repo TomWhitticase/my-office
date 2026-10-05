@@ -21,7 +21,7 @@ async function stepUntil(o, fn, max = 80) {
   throw new Error(`still waiting after ${max} frames: ${fn}`);
 }
 
-// [name, what to do before the shot]
+// [name, what to do before the shot, { shot: false } to walk through a pose without shooting it]
 export const POSES = [
   ['desktop', async (o) => { await o.step(1, 16); }],   // the intro's first frame: your desktop filling the view
   ['seated', async (o) => {
@@ -54,7 +54,8 @@ export const POSES = [
     await o.step(2);
     await o.eval((id) => window.__office.openChat(id), SESSION_IDS[0]);
     await o.idle(); await o.step(3);
-  }],
+  }, { shot: false }],   // not shot for now (coordinator); kept so the poses after it start from the same state
+
   ['laptop', async (o) => {
     await o.eval(() => { window.__office.closeChat(); window.dash.closeDrawer(); });
     await o.step(2);
@@ -150,10 +151,10 @@ export async function runGoldens(browser, base, { record = false, only = null, l
   const o = await openOffice(browser, base, { errors });
   const results = [];
   try {
-    for (const [name, setup] of POSES) {
+    for (const [name, setup, opt] of POSES) {
       const t = Date.now();
       await setup(o);
-      if (only && !only.includes(name)) continue;
+      if (opt?.shot === false || (only && !only.includes(name))) continue;
       const png = await o.page.screenshot({ animations: 'disabled', caret: 'hide' });
       fs.writeFileSync(path.join(OUT, `${name}.png`), png);
       const gold = path.join(GOLDEN, `${name}.png`);
