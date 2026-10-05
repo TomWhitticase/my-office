@@ -280,6 +280,10 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos, roof 
     for (let i = 1; i < n; i++) ticks.push(ticks[i - 1] + rnd(0.006, 0.03));
     return make(ticks.at(-1) + 0.03, (t) => { let e = 0; for (const k of ticks) if (t >= k) e += Math.exp(-(t - k) / 0.0012); const x = noise() * e; return bp(x) + body(x) * 0.5; });
   }
+  function dart() {   // a dart going into sisal: a sharp tick and a short dull thock
+    const hi = biq('bp', rnd(2600, 3400), 2), body = biq('bp', rnd(380, 480), 2.5);
+    return make(0.12, (t) => hi(noise() * Math.exp(-t / 0.0015)) + body(noise() * Math.exp(-t / 0.012)) * 2.2);
+  }
   function relay() {   // a contactor pulling in: a sharp click and a low clunk
     const hi = biq('bp', 2500, 2), lo = biq('lp', 160, 1);
     return make(0.25, (t) => hi(noise() * Math.exp(-t / 0.002)) * 1.2 + lo(noise() * Math.exp(-t / 0.03)) * 3 + (t > 0.012 ? hi(noise() * Math.exp(-(t - 0.012) / 0.0015)) * 0.5 : 0));
@@ -311,7 +315,7 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos, roof 
       espresso: espresso(), creak: n(3, creak), swish: swish(), rattle: rattle(), chime: chime(), slide: slide(),
       latch: n(2, latch), roll: roll(), thunk: n(2, () => thunk(false)), slam: n(2, () => thunk(true)), rustle: n(3, () => rustle(rnd(0.6, 0.9))), page: n(3, page),
       beep: n(2, beep), buzz: buzz(), accept: accept(), spinup: spinUp(), spindown: null, whoosh: whoosh(), boom: boom(), pull: pullLoop(), book: n(2, bookSlide),
-      seek: n(6, seek), relay: n(2, relay), thwop: thwop(), whine: whine(),
+      seek: n(6, seek), relay: n(2, relay), dart: n(3, dart), thwop: thwop(), whine: whine(),
       pour: pour(),
       bolts: bolts(), swing: swing(), clang: clang(), tube: n(2, tube), tick: [clockTick(true), clockTick(false)], bell: bell(),
     };
@@ -596,6 +600,7 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos, roof 
     ding(at = lift, mine) { if (!away || mine) play(B?.chime, at.x, 2.4, at.z, 0.35); },
     espresso() { if (!away) play(B?.espresso, coffee.x, coffee.y, coffee.z, 0.5); machineFree = lastT + 7.5; },
     pour(p) { if (!away) play(B?.pour, p.x, p.y, p.z, 0.45, rnd(0.96, 1.04)); },   // the drinks cabinet's decanter
+    dart(p) { if (!away && B) play(pick(B.dart), p.x, p.y, p.z, 0.35, rnd(0.95, 1.05)); },
     slide(at = lift, mine) { if (!away || mine) play(B?.slide, at.x, 1.2, at.z, 0.22, rnd(0.95, 1.05)); },
     // kind: 'roof' up top, or a floor's own sound { hums: [[x, y, z, gain]], clicks, relays: [[x, y, z]] } (the server hall);
     // none is the archive's vast quiet.
