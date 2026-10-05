@@ -3022,6 +3022,7 @@ export function mountOffice(container) {
   // The building's lifts: a stone-clad core against the east wall, two cars facing west either side of the call panel.
   // Doors are brushed steel leaves sliding into the wall; each car is lit by an emissive ceiling panel only (no lights).
   // Sessions arrive and leave by lift: see the lift cycle next to the people sync.
+  let liftSteelM;   // brushed steel for every lift's doors and surrounds (set below)
   const CORE = { x0: LIFT.x, x1: 20, z0: -3.47, z1: 2.46 }, DOOR = { w: 1.1, h: 2.2 }, CAR = { d: 1.8, w: 1.5, h: 2.35 };
   const lifts = [[LIFT.z - 0.9, 48], [LIFT.z + 0.9, 12]].map(([z, floor]) => ({ z, at: { x: LIFT.x, z }, floor, goal: floor, dir: 0, state: floor === 48 ? 'home' : 'away', t: 0, doorK: 0, nIn: 0,
     pending: [], cargo: new Set(), exits: new Set(), callers: new Set(), riders: new Set() }));
@@ -3030,7 +3031,7 @@ export function mountOffice(container) {
     brushed.ctx.fillStyle = '#c9cdd2'; brushed.ctx.fillRect(0, 0, 64, 256);
     for (let i = 0; i < 260; i++) { brushed.ctx.fillStyle = `rgba(${R() > 0.5 ? '255,255,255' : '40,44,50'},${0.05 + R() * 0.08})`; brushed.ctx.fillRect(R() * 64, 0, 0.6 + R(), 256); }
     brushed.tex.needsUpdate = true;
-    const steelM = new THREE.MeshStandardMaterial({ map: brushed.tex, metalness: 0.85, roughness: 0.32 });
+    const steelM = liftSteelM = new THREE.MeshStandardMaterial({ map: brushed.tex, metalness: 0.85, roughness: 0.32 });   // shared by every floor's lift
     const fx = LIFT.x + 0.05, cx = LIFT.x + 0.1 + CAR.d / 2, back = LIFT.x + 0.1 + CAR.d;
     const edges = [CORE.z0, ...lifts.flatMap((L) => [L.z - DOOR.w / 2, L.z + DOOR.w / 2]), CORE.z1];
     const stone = [], steel = [], car = [], mirror = [], glow = [];
@@ -4067,7 +4068,7 @@ export function mountOffice(container) {
     const steel = [[0.05, 0.08, DOOR.w + 0.16, LIFT.x - 0.02, DOOR.h + 0.04, 0], [0.34, 0.012, DOOR.w, fx + 0.02, 0.006, 0], [0.04, 0.26, 0.56, LIFT.x - 0.02, 2.5, 0],
       [0.02, 0.38, 0.15, LIFT.x - 0.01, 1.1, DOOR.w / 2 + 0.3], [back + 0.24 - LIFT.x, 0.03, sw * 2 + 0.02, (LIFT.x + back + 0.24) / 2, top + 0.015, 0]];
     for (const s of [-1, 1]) steel.push([0.05, DOOR.h + 0.08, 0.08, LIFT.x - 0.02, (DOOR.h + 0.08) / 2, s * (DOOR.w / 2 + 0.04)]);
-    const steelM = mat('#c9cdd2', { metalness: 0.85, roughness: 0.32 });
+    const steelM = liftSteelM;   // the office's brushed steel, so doors and surrounds match on every floor
     lift.add(mergedBoxes(steel, steelM));
     const car = [[CAR.d, 0.02, CAR.w, cx, 0.01, 0, '#2c2b2a'], [CAR.d, 0.04, CAR.w, cx, CAR.h, 0, '#232426'], [0.04, CAR.h, CAR.w, back, CAR.h / 2, 0, '#8a6446'],
       [0.035, 0.035, CAR.w - 0.2, back - 0.06, 0.95, 0, '#dfe2e5'], [0.02, 0.4, 0.16, LIFT.x + 0.35, 1.2, CAR.w / 2 - 0.03, '#5a5f66']];
@@ -4096,7 +4097,7 @@ export function mountOffice(container) {
     cssRenderer.domElement.style.visibility = F ? 'hidden' : '';
     sfx.setAway(!!F, F?.sound);
   }
-  // Inside the car it's lit like the office car upstairs; stepping out, your eyes adjust to the floor's own `look` over ~3 m:
+  // Inside the car it's lit like the office car upstairs; stepping out of the doorway, your eyes adjust to the floor's own `look`:
   // exposure, hemisphere light, environment and extra lights, and the office's bloom and grade scaled by look.bloom/grade.
   function renderFloor(F) {
     const w = container.clientWidth, h = container.clientHeight, L = F.look;
@@ -4114,7 +4115,9 @@ export function mountOffice(container) {
       c.setSize(w, h);
     }
     F.gtao.enabled = hq;
-    F.out = damp(F.out ?? 0, clamp((LIFT.x + 0.1 - player.x) / 3, 0, 1), 3, 1 / 60);
+    // Only the car itself is office-lit: the switch happens across the doorway (0.4 m inside to 0.3 m out), eased over ~1 s,
+    // so walking up to the lift from the floor never dims anything.
+    F.out = damp(F.out ?? 0, clamp((LIFT.x + 0.4 - player.x) / 0.7, 0, 1), 3, 1 / 60);
     const k = ease(F.out);
     renderer.toneMappingExposure = lerp(officeExposure, L.exposure, k);
     F.hemi.intensity = lerp(hemi.intensity, L.hemi, k);
@@ -4204,7 +4207,7 @@ export function mountOffice(container) {
     steel.push([1.3, 0.1, z1 - z0 + 0.6, LIFT.x - 0.6, 2.95, (z0 + z1) / 2], [0.02, 0.38, 0.15, LIFT.x - 0.01, 1.1, LIFT.z]);   // canopy, call panel
     roof.callM = new THREE.MeshStandardMaterial({ color: '#e6e3dc', emissive: '#ffb347', emissiveIntensity: 0, roughness: 0.4 });
     for (const y of [1.16, 1.04]) cyl(G, 0.026, 0.026, 0.02, '', LIFT.x - 0.025, y, LIFT.z, { material: y > 1.1 ? mat('#e6e3dc', { roughness: 0.4 }) : roof.callM, seg: 16, shadow: false }).rotation.z = Math.PI / 2;
-    const steelM = mat('#c9cdd2', { metalness: 0.85, roughness: 0.32 });
+    const steelM = liftSteelM;   // the office's brushed steel, so doors and surrounds match on every floor
     for (const L of lifts) {
       const z = L.z;
       stone.push([0.1, top - DOOR.h, DOOR.w, fx, (top + DOOR.h) / 2, z]);
