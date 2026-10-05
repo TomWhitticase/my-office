@@ -2533,19 +2533,23 @@ export function mountOffice(container) {
     // smoothing it round the curves, and tarnish. A matching roughness map keeps the tape shiny and the seams and tarnish duller.
     const copper = (() => {
       const W = 512, H = 704, m = makeCanvas(W, H), r = makeCanvas(W, H), c = m.ctx, q = r.ctx, R = rng(808);
-      c.fillStyle = '#b87333'; c.fillRect(0, 0, W, H); q.fillStyle = 'rgb(0,64,0)'; q.fillRect(0, 0, W, H);
-      for (let y = -20; y < H;) {
-        const sh = 58 + R() * 36, tilt = (R() - 0.5) * 12, edge = (yy) => { c.beginPath(); c.moveTo(0, yy); c.lineTo(W, yy + tilt); };
-        c.fillStyle = `hsl(${19 + R() * 8} ${40 + R() * 14}% ${40 + R() * 13}%)`;
-        c.beginPath(); c.moveTo(0, y); c.lineTo(W, y + tilt); c.lineTo(W, y + tilt + sh); c.lineTo(0, y + sh); c.closePath(); c.fill();
+      c.fillStyle = '#d0915c'; c.fillRect(0, 0, W, H); q.fillStyle = 'rgb(0,64,0)'; q.fillRect(0, 0, W, H);
+      // Strips run diagonally (lower bass to upper treble): draw them in a rotated frame big enough to cover the canvas.
+      const D = Math.hypot(W, H) / 2 + 30;
+      for (const ctx of [c, q]) { ctx.save(); ctx.translate(W / 2, H / 2); ctx.rotate(-0.68); }
+      for (let y = -D; y < D;) {
+        const sh = 58 + R() * 36, tilt = (R() - 0.5) * 12, edge = (yy) => { c.beginPath(); c.moveTo(-D, yy); c.lineTo(D, yy + tilt); };
+        c.fillStyle = `hsl(${22 + R() * 7} ${50 + R() * 14}% ${54 + R() * 11}%)`;
+        c.beginPath(); c.moveTo(-D, y); c.lineTo(D, y + tilt); c.lineTo(D, y + tilt + sh); c.lineTo(-D, y + sh); c.closePath(); c.fill();
         const g = c.createLinearGradient(0, y, 0, y + sh);
         g.addColorStop(0, 'rgba(255,222,185,.2)'); g.addColorStop(0.45, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(60,20,0,.2)');
         c.fillStyle = g; c.fill();
-        c.strokeStyle = 'rgba(45,18,4,.6)'; c.lineWidth = 2.5; edge(y + sh); c.stroke();
-        c.strokeStyle = 'rgba(255,215,170,.4)'; c.lineWidth = 1; edge(y + sh - 2.5); c.stroke();
-        q.strokeStyle = 'rgb(0,150,0)'; q.lineWidth = 4; q.beginPath(); q.moveTo(0, y + sh); q.lineTo(W, y + tilt + sh); q.stroke();
+        c.strokeStyle = 'rgba(80,36,12,.5)'; c.lineWidth = 2.5; edge(y + sh); c.stroke();
+        c.strokeStyle = 'rgba(255,225,190,.45)'; c.lineWidth = 1; edge(y + sh - 2.5); c.stroke();
+        q.strokeStyle = 'rgb(0,150,0)'; q.lineWidth = 4; q.beginPath(); q.moveTo(-D, y + sh); q.lineTo(D, y + tilt + sh); q.stroke();
         y += sh - 4;
       }
+      for (const ctx of [c, q]) ctx.restore();
       for (let i = 0; i < 320; i++) {
         const x = R() * W, y = R() * H, a = R() * Math.PI, l = 5 + R() * 30, x1 = x + Math.cos(a) * l, y1 = y + Math.sin(a) * l;
         c.strokeStyle = R() < 0.5 ? 'rgba(255,226,190,.3)' : 'rgba(60,25,8,.32)'; c.lineWidth = 0.8 + R() * 1.2;
@@ -2554,7 +2558,7 @@ export function mountOffice(container) {
       }
       for (let i = 0; i < 80; i++) {
         const x = R() * W, y = R() * H, rad = 8 + R() * 42, green = R() < 0.12;
-        for (const [ctx, col, a] of [[c, green ? '70,125,95' : '55,24,8', green ? 0.38 : 0.34], [q, '0,205,0', 0.55]]) {
+        for (const [ctx, col, a] of [[c, green ? '70,125,95' : '70,32,10', green ? 0.3 : 0.24], [q, '0,205,0', 0.55]]) {
           const g = ctx.createRadialGradient(x, y, 0, x, y, rad);
           g.addColorStop(0, `rgba(${col},${a})`); g.addColorStop(1, `rgba(${col},0)`);
           ctx.fillStyle = g; ctx.fillRect(x - rad, y - rad, rad * 2, rad * 2);
@@ -2614,17 +2618,28 @@ export function mountOffice(container) {
 
     const chromeM = mat('#eceef0', { metalness: 1, roughness: 0.15 }), goldM = mat('#e2b85c', { metalness: 1, roughness: 0.22 }), steelM = mat('#8f9297', { metalness: 1, roughness: 0.35 });
     const blackM = mat('#111111', { roughness: 0.3 }), ivoryM = mat('#ece2c4', { roughness: 0.4 }), stringM = mat('#d7d9dc', { metalness: 1, roughness: 0.3 });
-    const STRAT = [[0, 0], [0.06, 0.006], [0.11, 0.025], [0.145, 0.06], [0.16, 0.11], [0.158, 0.165], [0.14, 0.215], [0.128, 0.255], [0.132, 0.3], [0.14, 0.35],
-      [0.135, 0.395], [0.118, 0.418], [0.098, 0.41], [0.08, 0.375], [0.062, 0.335], [0.046, 0.322], [0.034, 0.345], [0.03, 0.392], [0, 0.396], [-0.03, 0.392],
-      [-0.034, 0.35], [-0.045, 0.318], [-0.062, 0.322], [-0.08, 0.36], [-0.092, 0.41], [-0.1, 0.455], [-0.117, 0.468], [-0.135, 0.455], [-0.146, 0.41], [-0.146, 0.35],
-      [-0.135, 0.29], [-0.132, 0.25], [-0.142, 0.21], [-0.16, 0.16], [-0.158, 0.105], [-0.142, 0.058], [-0.11, 0.025], [-0.06, 0.006]];
-    const LP = [[0, 0], [0.06, 0.006], [0.11, 0.026], [0.148, 0.062], [0.165, 0.115], [0.158, 0.175], [0.13, 0.235], [0.122, 0.272], [0.132, 0.315], [0.132, 0.352],
-      [0.118, 0.382], [0.094, 0.39], [0.07, 0.37], [0.05, 0.345], [0.036, 0.36], [0.03, 0.4], [0, 0.414], [-0.035, 0.42], [-0.075, 0.428], [-0.11, 0.415],
-      [-0.135, 0.385], [-0.143, 0.335], [-0.128, 0.278], [-0.138, 0.228], [-0.162, 0.17], [-0.166, 0.115], [-0.15, 0.062], [-0.11, 0.026], [-0.06, 0.006]];
-    const PG = [[-0.029, 0.388], [-0.031, 0.345], [-0.04, 0.312], [-0.06, 0.302], [-0.09, 0.305], [-0.112, 0.29], [-0.118, 0.25], [-0.11, 0.205], [-0.092, 0.178],
-      [-0.06, 0.172], [0, 0.176], [0.042, 0.174], [0.056, 0.155], [0.066, 0.118], [0.082, 0.085], [0.102, 0.072], [0.121, 0.083], [0.131, 0.118], [0.131, 0.17],
-      [0.123, 0.222], [0.11, 0.268], [0.092, 0.295], [0.066, 0.303], [0.044, 0.308], [0.033, 0.34], [0.029, 0.388]];
-    const LPG = [[0.031, 0.365], [0.046, 0.336], [0.07, 0.33], [0.095, 0.31], [0.11, 0.28], [0.1, 0.25], [0.075, 0.24], [0.05, 0.245], [0.038, 0.275]];
+    // Body outlines after the Fender and Gibson templates (metres, butt end at y 0, bass side -x). Strat: 406 x 324 mm, the
+    // bass horn longer than the treble, neck pocket at the 16th fret. Les Paul: 438 x 330 mm, one rounded treble cutaway.
+    const STRAT = [[0, 0], [0.08, 0.007], [0.122, 0.025], [0.148, 0.052], [0.16, 0.085], [0.161, 0.12], [0.152, 0.155], [0.138, 0.19], [0.131, 0.225],
+      [0.137, 0.255], [0.141, 0.29], [0.136, 0.318], [0.128, 0.343], [0.117, 0.365], [0.105, 0.379], [0.092, 0.382], [0.08, 0.374], [0.072, 0.358], [0.068, 0.338],
+      [0.063, 0.318], [0.055, 0.306], [0.045, 0.303], [0.036, 0.308], [0.03, 0.322], [0.028, 0.34], [0.028, 0.359], [0, 0.36], [-0.028, 0.359], [-0.029, 0.34],
+      [-0.032, 0.325], [-0.04, 0.317], [-0.05, 0.318], [-0.057, 0.328], [-0.061, 0.345], [-0.063, 0.368], [-0.066, 0.39], [-0.073, 0.405], [-0.085, 0.413],
+      [-0.098, 0.413], [-0.11, 0.403], [-0.12, 0.385], [-0.129, 0.36], [-0.137, 0.33], [-0.142, 0.3], [-0.14, 0.26], [-0.131, 0.225], [-0.138, 0.19], [-0.152, 0.155],
+      [-0.161, 0.12], [-0.16, 0.085], [-0.148, 0.052], [-0.122, 0.025], [-0.08, 0.007]];
+    const LP = [[0, 0], [0.06, 0.004], [0.11, 0.022], [0.145, 0.055], [0.163, 0.1], [0.165, 0.14], [0.156, 0.185], [0.138, 0.225], [0.125, 0.258], [0.124, 0.285],
+      [0.13, 0.315], [0.133, 0.345], [0.13, 0.372], [0.122, 0.395], [0.11, 0.412], [0.097, 0.42], [0.085, 0.417], [0.077, 0.405], [0.072, 0.385], [0.066, 0.365],
+      [0.057, 0.35], [0.045, 0.344], [0.035, 0.35], [0.03, 0.365], [0.03, 0.42], [0, 0.428], [-0.03, 0.426], [-0.052, 0.438], [-0.078, 0.441], [-0.102, 0.433],
+      [-0.121, 0.416], [-0.134, 0.39], [-0.139, 0.36], [-0.136, 0.328], [-0.128, 0.298], [-0.124, 0.268], [-0.13, 0.235], [-0.148, 0.192], [-0.162, 0.145],
+      [-0.163, 0.1], [-0.145, 0.055], [-0.11, 0.022], [-0.06, 0.004]];
+    // Strat scratchplate: round the neck pocket, into both horns' roots, above the bridge, a lobe down round the controls.
+    const PG = [[-0.03, 0.352], [-0.032, 0.33], [-0.037, 0.312], [-0.048, 0.306], [-0.058, 0.314], [-0.068, 0.334], [-0.082, 0.35], [-0.098, 0.354],
+      [-0.112, 0.342], [-0.122, 0.315], [-0.127, 0.285], [-0.12, 0.25], [-0.115, 0.225], [-0.11, 0.2], [-0.1, 0.175], [-0.078, 0.145], [-0.05, 0.128], [0, 0.124],
+      [0.042, 0.124], [0.052, 0.112], [0.06, 0.092], [0.075, 0.075], [0.098, 0.068], [0.12, 0.078], [0.132, 0.1], [0.137, 0.13], [0.133, 0.165], [0.124, 0.195],
+      [0.12, 0.225], [0.124, 0.26], [0.126, 0.29], [0.12, 0.315], [0.11, 0.338], [0.096, 0.352], [0.084, 0.346], [0.076, 0.325], [0.068, 0.306], [0.056, 0.294],
+      [0.045, 0.291], [0.036, 0.297], [0.031, 0.315], [0.03, 0.352]];
+    // Les Paul's raised guard: a long teardrop from under the cutaway down beside the bridge pickup.
+    const LPG = [[0.046, 0.334], [0.056, 0.338], [0.064, 0.35], [0.072, 0.372], [0.08, 0.392], [0.094, 0.403], [0.106, 0.396], [0.115, 0.375], [0.119, 0.345],
+      [0.116, 0.305], [0.106, 0.268], [0.092, 0.237], [0.076, 0.218], [0.061, 0.215], [0.05, 0.23], [0.045, 0.26], [0.044, 0.3]];
     const SHEAD = [[-0.0215, 0], [-0.026, 0.04], [-0.03, 0.1], [-0.034, 0.15], [-0.036, 0.175], [-0.028, 0.192], [-0.008, 0.196], [0.018, 0.19], [0.042, 0.178],
       [0.052, 0.162], [0.045, 0.148], [0.026, 0.13], [0.016, 0.1], [0.016, 0.05], [0.0215, 0.008]];
     const LHEAD = [[-0.0215, 0], [-0.034, 0.05], [-0.045, 0.12], [-0.047, 0.168], [-0.038, 0.18], [-0.015, 0.176], [0, 0.168], [0.015, 0.176], [0.038, 0.18],
@@ -2632,7 +2647,7 @@ export function mountOffice(container) {
 
     // A guitar standing upright, front facing +z, bass side on the left, body bottom at y 0. Returns the group and its output jack.
     function guitar(o) {
-      const g = new THREE.Group(), strat = o.kind === 'strat', S = strat ? 0.648 : 0.628, Ny = 0.8, By = Ny - S, FZ = strat ? 0.0225 : 0.0275;
+      const g = new THREE.Group(), strat = o.kind === 'strat', S = strat ? 0.648 : 0.628, Ny = strat ? 0.748 : 0.8, By = Ny - S, FZ = strat ? 0.0225 : 0.0275;
       const E = Ny - S * (1 - 2 ** (-22 / 12)) - 0.006, wN = 0.043, wE = strat ? 0.057 : 0.056;
       const hw = [], poles = [], knobs = [], tips = [], blacks = [], strings = [];
       const xn = (i) => -0.0175 + i * 0.007, xb = (i) => -0.026 + i * 0.0104, xAt = (i, y) => lerp(xb(i), xn(i), (y - By) / (Ny - By));
@@ -2645,10 +2660,11 @@ export function mountOffice(container) {
         add(g, slab(outline(LP), 0.0195, 0.004), [o.body, ivoryM]);                 // cream binding round the top
         add(g, slab(outline(LP, 0.86, 0.21), 0.0175, 0.002, 0.008), o.body);          // the carved top's arch
         add(g, slab(outline(LPG), FZ + 0.006, 0.0018), ivoryM);                      // raised pickguard
-        hw.push(bGeo(0.004, 0.012, 0.006, 0.105, 0.283, FZ + 0.003));
+        hw.push(bGeo(0.004, 0.006, 0.006, 0.095, 0.395, FZ + 0.006));
       }
       // Neck, fretboard (bound on the Les Paul), nut.
-      add(g, new THREE.CylinderGeometry(0.0215, 0.028, Ny - 0.33, 18, 1, false, Math.PI / 2, Math.PI).scale(1, 1, 0.85).translate(0, (Ny + 0.33) / 2, FZ), o.neck);
+      const n0 = strat ? 0.3 : 0.33;
+      add(g, new THREE.CylinderGeometry(0.0215, 0.028, Ny - n0, 18, 1, false, Math.PI / 2, Math.PI).scale(1, 1, 0.85).translate(0, (Ny + n0) / 2, FZ), o.neck);
       const fb = new THREE.Shape([V(-wE / 2, E), V(wE / 2, E), V(wN / 2, Ny), V(-wN / 2, Ny)].map((p) => new THREE.Vector2(p.x, p.y)));
       add(g, slab(fb, FZ, 0.006), [boardTex(o.board === 'rose', !strat, S, Ny, E), strat ? mat(o.board === 'rose' ? '#3a2216' : '#e0bd84', { roughness: 0.5 }) : ivoryM]);
       add(g, bGeo(wN, 0.005, 0.009, 0, Ny - 0.0025, FZ + 0.0045), ivoryM);
@@ -2680,18 +2696,24 @@ export function mountOffice(container) {
         }
       };
       if (strat) {
-        o.pickups.forEach((k, i) => pickup(k, [0.288, 0.246, 0.2][i], i < 2 ? 0 : k === 'H' ? -0.05 : -0.17));
-        // Vintage trem: plate, six saddles, the arm swung out to the treble side.
-        hw.push(bGeo(0.072, 0.042, 0.003, 0, By - 0.004, FZ + 0.0015));
-        for (let i = 0; i < 6; i++) hw.push(bGeo(0.0092, 0.02, 0.01, xb(i), By - 0.004, FZ + 0.0075));
-        hw.push(rodGeo(V(0.031, By - 0.02, FZ + 0.003), V(0.033, By - 0.022, FZ + 0.03), 0.0018), rodGeo(V(0.033, By - 0.022, FZ + 0.03), V(0.085, By - 0.145, FZ + 0.042), 0.0018));
-        tips.push(rodGeo(V(0.075, By - 0.12, FZ + 0.0395), V(0.087, By - 0.15, FZ + 0.0425), 0.0035, 10));
-        for (const [x, y] of [[0.08, 0.155], [0.096, 0.123], [0.11, 0.093]]) knobs.push(czGeo(0.0105, 0.016, x, y, top, 20, 0.0118));
-        hw.push(rodGeo(V(0.09, 0.218, top), V(0.093, 0.214, top + 0.014), 0.0012));
-        tips.push(czGeo(0.003, 0.008, 0.093, 0.214, top + 0.012, 10));
-        hw.push(new THREE.CylinderGeometry(0.0115, 0.0115, 0.003, 20).rotateX(Math.PI / 2).scale(1.35, 1, 1).translate(0.118, 0.065, FZ + 0.0015));
-        blacks.push(czGeo(0.0045, 0.001, 0.118, 0.065, FZ + 0.003));
-        hw.push(new THREE.CylinderGeometry(0.005, 0.006, 0.012, 12).translate(0, -0.012, 0), new THREE.CylinderGeometry(0.005, 0.006, 0.012, 12).translate(-0.114, 0.45, 0));
+        o.pickups.forEach((k, i) => pickup(k, By + [0.14, 0.094, 0.046][i], i < 2 ? 0 : k === 'H' ? -0.05 : -0.17));
+        // Bridge: a vintage trem (plate, six saddles, the arm swung out to the treble side), or a hardtail: a heavier plate
+        // with a raised back lip, strings through the body, no arm.
+        if (o.hardtail) {
+          hw.push(bGeo(0.07, 0.05, 0.004, 0, By - 0.006, FZ + 0.002), bGeo(0.07, 0.006, 0.012, 0, By - 0.028, FZ + 0.006));
+          for (let i = 0; i < 6; i++) hw.push(bGeo(0.0092, 0.02, 0.009, xb(i), By - 0.002, FZ + 0.0085));
+        } else {
+          hw.push(bGeo(0.072, 0.042, 0.003, 0, By - 0.004, FZ + 0.0015));
+          for (let i = 0; i < 6; i++) hw.push(bGeo(0.0092, 0.02, 0.01, xb(i), By - 0.004, FZ + 0.0075));
+          hw.push(rodGeo(V(0.031, By - 0.02, FZ + 0.003), V(0.033, By - 0.022, FZ + 0.03), 0.0018), rodGeo(V(0.033, By - 0.022, FZ + 0.03), V(0.085, By - 0.145, FZ + 0.042), 0.0018));
+          tips.push(rodGeo(V(0.075, By - 0.12, FZ + 0.0395), V(0.087, By - 0.15, FZ + 0.0425), 0.0035, 10));
+        }
+        for (const [x, y] of [[0.078, 0.165], [0.096, 0.132], [0.108, 0.1]]) knobs.push(czGeo(0.0105, 0.016, x, y, top, 20, 0.0118));
+        hw.push(rodGeo(V(0.09, 0.204, top), V(0.093, 0.2, top + 0.014), 0.0012));
+        tips.push(czGeo(0.003, 0.008, 0.093, 0.2, top + 0.012, 10));
+        hw.push(new THREE.CylinderGeometry(0.0115, 0.0115, 0.003, 20).rotateX(Math.PI / 2).scale(1.35, 1, 1).translate(0.12, 0.048, FZ + 0.0015));
+        blacks.push(czGeo(0.0045, 0.001, 0.12, 0.048, FZ + 0.003));
+        hw.push(new THREE.CylinderGeometry(0.005, 0.006, 0.012, 12).translate(0, -0.012, 0), new THREE.CylinderGeometry(0.005, 0.006, 0.012, 12).translate(-0.092, 0.42, 0));
         for (let i = 0; i < 6; i++) {   // strings: saddle to nut to post
           const r = 0.00056 - i * 0.00005, [px, py] = posts[i], p = V(px + 0.0034, py, 0.008).applyMatrix4(hsM);
           strings.push(rodGeo(V(xb(i), By - 0.003, FZ + 0.013), V(xn(i), Ny - 0.001, FZ + 0.0085), r), rodGeo(V(xn(i), Ny - 0.001, FZ + 0.0085), p, r));
@@ -2704,9 +2726,9 @@ export function mountOffice(container) {
         for (const s of [-1, 1]) hw.push(czGeo(0.0052, 0.006, s * 0.041, By, FZ), czGeo(0.0062, 0.009, s * 0.04, 0.123, FZ));
         hw.push(rodGeo(V(-0.044, 0.123, FZ + 0.008), V(0.044, 0.123, FZ + 0.008), 0.0055, 12));
         for (const [x, y] of [[0.072, 0.128], [0.112, 0.148], [0.085, 0.085], [0.125, 0.104]]) knobs.push(czGeo(0.0105, 0.016, x, y, FZ, 20, 0.012), czGeo(0.0145, 0.003, x, y, FZ, 20));
-        add(g, slab(new THREE.Shape().absarc(0, 0, 0.017, 0, Math.PI * 2), FZ - 0.001, 0.002, 0, 16).translate(-0.092, 0.355, 0), ivoryM);   // toggle ring
-        hw.push(rodGeo(V(-0.092, 0.355, FZ), V(-0.094, 0.36, FZ + 0.03), 0.0014));
-        tips.push(czGeo(0.0042, 0.009, -0.094, 0.36, FZ + 0.026, 10));
+        add(g, slab(new THREE.Shape().absarc(0, 0, 0.017, 0, Math.PI * 2), FZ - 0.001, 0.002, 0, 16).translate(-0.09, 0.37, 0), ivoryM);   // toggle ring
+        hw.push(rodGeo(V(-0.09, 0.37, FZ), V(-0.092, 0.375, FZ + 0.03), 0.0014));
+        tips.push(czGeo(0.0042, 0.009, -0.092, 0.375, FZ + 0.026, 10));
         hw.push(new THREE.CylinderGeometry(0.005, 0.006, 0.012, 12).translate(0, -0.012, 0));
         for (let i = 0; i < 6; i++) {   // strings: tailpiece over the bridge to nut to post
           const r = 0.00056 - i * 0.00005, [px, py] = posts[i < 3 ? i : 8 - i], p = V(px + (i < 3 ? 0.0034 : -0.0034), py, 0.008).applyMatrix4(hsM);
@@ -2715,7 +2737,7 @@ export function mountOffice(container) {
         }
       }
       merged(g, hw, o.hw); merged(g, poles, steelM); merged(g, knobs, o.knob); merged(g, tips, o.tip); merged(g, blacks, blackM); merged(g, keys, o.keys); merged(g, strings, stringM);
-      return { g, jack: V(0.118, 0.065, FZ + 0.004) };
+      return { g, jack: V(0.12, 0.048, FZ + 0.004) };
     }
 
     // An A-frame stand: a padded cradle under the body, a post up behind it to a yoke round the neck, three legs.
@@ -2740,7 +2762,7 @@ export function mountOffice(container) {
     }
     const lp = guitar({ kind: 'lp', body: cherryM, neck: mat('#5e1913', { roughness: 0.3 }), board: 'rose', hw: chromeM, cover: chromeM, knob: mat('#b8862e', { roughness: 0.3, metalness: 0.25 }), tip: ivoryM, keys: mat('#dfe0c4', { roughness: 0.35 }) });
     const blue = guitar({ kind: 'strat', body: blueM, guard: [tortM, ivoryM], neck: mat('#c9a066', { roughness: 0.45 }), board: 'maple', pickups: ['S', 'S', 'S'], hw: goldM, cover: mat('#efe6cf', { roughness: 0.45 }), knob: goldM, tip: ivoryM, keys: goldM });
-    const cu = guitar({ kind: 'strat', body: copper, guard: [mat('#0d0d0d', { roughness: 0.25 }), mat('#e6e3dc')], neck: mat('#b88a52', { roughness: 0.45 }), board: 'rose', pickups: ['S', 'S', 'H'], hw: chromeM, cover: chromeM, knob: blackM, tip: blackM, keys: chromeM });
+    const cu = guitar({ kind: 'strat', body: copper, guard: [mat('#0d0d0d', { roughness: 0.25 }), mat('#e6e3dc')], neck: mat('#b88a52', { roughness: 0.45 }), board: 'rose', pickups: ['S', 'S', 'H'], hardtail: true, hw: chromeM, cover: chromeM, knob: blackM, tip: blackM, keys: chromeM });
     onStand(lp, 15.45, -14.5, 0.12); onStand(blue, 16.25, -14.5, 0); onStand(cu, 17.05, -14.5, -0.1);
 
     // Little practice amp: tolex, grille cloth, a chrome control strip with a red jewel light, a strap handle.
