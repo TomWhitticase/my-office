@@ -51,6 +51,14 @@ export async function collect(server) {
   out['GET /api/session/:id/chat'] = { ...chat, body: { ...chat.body, seq: typeof chat.body.seq } };   // seqs count up across transcripts
   const same = await get(`/api/session/${SESSION_IDS[0]}/chat?seq=${chat.body.seq}`);
   out['GET /api/session/:id/chat?seq=<same>'] = { ...same, body: Object.keys(same.body) };
+  // The desk terminal's feed: seqs count up across transcripts too, so only their order is kept.
+  const feed = await get(`/api/session/${SESSION_IDS[0]}/feed`), unseq = (b) => ({ ...b, seq: typeof b.seq, lines: b.lines?.map(({ s, ...l }) => l) });
+  out['GET /api/session/:id/feed'] = { ...feed, body: unseq(feed.body) };
+  const more = await get(`/api/session/${SESSION_IDS[0]}/feed?since=${feed.body.seq}`);
+  out['GET /api/session/:id/feed?since=<latest>'] = { ...more, body: unseq(more.body) };
+  out['GET /api/session/<unknown>/feed'] = await get('/api/session/nope-0000/feed');
+  out['POST /api/session/:id/feed'] = await req(port, 'POST', `/api/session/${SESSION_IDS[0]}/feed`, { headers: ok, body: {} });
+  out['GET /api/session/:id/feed (cross-site)'] = await get(`/api/session/${SESSION_IDS[0]}/feed`, { headers: { 'sec-fetch-site': 'cross-site' } });
   const m = await get('/api/machine');
   out['GET /api/machine'] = { ...m, body: shape(m.body) };
   const repos = await get('/api/repos');   // gh isn't signed in under the fixture HOME

@@ -1,7 +1,8 @@
 // Transcripts under ~/.claude/projects: what each session and subagent did, read as the files grow.
 const fs = require('fs');
 const path = require('path');
-const { CLAUDE, safeJSON, clip, ts, hourKey, minuteKey } = require('./util');
+const os = require('os');
+const { CLAUDE, safeJSON, readJSON, clip, ts, hourKey, minuteKey } = require('./util');
 
 const PROJECTS_DIR = path.join(CLAUDE, 'projects');
 const WINDOW_MS = 48 * 3600e3;          // transcripts touched within this window are tracked
@@ -12,6 +13,10 @@ const CODE_CAP = 8000;            // chars of written code kept per edit
 const CHAT_MAX = 300;             // conversation entries kept per main transcript (the in-office chat)
 const CHAT_CAP = 20000;           // chars kept per chat message
 let chatClock = 0;                // chat seqs come from one clock, so a transcript that is re-read from scratch never repeats one
+const FEED_MAX = 300;             // terminal feed lines kept per transcript (the desk's terminal pane)
+const FEED_CAP = 1200;            // chars kept per feed line
+const HOME_RE = new RegExp('^' + os.homedir().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+let feedClock = 0;                // feed seqs come from one clock too, so a session's and its subagents' lines merge in order
 
 // ---------- pricing (API-equivalent USD per MTok) ----------
 // [input, output, cacheRead]; cache writes are 1.25x input (5m) or 2x input (1h).
@@ -68,6 +73,50 @@ function codeOf(name, input = {}) {
   return null;
 }
 
+// ---------- the terminal feed ----------
+// What a session is doing, as lines for the terminal pane on the desk's code monitor: {s: seq, t, k: kind, x: text, n?: tool}.
+// Kinds: user, say, think, tool, out, err, note. Plain text: the office paints it on a canvas.
+const lineCount = (x) => (x ? String(x).replace(/\n$/, '').split('\n').length : 0);
+function feedDur(ms) {
+  const s = Math.round(ms / 1000);
+  return s < 60 ? `${s}s` : s < 3600 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${Math.floor(s / 3600)}h ${Math.floor(s / 60) % 60}m`;
+}
+function feedTool(name, input = {}, cwd) {
+  const rel = (p) => { p = String(p ?? ''); return cwd && p.startsWith(cwd + '/') ? p.slice(cwd.length + 1) : p.replace(HOME_RE, '~'); };
+  switch (name) {
+    case 'Bash': return `$ ${String(input.command ?? '').split('\n').slice(0, 4).join('\n')}`;
+    case 'Read': return rel(input.file_path) + (input.offset ? `:${input.offset}` : '') + (input.limit ? ` (${input.limit} lines)` : '');
+    case 'Write': return `${rel(input.file_path)}  (${lineCount(input.content)} lines)`;
+    case 'Edit': return `${rel(input.file_path)}  +${lineCount(input.new_string)} −${lineCount(input.old_string)}`;
+    case 'MultiEdit': {
+      const e = input.edits || [];
+      return `${rel(input.file_path)}  ${e.length} edits  +${e.reduce((a, x) => a + lineCount(x.new_string), 0)} −${e.reduce((a, x) => a + lineCount(x.old_string), 0)}`;
+    }
+    case 'NotebookEdit': return rel(input.notebook_path);
+    case 'Grep': return `"${input.pattern}"${input.path ? ` in ${rel(input.path)}` : ''}${input.glob ? ` (${input.glob})` : ''}`;
+    case 'Glob': return `${input.pattern}${input.path ? ` in ${rel(input.path)}` : ''}`;
+    case 'Agent': case 'Task': return `${input.subagent_type || 'agent'}: ${input.description || ''}`;
+    case 'WebFetch': return String(input.url ?? '');
+    case 'WebSearch': return `"${input.query}"`;
+    case 'Skill': return `/${input.skill}${input.args ? ' ' + input.args : ''}`;
+    case 'TodoWrite': {
+      const todos = input.todos || [], now = todos.find((x) => x.status === 'in_progress');
+      return `${todos.length} todos, ${todos.filter((x) => x.status === 'completed').length} done${now ? ` · now: ${now.activeForm || now.content}` : ''}`;
+    }
+    default: return clip(JSON.stringify(input), 300);
+  }
+}
+// A tool result, cut to a few lines: the tail of a command's output, the head of anything else.
+function feedResult(name, text) {
+  const lines = String(text ?? '').replace(/\r/g, '').replace(/\n+$/, '').split('\n');
+  if (name === 'Read') return lines.join('').trim() ? `Read ${lines.length} line${lines.length === 1 ? '' : 's'}` : 'Read';
+  if (!lines.join('').trim()) return '(no output)';
+  const N = 4, tail = name === 'Bash';
+  if (lines.length <= N) return lines.join('\n');
+  return tail ? `… +${lines.length - N} lines\n${lines.slice(-N).join('\n')}` : `${lines.slice(0, N).join('\n')}\n… +${lines.length - N} lines`;
+}
+const QUIET_RESULTS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit', 'TodoWrite']);   // their tool line already says it all
+
 function textOf(content) {
   if (typeof content === 'string') return content;
   if (Array.isArray(content)) return content.filter((c) => c.type === 'text').map((c) => c.text).join(' ');
@@ -107,6 +156,8 @@ class Transcript {
     this.contextTokens = 0;
     this.chat = [];                 // the conversation for the in-office chat: {t, role: user|assistant|tool|command|note, text, name?, queued?}
     this.chatSeq = 0;
+    this.feed = [];                 // the terminal feed (see feedTool)
+    this.feedN = 0;                 // lines ever added, so a change shows even when the ring is full
   }
 
   poll() {
@@ -134,6 +185,12 @@ class Transcript {
     if (this.isSubagent) return;
     this.chat.push(m); this.chatSeq = ++chatClock;
     if (this.chat.length > CHAT_MAX) this.chat.splice(0, this.chat.length - CHAT_MAX);
+  }
+
+  line(t, k, x, n) {
+    this.feed.push(n ? { s: ++feedClock, t: t || this.last, k, x: String(x).slice(0, FEED_CAP), n } : { s: ++feedClock, t: t || this.last, k, x: String(x).slice(0, FEED_CAP) });
+    this.feedN++;
+    if (this.feed.length > FEED_MAX) this.feed.splice(0, this.feed.length - FEED_MAX);
   }
 
   push(ev) {
@@ -172,14 +229,17 @@ class Transcript {
         if (d.subtype === 'turn_duration') {
           this.turns.push(d.durationMs);
           this.push({ t, kind: 'turn', ms: d.durationMs, n: d.messageCount });
+          this.line(t, 'note', `✓ Turn finished in ${feedDur(d.durationMs)}`);
         } else if (d.subtype === 'away_summary') {
           this.push({ t, kind: 'recap', text: clip(d.content, 400) });
         } else if (d.level === 'error' || /error/i.test(d.subtype || '')) {
           this.errors++;
           this.push({ t, kind: 'error', text: clip(d.content || d.subtype) });
+          this.line(t, 'err', d.content || d.subtype);
         } else if (d.subtype === 'compact_boundary') {
           this.push({ t, kind: 'compact', text: 'Context compacted' });
           this.say({ t, role: 'note', text: 'Context compacted' });
+          this.line(t, 'note', '✻ Context compacted');
         }
         return;
       case 'assistant': return this.ingestAssistant(d, t);
@@ -221,6 +281,7 @@ class Transcript {
         this.pending.set(c.id, { name: c.name, detail, t });
         this.push({ t, kind: 'tool', name: c.name, text: detail, id: c.id });
         this.say({ t, role: 'tool', name: c.name, text: detail });
+        this.line(t, 'tool', feedTool(c.name, c.input, this.cwd), c.name);
         if (CODE_TOOLS.has(c.name)) {
           const code = codeOf(c.name, c.input);
           if (code?.added) {
@@ -232,6 +293,9 @@ class Transcript {
       } else if (c.type === 'text' && c.text && c.text.trim()) {
         this.push({ t, kind: 'say', text: clip(c.text, 400) });
         this.say({ t, role: 'assistant', text: c.text.slice(0, CHAT_CAP) });
+        this.line(t, 'say', c.text.trim());
+      } else if (c.type === 'thinking' && c.thinking && c.thinking.trim()) {
+        this.line(t, 'think', c.thinking.trim());
       }
     }
   }
@@ -246,6 +310,9 @@ class Transcript {
         this.pending.delete(c.tool_use_id);
         const ev = this.events.findLast?.((e) => e.id === c.tool_use_id);
         if (ev && t && ev.t) ev.ms = t - ev.t;
+        const out = textOf(c.content);
+        if (c.is_error) this.line(t, 'err', feedResult('', out || 'Tool error'));
+        else if (!QUIET_RESULTS.has(p?.name)) this.line(t, 'out', feedResult(p?.name, out));
         if (c.is_error) {
           this.errors++;
           const ce = this.code.find((x) => x.id === c.tool_use_id);
@@ -262,13 +329,14 @@ class Transcript {
     if (kind === 'human' || (!kind && d.promptSource)) {
       if (/^<(local-command|command-name|command-message|system-reminder)/.test(text.trim())) {
         const cmd = text.match(/<command-name>([^<]+)</);
-        if (cmd) { this.push({ t, kind: 'command', text: cmd[1] }); this.say({ t, role: 'command', text: cmd[1] }); }
+        if (cmd) { this.push({ t, kind: 'command', text: cmd[1] }); this.say({ t, role: 'command', text: cmd[1] }); this.line(t, 'note', cmd[1]); }
         return;
       }
       this.prompts++;
       this.lastPrompt = clip(text, 300);
       this.lastPromptAt = t;
       this.push({ t, kind: 'prompt', text: clip(text, 600) });
+      this.line(t, 'user', text.trim());
       // Queued messages that later ran as this turn (several queued ones run together) are already in the chat.
       const qs = this.chat.slice(-30).filter((m) => m.role === 'user' && m.queued !== undefined && !m.ran && text.includes(m.text));
       for (const q of qs) { q.queued = false; q.ran = true; this.chatSeq = ++chatClock; }
@@ -277,6 +345,7 @@ class Transcript {
     } else if (kind === 'task-notification') {
       const s = text.match(/<summary>([\s\S]*?)<\/summary>/);
       this.push({ t, kind: 'notify', text: clip(s ? s[1] : text, 200) });
+      this.line(t, 'note', `⚑ ${s ? s[1] : clip(text, 300)}`);
     } else if (kind) {
       this.push({ t, kind: 'notify', text: clip(`${kind}: ${text}`, 200) });
     }
@@ -320,4 +389,29 @@ function track(file, now, force = false) {
   transcripts.set(file, new Transcript(file));
 }
 
-module.exports = { MAX_EVENTS, transcripts, bySession, listTranscripts, track };
+// A session's terminal feed with its subagents' lines (`a`: which subagent) merged in, after `since`, oldest first.
+const FEED_SEND = 150;
+const labels = new Map();   // subagent transcript file -> its label
+function sessionFeed(sessionId, since = 0) {
+  const tr = transcripts.get(bySession.get(sessionId));
+  if (!tr) return null;
+  let seq = 0, count = 0;
+  const out = [];
+  for (const x of [tr, ...[...transcripts.values()].filter((s) => s.parentId === sessionId)]) {
+    count += x.feedN;
+    let a = null;
+    if (x !== tr) {
+      if (!labels.has(x.file)) { const m = readJSON(x.file.replace(/\.jsonl$/, '.meta.json')) || {}; labels.set(x.file, m.description || m.agentType || 'subagent'); }
+      a = labels.get(x.file);
+    }
+    for (const l of x.feed) {
+      seq = Math.max(seq, l.s);
+      if (l.s > since) out.push(a ? { ...l, a } : l);
+    }
+  }
+  out.sort((p, q) => p.t - q.t || p.s - q.s);
+  return { seq, count, lines: out.slice(-FEED_SEND) };
+}
+const feedCount = (sessionId, tr) => { let n = tr.feedN; for (const x of transcripts.values()) if (x.parentId === sessionId) n += x.feedN; return n; };
+
+module.exports = { MAX_EVENTS, transcripts, sessionFeed, feedCount, bySession, listTranscripts, track };

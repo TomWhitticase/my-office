@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { AISLE, angDiff, box, clamp, cyl, damp, dash, ease, F, faceTo, hash, makeCanvas, mat, PP } from './util.js';
 import { titleOf } from '../chat.js';
-import { drawAway, drawCode, drawFeed, drawLabel, drawOff, drawRoster, drawSession, drawUsage, drawWall, tokenRoll } from './painters.js';
+import { drawAway, drawCode, drawFeed, drawLabel, drawOff, drawRoster, drawSession, drawUsage, drawWall, TERM_TOP, tokenRoll } from './painters.js';
 
 // ---------- people ----------
 export const SKIN = ['#f1c7a5', '#e0ac85', '#c68863', '#a0674a', '#7a4a33', '#ffdbbf'];
@@ -387,7 +387,7 @@ export function installSync(ctx) {
     d.codeDrawn = now;
     const len = code ? code.added.length : 0;
     const shown = typing ? Math.max(1, Math.floor(len * ease(clamp((now - a.start) / a.dur, 0, 1)))) : len;
-    drawCode(d.codeScr, s, d.owner.color, shown, recent ? Math.floor(now / 450) % 2 === 0 : null);
+    drawCode(d.codeScr, s, d.owner.color, shown, recent ? Math.floor(now / 450) % 2 === 0 : null, TERM_TOP);
     d.codeScr.tex.needsUpdate = true;
     d.codePainted = 'code';
   }

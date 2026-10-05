@@ -17,7 +17,7 @@ const { safeJSON, clients } = require('./server/util');
 const { TV_UA_TAG, trustedHost, deny } = require('./server/security');
 const { office, putOffice } = require('./server/office-settings');
 const { listRepos, repoDetail, treeJob, repoBlob } = require('./server/repos');
-const { MAX_EVENTS, transcripts, bySession, listTranscripts } = require('./server/transcripts');
+const { MAX_EVENTS, transcripts, bySession, listTranscripts, sessionFeed } = require('./server/transcripts');
 const S = require('./server/state');   // live values: S.registry, S.procStats, S.state, S.stateJSON
 const { readRegistry, pollProcs, tick, transcriptSummary, subagentsOf } = S;
 const { machineJSON } = require('./server/machine');
@@ -150,6 +150,16 @@ const server = http.createServer((req, res) => {
       res.end(JSON.stringify({ ...body, ...o }));
     });
     return;
+  }
+  // The terminal feed for a desk's code monitor: everything the session (and its subagents) did, after ?since=<seq>.
+  // Read-only, and like the repos: our own Host, no cross-site fetches.
+  const feed = url.pathname.match(/^\/api\/session\/([\w-]+)\/feed$/);
+  if (feed) {
+    const reply = (code, o) => { res.writeHead(code, { 'content-type': 'application/json', 'cache-control': 'no-store' }); res.end(JSON.stringify(o)); };
+    if (req.method !== 'GET') return reply(405, { error: 'GET only' });
+    if (!trustedHost(req.headers.host || '') || /^(cross-site|same-site)$/.test(req.headers['sec-fetch-site'] || '')) return reply(403, { error: 'refused' });
+    const body = sessionFeed(feed[1], Number(url.searchParams.get('since')) || 0);
+    return body ? reply(200, body) : reply(404, { error: 'no such session' });
   }
   const send = url.pathname.match(/^\/api\/session\/([\w-]+)\/send$/);
   if (send) {

@@ -5,7 +5,7 @@ const path = require('path');
 const os = require('os');
 const { execFile } = require('child_process');
 const { CLAUDE, readJSON, pidAlive, hourKey, minuteKey, clients } = require('./util');
-const { transcripts, bySession, track } = require('./transcripts');
+const { transcripts, bySession, track, feedCount } = require('./transcripts');
 
 const SESSIONS_DIR = path.join(CLAUDE, 'sessions');
 const STATUSLINE_DIRS = [path.join(CLAUDE, 'my-office', 'statusline'), path.join(CLAUDE, 'dashboard', 'statusline')];
@@ -170,6 +170,7 @@ function buildState() {
       },
       transcript: tr ? transcriptSummary(tr) : null,
       code: tr ? latestCode(r.sessionId, tr) : null,
+      feedN: tr ? feedCount(r.sessionId, tr) : 0,   // terminal feed lines so far: the office fetches /feed when this moves
       subagents: { total: subs.length, active: subs.filter((s) => s.active).length, cost: subs.reduce((a, s) => a + s.cost, 0), list: subs.slice(0, 12) },
     };
   }).map((s) => ({ ...s, cost: sessionCost(s) }))
