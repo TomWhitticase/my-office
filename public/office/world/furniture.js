@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { artTexture, box, cyl, hash, leafTexture, mat, mergedBoxes, rng, ROOM, SEATED_EYE, solid } from '../util.js';
 
+/** @param {import('../ctx.js').OfficeCtx} ctx */
 export function install(ctx) {
   const { world, lamps } = ctx;
   Object.assign(ctx, { sofa, plant, bookshelf, floorLamp, pendant, addLamp, officeChair, monitor, art, smallPlant, addSeat, plantKit });

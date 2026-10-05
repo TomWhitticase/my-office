@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { box, brickTexture, mat, mergedBoxes, ROOM, rugTexture, solid, woodTexture } from '../util.js';
 
+/** @param {import('../ctx.js').OfficeCtx} ctx */
 export function install(ctx) {
   const { world } = ctx;
   Object.assign(ctx, { rug });
@@ -119,6 +120,7 @@ export function install(ctx) {
   Object.assign(ctx, { rugs, frameM, winRuns, winKey, WIN, shaftU, wallM, ceilingM, shafts });
 }
 
+/** @param {import('../ctx.js').OfficeCtx} ctx */
 export function installReception(ctx) {
   const { world } = ctx;
   // Reception, side-on to the lift core, the receptionist's back to the floor sign.

@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { artTexture, box, clamp, colliders, cyl, dash, ease, FONT, lerp, makeCanvas, makeScreen, mat, mergedBoxes, ROOM, solid } from '../util.js';
 import { CSS3DObject } from 'three/addons/renderers/CSS3DRenderer.js';
 
+/** @param {import('../ctx.js').OfficeCtx} ctx */
 export function install(ctx) {
   const { world, frameM, winRuns, winKey, WIN, shaftU } = ctx;
   Object.assign(ctx, { glassDoor, wallGroup, hangBlind, officeFx });
@@ -157,6 +158,7 @@ export function install(ctx) {
   ctx.hoverTargets(() => world.children.filter((o) => o.userData.glass), 100);
 }
 
+/** @param {import('../ctx.js').OfficeCtx} ctx */
 export function installScreen(ctx) {
   const { OWNER, monitor, world, cssScene, laptop } = ctx;
   Object.assign(ctx, { placeHole, syncCss, layoutCenterMonitor });
@@ -215,6 +217,7 @@ export function installScreen(ctx) {
   Object.assign(ctx, { hole, holeM, lapScr, center, screenWorld, domScreen });
 }
 
+/** @param {import('../ctx.js').OfficeCtx} ctx */
 export function installDesk(ctx) {
   const { world, legM, officeChair, monitor, sofa, plant, bookshelf, art, smallPlant, pendant, floorLamp, markerBoard, rug } = ctx;
   const OWNER = { x: 13, z: -11.6 };

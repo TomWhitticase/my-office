@@ -2,6 +2,7 @@
 
 import { colliders, dash, ROOM } from '../util.js';
 
+/** @param {import('../ctx.js').OfficeCtx} ctx */
 export function install(ctx) {
   const { mapCtx, camera } = ctx;
   Object.assign(ctx, { drawMap });

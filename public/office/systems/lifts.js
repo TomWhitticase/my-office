@@ -1,3 +1,4 @@
+// @ts-check
 // The building's lifts: the stone-clad core in the lobby with two cars either side of the call panel and a hall lantern
 // over each (install); the cars' cycle, carrying sessions in and out (installCycle); and riding them yourself, the car
 // panels and the FLOORS table (installRiding). Floors register themselves with ctx.addFloor; lifts never import floors.
@@ -13,6 +14,7 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
+/** @param {import('../ctx.js').OfficeCtx} ctx */
 export function install(ctx) {
   const { world } = ctx;
   Object.assign(ctx, { paintIndicator });
@@ -22,6 +24,7 @@ export function install(ctx) {
   // Sessions arrive and leave by lift: see the lift cycle next to the people sync.
   let liftSteelM;   // brushed steel for every lift's doors and surrounds (set below)
   const CORE = { x0: LIFT.x, x1: 20, z0: -3.47, z1: 2.46 }, DOOR = { w: 1.1, h: 2.2 }, CAR = { d: 1.8, w: 1.5, h: 2.35 };
+  /** @type {import('../ctx.js').Lift[] & { callM?: any, callHit?: any }} */
   const lifts = [[LIFT.z - 0.9, 48],
     [LIFT.z + 0.9, 12]].map(([z, floor]) =>
     ({ z, at: { x: LIFT.x, z }, floor, goal: floor, dir: 0, state: floor === 48 ? 'home' : 'away', t: 0, doorK: 0, nIn: 0,
@@ -116,6 +119,7 @@ export function install(ctx) {
   }, 20);
 }
 
+/** @param {import('../ctx.js').OfficeCtx} ctx */
 export function installCycle(ctx) {
   const { lifts, world, paintIndicator, LOBBY, DOOR } = ctx;
   Object.assign(ctx, { setLift, arrive, leave, liftFx });
@@ -236,6 +240,7 @@ export function installCycle(ctx) {
   ctx.onFrame((dt) => liftFx(dt), 20);
 }
 
+/** @param {import('../ctx.js').OfficeCtx} ctx */
 export function installRiding(ctx) {
   const { lifts, world, CAR, DOOR, floorName, toast, setLift, paintIndicator } = ctx;
   Object.assign(ctx, { callLift, pressFloor, myLift, myCar, carPanel, paintPanel, carCollide, resetLift });
@@ -247,8 +252,10 @@ export function installRiding(ctx) {
   // { n, label, title, scene, enter(z), bound(p), map(), colliders, hits, look } plus the car from liftShaft (see setFloor, renderFloor).
   // A floor with `y` instead of a scene is part of the office scene, that far up (THE ROOF): drawn by renderFrame, with leave().
   const ARCHIVE = -2;
-  const OFFICE = { n: 48, label: 'OFFICE', title: 'Office' }, FLOORS = [OFFICE];
-  let away = null;
+  /** @typedef {import('../ctx.js').Floor} Floor */
+  const OFFICE = /** @type {Floor} */ ({ n: 48, label: 'OFFICE', title: 'Office' }), FLOORS = /** @type {Floor[]} */ ([OFFICE]);
+  let away = /** @type {Floor | null} */ (null);
+  /** @param {Floor} F */
   const addFloor = (F) => { FLOORS.push(F); FLOORS.sort((a, b) => b.n - a.n); for (const P of carPanels()) paintPanel(P, null); };
   const carPanels = () => [...lifts.map((L) => L.panel), ...FLOORS.filter((F) => F.panel).map((F) => F.panel)];
   const mine = { L: null, call: false, goal: null, from: 48, to: 48, k: 0, dur: 1 };
@@ -388,6 +395,7 @@ export function installRiding(ctx) {
   ctx.hoverTargets(() => [lifts.callHit, ...lifts.map((L) => L.panel.mesh)], 10);
 }
 
+/** @param {import('../ctx.js').OfficeCtx} ctx */
 export function installShafts(ctx) {
   const { CAR, DOOR, ARCHIVE, hitBox, carPanel, paintPanel, cssRenderer, mine, tvQuiet, container, renderer, hemi, scene, camera } = ctx;
   Object.assign(ctx, { setFloor, liftShaft, renderFloor });

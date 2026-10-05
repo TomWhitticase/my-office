@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { box, clamp, cyl, dash, fit, FONT, makeCanvas, makeScreen, mat, mergedBoxes, rng, ROOM, SEATED_EYE, solid, sstep } from '../util.js';
 
+/** @param {import('../ctx.js').OfficeCtx} ctx */
 export function install(ctx) {
   const { world, smallPlant, doors, pendant, addSeat } = ctx;
   // ----- kitchen -----

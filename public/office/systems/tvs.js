@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { escapeHtml } from '../../chat.js';
 import { box, clamp, cyl, dash, fit, FONT, makeScreen, ROOM, sstep } from '../util.js';
 
+/** @param {import('../ctx.js').OfficeCtx} ctx */
 export function install(ctx) {
   const { world, camera, door, blinds } = ctx;
   Object.assign(ctx, { tvQuiet, openTvPanel, updateTVs, tvSocket });
@@ -184,6 +185,7 @@ export function install(ctx) {
   ctx.hoverTargets(() => tvs.map((t) => t.scr.mesh), 70);
 }
 
+/** @param {import('../ctx.js').OfficeCtx} ctx */
 export function installUse(ctx) {
   const { hud, renderer, keys, camera, tween, camPose, player, ALT, tvSend, openTvPanel, IS_MAC } = ctx;
   Object.assign(ctx, { leaveTv, tvBarSync, useTv, tvMouse });

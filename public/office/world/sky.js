@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { clamp, dash, lerp, sstep } from '../util.js';
 
+/** @param {import('../ctx.js').OfficeCtx} ctx */
 export function install(ctx) {
   const { scene, hud, renderer, pmrem } = ctx;
   Object.assign(ctx, { setSpeed, updateSky, updateClock });

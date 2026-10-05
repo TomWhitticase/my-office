@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { angDiff, clamp, colliders, damp, dash, ease, EYE, lerp, LIFT, REDUCED, ROOM, SEATED_EYE } from '../util.js';
 
+/** @param {import('../ctx.js').OfficeCtx} ctx */
 export function install(ctx) {
   const { OWNER, renderer, laptop, camera, lapScr, center, screenWorld, hole, placeHole, carCollide, people, flyPlayer, sfx, openTvPanel, hud, mine, inMyCar,
     toast, setOverlays, setSpeed, SPEEDS, clockState } = ctx;

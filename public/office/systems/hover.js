@@ -6,6 +6,7 @@ import { CAN_CHAT, escapeHtml, titleOf } from '../../chat.js';
 import { F } from '../util.js';
 import { statusOf } from '../painters.js';
 
+/** @param {import('../ctx.js').OfficeCtx} ctx */
 export function install(ctx) {
   const { camera, targetEl, seats, player, tvs, seatTaken, hostOf } = ctx;
   Object.assign(ctx, { updateHover });

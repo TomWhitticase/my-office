@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { box, cyl, mat, mergedBoxes, solid } from '../util.js';
 
+/** @param {import('../ctx.js').OfficeCtx} ctx */
 export function install(ctx) {
   const { bookshelf, smallPlant, world, sofa, plant } = ctx;
   Object.assign(ctx, { bins });

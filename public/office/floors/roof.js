@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { box, clamp, colliders, cyl, FONT, lerp, LIFT, makeCanvas, makeScreen, mat, mergedBoxes, rng, ROOM, SEATED_EYE } from '../util.js';
 
+/** @param {import('../ctx.js').OfficeCtx} ctx */
 export function install(ctx) {
   const { ROOF, seats, world, CAR, CORE, lifts, hitBox, carPanel, paintPanel, city, plantKit, sofa, lamps, glowMat, addFloor, DOOR, addSeat,
     paintIndicator, mapCtx, camera } = ctx;

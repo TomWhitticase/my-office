@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { box, cyl, FONT, makeCanvas, mat } from '../util.js';
 
+/** @param {import('../ctx.js').OfficeCtx} ctx */
 export function install(ctx) {
   const { world, clockState } = ctx;
   Object.assign(ctx, { updateClocks });

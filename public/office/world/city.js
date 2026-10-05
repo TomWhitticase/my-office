@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { clamp, lerp, makeCanvas, mat, rng, sstep } from '../util.js';
 
+/** @param {import('../ctx.js').OfficeCtx} ctx */
 export function install(ctx) {
   const { world, skyU, scene, RAD } = ctx;
   // ----- the city outside (we're on the ~48th floor, ~175 m up) -----

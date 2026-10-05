@@ -11,6 +11,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { sstep } from '../util.js';
 
+/** @param {import('../ctx.js').OfficeCtx} ctx */
 export function install(ctx) {
   const { world, camera, renderer, scene, shafts } = ctx;
   Object.assign(ctx, { setQuality });
@@ -74,6 +75,7 @@ export function install(ctx) {
   Object.defineProperty(ctx, 'quality', { get: () => hq, set: (v) => { hq = v; }, enumerable: true });   // high quality (G)
 }
 
+/** @param {import('../ctx.js').OfficeCtx} ctx */
 export function installRender(ctx) {
   const { hole, holeM, camera, sunDir, rays, renderer, composer, scene } = ctx;
   Object.assign(ctx, { renderFrame });
