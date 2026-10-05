@@ -214,7 +214,8 @@ export function limitBar(ctx, x, y, w, label, l) {
 export function drawUsage(scr, S) {
   const { ctx, W } = scr, t = S.totals;
   header(ctx, W, 'Usage', S.host);
-  ctx.font = `600 15px ${FONT}`; ctx.fillStyle = '#8b8a85'; ctx.fillText('RUNNING', 30, 100); ctx.fillText('TODAY · API-EQ.', 300, 100); ctx.fillText('LIVE · LIFETIME', 560, 100);
+  ctx.font = `600 15px ${FONT}`; ctx.fillStyle = '#8b8a85'; ctx.fillText('RUNNING', 30, 100); ctx.fillText('TODAY · API-EQ.', 300, 100);
+  ctx.fillText('LIVE · LIFETIME', 560, 100);
   ctx.font = `700 48px ${FONT}`; ctx.fillStyle = '#fff';
   ctx.fillText(String(t.live), 30, 152); ctx.fillText(F.usd(t.todayCost), 300, 152); ctx.fillText(F.usd(t.liveCost), 560, 152);
   ctx.font = `500 17px ${FONT}`; ctx.fillStyle = '#22c55e'; ctx.fillText(`${t.working} working`, 30, 182);
@@ -254,7 +255,8 @@ export const tokenRoll = { shown: null, target: 0, from: 0, at: 0 };
 export function drawFeed(scr, S) {
   const { ctx, W } = scr;
   header(ctx, W, 'Live activity', 'all sessions');
-  ctx.fillStyle = '#22c55e'; ctx.beginPath(); ctx.arc(W - 46, 40, 9, 0, Math.PI * 2); ctx.globalAlpha = 0.6 + 0.4 * Math.sin(Date.now() / 300); ctx.fill(); ctx.globalAlpha = 1;
+  ctx.fillStyle = '#22c55e'; ctx.beginPath(); ctx.arc(W - 46, 40, 9, 0, Math.PI * 2); ctx.globalAlpha = 0.6 + 0.4 * Math.sin(Date.now() / 300); ctx.fill();
+  ctx.globalAlpha = 1;
   const t = S.totals, n = Math.round(tokenRoll.shown ?? t.todayTokens);
   ctx.textAlign = 'right';
   ctx.font = `700 34px ${MONO}`; ctx.fillStyle = '#f3f2ec'; ctx.fillText(n.toLocaleString(), W - 74, 52);
@@ -300,7 +302,8 @@ export function drawLabel(lab, s, color) {
   ctx.fillStyle = color; ctx.beginPath(); ctx.arc(36, 46, 11, 0, Math.PI * 2); ctx.fill();
   ctx.font = `700 30px ${FONT}`; ctx.fillStyle = '#fff'; ctx.fillText(fit(ctx, titleOf(s), W - 80), 58, 57);
   const tr = s.transcript || {};
-  let sub = s.status === 'idle' ? `idle ${F.dur(Date.now() - s.statusSince)} · ${F.usd(s.cost)}` : `${st.text.replace(/^. /, '').toLowerCase()}${tr.pendingTool ? ' · ' + tr.pendingTool.name : ''} · ${F.usd(s.cost)}`;
+  let sub = s.status === 'idle' ? `idle ${F.dur(Date.now() - s.statusSince)} · ${F.usd(s.cost)}` :
+    `${st.text.replace(/^. /, '').toLowerCase()}${tr.pendingTool ? ' · ' + tr.pendingTool.name : ''} · ${F.usd(s.cost)}`;
   if (s.subagents.active) sub += ` · ${s.subagents.active} subagents`;
   ctx.font = `500 22px ${FONT}`; ctx.fillStyle = st.color; ctx.fillText(fit(ctx, sub, W - 58), 32, 98);
 }

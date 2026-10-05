@@ -3,7 +3,8 @@
 // panels and the FLOORS table (installRiding). Floors register themselves with ctx.addFloor; lifts never import floors.
 
 import * as THREE from 'three';
-import { AISLE, box, clamp, cyl, damp, dash, ease, faceTo, fit, FONT, lerp, LIFT, makeCanvas, makeScreen, mat, mergedBoxes, rng, ROOM, solid } from '../util.js';
+import { AISLE, box, clamp, cyl, damp, dash, ease, faceTo, fit, FONT, lerp, LIFT, makeCanvas, makeScreen, mat, mergedBoxes, rng, ROOM,
+  solid } from '../util.js';
 import { MONO } from '../painters.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
@@ -21,12 +22,15 @@ export function install(ctx) {
   // Sessions arrive and leave by lift: see the lift cycle next to the people sync.
   let liftSteelM;   // brushed steel for every lift's doors and surrounds (set below)
   const CORE = { x0: LIFT.x, x1: 20, z0: -3.47, z1: 2.46 }, DOOR = { w: 1.1, h: 2.2 }, CAR = { d: 1.8, w: 1.5, h: 2.35 };
-  const lifts = [[LIFT.z - 0.9, 48], [LIFT.z + 0.9, 12]].map(([z, floor]) => ({ z, at: { x: LIFT.x, z }, floor, goal: floor, dir: 0, state: floor === 48 ? 'home' : 'away', t: 0, doorK: 0, nIn: 0,
+  const lifts = [[LIFT.z - 0.9, 48],
+    [LIFT.z + 0.9, 12]].map(([z, floor]) =>
+    ({ z, at: { x: LIFT.x, z }, floor, goal: floor, dir: 0, state: floor === 48 ? 'home' : 'away', t: 0, doorK: 0, nIn: 0,
     pending: [], cargo: new Set(), exits: new Set(), callers: new Set(), riders: new Set() }));
   {
     const brushed = makeCanvas(64, 256), R = rng(31);
     brushed.ctx.fillStyle = '#c9cdd2'; brushed.ctx.fillRect(0, 0, 64, 256);
-    for (let i = 0; i < 260; i++) { brushed.ctx.fillStyle = `rgba(${R() > 0.5 ? '255,255,255' : '40,44,50'},${0.05 + R() * 0.08})`; brushed.ctx.fillRect(R() * 64, 0, 0.6 + R(), 256); }
+    for (let i = 0; i < 260; i++) { brushed.ctx.fillStyle = `rgba(${R() > 0.5 ? '255,255,255' : '40,44,50'},${0.05 + R() * 0.08})`;
+      brushed.ctx.fillRect(R() * 64, 0, 0.6 + R(), 256); }
     brushed.tex.needsUpdate = true;
     const steelM = liftSteelM = new THREE.MeshStandardMaterial({ map: brushed.tex, metalness: 0.85, roughness: 0.32 });   // shared by every floor's lift
     const fx = LIFT.x + 0.05, cx = LIFT.x + 0.1 + CAR.d / 2, back = LIFT.x + 0.1 + CAR.d;
@@ -37,31 +41,39 @@ export function install(ctx) {
       stone.push([0.1, ROOM.h, len, fx, ROOM.h / 2, mid, '#77716a'], [0.02, 0.1, len, LIFT.x - 0.01, 0.05, mid, '#3b3835']);
       for (let y = 0.9; y < ROOM.h; y += 0.9) stone.push([0.012, 0.006, len, LIFT.x - 0.001, y, mid, '#5d5852']);   // panel joints
     }
-    stone.push([CORE.x1 - LIFT.x, ROOM.h, 0.06, (LIFT.x + CORE.x1) / 2, ROOM.h / 2, CORE.z0 + 0.03, '#77716a'], [CORE.x1 - LIFT.x, ROOM.h, 0.06, (LIFT.x + CORE.x1) / 2, ROOM.h / 2, CORE.z1 - 0.03, '#77716a']);
+    stone.push([CORE.x1 - LIFT.x, ROOM.h, 0.06, (LIFT.x + CORE.x1) / 2, ROOM.h / 2, CORE.z0 + 0.03, '#77716a'],
+      [CORE.x1 - LIFT.x, ROOM.h, 0.06, (LIFT.x + CORE.x1) / 2, ROOM.h / 2, CORE.z1 - 0.03, '#77716a']);
     for (const L of lifts) {
       const z = L.z;
       stone.push([0.1, ROOM.h - DOOR.h, DOOR.w, fx, (ROOM.h + DOOR.h) / 2, z, '#77716a']);
       // Surround: jambs, head, threshold and the indicator housing.
       for (const s of [-1, 1]) steel.push([0.05, DOOR.h + 0.08, 0.08, LIFT.x - 0.02, (DOOR.h + 0.08) / 2, z + s * (DOOR.w / 2 + 0.04)]);
-      steel.push([0.05, 0.08, DOOR.w + 0.16, LIFT.x - 0.02, DOOR.h + 0.04, z], [0.34, 0.012, DOOR.w, fx + 0.02, 0.006, z], [0.04, 0.26, 0.56, LIFT.x - 0.02, 2.5, z]);
+      steel.push([0.05, 0.08, DOOR.w + 0.16, LIFT.x - 0.02, DOOR.h + 0.04, z], [0.34, 0.012, DOOR.w, fx + 0.02, 0.006, z],
+        [0.04, 0.26, 0.56, LIFT.x - 0.02, 2.5, z]);
       // Car: floor, ceiling, steel sides, wood back with a mirror over it, handrails.
-      car.push([CAR.d, 0.02, CAR.w, cx, 0.01, z, '#2c2b2a'], [CAR.d, 0.04, CAR.w, cx, CAR.h, z, '#232426'], [0.04, CAR.h, CAR.w, back, CAR.h / 2, z, '#8a6446']);
-      for (const s of [-1, 1]) car.push([CAR.d, CAR.h, 0.04, cx, CAR.h / 2, z + s * CAR.w / 2, '#aeb4ba'], [CAR.d - 0.3, 0.035, 0.035, cx + 0.1, 0.95, z + s * (CAR.w / 2 - 0.06), '#dfe2e5']);
+      car.push([CAR.d, 0.02, CAR.w, cx, 0.01, z, '#2c2b2a'], [CAR.d, 0.04, CAR.w, cx, CAR.h, z, '#232426'],
+        [0.04, CAR.h, CAR.w, back, CAR.h / 2, z, '#8a6446']);
+      for (const s of [-1, 1]) car.push([CAR.d, CAR.h, 0.04, cx, CAR.h / 2, z + s * CAR.w / 2, '#aeb4ba'],
+        [CAR.d - 0.3, 0.035, 0.035, cx + 0.1, 0.95, z + s * (CAR.w / 2 - 0.06), '#dfe2e5']);
       car.push([0.035, 0.035, CAR.w - 0.2, back - 0.06, 0.95, z, '#dfe2e5'], [0.02, 0.4, 0.16, LIFT.x + 0.35, 1.2, z + CAR.w / 2 - 0.03, '#5a5f66']);
       mirror.push([0.01, 1.05, CAR.w - 0.3, back - 0.025, 1.65, z]);
       glow.push([CAR.d - 0.5, 0.01, CAR.w - 0.45, cx, CAR.h - 0.025, z]);
       // Two leaves meeting in the middle; they slide apart into the wall.
-      L.leaves = [-1, 1].map((s) => box(world, 0.03, DOOR.h, DOOR.w / 2 + 0.01, '', LIFT.x + 0.13, DOOR.h / 2, z + s * DOOR.w / 4, { material: steelM, shadow: false }));   // behind the stone face, so they slide into the wall
+      // behind the stone face, so they slide into the wall
+      L.leaves = [-1,
+        1].map((s) => box(world, 0.03, DOOR.h, DOOR.w / 2 + 0.01, '', LIFT.x + 0.13, DOOR.h / 2, z + s * DOOR.w / 4, { material: steelM, shadow: false }));
       L.ind = makeScreen(world, 0.48, 0.2, 192, 80, LIFT.x - 0.045, 2.5, z);
       L.ind.mesh.rotation.y = -Math.PI / 2;
     }
     steel.push([0.02, 0.38, 0.15, LIFT.x - 0.01, 1.1, LIFT.z]);   // call panel
     world.add(mergedBoxes(stone, mat('#ffffff', { vertexColors: true, roughness: 0.55 })), mergedBoxes(steel, steelM),
-      mergedBoxes(car, mat('#ffffff', { vertexColors: true, roughness: 0.45, metalness: 0.35 })), mergedBoxes(mirror, mat('#dfe4e8', { metalness: 1, roughness: 0.05 })));
+      mergedBoxes(car, mat('#ffffff', { vertexColors: true, roughness: 0.45, metalness: 0.35 })),
+        mergedBoxes(mirror, mat('#dfe4e8', { metalness: 1, roughness: 0.05 })));
     const carLight = mergedBoxes(glow, new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: '#fff3df', emissiveIntensity: 1.6 }));
     carLight.castShadow = false; world.add(carLight);
     lifts.callM = new THREE.MeshStandardMaterial({ color: '#e6e3dc', emissive: '#ffb347', emissiveIntensity: 0, roughness: 0.4 });
-    for (const y of [1.16, 1.04]) cyl(world, 0.026, 0.026, 0.02, '', LIFT.x - 0.025, y, LIFT.z, { material: y > 1.1 ? mat('#e6e3dc', { roughness: 0.4 }) : lifts.callM, seg: 16, shadow: false }).rotation.z = Math.PI / 2;
+    for (const y of [1.16, 1.04]) cyl(world, 0.026, 0.026, 0.02, '', LIFT.x - 0.025, y, LIFT.z,
+      { material: y > 1.1 ? mat('#e6e3dc', { roughness: 0.4 }) : lifts.callM, seg: 16, shadow: false }).rotation.z = Math.PI / 2;
     solid((LIFT.x + CORE.x1) / 2, (CORE.z0 + CORE.z1) / 2, CORE.x1 - LIFT.x, CORE.z1 - CORE.z0);
     // The floor sign on the core behind reception: "48" and a building directory.
     const sign = makeScreen(world, 1.5, 1.0, 600, 400, LIFT.x - 0.012, 1.95, -2.3), c = sign.ctx;
@@ -73,8 +85,10 @@ export function install(ctx) {
     c.font = `400 24px ${FONT}`; c.fillText(fit(c, dash.officeName(), 310), 250, 132); c.fillText('Desks · Meeting rooms · Lounge', 250, 164);
     c.fillStyle = 'rgba(255,255,255,.14)'; c.fillRect(40, 214, 520, 2);
     c.font = `400 22px ${FONT}`; c.fillStyle = '#9a9890';
-    [['R', 'Roof terrace · Helipad'], ['49', 'Plant room'], ['47', 'Server hall'], ['G', 'Lobby · Street · Coffee'], ['B2', 'The Archive']].forEach(([f, t], i) => {
-      c.fillStyle = '#f2efe8'; c.font = `600 22px ${FONT}`; c.fillText(f, 44, 252 + i * 34); c.fillStyle = '#9a9890'; c.font = `400 22px ${FONT}`; c.fillText(t, 100, 252 + i * 34);
+    [['R', 'Roof terrace · Helipad'], ['49', 'Plant room'], ['47', 'Server hall'], ['G', 'Lobby · Street · Coffee'],
+      ['B2', 'The Archive']].forEach(([f, t], i) => {
+      c.fillStyle = '#f2efe8'; c.font = `600 22px ${FONT}`; c.fillText(f, 44, 252 + i * 34); c.fillStyle = '#9a9890'; c.font = `400 22px ${FONT}`;
+      c.fillText(t, 100, 252 + i * 34);
     });
     sign.mesh.material = new THREE.MeshStandardMaterial({ map: sign.tex, roughness: 0.5 }); sign.tex.needsUpdate = true;
   }
@@ -88,7 +102,8 @@ export function install(ctx) {
     const { ctx, W, H } = L.ind;
     ctx.fillStyle = '#0b0b0c'; ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = '#ffb347'; ctx.font = `600 58px ${MONO}`; ctx.textAlign = 'center'; ctx.fillText(floorName(f), W / 2 + 22, 62); ctx.textAlign = 'left';
-    if (L.dir) { ctx.beginPath(); ctx.moveTo(26, L.dir > 0 ? 22 : 58); ctx.lineTo(48, L.dir > 0 ? 22 : 58); ctx.lineTo(37, L.dir > 0 ? 8 : 72); ctx.lineTo(26, L.dir > 0 ? 22 : 58); ctx.fill(); ctx.fillRect(33, L.dir > 0 ? 22 : 34, 8, 24); }
+    if (L.dir) { ctx.beginPath(); ctx.moveTo(26, L.dir > 0 ? 22 : 58); ctx.lineTo(48, L.dir > 0 ? 22 : 58); ctx.lineTo(37, L.dir > 0 ? 8 : 72);
+      ctx.lineTo(26, L.dir > 0 ? 22 : 58); ctx.fill(); ctx.fillRect(33, L.dir > 0 ? 22 : 34, 8, 24); }
     L.ind.tex.needsUpdate = true;
   }
   lifts.forEach(paintIndicator);
@@ -111,11 +126,15 @@ export function installCycle(ctx) {
   // or standing in the doorway, and reopen for them while closing.
   const PANEL = { x: LIFT.x - 0.45, z: LIFT.z };
   const inCar = (L, i) => ({ x: LIFT.x + 1.05 + (i % 2) * 0.45, z: L.z + [0, -0.4, 0.4][Math.floor(i / 2) % 3] });
-  const carSpot = (L, pos) => ({ key: 'lift', kind: 'lift', pos, rotY: -Math.PI / 2, route: [{ x: LIFT.x - 1.2, z: AISLE }, { x: LIFT.x - 0.6, z: L.z }, pos] });
+  const carSpot = (L, pos) =>
+    ({ key: 'lift', kind: 'lift', pos, rotY: -Math.PI / 2, route: [{ x: LIFT.x - 1.2, z: AISLE }, { x: LIFT.x - 0.6, z: L.z }, pos] });
   const calling = (L) => [...L.callers].some((p) => p.lv.stage !== 'walk');
-  const waitAt = (L) => ({ x: LIFT.x - 0.95 - 0.45 * ([...L.callers].filter((q) => q.lv.stage !== 'walk').length % 3), z: L.z + (L === lifts[0] ? -0.6 : 0.6) });
+  const waitAt = (L) =>
+    ({ x: LIFT.x - 0.95 - 0.45 * ([...L.callers].filter((q) => q.lv.stage !== 'walk').length % 3), z: L.z + (L === lifts[0] ? -0.6 : 0.6) });
   const theirs = () => lifts.filter((L) => !L.player);   // the cars sessions may use: not the one you've called
-  const inDoorway = (L) => [...ctx.people.values()].some((p) => p.lv?.stage !== 'in' && Math.abs(p.root.position.z - L.z) < 0.7 && p.root.position.x > LIFT.x - 0.6 && p.root.position.x < LIFT.x + 0.5);
+  const inDoorway = (L) =>
+    [...ctx.people.values()].some((p) => p.lv?.stage !== 'in' && Math.abs(p.root.position.z - L.z) < 0.7 && p.root.position.x > LIFT.x - 0.6 &&
+    p.root.position.x < LIFT.x + 0.5);
   function gone(p) { world.remove(p.root); for (const [k, v] of ctx.people) if (v === p) ctx.people.delete(k); }
   function setLift(L, state) {
     if ((state === 'opening' || state === 'closing') && L.state !== state) ctx.sfx.slide(L.at, L.player);
@@ -167,7 +186,9 @@ export function installCycle(ctx) {
         }
       }
       for (const p of L.exits) if (!p.path.length || p.root.position.x < LIFT.x - 0.8) L.exits.delete(p);
-      const holding = [...L.callers].some((p) => p.lv.stage !== 'walk' || Math.hypot(p.root.position.x - LIFT.x, p.root.position.z - L.z) < 4) || L.exits.size || inDoorway(L);   // incl. anyone about to reach it
+      // incl. anyone about to reach it
+      const holding = [...L.callers].some((p) => p.lv.stage !== 'walk' || Math.hypot(p.root.position.x - LIFT.x, p.root.position.z - L.z) < 4) ||
+        L.exits.size || inDoorway(L);
       if (L.player) ctx.myCar(L, dt);
       else switch (L.state) {
         case 'home':
@@ -233,11 +254,13 @@ export function installRiding(ctx) {
   const mine = { L: null, call: false, goal: null, from: 48, to: 48, k: 0, dur: 1 };
   const inMyCar = () => !!mine.L && ctx.player.x > LIFT.x + 0.3 && Math.abs(ctx.player.z - mine.L.z) < CAR.w / 2;
   const atMyDoor = () => !!mine.L && ctx.player.x > LIFT.x - 0.7 && ctx.player.x < LIFT.x + 0.45 && Math.abs(ctx.player.z - mine.L.z) < DOOR.w / 2 + 0.1;
-  const spare = (L) => !L.player && !L.pending.length && !L.cargo.size && !L.callers.size && !L.riders.size && !L.exits.size && ['home', 'away', 'open', 'closing'].includes(L.state);
+  const spare = (L) => !L.player && !L.pending.length && !L.cargo.size && !L.callers.size && !L.riders.size && !L.exits.size &&
+    ['home', 'away', 'open', 'closing'].includes(L.state);
   function carPanel(parent, z) {   // the car's floor buttons, on the return beside the doors: one per floor, top floor first
     const scr = makeScreen(parent, 0.1, 0.34, 80, 272, LIFT.x + 0.3615, 1.2, z + 0.68);
     scr.mesh.rotation.y = Math.PI / 2;
-    Object.assign(scr.mesh.userData, { action: 'liftpanel', reach: 2.2, floorAt: (uv) => FLOORS[clamp(Math.floor((1 - uv.y) * FLOORS.length), 0, FLOORS.length - 1)].n });
+    Object.assign(scr.mesh.userData,
+      { action: 'liftpanel', reach: 2.2, floorAt: (uv) => FLOORS[clamp(Math.floor((1 - uv.y) * FLOORS.length), 0, FLOORS.length - 1)].n });
     return scr;
   }
   function paintPanel(scr, lit) {
@@ -252,7 +275,8 @@ export function installRiding(ctx) {
     });
     c.textAlign = 'left'; scr.tex.needsUpdate = true;
   }
-  const hitBox = (parent, w, h, d, x, y, z, ud) => { const m = box(parent, w, h, d, '#fff', x, y, z, { shadow: false }); m.visible = false; Object.assign(m.userData, ud); return m; };
+  const hitBox = (parent, w, h, d, x, y, z, ud) =>
+    { const m = box(parent, w, h, d, '#fff', x, y, z, { shadow: false }); m.visible = false; Object.assign(m.userData, ud); return m; };
   lifts.callHit = hitBox(world, 0.06, 0.42, 0.22, LIFT.x - 0.03, 1.1, LIFT.z, { action: 'liftcall', reach: 2.5 });
   for (const L of lifts) { L.panel = carPanel(world, L.z); paintPanel(L.panel, null); }
 
@@ -313,7 +337,8 @@ export function installRiding(ctx) {
   }
   function myLift() {
     if (mine.call && !mine.L) {   // the nearest car nobody else needs (one already here first) comes for you
-      const L = lifts.filter(spare).sort((a, b) => Math.abs(a.floor - 48) - Math.abs(b.floor - 48) || Math.abs(a.z - ctx.player.z) - Math.abs(b.z - ctx.player.z))[0];
+      const L = lifts.filter(spare).sort((a, b) => Math.abs(a.floor - 48) - Math.abs(b.floor - 48) ||
+        Math.abs(a.z - ctx.player.z) - Math.abs(b.z - ctx.player.z))[0];
       if (L) {
         mine.call = false; mine.L = L; L.player = true; mine.goal = null;
         if (L.state === 'home') { ctx.sfx.ding(L.at, true); setLift(L, 'opening'); }
@@ -370,26 +395,38 @@ export function installShafts(ctx) {
   // its own doors, hall lantern, call button and floor panel (moved onto your car's z when you arrive, see setFloor).
   function liftShaft() {
     const lift = new THREE.Group(), fx = LIFT.x + 0.05, front = LIFT.x + 0.1, cx = front + CAR.d / 2, back = front + CAR.d, sw = CAR.w / 2 + 0.3, top = ROOM.h;
-    const stone = [[0.1, top, sw - DOOR.w / 2, fx, top / 2, -(sw + DOOR.w / 2) / 2], [0.1, top, sw - DOOR.w / 2, fx, top / 2, (sw + DOOR.w / 2) / 2], [0.1, top - DOOR.h, DOOR.w, fx, (top + DOOR.h) / 2, 0],
-      [back + 0.2 - front, top, 0.3, (front + back + 0.2) / 2, top / 2, -sw + 0.15], [back + 0.2 - front, top, 0.3, (front + back + 0.2) / 2, top / 2, sw - 0.15],
+    const stone = [[0.1, top, sw - DOOR.w / 2, fx, top / 2, -(sw + DOOR.w / 2) / 2], [0.1, top, sw - DOOR.w / 2, fx, top / 2, (sw + DOOR.w / 2) / 2],
+      [0.1, top - DOOR.h, DOOR.w, fx, (top + DOOR.h) / 2, 0],
+      [back + 0.2 - front, top, 0.3, (front + back + 0.2) / 2, top / 2, -sw + 0.15],
+        [back + 0.2 - front, top, 0.3, (front + back + 0.2) / 2, top / 2, sw - 0.15],
       [0.2, top, CAR.w, back + 0.1, top / 2, 0], [back + 0.2 - front, top - CAR.h - 0.04, CAR.w, (front + back + 0.2) / 2, (top + CAR.h + 0.04) / 2, 0]];
-    for (let y = 0.9; y < top; y += 0.9) for (const s of y > DOOR.h ? [0] : [-1, 1]) stone.push([0.012, 0.006, s ? sw - DOOR.w / 2 - 0.08 : sw * 2, LIFT.x - 0.001, y, s * (sw + DOOR.w / 2 + 0.08) / 2]);   // panel joints, not across the doorway
+    // panel joints, not across the doorway
+    for (let y = 0.9; y < top;
+      y += 0.9) for (const s of y > DOOR.h ? [0] :
+      [-1, 1]) stone.push([0.012, 0.006, s ? sw - DOOR.w / 2 - 0.08 : sw * 2, LIFT.x - 0.001, y, s * (sw + DOOR.w / 2 + 0.08) / 2]);
     lift.add(mergedBoxes(stone.map((b) => [...b, b[1] === 0.006 ? '#5d5852' : '#77716a']), mat('#ffffff', { vertexColors: true, roughness: 0.55 })));
-    const steel = [[0.05, 0.08, DOOR.w + 0.16, LIFT.x - 0.02, DOOR.h + 0.04, 0], [0.34, 0.012, DOOR.w, fx + 0.02, 0.006, 0], [0.04, 0.26, 0.56, LIFT.x - 0.02, 2.5, 0],
+    const steel = [[0.05, 0.08, DOOR.w + 0.16, LIFT.x - 0.02, DOOR.h + 0.04, 0], [0.34, 0.012, DOOR.w, fx + 0.02, 0.006, 0],
+      [0.04, 0.26, 0.56, LIFT.x - 0.02, 2.5, 0],
       [0.02, 0.38, 0.15, LIFT.x - 0.01, 1.1, DOOR.w / 2 + 0.3], [back + 0.24 - LIFT.x, 0.03, sw * 2 + 0.02, (LIFT.x + back + 0.24) / 2, top + 0.015, 0]];
     for (const s of [-1, 1]) steel.push([0.05, DOOR.h + 0.08, 0.08, LIFT.x - 0.02, (DOOR.h + 0.08) / 2, s * (DOOR.w / 2 + 0.04)]);
     const steelM = ctx.liftSteelM;   // the office's brushed steel, so doors and surrounds match on every floor
     lift.add(mergedBoxes(steel, steelM));
-    const car = [[CAR.d, 0.02, CAR.w, cx, 0.01, 0, '#2c2b2a'], [CAR.d, 0.04, CAR.w, cx, CAR.h, 0, '#232426'], [0.04, CAR.h, CAR.w, back, CAR.h / 2, 0, '#8a6446'],
+    const car = [[CAR.d, 0.02, CAR.w, cx, 0.01, 0, '#2c2b2a'], [CAR.d, 0.04, CAR.w, cx, CAR.h, 0, '#232426'],
+      [0.04, CAR.h, CAR.w, back, CAR.h / 2, 0, '#8a6446'],
       [0.035, 0.035, CAR.w - 0.2, back - 0.06, 0.95, 0, '#dfe2e5'], [0.02, 0.4, 0.16, LIFT.x + 0.35, 1.2, CAR.w / 2 - 0.03, '#5a5f66']];
-    for (const s of [-1, 1]) car.push([CAR.d, CAR.h, 0.04, cx, CAR.h / 2, s * CAR.w / 2, '#aeb4ba'], [CAR.d - 0.3, 0.035, 0.035, cx + 0.1, 0.95, s * (CAR.w / 2 - 0.06), '#dfe2e5']);
-    lift.add(mergedBoxes(car, mat('#ffffff', { vertexColors: true, roughness: 0.45, metalness: 0.35 })), mergedBoxes([[0.01, 1.05, CAR.w - 0.3, back - 0.025, 1.65, 0]], mat('#dfe4e8', { metalness: 1, roughness: 0.05 })),
-      mergedBoxes([[CAR.d - 0.5, 0.01, CAR.w - 0.45, cx, CAR.h - 0.025, 0]], new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: '#fff3df', emissiveIntensity: 1.6 })));
-    const leaves = [-1, 1].map((s) => box(lift, 0.03, DOOR.h, DOOR.w / 2 + 0.01, '', LIFT.x + 0.13, DOOR.h / 2, s * DOOR.w / 4, { material: steelM, shadow: false }));
+    for (const s of [-1, 1]) car.push([CAR.d, CAR.h, 0.04, cx, CAR.h / 2, s * CAR.w / 2, '#aeb4ba'],
+      [CAR.d - 0.3, 0.035, 0.035, cx + 0.1, 0.95, s * (CAR.w / 2 - 0.06), '#dfe2e5']);
+    lift.add(mergedBoxes(car, mat('#ffffff', { vertexColors: true, roughness: 0.45, metalness: 0.35 })),
+      mergedBoxes([[0.01, 1.05, CAR.w - 0.3, back - 0.025, 1.65, 0]], mat('#dfe4e8', { metalness: 1, roughness: 0.05 })),
+      mergedBoxes([[CAR.d - 0.5, 0.01, CAR.w - 0.45, cx, CAR.h - 0.025, 0]],
+        new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: '#fff3df', emissiveIntensity: 1.6 })));
+    const leaves = [-1,
+      1].map((s) => box(lift, 0.03, DOOR.h, DOOR.w / 2 + 0.01, '', LIFT.x + 0.13, DOOR.h / 2, s * DOOR.w / 4, { material: steelM, shadow: false }));
     const ind = { ind: makeScreen(lift, 0.48, 0.2, 192, 80, LIFT.x - 0.045, 2.5, 0), floor: ARCHIVE, dir: 0 };
     ind.ind.mesh.rotation.y = -Math.PI / 2;
     const callM = new THREE.MeshStandardMaterial({ color: '#e6e3dc', emissive: '#ffb347', emissiveIntensity: 0, roughness: 0.4 });
-    for (const y of [1.16, 1.04]) cyl(lift, 0.026, 0.026, 0.02, '', LIFT.x - 0.025, y, DOOR.w / 2 + 0.3, { material: y > 1.1 ? mat('#e6e3dc', { roughness: 0.4 }) : callM, seg: 16, shadow: false }).rotation.z = Math.PI / 2;
+    for (const y of [1.16, 1.04]) cyl(lift, 0.026, 0.026, 0.02, '', LIFT.x - 0.025, y, DOOR.w / 2 + 0.3,
+      { material: y > 1.1 ? mat('#e6e3dc', { roughness: 0.4 }) : callM, seg: 16, shadow: false }).rotation.z = Math.PI / 2;
     const callHit = hitBox(lift, 0.06, 0.42, 0.22, LIFT.x - 0.03, 1.1, DOOR.w / 2 + 0.3, { action: 'liftcall', reach: 2.5 });
     const panel = carPanel(lift, 0); paintPanel(panel, null);
     return { lift, leaves, ind, callM, callHit, panel };

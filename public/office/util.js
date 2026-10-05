@@ -95,7 +95,9 @@ export function rugTexture(base, accent, seed) {
 // Leaf atlas for alpha-tested plant cards: left half a leafy twig, right half one long variegated strap leaf.
 export function leafTexture() {
   const t = makeCanvas(512, 256), { ctx } = t, R = rng(23);
-  const leafPath = (len, wid) => { ctx.beginPath(); ctx.moveTo(0, 0); ctx.bezierCurveTo(wid, -len * 0.2, wid * 0.85, -len * 0.7, 0, -len); ctx.bezierCurveTo(-wid * 0.85, -len * 0.7, -wid, -len * 0.2, 0, 0); };
+  const leafPath = (len, wid) =>
+    { ctx.beginPath(); ctx.moveTo(0, 0); ctx.bezierCurveTo(wid, -len * 0.2, wid * 0.85, -len * 0.7, 0, -len);
+    ctx.bezierCurveTo(-wid * 0.85, -len * 0.7, -wid, -len * 0.2, 0, 0); };
   const leaf = (x, y, len, wid, ang) => {
     const h = 95 + R() * 30, s = 35 + R() * 20, l = 24 + R() * 14;
     ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
@@ -105,11 +107,13 @@ export function leafTexture() {
     ctx.strokeStyle = `hsla(${h - 10},40%,${l + 25}%,0.5)`; ctx.lineWidth = 1.6;
     ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(wid * 0.1, -len * 0.5, 0, -len * 0.95); ctx.stroke();
     ctx.lineWidth = 0.7;
-    for (let k = 1; k < 6; k++) for (const sd of [-1, 1]) { const y0 = -len * k / 6.5; ctx.beginPath(); ctx.moveTo(0, y0); ctx.lineTo(sd * wid * 0.6, y0 - len * 0.1); ctx.stroke(); }
+    for (let k = 1; k < 6; k++) for (const sd of [-1, 1]) { const y0 = -len * k / 6.5; ctx.beginPath(); ctx.moveTo(0, y0);
+      ctx.lineTo(sd * wid * 0.6, y0 - len * 0.1); ctx.stroke(); }
     ctx.restore();
   };
   ctx.strokeStyle = '#5b4a32'; ctx.lineCap = 'round';
-  for (let k = 0; k < 3; k++) { ctx.lineWidth = 5 - k * 1.5; ctx.beginPath(); ctx.moveTo(128, 256 - k * 80); ctx.lineTo(128 + (k % 2 ? -3 : 3), 176 - k * 80); ctx.stroke(); }
+  for (let k = 0; k < 3; k++) { ctx.lineWidth = 5 - k * 1.5; ctx.beginPath(); ctx.moveTo(128, 256 - k * 80); ctx.lineTo(128 + (k % 2 ? -3 : 3), 176 - k * 80);
+    ctx.stroke(); }
   for (let i = 0; i < 10; i++) {
     const f = 0.12 + i * 0.085, sd = i % 2 ? 1 : -1;
     leaf(128, 256 - f * 236, 92 - f * 40, 31 - f * 8, sd * (0.55 + R() * 0.45));
@@ -117,7 +121,8 @@ export function leafTexture() {
   leaf(128, 30, 30, 11, 0);
   // Strap leaf: dark green with pale wavy cross-bands and a yellow-green margin.
   ctx.save(); ctx.translate(384, 254);
-  const strap = () => { ctx.beginPath(); ctx.moveTo(-14, 0); ctx.bezierCurveTo(-24, -110, -20, -190, 0, -250); ctx.bezierCurveTo(20, -190, 24, -110, 14, 0); ctx.closePath(); };
+  const strap = () =>
+    { ctx.beginPath(); ctx.moveTo(-14, 0); ctx.bezierCurveTo(-24, -110, -20, -190, 0, -250); ctx.bezierCurveTo(20, -190, 24, -110, 14, 0); ctx.closePath(); };
   strap(); ctx.fillStyle = '#2c5634'; ctx.fill(); ctx.save(); ctx.clip();
   ctx.strokeStyle = 'rgba(170,200,150,0.35)'; ctx.lineWidth = 3;
   for (let y = -6; y > -250; y -= 9 + R() * 8) { ctx.beginPath(); ctx.moveTo(-26, y); ctx.bezierCurveTo(-8, y - 6, 8, y + 6, 26, y - 2); ctx.stroke(); }

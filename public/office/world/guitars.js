@@ -16,9 +16,11 @@ export function install(ctx) {
     const add = (parent, geo, m) => { const o = new THREE.Mesh(geo, m); o.castShadow = o.receiveShadow = true; parent.add(o); return o; };
     const rodGeo = (a, b, r, seg = 6) => {
       const d = new THREE.Vector3().subVectors(b, a), len = d.length();
-      return new THREE.CylinderGeometry(r, r, len, seg).applyQuaternion(new THREE.Quaternion().setFromUnitVectors(UPV, d.normalize())).translate((a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2);
+      return new THREE.CylinderGeometry(r, r, len,
+        seg).applyQuaternion(new THREE.Quaternion().setFromUnitVectors(UPV, d.normalize())).translate((a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2);
     };
-    const czGeo = (r, h, x, y, z0, seg = 16, r2 = r) => new THREE.CylinderGeometry(r, r2, h, seg).rotateX(Math.PI / 2).translate(x, y, z0 + h / 2);   // axis along z, from z0 up
+    // axis along z, from z0 up
+    const czGeo = (r, h, x, y, z0, seg = 16, r2 = r) => new THREE.CylinderGeometry(r, r2, h, seg).rotateX(Math.PI / 2).translate(x, y, z0 + h / 2);
     const bGeo = (w, h, d, x, y, z) => new THREE.BoxGeometry(w, h, d).translate(x, y, z);
     const merged = (parent, list, m) => list.length && add(parent, mergeGeometries(list), m);
     // Closed smooth outline through points; optional scale about (0, cy).
@@ -34,8 +36,11 @@ export function install(ctx) {
       s.lineTo(-hw + r, hh); s.quadraticCurveTo(-hw, hh, -hw, hh - r); s.lineTo(-hw, -hh + r); s.quadraticCurveTo(-hw, -hh, -hw + r, -hh);
       return s;
     };
-    const slab = (shape, z0, depth, bevel = 0, curve = 6) => new THREE.ExtrudeGeometry(shape, { depth, curveSegments: curve, bevelEnabled: bevel > 0, bevelSize: bevel, bevelThickness: bevel, bevelSegments: 3 }).translate(0, 0, z0);
-    const tex = (t, rx, ry, ox = 0.5, oy = 0) => { t.tex.wrapS = t.tex.wrapT = THREE.RepeatWrapping; t.tex.repeat.set(rx, ry); t.tex.offset.set(ox, oy); t.tex.needsUpdate = true; return t.tex; };
+    const slab = (shape, z0, depth, bevel = 0, curve = 6) =>
+      new THREE.ExtrudeGeometry(shape,
+      { depth, curveSegments: curve, bevelEnabled: bevel > 0, bevelSize: bevel, bevelThickness: bevel, bevelSegments: 3 }).translate(0, 0, z0);
+    const tex = (t, rx, ry, ox = 0.5, oy = 0) =>
+      { t.tex.wrapS = t.tex.wrapT = THREE.RepeatWrapping; t.tex.repeat.set(rx, ry); t.tex.offset.set(ox, oy); t.tex.needsUpdate = true; return t.tex; };
 
     // Copper tape: strips laid across the body, each a slightly different tone, overlapping at darker seams; creases from
     // smoothing it round the curves, and tarnish. A matching roughness map keeps the tape shiny and the seams and tarnish duller.
@@ -73,7 +78,8 @@ export function install(ctx) {
         }
       }
       r.tex.colorSpace = THREE.NoColorSpace;
-      return new THREE.MeshStandardMaterial({ map: tex(m, 1 / 0.34, 1 / 0.46), roughnessMap: tex(r, 1 / 0.34, 1 / 0.46), metalness: 1, roughness: 1, envMapIntensity: 1.4 });
+      return new THREE.MeshStandardMaterial({ map: tex(m, 1 / 0.34, 1 / 0.46), roughnessMap: tex(r, 1 / 0.34, 1 / 0.46), metalness: 1, roughness: 1,
+        envMapIntensity: 1.4 });
     })();
     // Dark blue stain over ash, grain showing through; and a cherry finish over flamed maple. Both under a clear coat.
     const woodBody = (base, dark, light, seed, flame) => {
@@ -98,7 +104,8 @@ export function install(ctx) {
       const t = makeCanvas(256, 256), c = t.ctx, R = rng(47);
       c.fillStyle = '#5e1612'; c.fillRect(0, 0, 256, 256);
       for (let i = 0; i < 170; i++) {
-        const x = R() * 256, y = R() * 256, rad = 6 + R() * 30, [col, a] = [['30,6,6', 0.7], ['120,32,20', 0.55], ['176,74,38', 0.45], ['70,12,10', 0.6]][Math.floor(R() * 4)];
+        const x = R() * 256, y = R() * 256, rad = 6 + R() * 30,
+          [col, a] = [['30,6,6', 0.7], ['120,32,20', 0.55], ['176,74,38', 0.45], ['70,12,10', 0.6]][Math.floor(R() * 4)];
         const g = c.createRadialGradient(x, y, 0, x, y, rad); g.addColorStop(0, `rgba(${col},${a})`); g.addColorStop(1, `rgba(${col},0)`);
         c.fillStyle = g; c.fillRect(x - rad, y - rad, rad * 2, rad * 2);
       }
@@ -114,17 +121,20 @@ export function install(ctx) {
         c.beginPath(); c.moveTo(x, 0); c.bezierCurveTo(x + R() * 6 - 3, H * 0.3, x + R() * 6 - 3, H * 0.7, x + R() * 4 - 2, H); c.stroke();
       }
       const fret = (n) => Ny - S * (1 - 2 ** (-n / 12)), py = (y) => (1 - (y - E) / L) * H, px = (x) => (x / 0.06 + 0.5) * W;
-      for (let n = 1; n <= 22; n++) { const y = py(fret(n)); c.fillStyle = '#dcdde0'; c.fillRect(0, y - 1.6, W, 3.2); c.fillStyle = 'rgba(0,0,0,.4)'; c.fillRect(0, y + 1.6, W, 1); }
+      for (let n = 1; n <= 22; n++) { const y = py(fret(n)); c.fillStyle = '#dcdde0'; c.fillRect(0, y - 1.6, W, 3.2); c.fillStyle = 'rgba(0,0,0,.4)';
+        c.fillRect(0, y + 1.6, W, 1); }
       c.fillStyle = rose ? '#efe9dc' : '#1a1a1a';
       for (const n of [3, 5, 7, 9, 12, 15, 17, 19, 21]) {
         const y = py((fret(n - 1) + fret(n)) / 2), hh = Math.abs(py(fret(n - 1)) - py(fret(n))) * 0.3, hw = 0.017 + n * 0.00025;
-        if (trap) { c.beginPath(); c.moveTo(px(-hw * 0.82), y - hh); c.lineTo(px(hw * 0.82), y - hh); c.lineTo(px(hw), y + hh); c.lineTo(px(-hw), y + hh); c.fill(); }
+        if (trap) { c.beginPath(); c.moveTo(px(-hw * 0.82), y - hh); c.lineTo(px(hw * 0.82), y - hh); c.lineTo(px(hw), y + hh); c.lineTo(px(-hw), y + hh);
+          c.fill(); }
         else for (const dx of n === 12 ? [-0.011, 0.011] : [0]) { c.beginPath(); c.arc(px(dx), y, 6, 0, Math.PI * 2); c.fill(); }
       }
       return new THREE.MeshStandardMaterial({ map: tex(t, 1 / 0.06, 1 / L, 0.5, -E / L), roughness: rose ? 0.75 : 0.35 });
     }
 
-    const chromeM = mat('#eceef0', { metalness: 1, roughness: 0.15 }), goldM = mat('#e2b85c', { metalness: 1, roughness: 0.22 }), steelM = mat('#8f9297', { metalness: 1, roughness: 0.35 });
+    const chromeM = mat('#eceef0', { metalness: 1, roughness: 0.15 }), goldM = mat('#e2b85c', { metalness: 1, roughness: 0.22 }),
+      steelM = mat('#8f9297', { metalness: 1, roughness: 0.35 });
     const blackM = mat('#111111', { roughness: 0.3 }), ivoryM = mat('#ece2c4', { roughness: 0.4 }), stringM = mat('#d7d9dc', { metalness: 1, roughness: 0.3 });
     // Body outlines traced from full-size templates (cho2/guitar-shape, CC BY-SA 4.0), in mm: butt end at y 0, neck centreline x 0,
     // bass side -x. Strat 457 x 321 mm, neck pocket edge 396 mm up; Les Paul 438 x 331 mm (waist 186, upper bout 234), neck joint 438 up.
@@ -179,7 +189,8 @@ export function install(ctx) {
       const n0 = strat ? 0.3 : 0.33;
       add(g, new THREE.CylinderGeometry(0.0215, 0.028, Ny - n0, 18, 1, false, Math.PI / 2, Math.PI).scale(1, 1, 0.85).translate(0, (Ny + n0) / 2, FZ), o.neck);
       const fb = new THREE.Shape([V(-wE / 2, E), V(wE / 2, E), V(wN / 2, Ny), V(-wN / 2, Ny)].map((p) => new THREE.Vector2(p.x, p.y)));
-      add(g, slab(fb, FZ, 0.006), [boardTex(o.board === 'rose', !strat, S, Ny, E), strat ? mat(o.board === 'rose' ? '#3a2216' : '#e0bd84', { roughness: 0.5 }) : ivoryM]);
+      add(g, slab(fb, FZ, 0.006),
+        [boardTex(o.board === 'rose', !strat, S, Ny, E), strat ? mat(o.board === 'rose' ? '#3a2216' : '#e0bd84', { roughness: 0.5 }) : ivoryM]);
       add(g, bGeo(wN, 0.005, 0.009, 0, Ny - 0.0025, FZ + 0.0045), ivoryM);
       // Headstock: Strat flat, six in a line on the bass side; Les Paul angled back, three a side.
       const hsM = new THREE.Matrix4().makeRotationX(strat ? 0 : -0.24).setPosition(0, Ny, FZ - (strat ? 0 : 0.002));
@@ -218,7 +229,8 @@ export function install(ctx) {
         } else {
           hw.push(bGeo(0.072, 0.042, 0.003, 0, By - 0.004, FZ + 0.0015));
           for (let i = 0; i < 6; i++) hw.push(bGeo(0.0092, 0.02, 0.01, xb(i), By - 0.004, FZ + 0.0075));
-          hw.push(rodGeo(V(0.031, By - 0.02, FZ + 0.003), V(0.033, By - 0.022, FZ + 0.03), 0.0018), rodGeo(V(0.033, By - 0.022, FZ + 0.03), V(0.085, By - 0.145, FZ + 0.042), 0.0018));
+          hw.push(rodGeo(V(0.031, By - 0.02, FZ + 0.003), V(0.033, By - 0.022, FZ + 0.03), 0.0018),
+            rodGeo(V(0.033, By - 0.022, FZ + 0.03), V(0.085, By - 0.145, FZ + 0.042), 0.0018));
           tips.push(rodGeo(V(0.075, By - 0.12, FZ + 0.0395), V(0.087, By - 0.15, FZ + 0.0425), 0.0035, 10));
         }
         for (const [x, y] of [[0.068, 0.176], [0.094, 0.152], [0.115, 0.124]]) knobs.push(czGeo(0.0105, 0.016, x, y, top, 20, 0.0118));
@@ -226,7 +238,8 @@ export function install(ctx) {
         tips.push(czGeo(0.003, 0.008, 0.088, 0.214, top + 0.012, 10));
         hw.push(new THREE.CylinderGeometry(0.0115, 0.0115, 0.003, 20).rotateX(Math.PI / 2).scale(1.35, 1, 1).translate(0.115, 0.075, FZ + 0.0015));
         blacks.push(czGeo(0.0045, 0.001, 0.115, 0.075, FZ + 0.003));
-        hw.push(new THREE.CylinderGeometry(0.005, 0.006, 0.012, 12).translate(0, -0.012, 0), new THREE.CylinderGeometry(0.005, 0.006, 0.012, 12).translate(-0.109, 0.462, 0));
+        hw.push(new THREE.CylinderGeometry(0.005, 0.006, 0.012, 12).translate(0, -0.012, 0),
+          new THREE.CylinderGeometry(0.005, 0.006, 0.012, 12).translate(-0.109, 0.462, 0));
         for (let i = 0; i < 6; i++) {   // strings: saddle to nut to post
           const r = 0.00056 - i * 0.00005, [px, py] = posts[i], p = V(px + 0.0034, py, 0.008).applyMatrix4(hsM);
           strings.push(rodGeo(V(xb(i), By - 0.003, FZ + 0.013), V(xn(i), Ny - 0.001, FZ + 0.0085), r), rodGeo(V(xn(i), Ny - 0.001, FZ + 0.0085), p, r));
@@ -238,7 +251,8 @@ export function install(ctx) {
         hw.push(bGeo(0.082, 0.012, 0.008, 0, By, FZ + 0.009));
         for (const s of [-1, 1]) hw.push(czGeo(0.0052, 0.006, s * 0.041, By, FZ), czGeo(0.0062, 0.009, s * 0.04, By - 0.049, FZ));
         hw.push(rodGeo(V(-0.044, By - 0.049, FZ + 0.008), V(0.044, By - 0.049, FZ + 0.008), 0.0055, 12));
-        for (const [x, y] of [[0.072, 0.128], [0.112, 0.148], [0.085, 0.085], [0.125, 0.104]]) knobs.push(czGeo(0.0105, 0.016, x, y, FZ, 20, 0.012), czGeo(0.0145, 0.003, x, y, FZ, 20));
+        for (const [x, y] of [[0.072, 0.128], [0.112, 0.148], [0.085, 0.085], [0.125, 0.104]]) knobs.push(czGeo(0.0105, 0.016, x, y, FZ, 20, 0.012),
+          czGeo(0.0145, 0.003, x, y, FZ, 20));
         add(g, slab(new THREE.Shape().absarc(0, 0, 0.017, 0, Math.PI * 2), FZ - 0.001, 0.002, 0, 16).translate(-0.085, 0.39, 0), ivoryM);   // toggle ring
         hw.push(rodGeo(V(-0.085, 0.39, FZ), V(-0.087, 0.395, FZ + 0.03), 0.0014));
         tips.push(czGeo(0.0042, 0.009, -0.087, 0.395, FZ + 0.026, 10));
@@ -249,7 +263,8 @@ export function install(ctx) {
           strings.push(rodGeo(tail, br, r), rodGeo(br, nut, r), rodGeo(nut, p, r));
         }
       }
-      merged(g, hw, o.hw); merged(g, poles, steelM); merged(g, knobs, o.knob); merged(g, tips, o.tip); merged(g, blacks, blackM); merged(g, keys, o.keys); merged(g, strings, stringM);
+      merged(g, hw, o.hw); merged(g, poles, steelM); merged(g, knobs, o.knob); merged(g, tips, o.tip); merged(g, blacks, blackM); merged(g, keys, o.keys);
+      merged(g, strings, stringM);
       return { g, jack: V(0.115, 0.075, FZ + 0.004) };
     }
 
@@ -263,9 +278,11 @@ export function install(ctx) {
       for (const s of [-1, 1]) {
         pads.push(rodGeo(V(s * 0.085, cy, -0.05), V(s * 0.085, cy, 0.06), 0.008, 8), rodGeo(V(s * 0.085, cy, 0.06), V(s * 0.085, cy + 0.035, 0.066), 0.008, 8));
         metal.push(rodGeo(V(s * 0.085, cy - 0.01, 0.02), V(s * 0.19, 0.012, 0.16), 0.006, 8));
-        pads.push(rodGeo(V(s * 0.03, yk.y, yk.z - 0.014), V(s * 0.03, yk.y + 0.012, yk.z + 0.03), 0.006, 8), new THREE.CylinderGeometry(0.013, 0.013, 0.012, 10).translate(s * 0.19, 0.006, 0.16));
+        pads.push(rodGeo(V(s * 0.03, yk.y, yk.z - 0.014), V(s * 0.03, yk.y + 0.012, yk.z + 0.03), 0.006, 8),
+          new THREE.CylinderGeometry(0.013, 0.013, 0.012, 10).translate(s * 0.19, 0.006, 0.16));
       }
-      metal.push(rodGeo(V(-0.085, cy - 0.01, -0.035), V(0.085, cy - 0.01, -0.035), 0.006, 8), rodGeo(V(0, cy - 0.01, -0.06), V(0, yk.y - 0.008, yk.z - 0.016), 0.007, 8),
+      metal.push(rodGeo(V(-0.085, cy - 0.01, -0.035), V(0.085, cy - 0.01, -0.035), 0.006, 8),
+        rodGeo(V(0, cy - 0.01, -0.06), V(0, yk.y - 0.008, yk.z - 0.016), 0.007, 8),
         rodGeo(V(-0.034, yk.y, yk.z - 0.016), V(0.034, yk.y, yk.z - 0.016), 0.005, 8), rodGeo(V(0, cy - 0.01, -0.06), V(0, 0.012, -0.29), 0.006, 8));
       merged(root, metal, standM); merged(root, pads, rubberM);
       add(root, new THREE.SphereGeometry(0.014, 10, 8).translate(0, 0.01, -0.29), rubberM);
@@ -273,9 +290,12 @@ export function install(ctx) {
       root.updateMatrixWorld(true);
       return root;
     }
-    const lp = guitar({ kind: 'lp', body: cherryM, neck: mat('#5e1913', { roughness: 0.3 }), board: 'rose', hw: chromeM, cover: chromeM, knob: mat('#b8862e', { roughness: 0.3, metalness: 0.25 }), tip: ivoryM, keys: mat('#dfe0c4', { roughness: 0.35 }) });
-    const blue = guitar({ kind: 'strat', body: blueM, guard: [tortM, ivoryM], neck: mat('#c9a066', { roughness: 0.45 }), board: 'maple', pickups: ['S', 'S', 'S'], hw: goldM, cover: mat('#efe6cf', { roughness: 0.45 }), knob: goldM, tip: ivoryM, keys: goldM });
-    const cu = guitar({ kind: 'strat', body: copper, guard: [mat('#0d0d0d', { roughness: 0.25 }), mat('#e6e3dc')], neck: mat('#b88a52', { roughness: 0.45 }), board: 'rose', pickups: ['S', 'S', 'H'], hardtail: true, hw: chromeM, cover: chromeM, knob: blackM, tip: blackM, keys: chromeM });
+    const lp = guitar({ kind: 'lp', body: cherryM, neck: mat('#5e1913', { roughness: 0.3 }), board: 'rose', hw: chromeM, cover: chromeM,
+      knob: mat('#b8862e', { roughness: 0.3, metalness: 0.25 }), tip: ivoryM, keys: mat('#dfe0c4', { roughness: 0.35 }) });
+    const blue = guitar({ kind: 'strat', body: blueM, guard: [tortM, ivoryM], neck: mat('#c9a066', { roughness: 0.45 }), board: 'maple',
+      pickups: ['S', 'S', 'S'], hw: goldM, cover: mat('#efe6cf', { roughness: 0.45 }), knob: goldM, tip: ivoryM, keys: goldM });
+    const cu = guitar({ kind: 'strat', body: copper, guard: [mat('#0d0d0d', { roughness: 0.25 }), mat('#e6e3dc')], neck: mat('#b88a52', { roughness: 0.45 }),
+      board: 'rose', pickups: ['S', 'S', 'H'], hardtail: true, hw: chromeM, cover: chromeM, knob: blackM, tip: blackM, keys: chromeM });
     onStand(lp, 15.45, -14.5, 0.12); onStand(blue, 16.25, -14.5, 0); onStand(cu, 17.05, -14.5, -0.1);
 
     // Little practice amp: tolex, grille cloth, a chrome control strip with a red jewel light, a strap handle.
@@ -284,11 +304,13 @@ export function install(ctx) {
     box(amp, AW, AH, AD, '#1a1a1a', 0, AH / 2 + 0.012, 0, { mat: { roughness: 0.85 } });
     const grille = makeCanvas(256, 192);
     grille.ctx.fillStyle = '#b4ad9c'; grille.ctx.fillRect(0, 0, 256, 192);
-    for (let i = 0; i < 256; i += 3) { grille.ctx.fillStyle = i % 6 ? 'rgba(90,84,72,.45)' : 'rgba(235,230,215,.4)'; grille.ctx.fillRect(i, 0, 1.4, 192); grille.ctx.fillRect(0, i, 256, 1.4); }
+    for (let i = 0; i < 256; i += 3) { grille.ctx.fillStyle = i % 6 ? 'rgba(90,84,72,.45)' : 'rgba(235,230,215,.4)'; grille.ctx.fillRect(i, 0, 1.4, 192);
+      grille.ctx.fillRect(0, i, 256, 1.4); }
     grille.tex.needsUpdate = true;
     const gm = new THREE.Mesh(new THREE.PlaneGeometry(AW - 0.04, 0.215), new THREE.MeshStandardMaterial({ map: grille.tex, roughness: 0.95 }));
     gm.position.set(0, 0.14, AD / 2 + 0.002); amp.add(gm);
-    const trim = [[AW - 0.034, 0.005, 0.004, 0, 0.25, AD / 2 + 0.002], [AW - 0.034, 0.005, 0.004, 0, 0.03, AD / 2 + 0.002], [0.005, 0.225, 0.004, -(AW - 0.04) / 2, 0.14, AD / 2 + 0.002], [0.005, 0.225, 0.004, (AW - 0.04) / 2, 0.14, AD / 2 + 0.002]];
+    const trim = [[AW - 0.034, 0.005, 0.004, 0, 0.25, AD / 2 + 0.002], [AW - 0.034, 0.005, 0.004, 0, 0.03, AD / 2 + 0.002],
+      [0.005, 0.225, 0.004, -(AW - 0.04) / 2, 0.14, AD / 2 + 0.002], [0.005, 0.225, 0.004, (AW - 0.04) / 2, 0.14, AD / 2 + 0.002]];
     amp.add(mergedBoxes(trim, ivoryM));
     box(amp, AW - 0.03, 0.045, 0.004, '#c9ccd1', 0, 0.287, AD / 2 + 0.002, { mat: { metalness: 0.9, roughness: 0.3 } });
     const ak = [];
@@ -298,21 +320,25 @@ export function install(ctx) {
     add(amp, new THREE.SphereGeometry(0.0065, 12, 8).translate(0.155, 0.287, AD / 2 + 0.005), mat('#ff3b1f', { emissive: '#ff2a12', emissiveIntensity: 1.6 }));
     const badge = makeCanvas(256, 64);
     badge.ctx.fillStyle = '#d9dcdf'; badge.ctx.beginPath(); badge.ctx.roundRect(0, 0, 256, 64, 12); badge.ctx.fill();
-    badge.ctx.font = `italic 700 38px Georgia, serif`; badge.ctx.fillStyle = '#1c1c1e'; badge.ctx.textAlign = 'center'; badge.ctx.fillText('Little Giant', 128, 45);
+    badge.ctx.font = `italic 700 38px Georgia, serif`; badge.ctx.fillStyle = '#1c1c1e'; badge.ctx.textAlign = 'center';
+    badge.ctx.fillText('Little Giant', 128, 45);
     badge.tex.needsUpdate = true;
     const bm = new THREE.Mesh(new THREE.PlaneGeometry(0.09, 0.0225), new THREE.MeshStandardMaterial({ map: badge.tex, metalness: 0.6, roughness: 0.35 }));
     bm.position.set(0.1, 0.06, AD / 2 + 0.004); amp.add(bm);
     const corners = [];
-    for (const sx of [-1, 1]) for (const sy of [0, 1]) for (const sz of [-1, 1]) corners.push([0.03, 0.03, 0.03, sx * (AW / 2 - 0.013), 0.012 + sy * AH + (sy ? -0.013 : 0.013), sz * (AD / 2 - 0.013)]);
+    for (const sx of [-1, 1]) for (const sy of [0, 1]) for (const sz of [-1, 1]) corners.push([0.03, 0.03, 0.03, sx * (AW / 2 - 0.013),
+      0.012 + sy * AH + (sy ? -0.013 : 0.013), sz * (AD / 2 - 0.013)]);
     amp.add(mergedBoxes(corners, mat('#2a2b2e', { metalness: 0.8, roughness: 0.4 })));
-    amp.add(mergedBoxes([[0.16, 0.012, 0.032, 0, AH + 0.024, 0], [0.02, 0.02, 0.04, -0.085, AH + 0.02, 0], [0.02, 0.02, 0.04, 0.085, AH + 0.02, 0]], mat('#141414', { roughness: 0.6 })));
+    amp.add(mergedBoxes([[0.16, 0.012, 0.032, 0, AH + 0.024, 0], [0.02, 0.02, 0.04, -0.085, AH + 0.02, 0], [0.02, 0.02, 0.04, 0.085, AH + 0.02, 0]],
+      mat('#141414', { roughness: 0.6 })));
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) cyl(amp, 0.012, 0.012, 0.012, '#111', sx * (AW / 2 - 0.03), 0.006, sz * (AD / 2 - 0.03), { seg: 10 });
     solid(AX, AZ, 0.42, 0.36);
     // Lead from the amp's input, along the floor, up into the copper Strat's jack.
     amp.updateMatrixWorld(true);
     const ampJack = amp.localToWorld(V(-0.148, 0.287, AD / 2 + 0.01)), gJack = cu.g.localToWorld(cu.jack.clone());
     const out = V(Math.sin(AY), 0, Math.cos(AY)), nrm = cu.g.getWorldDirection(new THREE.Vector3());
-    const pts = [ampJack, ampJack.clone().addScaledVector(out, 0.05), amp.localToWorld(V(-0.17, 0.014, AD / 2 + 0.14)), V(gJack.x + 0.12, 0.014, gJack.z + 0.32),
+    const pts = [ampJack, ampJack.clone().addScaledVector(out, 0.05), amp.localToWorld(V(-0.17, 0.014, AD / 2 + 0.14)),
+      V(gJack.x + 0.12, 0.014, gJack.z + 0.32),
       V(gJack.x + 0.03, 0.014, gJack.z + 0.2), gJack.clone().addScaledVector(nrm, 0.09).setY(gJack.y - 0.1), gJack.clone().addScaledVector(nrm, 0.035), gJack];
     add(world, new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, false, 'centripetal'), 120, 0.0035, 6), mat('#151515', { roughness: 0.7 }));
     add(world, rodGeo(ampJack, ampJack.clone().addScaledVector(out, 0.035), 0.0055, 12), chromeM);

@@ -19,7 +19,8 @@ export function install(ctx) {
   function rug(x0, x1, z0, z1, base, accent, y = 0.006) {
     rugs.push({ x0, x1, z0, z1 });
     const tex = accent ? rugTexture(base, accent, rugSeed++) : null;
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0), new THREE.MeshStandardMaterial({ color: tex ? '#ffffff' : base, map: tex, roughness: 1 }));
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0),
+      new THREE.MeshStandardMaterial({ color: tex ? '#ffffff' : base, map: tex, roughness: 1 }));
     m.rotation.x = -Math.PI / 2; m.position.set((x0 + x1) / 2, y, (z0 + z1) / 2); m.receiveShadow = true; world.add(m);
   }
   rug(6, 19.9, -14.9, -3.5, '#3a4660', null, 0.004);                       // my office carpet
@@ -57,7 +58,9 @@ export function install(ctx) {
       const n = Math.max(1, Math.round((b - a) / 2.5)), step = (b - a) / n;
       winRuns.push({ axis, fixed, a, b, n, step, inward, glass });
       for (let q = 0; q <= n; q++) seg(a + q * step - 0.04, a + q * step + 0.04, 0.45, 3.05, frameM, 0.12);
-      for (let q = 0; q < n; q++) panes.push({ axis, fixed, a: a + q * step + 0.04, b: a + (q + 1) * step - 0.04, inward, win: WIN.indexOf(winKey(axis, fixed, a + (q + 0.5) * step)) });
+      for (let q = 0; q < n;
+        q++) panes.push({ axis, fixed, a: a + q * step + 0.04, b: a + (q + 1) * step - 0.04, inward,
+        win: WIN.indexOf(winKey(axis, fixed, a + (q + 0.5) * step)) });
       seg(a, b, 2.3, 2.36, frameM, 0.1);
       cur = b;
     }
@@ -75,7 +78,8 @@ export function install(ctx) {
   }
   // Sunbeams: each window pane swept along the light direction, drawn additively and faded with depth.
   // `shut` is how much each window group's blinds cut the light (0 raised, ~0.9 lowered).
-  const shaftU = { uLight: { value: new THREE.Vector3(0, -1, 0) }, color: { value: new THREE.Color() }, strength: { value: 0 }, time: { value: 0 }, shut: { value: WIN.map(() => 0) } };
+  const shaftU = { uLight: { value: new THREE.Vector3(0, -1, 0) }, color: { value: new THREE.Color() }, strength: { value: 0 }, time: { value: 0 },
+    shut: { value: WIN.map(() => 0) } };
   const shafts = (() => {
     const pos = [], along = [], nIn = [], win = [], idx = [];
     for (const p of panes) {
@@ -84,7 +88,8 @@ export function install(ctx) {
         : [[p.fixed, y0, p.a], [p.fixed, y0, p.b], [p.fixed, y1, p.b], [p.fixed, y1, p.a]];
       const nrm = p.axis === 'x' ? [0, 0, p.inward] : [p.inward, 0, 0], base = pos.length / 3;
       for (const t of [0, 1]) for (const c of cs) { pos.push(...c); along.push(t); nIn.push(...nrm); win.push(p.win); }
-      for (const [a, b, c, d] of [[0, 1, 2, 3], [4, 5, 6, 7], [0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [3, 0, 4, 7]]) idx.push(base + a, base + b, base + c, base + a, base + c, base + d);
+      for (const [a, b, c, d] of [[0, 1, 2, 3], [4, 5, 6, 7], [0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [3, 0, 4, 7]]) idx.push(base + a, base + b, base + c,
+        base + a, base + c, base + d);
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
@@ -109,7 +114,8 @@ export function install(ctx) {
     return m;
   })();
 
-  for (const [x, z] of [[4, -8], [4, 8], [-9, 0.5 - 2.6]]) { box(world, 0.5, ROOM.h, 0.5, '#a8774b', x, ROOM.h / 2, z, { mat: { roughness: 0.7 } }); solid(x, z, 0.5, 0.5); }
+  for (const [x, z] of [[4, -8], [4, 8], [-9, 0.5 - 2.6]]) { box(world, 0.5, ROOM.h, 0.5, '#a8774b', x, ROOM.h / 2, z, { mat: { roughness: 0.7 } });
+    solid(x, z, 0.5, 0.5); }
   Object.assign(ctx, { rugs, frameM, winRuns, winKey, WIN, shaftU, wallM, ceilingM, shafts });
 }
 

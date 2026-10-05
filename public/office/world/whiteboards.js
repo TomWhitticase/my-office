@@ -17,7 +17,8 @@ export function install(ctx) {
   function whiteboard(scr, id, name, draw, live = false) {
     const ink = document.createElement('canvas');
     ink.width = scr.W; ink.height = scr.H;
-    const b = { id, name, scr, draw, live, list: live && localStorage[`officeBoardList:${id}`] !== 'off', ink, ictx: ink.getContext('2d'), undo: [], redo: [], dirty: true,
+    const b = { id, name, scr, draw, live, list: live && localStorage[`officeBoardList:${id}`] !== 'off', ink, ictx: ink.getContext('2d'), undo: [], redo: [],
+      dirty: true,
       w: scr.mesh.geometry.parameters.width, h: scr.mesh.geometry.parameters.height };
     scr.mesh.material = new THREE.MeshStandardMaterial({ map: scr.tex, roughness: 0.6 });
     scr.mesh.userData = { action: 'board', board: b, reach: 5 };
@@ -78,7 +79,8 @@ export function installDrawing(ctx) {
     hud.classList.remove('of-boarding');
     gl.style.cursor = '';
     if (ctx.mode !== 'board') return;
-    tween(camPose(), { x: player.x, y: player.eye, z: player.z, yaw: player.yaw, pitch: player.pitch }, 600, () => { if (ctx.mode === 'board') ctx.mode = 'free'; });
+    tween(camPose(), { x: player.x, y: player.eye, z: player.z, yaw: player.yaw, pitch: player.pitch }, 600,
+      () => { if (ctx.mode === 'board') ctx.mode = 'free'; });
     if (relock) renderer.domElement.requestPointerLock();   // only works from a click; after Esc, click to look around again
   }
   function wbSync() {
@@ -161,7 +163,8 @@ export function installDrawing(ctx) {
     const top = m.localToWorld(wbV.set(0, b.h / 2, 0)).project(camera).y, bot = m.localToWorld(wbV.set(0, -b.h / 2, 0)).project(camera).y;
     const scale = ((top - bot) / 2 * r.height) / b.scr.H, fs = px * scale;
     wb.text = { b, x: at.x, y: at.y, px, color: wb.color };
-    Object.assign(wbIn.style, { display: 'block', left: `${e.clientX - hr.left}px`, top: `${e.clientY - hr.top - fs * 0.95}px`, fontSize: `${fs}px`, color: wb.color });
+    Object.assign(wbIn.style,
+      { display: 'block', left: `${e.clientX - hr.left}px`, top: `${e.clientY - hr.top - fs * 0.95}px`, fontSize: `${fs}px`, color: wb.color });
     wbIn.value = '';
     setTimeout(() => wbIn.focus());
   }
@@ -210,7 +213,8 @@ export function installDrawing(ctx) {
     if (ctx.mode !== 'board' || !wb.b || e.target.closest?.('input, select, textarea, #drawer')) return;
     const cmd = e.metaKey || e.ctrlKey;
     if (e.code === 'Escape') { e.preventDefault(); leaveBoard(); return; }
-    if (cmd && (e.code === 'KeyZ' || e.code === 'KeyY')) { e.preventDefault(); e.shiftKey || e.code === 'KeyY' ? wbHistory(wb.b.redo, wb.b.undo) : wbHistory(wb.b.undo, wb.b.redo); return; }
+    if (cmd && (e.code === 'KeyZ' || e.code === 'KeyY')) { e.preventDefault();
+      e.shiftKey || e.code === 'KeyY' ? wbHistory(wb.b.redo, wb.b.undo) : wbHistory(wb.b.undo, wb.b.redo); return; }
     if (cmd || e.altKey) return;
     const tool = { KeyP: 'pen', KeyB: 'pen', KeyE: 'eraser', KeyT: 'text' }[e.code], n = /^Digit([1-6])$/.exec(e.code);
     if (tool) wb.tool = tool;
@@ -219,6 +223,8 @@ export function installDrawing(ctx) {
     e.preventDefault(); wbSync();
   });
   Object.assign(ctx, { wb });
-  ctx.action('board', { hover: (h) => `<b>${h.board.name[0].toUpperCase() + h.board.name.slice(1)}</b><div class="k">Click to draw on it</div>`, click: (h) => useBoard(h.board) });
+  ctx.action('board',
+    { hover: (h) => `<b>${h.board.name[0].toUpperCase() + h.board.name.slice(1)}</b><div class="k">Click to draw on it</div>`,
+    click: (h) => useBoard(h.board) });
   ctx.hoverTargets(() => ctx.boards.map((b) => b.scr.mesh), 80);
 }

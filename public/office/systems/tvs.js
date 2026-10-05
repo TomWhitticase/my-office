@@ -22,7 +22,8 @@ export function install(ctx) {
     const scr = makeScreen(g, w, h, 1280, 720, 0, 0, 0.004);
     scr.mesh.userData.tv = id;
     scr.mesh.material.color.setScalar(1); scr.mesh.material.toneMapped = false;   // web pages in their own colours, not tone-mapped
-    const t = { id, name, w, h, scr, cfg: null, frame: null, seq: 0, shown: 0, live: false, page: null, center: new THREE.Vector3(x, y, z), normal: new THREE.Vector3(Math.sin(rotY), 0, Math.cos(rotY)) };
+    const t = { id, name, w, h, scr, cfg: null, frame: null, seq: 0, shown: 0, live: false, page: null, center: new THREE.Vector3(x, y, z),
+      normal: new THREE.Vector3(Math.sin(rotY), 0, Math.cos(rotY)) };
     t.sphere = new THREE.Sphere(t.center, w * 0.6);
     tvs.push(t);
     paintTv(t);
@@ -44,7 +45,8 @@ export function install(ctx) {
       }
     } else {
       ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.beginPath(); ctx.arc(W / 2, 280, 92, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.beginPath(); ctx.moveTo(W / 2 - 28, 232); ctx.lineTo(W / 2 + 48, 280); ctx.lineTo(W / 2 - 28, 328); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.beginPath(); ctx.moveTo(W / 2 - 28, 232); ctx.lineTo(W / 2 + 48, 280); ctx.lineTo(W / 2 - 28, 328);
+      ctx.fill();
       ctx.font = `600 52px ${FONT}`; ctx.fillStyle = '#e8e6df'; ctx.fillText(fit(ctx, hostOf(c.url), W - 160), W / 2, 480);
       ctx.font = `400 36px ${FONT}`; ctx.fillStyle = '#9a9890'; ctx.fillText(t.live ? 'loading…' : 'live when you walk closer', W / 2, 544);
     }
@@ -207,7 +209,8 @@ export function installUse(ctx) {
     hud.classList.remove('of-using');
     tvUrl.blur();
     if (ctx.mode !== 'tv') return;
-    tween(camPose(), { x: player.x, y: player.eye, z: player.z, yaw: player.yaw, pitch: player.pitch }, 600, () => { if (ctx.mode === 'tv') ctx.mode = 'free'; });
+    tween(camPose(), { x: player.x, y: player.eye, z: player.z, yaw: player.yaw, pitch: player.pitch }, 600,
+      () => { if (ctx.mode === 'tv') ctx.mode = 'free'; });
     if (relock) renderer.domElement.requestPointerLock();   // only works from a click; after Esc, click to look around again
   }
   function tvBarSync() {

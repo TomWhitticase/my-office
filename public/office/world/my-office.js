@@ -10,9 +10,11 @@ export function install(ctx) {
   Object.assign(ctx, { glassDoor, wallGroup, hangBlind, officeFx });
   // ----- my office -----
   // Tinted glass that gets more opaque and reflective at grazing angles, so the walls read as solid.
-  const glassM = new THREE.MeshPhysicalMaterial({ color: '#b9d3da', transparent: true, opacity: 0.14, roughness: 0.03, metalness: 0, envMapIntensity: 2.2, specularIntensity: 1, depthWrite: false });
+  const glassM = new THREE.MeshPhysicalMaterial({ color: '#b9d3da', transparent: true, opacity: 0.14, roughness: 0.03, metalness: 0, envMapIntensity: 2.2,
+    specularIntensity: 1, depthWrite: false });
   glassM.onBeforeCompile = (sh) => {
-    sh.fragmentShader = sh.fragmentShader.replace('#include <dithering_fragment>', '#include <dithering_fragment>\n  gl_FragColor.a = mix(gl_FragColor.a, 0.62, pow(1.0 - abs(dot(normalize(normal), normalize(vViewPosition))), 3.0));');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <dithering_fragment>',
+      '#include <dithering_fragment>\n  gl_FragColor.a = mix(gl_FragColor.a, 0.62, pow(1.0 - abs(dot(normalize(normal), normalize(vViewPosition))), 3.0));');
   };
   const frostTex = (() => {
     const t = makeCanvas(128, 64), { ctx } = t;
@@ -24,10 +26,13 @@ export function install(ctx) {
   // Venetian blinds: k 0 = raised, 1 = lowered with slats tilted ~57°, leaving thin slits of light.
   // A run is one InstancedMesh of slats (and one of bottom rails) for a row of [x, width] cells hanging from `top` down to `bot`.
   const slatM = mat('#e6e1d6', { roughness: 0.95, envMapIntensity: 0.25 }), railM = mat('#cfc9bd'), blinds = {};
-  for (const [key, name] of [['side', 'Blinds'], ['front', 'Blinds'], ['north', 'North window blinds'], ['east', 'East window blinds'], ['west', 'West window blinds'], ['office', 'Window blinds'],
-    ['meetSouth', 'Meeting room (south) blinds'], ['meetNorth', 'Meeting room (north) blinds'], ['meetSmall', 'Small meeting room blinds']]) blinds[key] = { key, name, k: 0, to: 0, runs: [] };
+  for (const [key, name] of [['side', 'Blinds'], ['front', 'Blinds'], ['north', 'North window blinds'], ['east', 'East window blinds'],
+    ['west', 'West window blinds'], ['office', 'Window blinds'],
+    ['meetSouth', 'Meeting room (south) blinds'], ['meetNorth', 'Meeting room (north) blinds'],
+      ['meetSmall', 'Small meeting room blinds']]) blinds[key] = { key, name, k: 0, to: 0, runs: [] };
   const BL = { top: ROOM.h - 0.12, sp: 0.05, stack: 0.008, slatG: new THREE.BoxGeometry(1, 0.004, 0.058), railG: new THREE.BoxGeometry(1, 0.02, 0.06) };
-  const _m4 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _q0 = new THREE.Quaternion(), _e = new THREE.Euler(), _v = new THREE.Vector3(), _s = new THREE.Vector3(1, 1, 1);
+  const _m4 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _q0 = new THREE.Quaternion(), _e = new THREE.Euler(), _v = new THREE.Vector3(),
+    _s = new THREE.Vector3(1, 1, 1);
   // States: 0 raised, 0.5 lowered with the slats open, 1 closed. The first half drops the blind, the second tilts the slats.
   const blindShut = (k) => clamp(k * 2, 0, 1) * 0.3 + clamp(k * 2 - 1, 0, 1) * 0.6;
   function layBlind(r, k) {
@@ -37,12 +42,15 @@ export function install(ctx) {
     r.cells.forEach(([x, w], c) => {
       _s.x = w;
       r.rails.setMatrixAt(c, _m4.compose(_v.set(x, railY, 0), _q0, _s));
-      for (let i = 0; i < r.n; i++) r.slats.setMatrixAt(c * r.n + i, _m4.compose(_v.set(x, Math.max(r.top - (i + 1) * BL.sp, railY + (r.n - i) * BL.stack), 0), _q, _s));
+      for (let i = 0; i < r.n;
+        i++) r.slats.setMatrixAt(c * r.n + i, _m4.compose(_v.set(x, Math.max(r.top - (i + 1) * BL.sp, railY + (r.n - i) * BL.stack), 0), _q, _s));
     });
     for (const m of [r.slats, r.rails]) { m.instanceMatrix.needsUpdate = true; m.computeBoundingSphere(); }
   }
   function hangBlind(g, cells, top, bot, z, bl) {
-    const n = Math.floor((top - bot - 0.02) / BL.sp), r = { cells, top, bot, n, slats: new THREE.InstancedMesh(BL.slatG, slatM, n * cells.length), rails: new THREE.InstancedMesh(BL.railG, railM, cells.length) };
+    const n = Math.floor((top - bot - 0.02) / BL.sp),
+      r = { cells, top, bot, n, slats: new THREE.InstancedMesh(BL.slatG, slatM, n * cells.length),
+      rails: new THREE.InstancedMesh(BL.railG, railM, cells.length) };
     g.add(mergedBoxes(cells.map(([x, w]) => [w, 0.05, 0.07, x, top + 0.03, z]), mat('#d9d4c9')));
     for (const m of [r.slats, r.rails]) { m.position.z = z; m.castShadow = true; m.userData = { action: 'blinds', blind: bl, reach: 6 }; g.add(m); }
     bl.runs.push(r); layBlind(r, 0);
@@ -97,7 +105,8 @@ export function install(ctx) {
     const p = d.pivot;
     p.position.set(hx, 0, hz); p.rotation.y = r0; world.add(p);
     box(p, W, H, 0.025, '', W / 2, H / 2 + 0.01, 0, { material: glassM, shadow: false });
-    for (const [w, h, x, y] of [[W, 0.07, W / 2, 0.045], [W, 0.05, W / 2, H - 0.015], [0.05, H, 0.025, H / 2 + 0.01], [0.05, H, W - 0.025, H / 2 + 0.01]]) box(p, w, h, 0.045, '', x, y, 0, { material: frameM });
+    for (const [w, h, x, y] of [[W, 0.07, W / 2, 0.045], [W, 0.05, W / 2, H - 0.015], [0.05, H, 0.025, H / 2 + 0.01],
+      [0.05, H, W - 0.025, H / 2 + 0.01]]) box(p, w, h, 0.045, '', x, y, 0, { material: frameM });
     const fm = new THREE.MeshStandardMaterial({ map: frostTex.clone(), transparent: true, roughness: 0.9, depthWrite: false });
     fm.map.repeat.set(W / 0.32, 1); fm.map.needsUpdate = true;
     box(p, W - 0.1, 0.16, 0.03, '', W / 2, 1.46, 0, { material: fm, shadow: false });
@@ -115,7 +124,8 @@ export function install(ctx) {
   }
   function setDoorBox(d, open) {
     const r = d.r0 + (open ? d.swing * Math.PI / 2 : 0), tx = d.hx + Math.cos(r) * d.W, tz = d.hz - Math.sin(r) * d.W;
-    Object.assign(d.box, { minX: Math.min(d.hx, tx) - 0.04, maxX: Math.max(d.hx, tx) + 0.04, minZ: Math.min(d.hz, tz) - 0.04, maxZ: Math.max(d.hz, tz) + 0.04 });
+    Object.assign(d.box,
+      { minX: Math.min(d.hx, tx) - 0.04, maxX: Math.max(d.hx, tx) + 0.04, minZ: Math.min(d.hz, tz) - 0.04, maxZ: Math.max(d.hz, tz) + 0.04 });
   }
   // Mine: hinged on the left post, swinging into my office; shared with every browser via /api/office.
   const door = glassDoor({ name: 'Office door', hx: 7.04, hz: -3.5, r0: 0, swing: 1, W: 1.34 });
@@ -137,7 +147,8 @@ export function install(ctx) {
   }
   Object.assign(ctx, { blinds, door, doors, glassM, frostTex, BL });
   ctx.onFrame((dt) => officeFx(dt), 60);
-  ctx.action('blinds', { hover: (h) => `<b>${h.blind.name}</b><div class="k">Click to ${['lower the blinds', 'close the slats', 'raise the blinds'][h.blind.to * 2]}</div>`,
+  ctx.action('blinds',
+    { hover: (h) => `<b>${h.blind.name}</b><div class="k">Click to ${['lower the blinds', 'close the slats', 'raise the blinds'][h.blind.to * 2]}</div>`,
     click: (h) => { h.blind.to = h.blind.to === 1 ? 0 : h.blind.to + 0.5; dash.putOffice({ blinds: { [h.blind.key]: h.blind.to } }); } });
   ctx.action('door', { hover: (h) => `<b>${h.door.name}</b><div class="k">Click to ${h.door.to ? 'close' : 'open'}</div>`,
     click: (h) => { const d = h.door; d.to = d.to ? 0 : 1; if (d === door) dash.putOffice({ door: d.to }); } });
@@ -258,7 +269,8 @@ export function installDesk(ctx) {
       [0.015, 0.16, 0.12, dx - 0.62, cy + 0.08, cz, '#2a2c30'], [0.015, 0.16, 0.12, dx - 0.27, cy + 0.08, cz, '#2a2c30']], vcM));
     cyl(world, 0.05, 0.05, 0.01, '#3a3c40', dx - 1.38, cy + 0.2, cz + 0.091, { seg: 20 }).rotation.x = Math.PI / 2;   // speaker cone
     cyl(world, 0.025, 0.025, 0.01, '#3a3c40', dx - 1.38, cy + 0.07, cz + 0.091, { seg: 16 }).rotation.x = Math.PI / 2;
-    world.add(mergedBoxes(['#3f4a6b', '#d9a441', '#1f2a33', '#a35d7a', '#6b8e4e', '#c26a3d'].map((c, i) => [0.035, 0.2 + (i % 3) * 0.025, 0.15, dx - 0.585 + 0.045 * (i + 1), cy + 0.1 + (i % 3) * 0.0125, cz, c]), vcM));
+    world.add(mergedBoxes(['#3f4a6b', '#d9a441', '#1f2a33', '#a35d7a', '#6b8e4e',
+      '#c26a3d'].map((c, i) => [0.035, 0.2 + (i % 3) * 0.025, 0.15, dx - 0.585 + 0.045 * (i + 1), cy + 0.1 + (i % 3) * 0.0125, cz, c]), vcM));
     smallPlant(world, dx - 0.95, cy + 0.1, cz);
     {
       const g = new THREE.Group(); g.position.set(dx + 0.3, cy, cz + 0.02); g.rotation.set(-0.15, -0.25, 0); world.add(g);
@@ -287,14 +299,18 @@ export function installDesk(ctx) {
     // Along the west glass: a tall bookcase, a rolling whiteboard, the coat stand by the door. Kept clear of the blind.
     bookshelf(6.38, -12.4, Math.PI / 2, 2.2, 2.2, 5);
     const wg = new THREE.Group(); wg.position.set(6.5, 0, -8.6); wg.rotation.y = Math.PI / 2; world.add(wg);
-    wg.add(mergedBoxes([[1.76, 1.02, 0.04, 0, 1.4, -0.01, '#b9bcc0'], [0.04, 1.85, 0.04, -0.86, 0.93, -0.03, '#8d9399'], [0.04, 1.85, 0.04, 0.86, 0.93, -0.03, '#8d9399'],
+    wg.add(mergedBoxes([[1.76, 1.02, 0.04, 0, 1.4, -0.01, '#b9bcc0'], [0.04, 1.85, 0.04, -0.86, 0.93, -0.03, '#8d9399'],
+      [0.04, 1.85, 0.04, 0.86, 0.93, -0.03, '#8d9399'],
       [0.06, 0.04, 0.5, -0.86, 0.08, -0.03, '#5a5f66'], [0.06, 0.04, 0.5, 0.86, 0.08, -0.03, '#5a5f66'], [1.7, 0.03, 0.06, 0, 0.87, 0.03, '#b9bcc0']],
     mat('#ffffff', { vertexColors: true, roughness: 0.5, metalness: 0.3 })));
     markerBoard('office', 'whiteboard', makeScreen(wg, 1.7, 0.96, 768, 434, 0, 1.4, 0.012), (c) => {
-      const node = (x, y, t, col) => { c.strokeStyle = col; c.strokeRect(x - 90, y - 34, 180, 68); c.fillStyle = col; c.font = `600 30px "Marker Felt", "Comic Sans MS", ${FONT}`; c.textAlign = 'center'; c.fillText(t, x, y + 10); };
+      const node = (x, y, t, col) =>
+        { c.strokeStyle = col; c.strokeRect(x - 90, y - 34, 180, 68); c.fillStyle = col; c.font = `600 30px "Marker Felt", "Comic Sans MS", ${FONT}`;
+        c.textAlign = 'center'; c.fillText(t, x, y + 10); };
       node(130, 90, '~/.claude', '#1f6fd1'); node(384, 90, 'server', '#2e8b57'); node(638, 90, 'office', '#c0392b');
       c.strokeStyle = '#333';
-      for (const x of [220, 474]) { c.beginPath(); c.moveTo(x, 90); c.lineTo(x + 70, 90); c.lineTo(x + 56, 80); c.moveTo(x + 70, 90); c.lineTo(x + 56, 100); c.stroke(); }
+      for (const x of [220, 474]) { c.beginPath(); c.moveTo(x, 90); c.lineTo(x + 70, 90); c.lineTo(x + 56, 80); c.moveTo(x + 70, 90); c.lineTo(x + 56, 100);
+        c.stroke(); }
       c.textAlign = 'left'; c.fillStyle = '#333'; c.font = `400 28px "Marker Felt", "Comic Sans MS", ${FONT}`;
       ['Q4', '- hire 2 engineers', '- launch v2 ✦', '- inbox zero (lol)'].forEach((t, i) => c.fillText(t, 50, 200 + i * 52));
       c.strokeStyle = '#d97757'; c.beginPath(); c.ellipse(560, 300, 140, 60, 0.1, 0, Math.PI * 2); c.stroke();
@@ -304,7 +320,8 @@ export function installDesk(ctx) {
     {
       const x = 6.45, z = -5.3;
       cyl(world, 0.22, 0.24, 0.03, '#2a2a2a', x, 0.015, z, { seg: 20 }); cyl(world, 0.02, 0.025, 1.8, '#5a3d28', x, 0.9, z);
-      for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + 0.4; box(world, 0.16, 0.02, 0.02, '#2a2a2a', x + Math.cos(a) * 0.07, 1.72, z + Math.sin(a) * 0.07).rotation.y = -a; }
+      for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + 0.4;
+        box(world, 0.16, 0.02, 0.02, '#2a2a2a', x + Math.cos(a) * 0.07, 1.72, z + Math.sin(a) * 0.07).rotation.y = -a; }
       box(world, 0.16, 0.75, 0.34, '#1f2a44', x + 0.09, 1.32, z - 0.02).rotation.x = 0.05;   // a coat
       box(world, 0.05, 0.12, 0.3, '#2a2724', x - 0.08, 1.6, z + 0.02);                       // a bag strap
       solid(x, z, 0.4, 0.4);
@@ -314,7 +331,8 @@ export function installDesk(ctx) {
     rug(16.7, 19.85, -11.4, -6.6, '#e2d6c0', '#8b5a3c');
     sofa(17.9, -10.65, 0, 1.05, '#8b5a3c'); sofa(17.9, -7.35, Math.PI, 1.05, '#8b5a3c');
     box(world, 0.9, 0.04, 0.55, '#8a6a4a', 17.9, 0.4, -9, { mat: { roughness: 0.5 } });
-    for (const [ox, oz] of [[-0.4, -0.22], [0.4, -0.22], [-0.4, 0.22], [0.4, 0.22]]) box(world, 0.035, 0.38, 0.035, '', 17.9 + ox, 0.19, -9 + oz, { material: legM });
+    for (const [ox, oz] of [[-0.4, -0.22], [0.4, -0.22], [-0.4, 0.22], [0.4, 0.22]]) box(world, 0.035, 0.38, 0.035, '', 17.9 + ox, 0.19, -9 + oz,
+      { material: legM });
     world.add(mergedBoxes([[0.24, 0.03, 0.18, 17.75, 0.435, -9.08, '#1f2a33'], [0.22, 0.025, 0.17, 17.76, 0.462, -9.07, '#d9a441']], vcM));
     cyl(world, 0.04, 0.035, 0.1, '#2f6f8f', 18.15, 0.47, -8.9);
     smallPlant(world, 17.98, 0.42, -9.15);

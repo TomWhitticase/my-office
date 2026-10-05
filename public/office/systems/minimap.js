@@ -20,7 +20,8 @@ export function install(ctx) {
     c.fillStyle = 'rgba(255,255,255,.22)';
     for (const b of colliders) c.fillRect(sx(b.minX), sz(b.minZ), Math.max(2, sx(b.maxX) - sx(b.minX)), Math.max(2, sz(b.maxZ) - sz(b.minZ)));
     c.font = '600 20px system-ui'; c.fillStyle = 'rgba(255,255,255,.55)';
-    c.fillText('Desks', sx(-12), sz(-0.6)); c.fillText('Breakroom', sx(-12), sz(13.6)); c.fillText(dash.officeName(), sx(9), sz(-13.4)); c.fillText('Lounge', sx(8), sz(13.6));
+    c.fillText('Desks', sx(-12), sz(-0.6)); c.fillText('Breakroom', sx(-12), sz(13.6)); c.fillText(dash.officeName(), sx(9), sz(-13.4));
+    c.fillText('Lounge', sx(8), sz(13.6));
   }, 10);
   ctx.minimap((c, sx, sz) => {   // you
     const px = sx(camera.position.x), pz = sz(camera.position.z), yaw = camera.rotation.y;

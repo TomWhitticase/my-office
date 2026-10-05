@@ -58,7 +58,8 @@ export function install(ctx) {
       while (bx < w / 2 - 0.1) {
         if (R() < 0.07) { bx += 0.18; continue; }
         const bw = 0.025 + R() * 0.035, bh = Math.min(gap - 0.05, 0.17 + R() * 0.12), lean = R() < 0.04;
-        books.push([lean ? bh : bw, lean ? bw : bh, 0.2 + R() * 0.06, bx + (lean ? bh : bw) / 2, by + (lean ? bw : bh) / 2, 0.02, pal[Math.floor(R() * pal.length)]]);
+        books.push([lean ? bh : bw, lean ? bw : bh, 0.2 + R() * 0.06, bx + (lean ? bh : bw) / 2, by + (lean ? bw : bh) / 2, 0.02,
+          pal[Math.floor(R() * pal.length)]]);
         bx += (lean ? bh : bw) + 0.004;
       }
     }
@@ -99,7 +100,8 @@ export function install(ctx) {
     };
     const inst = (geo, m, n) => {
       const im = new THREE.InstancedMesh(geo, m, n);
-      im.count = 0; im.castShadow = true; im.receiveShadow = true; im.frustumCulled = false; im.layers.set(1);   // layer 1: keep alpha cards out of the AO/depth passes
+      // layer 1: keep alpha cards out of the AO/depth passes
+      im.count = 0; im.castShadow = true; im.receiveShadow = true; im.frustumCulled = false; im.layers.set(1);
       world.add(im);
       return im;
     };
@@ -201,7 +203,9 @@ export function install(ctx) {
     // One place per ~0.7 m of seat; clicking the sofa sits you in the place nearest where you aimed.
     const n = Math.max(1, Math.round((len - 0.4) / 0.7)), places = [];
     for (let i = 0; i < n; i++) places.push(addSeat(g, len < 1.4 ? 'Armchair' : 'Sofa', ((i + 0.5) / n - 0.5) * (len - 0.4), 1.08));
-    g.traverse((o) => { if (o.isMesh) o.userData.seatAt = (pt) => places.reduce((a, b) => (Math.hypot(b.x - pt.x, b.z - pt.z) < Math.hypot(a.x - pt.x, a.z - pt.z) ? b : a)); });
+    g.traverse((o) =>
+      { if (o.isMesh) o.userData.seatAt = (pt) => places.reduce((a, b) => (Math.hypot(b.x - pt.x, b.z - pt.z) < Math.hypot(a.x - pt.x, a.z - pt.z) ? b : a));
+      });
     const horiz = Math.abs(Math.sin(rotY)) < 0.5;
     solid(x, z, horiz ? len : 0.9, horiz ? 0.9 : len);
   }

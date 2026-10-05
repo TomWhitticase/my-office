@@ -90,7 +90,8 @@ export class Person {
     this.label.layers.set(1);
     this.root.add(this.label);
 
-    this.j = { bodyY: 0, lean: 0, leg0: 0, leg1: 0, knee0: 0, knee1: 0, sh0: 0, sh1: 0, shz0: -0.07, shz1: 0.07, shy0: 0, shy1: 0, el0: -0.15, el1: -0.15, headY: 0, headX: 0 };
+    this.j = { bodyY: 0, lean: 0, leg0: 0, leg1: 0, knee0: 0, knee1: 0, sh0: 0, sh1: 0, shz0: -0.07, shz1: 0.07, shy0: 0, shy1: 0, el0: -0.15, el1: -0.15,
+      headY: 0, headX: 0 };
     this.path = [];
     this.spot = null;
     this.desk = null;
@@ -121,19 +122,23 @@ export class Person {
       case 'type': {   // forearms resting on the desk edge, hands angled in onto the keyboard, fingers tapping
         sit(0.47);
         const tap = (k) => 0.045 * Math.max(0, Math.sin(t * (15 + k * 2.3) + ph + k * 1.7));
-        Object.assign(j, { lean: 0.04, sh0: -1.0, sh1: -1.0, shz0: 0.02, shz1: -0.02, shy0: 0.2, shy1: -0.2, headX: 0.14, headY: 0.04 + 0.12 * Math.sin(t * 0.45 + ph),
+        Object.assign(j,
+          { lean: 0.04, sh0: -1.0, sh1: -1.0, shz0: 0.02, shz1: -0.02, shy0: 0.2, shy1: -0.2, headX: 0.14, headY: 0.04 + 0.12 * Math.sin(t * 0.45 + ph),
           el0: -0.67 + tap(0), el1: -0.67 + tap(1) });
         break;
       }
       case 'wait':   // at the desk but the session is waiting (on a shell, a prompt…): see waitStyle()
         sit(0.47);
         if (this.waitStyle() === 'lean')        // leaning right back, hands behind the head
-          Object.assign(j, { lean: -0.38, sh0: -2.75, sh1: -2.75, shz0: -0.55, shz1: 0.55, el0: -2.0, el1: -2.0, headX: -0.18, headY: 0.15 * Math.sin(t * 0.3 + ph) });
+          Object.assign(j,
+            { lean: -0.38, sh0: -2.75, sh1: -2.75, shz0: -0.55, shz1: 0.55, el0: -2.0, el1: -2.0, headX: -0.18, headY: 0.15 * Math.sin(t * 0.3 + ph) });
         else if (this.waitStyle() === 'phone') { // slouched, scrolling a phone held up in front
           this.phone.visible = true;
-          Object.assign(j, { lean: 0.05, sh0: -0.85, el0: -1.55 + 0.05 * Math.sin(t * 6 + ph), shz0: 0.12, sh1: -0.7, el1: -1.5, shz1: -0.05, headX: 0.38, headY: -0.08 });
+          Object.assign(j,
+            { lean: 0.05, sh0: -0.85, el0: -1.55 + 0.05 * Math.sin(t * 6 + ph), shz0: 0.12, sh1: -0.7, el1: -1.5, shz1: -0.05, headX: 0.38, headY: -0.08 });
         } else                                   // spinning the chair like a kid: legs up, arms out
-          Object.assign(j, { lean: -0.2, leg0: -1.15, leg1: -1.15, knee0: 0.55, knee1: 0.55, sh0: -0.3, sh1: -0.3, shz0: -0.9, shz1: 0.9, el0: -0.2, el1: -0.2, headX: -0.1 });
+          Object.assign(j,
+            { lean: -0.2, leg0: -1.15, leg1: -1.15, knee0: 0.55, knee1: 0.55, sh0: -0.3, sh1: -0.3, shz0: -0.9, shz1: 0.9, el0: -0.2, el1: -0.2, headX: -0.1 });
         break;
       case 'sofa':
         sit(0.53);
@@ -148,7 +153,8 @@ export class Person {
       case 'coffee': {
         this.mug.visible = true;
         const sip = (t + ph) % 7 < 1.6;
-        Object.assign(j, { sh0: sip ? -0.9 : -0.25, el0: sip ? -2.2 : -1.5, headX: sip ? -0.15 : 0.05 * Math.sin(t + ph), headY: 0.25 * Math.sin(t * 0.4 + ph) });
+        Object.assign(j,
+          { sh0: sip ? -0.9 : -0.25, el0: sip ? -2.2 : -1.5, headX: sip ? -0.15 : 0.05 * Math.sin(t + ph), headY: 0.25 * Math.sin(t * 0.4 + ph) });
         break;
       }
       case 'stool': {   // perched at the kitchen island with a coffee, the other forearm on the worktop
@@ -168,7 +174,8 @@ export class Person {
         break;
       case 'meeting':   // seated round a meeting-room table, forearms on it, one hand gesturing
         sit(0.47);
-        Object.assign(j, { lean: 0.06, sh0: -0.55 - 0.25 * (0.5 + 0.5 * Math.sin(t * 1.9 + ph)), el0: -1.2 + 0.25 * Math.sin(t * 2.7 + ph), sh1: -0.5, el1: -1.0,
+        Object.assign(j,
+          { lean: 0.06, sh0: -0.55 - 0.25 * (0.5 + 0.5 * Math.sin(t * 1.9 + ph)), el0: -1.2 + 0.25 * Math.sin(t * 2.7 + ph), sh1: -0.5, el1: -1.0,
           shz0: -0.1, shz1: 0.12, headX: 0.04 * Math.sin(t * 1.3 + ph), headY: 0.35 * Math.sin(t * 0.35 + ph) });
         break;
       case 'press':   // calling the lift: reach for the button, then wait
@@ -200,7 +207,9 @@ export class Person {
     }
     this.root.rotation.y = this.rotY;
     const tg = this.targets(t), j = this.j;
-    if (this.lookAt) { const p = this.root.position; tg.headY = clamp(angDiff(this.rotY, Math.atan2(this.lookAt.x - p.x, this.lookAt.z - p.z)), -1.1, 1.1); tg.headX = 0; }   // you're talking to them
+    // you're talking to them
+    if (this.lookAt) { const p = this.root.position; tg.headY = clamp(angDiff(this.rotY, Math.atan2(this.lookAt.x - p.x, this.lookAt.z - p.z)), -1.1, 1.1);
+      tg.headX = 0; }
     for (const k in tg) j[k] = damp(j[k], tg[k], 9, dt);
     this.body.position.y = j.bodyY;
     this.upper.rotation.x = j.lean;
@@ -221,7 +230,8 @@ export class Person {
   }
 
   setLabel(s) {
-    const key = [titleOf(s), s.status, s.transcript?.pendingTool?.name, F.usd(s.cost), s.subagents.active, s.status === 'idle' ? F.dur(Date.now() - s.statusSince) : ''].join('|');
+    const key = [titleOf(s), s.status, s.transcript?.pendingTool?.name, F.usd(s.cost), s.subagents.active,
+      s.status === 'idle' ? F.dur(Date.now() - s.statusSince) : ''].join('|');
     if (key === this.labelKey) return;
     this.labelKey = key;
     drawLabel(this.lab, s, this.color);
@@ -234,7 +244,8 @@ export function installSpots(ctx) {
   // ----- idle spots -----
   const R = (...pts) => pts.map(([x, z]) => ({ x, z }));
   const idleSpots = [];
-  const spot = (key, x, z, rotY, pose, route) => { const s = { key, kind: 'idle', pos: { x, z }, rotY, pose, route: [...route, { x, z }] }; idleSpots.push(s); return s; };
+  const spot = (key, x, z, rotY, pose, route) =>
+    { const s = { key, kind: 'idle', pos: { x, z }, rotY, pose, route: [...route, { x, z }] }; idleSpots.push(s); return s; };
   const sofaA = [-14.8, -14, -13.2].map((x, i) => spot(`sofaA${i}`, x, 5.25, 0, 'sofa', R([-11.6, AISLE], [-11.6, 6.15], [x, 6.15])));
   const sofaB = [-14.8, -14, -13.2].map((x, i) => spot(`sofaB${i}`, x, 8.75, Math.PI, 'sofa', R([-11.6, AISLE], [-11.6, 7.85], [x, 7.85])));
   // One at the coffee machine, one waiting and chatting; four stools at the island; one at the drinks fridge.
@@ -242,7 +253,8 @@ export function installSpots(ctx) {
     spot(`coffee${i}`, x, z, rotY, 'coffee', R([-11.6, AISLE], [-11.6, 12.6], [x, 12.6])));
   const stool = kitchen.stools.map(({ x, z }, i) => spot(`stool${i}`, x, z, 0, 'stool', R([-11.6, AISLE], [-11.6, 10], [x, 10])));
   const fridge = spot('fridge', -18.55, 12.95, -Math.PI / 2, 'fridge', R([-11.6, AISLE], [-11.6, 12.6], [-18.55, 12.6]));
-  const pp = [spot('pp0', PP.x - 1.85, PP.z, Math.PI / 2, 'pingpong', R([-11.6, AISLE], [-11.6, PP.z], [PP.x - 1.85, PP.z])), spot('pp1', PP.x + 1.85, PP.z, -Math.PI / 2, 'pingpong', R([-4.75, AISLE], [-4.75, 11], [PP.x + 1.85, 11]))];
+  const pp = [spot('pp0', PP.x - 1.85, PP.z, Math.PI / 2, 'pingpong', R([-11.6, AISLE], [-11.6, PP.z], [PP.x - 1.85, PP.z])),
+    spot('pp1', PP.x + 1.85, PP.z, -Math.PI / 2, 'pingpong', R([-4.75, AISLE], [-4.75, 11], [PP.x + 1.85, 11]))];
   const chat = [
     spot('chat0', -10.35, 4.9, Math.PI / 2, 'chat', R([-10.35, AISLE])),
     spot('chat1', -8.85, 4.9, -Math.PI / 2, 'chat', R([-8.85, AISLE])),
@@ -257,7 +269,8 @@ export function installSpots(ctx) {
       spot(`mr${ri}N${i}`, x, n, Math.PI, 'meeting', [...via, ...R([r.around, r.north], [x, r.north])])];
   }));
   const [mrSouth, mrNorth, mrSmall] = mrSeats;
-  const IDLE_ORDER = [sofaA[1], coffee[0], pp[0], pp[1], stool[1], sofaA[0], chat[0], stool[2], chat[1], bean[0], coffee[1], sofaA[2], fridge, stool[0], bean[1], chat[2], stool[3],
+  const IDLE_ORDER = [sofaA[1], coffee[0], pp[0], pp[1], stool[1], sofaA[0], chat[0], stool[2], chat[1], bean[0], coffee[1], sofaA[2], fridge, stool[0],
+    bean[1], chat[2], stool[3],
     mrSmall[0], mrSmall[1], sofaB[0], sofaB[1], sofaB[2], ...meet, ...mrSouth, ...mrNorth, ...mrSmall.slice(2)];
   const LOBBY = { key: 'lobby', kind: 'idle', pos: { x: 15.6, z: -0.5 }, rotY: -Math.PI / 2, pose: 'chat', route: R([15.6, AISLE], [15.6, -0.5]) };
   Object.assign(ctx, { idleSpots, LOBBY, IDLE_ORDER, pp });
@@ -348,7 +361,8 @@ export function installSync(ctx) {
     drawUsage(usageScr, S); usageScr.tex.needsUpdate = true;
     drawRoster(rosterScr, S); rosterScr.tex.needsUpdate = true;
     drawWall(wallTV, S); wallTV.tex.needsUpdate = true;
-    if (tokenRoll.target !== S.totals.todayTokens) Object.assign(tokenRoll, { from: tokenRoll.shown ?? S.totals.todayTokens, target: S.totals.todayTokens, at: performance.now() });
+    if (tokenRoll.target !== S.totals.todayTokens) Object.assign(tokenRoll,
+      { from: tokenRoll.shown ?? S.totals.todayTokens, target: S.totals.todayTokens, at: performance.now() });
     drawFeed(feedTV, S); feedTV.tex.needsUpdate = true;
     if (breakBoard.list) breakBoard.dirty = true;
   }

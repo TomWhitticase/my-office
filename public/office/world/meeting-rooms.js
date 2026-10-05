@@ -45,7 +45,8 @@ export function install(ctx) {
       }
     };
     const { meetSouth, meetNorth, meetSmall } = blinds;
-    mrWall('x', 2.5, 14, 20, null, meetSouth, 1); mrWall('z', 14, 2.5, 7.5, [3.0, 4.1], meetSouth, 1); mrWall('z', 14, 7.5, 12.5, [8.0, 9.1], meetNorth, 1); mrWall('x', 12.5, 14, 20, null, meetNorth, -1);
+    mrWall('x', 2.5, 14, 20, null, meetSouth, 1); mrWall('z', 14, 2.5, 7.5, [3.0, 4.1], meetSouth, 1); mrWall('z', 14, 7.5, 12.5, [8.0, 9.1], meetNorth, 1);
+    mrWall('x', 12.5, 14, 20, null, meetNorth, -1);
     mrWall('z', -1.8, 11.2, 15, null, meetSmall, 1); mrWall('z', 3.4, 11.2, 15, null, meetSmall, -1); mrWall('x', 11.2, -1.8, 3.4, [-1.3, -0.2], meetSmall, 1);
     // Doors in the doorways, swinging into the rooms. People walking in or out open them on the way through.
     glassDoor({ name: 'Meeting room door', hx: 14, hz: 3.02, r0: -Math.PI / 2, swing: 1, W: 1.06, H: 2.16, auto: true });
@@ -60,7 +61,8 @@ export function install(ctx) {
       return g.translate(x, y, z);
     })), frostM);
     world.add(glassMesh, frostMesh, mergedBoxes(frames, frameM));
-    glassMesh.userData = frostMesh.userData = { action: 'blinds', glass: true, reach: 3.5, blindAt: (p) => p.x < 8 ? meetSmall : p.z < 7.5 ? meetSouth : meetNorth };
+    glassMesh.userData = frostMesh.userData = { action: 'blinds', glass: true, reach: 3.5,
+      blindAt: (p) => p.x < 8 ? meetSmall : p.z < 7.5 ? meetSouth : meetNorth };
     // Solid partition between the two east rooms: a wall screen on one side, a whiteboard on the other.
     box(world, 6, ROOM.h, 0.12, '', 17, ROOM.h / 2, 7.5, { material: wallM });
     solid(17, 7.5, 6, 0.12);
@@ -90,8 +92,12 @@ export function install(ctx) {
     box(world, 2.48, 1.28, 0.03, '#b9bcc0', 17.2, 1.55, 7.575, { shadow: false });
     box(world, 1.2, 0.03, 0.07, '#b9bcc0', 17.2, 0.93, 7.62, { shadow: false });
     markerBoard('meet-north', 'meeting room whiteboard', wb, (c) => {
-      const node = (x, y, t, col) => { c.strokeStyle = col; c.strokeRect(x - 105, y - 42, 210, 84); c.fillStyle = col; c.font = `600 34px "Marker Felt", "Comic Sans MS", ${FONT}`; c.textAlign = 'center'; c.fillText(t, x, y + 12); };
-      const arrow = (x0, x1, y) => { c.strokeStyle = '#333'; c.beginPath(); c.moveTo(x0, y); c.lineTo(x1, y); c.lineTo(x1 - 16, y - 12); c.moveTo(x1, y); c.lineTo(x1 - 16, y + 12); c.stroke(); };
+      const node = (x, y, t, col) =>
+        { c.strokeStyle = col; c.strokeRect(x - 105, y - 42, 210, 84); c.fillStyle = col; c.font = `600 34px "Marker Felt", "Comic Sans MS", ${FONT}`;
+        c.textAlign = 'center'; c.fillText(t, x, y + 12); };
+      const arrow = (x0, x1, y) =>
+        { c.strokeStyle = '#333'; c.beginPath(); c.moveTo(x0, y); c.lineTo(x1, y); c.lineTo(x1 - 16, y - 12); c.moveTo(x1, y); c.lineTo(x1 - 16, y + 12);
+        c.stroke(); };
       node(170, 150, 'idea', '#1f6fd1'); node(512, 150, 'plan', '#2e8b57'); node(854, 150, 'ship ✦', '#c0392b');
       arrow(282, 400, 150); arrow(624, 742, 150);
       c.textAlign = 'left'; c.fillStyle = '#333'; c.font = `400 30px "Marker Felt", "Comic Sans MS", ${FONT}`;
@@ -101,7 +107,8 @@ export function install(ctx) {
     });
     // North room: a rolling whiteboard by the east glass, facing the table.
     const g = new THREE.Group(); g.position.set(2.95, 0, 13.3); g.rotation.y = -Math.PI / 2; world.add(g);
-    g.add(mergedBoxes([[1.36, 0.92, 0.04, 0, 1.4, -0.01, '#b9bcc0'], [0.04, 1.85, 0.04, -0.66, 0.93, -0.03, '#8d9399'], [0.04, 1.85, 0.04, 0.66, 0.93, -0.03, '#8d9399'],
+    g.add(mergedBoxes([[1.36, 0.92, 0.04, 0, 1.4, -0.01, '#b9bcc0'], [0.04, 1.85, 0.04, -0.66, 0.93, -0.03, '#8d9399'],
+      [0.04, 1.85, 0.04, 0.66, 0.93, -0.03, '#8d9399'],
       [0.06, 0.04, 0.5, -0.66, 0.08, -0.03, '#5a5f66'], [0.06, 0.04, 0.5, 0.66, 0.08, -0.03, '#5a5f66'], [1.3, 0.03, 0.06, 0, 0.92, 0.03, '#b9bcc0']],
     mat('#ffffff', { vertexColors: true, roughness: 0.5, metalness: 0.3 })));
     const hb = makeScreen(g, 1.3, 0.86, 640, 424, 0, 1.4, 0.012);

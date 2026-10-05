@@ -30,3 +30,37 @@ Things found while refactoring that were deliberately not changed (pure refactor
 - `Transcript.ingestUser`: when a prompt absorbs queued messages and has text of its own (`rest`), the chat gets the
   whole prompt (`text`) rather than `rest`, so the queued messages show twice. May be intended.
 - `GET /api/session/<unknown id>` answers 404 with body `{}` and no content-type.
+
+## Phases 1-3: client split
+
+- **How a part is wired.** Each part exports `install(ctx)` (some have a second, e.g. `installCozy`, `installUse`), and
+  `office/main.js` calls them in the order their code used to run, so everything is still built in the same order (the
+  harness's scene fingerprints and goldens match exactly). What a part reads that is already set when it installs is
+  destructured at the top (`const { world, sofa } = ctx;`); anything set later, or that changes (`ctx.mode`,
+  `ctx.away`, `ctx.state`, `ctx.daylight`, `ctx.using`…), is read live as `ctx.x` at the point of use. What a part
+  shares goes on ctx with `Object.assign(ctx, {…})` (functions first thing, so hoisting still works within the part;
+  constants at the end) or, for a `let` it reassigns, `Object.defineProperty(ctx, 'x', { get, set })`.
+- **mountOffice's own values** that parts need (renderer, scene, camera, hud, the HUD elements, sfx…) are getters on the
+  object `createCtx` is given, since most are created after ctx is.
+- **Registries keep the old order.** `onFrame`, `hoverTargets` and `minimap` entries carry the order number of the step
+  they replaced in the old hard-wired loop / target list / map (10, 20, …), so the frame runs in exactly the old order
+  wherever a part registers. Click actions are looked up by name, so their order doesn't matter. Two `KeyE` handlers
+  (a TV, a session) are mutually exclusive.
+- **Things that had to move to keep the build order working:**
+  - `markerBoard` (a one-line wrapper of `whiteboard`) moved from the meeting rooms to the whiteboards: your desk calls it
+    while building, before the meeting rooms install. It was only reachable before because function declarations hoist.
+  - `liftShaft`, `setFloor` and `renderFloor` (function declarations only) install right after riding the lifts, before
+    the archive, which builds its shaft with `liftShaft` while installing.
+  - `drawArchiveMap` moved up into the archive.
+  - `paintBoard`'s canvas local is `c` instead of `ctx` (it would have shadowed the context it now reads the state from).
+- **Plan deviations.** The kitchen is its own file (world/kitchen.js, ~780 lines), not part of breakroom.js; the guitar
+  corner is world/guitars.js; the binder credenza, cabinets, copier, bins and lobby seating are world/fittings.js; the
+  idle spots and the people sync live in people.js with Person (installSpots, installSync); the stylesheet and HUD
+  markup are office/hud.js. `public/office.js` stays as a one-line re-export so index.html didn't change.
+- **The tooling** that did the moves (scope analysis with acorn + eslint-scope, then tsc for unresolved names) wasn't
+  committed; the harness is what verified each step.
+
+### Found, not changed
+
+- `const gl = renderer.domElement` (the TV and whiteboard code's pointer target) shares its name with the WebGL context
+  `gl` used in renderFrame/renderFloor; it's now `ctx.gl`. Worth a clearer name once features resume.

@@ -19,12 +19,14 @@ export function install(ctx) {
     if (ctx.locked && ctx.mode === 'free') {
       ray.setFromCamera(new THREE.Vector2(0, 0), camera);
       const targets = ctx.away ? [...ctx.away.hits] : ctx.collectTargets([]);
-      for (const st of seats) if ((st.floor || 48) === (ctx.away?.n ?? 48) && st.obj !== player.seat?.obj && Math.hypot(st.x - player.x, st.z - player.z) < 4) targets.push(st.obj);
+      for (const st of seats) if ((st.floor || 48) === (ctx.away?.n ?? 48) && st.obj !== player.seat?.obj &&
+        Math.hypot(st.x - player.x, st.z - player.z) < 4) targets.push(st.obj);
       hover = ctx.away?.pick?.(ray) || null;   // a floor can find what you're looking at itself (inside a repo)
       if (!hover) for (const hit of ray.intersectObjects(targets, true)) {
         const ud = hit.object.userData;
         if (ud.reach && hit.distance > ud.reach) { if (ud.glass || hit.object.material.transparent) continue; break; }
-        if (ud.action) { hover = { action: ud.action, door: ud.door, board: ud.board, blind: ud.blind || ud.blindAt?.(hit.point), floor: ud.floorAt?.(hit.uv), key: ud.keyAt?.(hit.uv), drawer: ud.drawerAt?.(hit.point), folder: ud.folderAt?.(hit.instanceId), info: ud.info }; break; }
+        if (ud.action) { hover = { action: ud.action, door: ud.door, board: ud.board, blind: ud.blind || ud.blindAt?.(hit.point), floor: ud.floorAt?.(hit.uv),
+          key: ud.keyAt?.(hit.uv), drawer: ud.drawerAt?.(hit.point), folder: ud.folderAt?.(hit.instanceId), info: ud.info }; break; }
         if (ud.tv) { hover = { tv: tvs.find((t) => t.id === ud.tv) }; break; }
         if (ud.sessionId) { hover = { sessionId: ud.sessionId, screen: !!ud.screen }; break; }
         if ((ud.seat || ud.seatAt) && hit.distance < 3) { hover = { seat: ud.seat || ud.seatAt(hit.point) }; break; }
@@ -49,7 +51,8 @@ export function install(ctx) {
     const s = ctx.state?.live.find((x) => x.sessionId === hover.sessionId);
     if (!s) { targetEl.style.display = 'none'; return; }
     const st = statusOf(s), tr = s.transcript || {};
-    const doing = s.status !== 'idle' && tr.pendingTool ? `${tr.pendingTool.name}: ${tr.pendingTool.detail || ''}` : s.status === 'idle' ? `idle for ${F.dur(Date.now() - s.statusSince)}` : 'thinking';
+    const doing = s.status !== 'idle' && tr.pendingTool ? `${tr.pendingTool.name}: ${tr.pendingTool.detail || ''}` : s.status === 'idle' ?
+      `idle for ${F.dur(Date.now() - s.statusSince)}` : 'thinking';
     targetEl.innerHTML = `<b>${escapeHtml(titleOf(s))}</b><div class="m"><span style="color:${st.color}">${st.text}</span> · ${F.usd(s.cost)}${s.statusline?.context ? ` · ${s.statusline.context.used_percentage}% context` : ''}</div>
       <div class="m">${escapeHtml(doing.slice(0, 90))}</div><div class="k">${escapeHtml(s.name)} · ${CAN_CHAT && !hover.screen ? 'click to talk · E for details' : 'click for full details'}</div>`;
   }
