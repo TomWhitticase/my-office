@@ -210,6 +210,11 @@ export function mountDesktop() {
       font: 600 12px/1 system-ui, sans-serif; cursor: pointer; }
     .cc-pad button:hover { background: rgba(70,80,72,.9); }
     .cc-one.off .cc-pad button:not([data-power]) { opacity: .4; pointer-events: none; }
+    .cc-keys { position: absolute; left: 50%; bottom: 56px; transform: translateX(-50%); padding: 2px 8px; border-radius: 4px; background: rgba(0,0,0,.45);
+      color: #cfd8cf; font: 11px/1.5 system-ui, sans-serif; white-space: nowrap; pointer-events: none; }
+    .cc-keys kbd { font: inherit; font-weight: 600; color: #fff; padding: 0 3px; border: 1px solid rgba(255,255,255,.3); border-radius: 3px; }
+    @container (max-width: 520px) { .cc-keys { display: none; } }
+    body:not([data-view="desktop"]) .cc-keys { display: none; }
     .cc-tile .ts b { font-weight: inherit; }
     @container (max-width: 300px) { .cc-tile .ts b { display: none; } }
     @container (max-width: 220px) { .cc-tile .fl, .cc-tile .rc span { display: none; } .cc-tile .nm { max-width: 82%; } }
@@ -405,15 +410,16 @@ export function mountDesktop() {
   // The office draws them (office/systems/cctv.js) into the canvases handed to dash.cctv.want(): only those on screen,
   // and none while the window is closed, minimised or under a maximised one. Opened before the office has ever been,
   // it mounts the office (unseen) for its cameras. Each camera can be turned off (its tile's ⏻), and the one enlarged
-  // aimed: the pad's arrows, dragging the picture, the arrow keys while it has focus, the wheel or +/− to zoom. That's
+  // aimed: the pad's arrows, dragging the picture (grabbing it), the keys (below), the wheel or +/− to zoom. That's
   // office.cameras on the server, so every view and browser (and the camera itself, in the office) follows.
   st.cam = { floor: 'all', one: null, ...st.cam };
   const cc = body('cctv');
   cc.innerHTML = `<div class="xp-cctv"><div class="cc-bar"></div><div class="cc-grid"></div>
     <div class="cc-one" tabindex="0" hidden><canvas width="640" height="360"></canvas><i class="nm"></i><i class="rc"><u>●</u> REC</i><i class="fl"></i><i class="ts"></i><i class="ns">NO SIGNAL</i>
-      <div class="cc-pad"><button data-power title="Turn off">⏻</button><button data-pt="-1,0" title="Pan left (←)">◀</button><button data-pt="0,1" title="Tilt up (↑)">▲</button>
-        <button data-pt="0,-1" title="Tilt down (↓)">▼</button><button data-pt="1,0" title="Pan right (→)">▶</button><button data-zm="-1" title="Zoom out (−)">−</button>
-        <button data-zm="1" title="Zoom in (+)">+</button><button data-reset title="Back to its usual aim (0)">Reset</button></div></div></div>`;
+      <div class="cc-pad"><button data-power title="Turn off (Space)">⏻</button><button data-pt="-1,0" title="Pan left (← or A)">◀</button><button data-pt="0,1" title="Tilt up (↑ or W)">▲</button>
+        <button data-pt="0,-1" title="Tilt down (↓ or S)">▼</button><button data-pt="1,0" title="Pan right (→ or D)">▶</button><button data-zm="-1" title="Zoom out (− or Q)">−</button>
+        <button data-zm="1" title="Zoom in (+ or E)">+</button><button data-reset title="Back to its usual aim (R or 0)">Reset</button></div>
+      <div class="cc-keys"><kbd>←→↑↓</kbd>/<kbd>WASD</kbd> aim · <kbd>+</kbd><kbd>−</kbd>/<kbd>Q</kbd><kbd>E</kbd> zoom · <kbd>R</kbd> reset · <kbd>Space</kbd> power · <kbd>[</kbd><kbd>]</kbd> camera · drag to look</div></div></div>`;
   const ccBar = cc.querySelector('.cc-bar'), ccGrid = cc.querySelector('.cc-grid'), ccOne = cc.querySelector('.cc-one'), oneCanvas = ccOne.querySelector('canvas');
   let camList = null, tiles = new Map(), ccKey = '', oneId = null;
   const camLabel = (c) => `CAM ${String(camList.indexOf(c) + 1).padStart(2, '0')} · ${c.name}`;
@@ -525,15 +531,40 @@ export function mountDesktop() {
     ccOne.addEventListener('pointermove', move); ccOne.addEventListener('pointerup', up); ccOne.addEventListener('pointercancel', up);
   });
   ccOne.addEventListener('wheel', (e) => { if (!oneId) return; e.preventDefault(); setCam(oneId, { zoom: camSet(oneId).zoom * Math.exp(-e.deltaY * 0.002) }); }, { passive: false });
-  ccOne.addEventListener('keydown', (e) => {
-    const k = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, 1], ArrowDown: [0, -1] }[e.key];
-    if (k) nudge(...k);
-    else if (e.key === '+' || e.key === '=') zoomBy(1);
-    else if (e.key === '-' || e.key === '_') zoomBy(-1);
-    else if (e.key === '0') setCam(oneId, { pan: 0, tilt: 0, zoom: 1 }, true);
-    else return;
+  // Keys, whenever the enlarged view is up in the front window of the desktop you're using (full screen) and you're not
+  // typing: arrows / WASD aim (held, they keep turning, 40 deg/s at 1x), +/- or Q/E zoom (held too), 0 or R resets, Space
+  // switches it on/off, [ ] or Tab / Shift+Tab step through the cameras.
+  const AIM = { ArrowLeft: [-1, 0], KeyA: [-1, 0], ArrowRight: [1, 0], KeyD: [1, 0], ArrowUp: [0, 1], KeyW: [0, 1], ArrowDown: [0, -1], KeyS: [0, -1],
+    Equal: [0, 0, 1], NumpadAdd: [0, 0, 1], KeyE: [0, 0, 1], Minus: [0, 0, -1], NumpadSubtract: [0, 0, -1], KeyQ: [0, 0, -1] };
+  const held = new Set();
+  let holdRaf = 0, holdT = 0;
+  const camKeys = (e) => fullScreen() && topApp() === 'cctv' && !!oneId && !ccOne.hidden && !menu.classList.contains('on')
+    && !e.metaKey && !e.ctrlKey && !e.altKey && !e.target.closest?.('input, textarea, select, [contenteditable]');
+  function hold(now) {
+    holdRaf = 0;
+    if (!held.size || !oneId) { held.clear(); return; }
+    const dt = Math.min(0.1, (now - holdT) / 1000); holdT = now;
+    let p = 0, t = 0, z = 0;
+    for (const k of held) { const [a, b, c = 0] = AIM[k]; p += a; t += b; z += c; }
+    const s = camSet(oneId), v = 40 / s.zoom * dt;
+    if (s.on) setCam(oneId, { pan: s.pan + p * v, tilt: s.tilt + t * v, zoom: s.zoom * Math.exp(z * 1.2 * dt) });
+    holdRaf = requestAnimationFrame(hold);
+  }
+  document.addEventListener('keydown', (e) => {
+    if (!camKeys(e)) return;
+    const c = e.code, step = c === 'BracketLeft' || c === 'BracketRight' || c === 'Tab';
+    if (AIM[c]) {
+      if (!held.has(c)) { held.add(c); if (!holdRaf) { holdT = performance.now() - 16; holdRaf = requestAnimationFrame(hold); } }
+    } else if (!step && !/^(Digit0|Numpad0|KeyR|Space)$/.test(c)) return;
+    else if (e.repeat && !step) { /* held down: once is enough */ }
+    else if (step) stepCam(c === 'BracketLeft' || (c === 'Tab' && e.shiftKey) ? -1 : 1);
+    else if (c === 'Space') setCam(oneId, { on: !camSet(oneId).on }, true);
+    else setCam(oneId, { pan: 0, tilt: 0, zoom: 1 }, true);
     e.preventDefault();
-  });
+  }, true);
+  const letGo = (e) => { if (held.delete(e.code) && !held.size) flushCams(); };
+  document.addEventListener('keyup', letGo, true);
+  addEventListener('blur', () => { held.clear(); flushCams(); });
 
   update();
   return {
