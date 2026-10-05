@@ -29,7 +29,7 @@ For a change that shouldn't alter anything you can see (a refactor, a tidy-up), 
   - `transcripts.js` tails `~/.claude/projects/**/*.jsonl` (subagents too); `state.js` the session registry, status line snapshots and the state pushed every second.
   - `sessions-send.js` delivers chat messages to a session's terminal; `john.js` is John (`claude -p`); `machine.js` samples this machine for the server hall.
   - `tv-browser.js` runs the wall TVs: one headless Chrome (CDP over `--remote-debugging-pipe`, profile `~/.claude/my-office/tv-browser`), a tab per TV, screencast frames and input over the dependency-free WebSocket at `/tv`.
-  - `repos.js` (your GitHub repos via `gh`, for the archive), `office-settings.js` (lights, blinds, door), `security.js` (same-origin / JSON / no-TV checks on every write), `util.js`.
+  - `repos.js` (your GitHub repos via `gh`, for the archive), `office-settings.js` (lights, blinds, door, the security cameras), `security.js` (same-origin / JSON / no-TV checks on every write), `util.js`.
 - `public/index.html`: the overview tab, the tabs, and the `window.dash` bridge (state, colours, drawer, config). `public/desktop.js` is your computer's desktop (Dashboard, Office Admin, Messages, Security), `chat.js` the chat shared with it, `sounds.js` the office's sounds.
 - `public/office.js` re-exports `mountOffice` from `public/office/main.js`. The 3D office is plain ES modules (Three.js vendored via npm, served at `/vendor/three/`):
   - `main.js`: renderers, HUD, scene and camera; installs every part in order; the frame loop, resize, `window.__office` (the debug and test hooks; keep them working), show/hide.

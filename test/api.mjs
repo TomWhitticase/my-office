@@ -83,6 +83,12 @@ export async function collect(server) {
   out['PUT /api/office (ok)'] = await put('/api/office', { door: 1 }, ok);
   out['GET /api/office (after)'] = (await get('/api/office')).body;
   out['PUT /api/office (put back)'] = await put('/api/office', { door: 0 }, ok);
+  // The security cameras: a patch per camera, values clamped, ids checked, only what's given changes.
+  out['PUT /api/office (camera)'] = await put('/api/office', { cameras: { lobby: { on: false, pan: 30.123, tilt: -12, zoom: 2 } } }, ok);
+  out['PUT /api/office (camera, partial)'] = await put('/api/office', { cameras: { lobby: { on: true } } }, ok);
+  out['PUT /api/office (camera, out of range)'] = await put('/api/office', { cameras: { lobby: { pan: 999, tilt: -999, zoom: 0, on: 'yes' } } }, ok);
+  out['PUT /api/office (camera, bad ids)'] = await put('/api/office', { cameras: { '../x': { on: false }, 'A B': { on: false }, ok: 'nope' } }, ok);
+  out['PUT /api/office (camera put back)'] = await put('/api/office', { cameras: { lobby: { on: true, pan: 0, tilt: 0, zoom: 1 } } }, ok);
   out['PUT /api/office (bad JSON)'] = await put('/api/office', '{nope', ok);
   out['PUT /api/office (no Origin)'] = await put('/api/office', { door: 1 }, { 'content-type': 'application/json' });
   out['PUT /api/office (foreign Origin)'] = await put('/api/office', { door: 1 }, { ...ok, origin: 'http://evil.example' });

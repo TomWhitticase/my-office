@@ -167,7 +167,7 @@ export function mountDesktop() {
 
     .xp-win[data-app="cctv"] .xp-body { overflow: hidden; }
     .xp-cctv { height: 100%; display: flex; flex-direction: column; background: #0a0c0b; color: #e8efe9; font: 11px/1.2 Tahoma, Verdana, "Segoe UI", sans-serif; user-select: none; }
-    .cc-bar { flex: none; display: flex; align-items: center; gap: 4px; padding: 4px 6px; background: #ece9d8; color: #000; border-bottom: 1px solid #aca899; }
+    .cc-bar { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 4px 6px; background: #ece9d8; color: #000; border-bottom: 1px solid #aca899; }
     .cc-bar button { padding: 2px 9px; border: 1px solid #003c74; border-radius: 3px; background: linear-gradient(#fff, #ecebe6 85%, #d6d0c5); color: #000; cursor: pointer; font: inherit; }
     .cc-bar button:hover { box-shadow: inset 0 0 0 1px #f8b636; }
     .cc-bar button[aria-pressed="true"] { background: linear-gradient(#d6d0c5, #e3e0d6); box-shadow: inset 1px 1px 2px rgba(0,0,0,.25); }
@@ -181,7 +181,7 @@ export function mountDesktop() {
     .cc-tile[hidden], .cc-one[hidden], .cc-grid[hidden] { display: none; }
     .cc-tile:hover { outline: 2px solid #f8b636; outline-offset: -2px; }
     .cc-tile canvas, .cc-one canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-    .cc-one { flex: 1; margin: 3px; cursor: zoom-out; }
+    .cc-one { flex: 1; margin: 3px; cursor: grab; touch-action: none; }
     .cc-one canvas { object-fit: contain; }
     .cc-tile i, .cc-one i { position: absolute; padding: 1px 4px; font: 600 10px/1.25 ui-monospace, Menlo, Consolas, monospace; font-style: normal; letter-spacing: .02em;
       color: #f2f6f0; text-shadow: 0 0 2px #000, 1px 1px 0 #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 70%; }
@@ -195,6 +195,21 @@ export function mountDesktop() {
     .cc-tile .ns, .cc-one .ns { inset: 0; max-width: none; display: grid; place-items: center; color: #9aa59b; letter-spacing: .2em;
       background: repeating-linear-gradient(0deg, #101211 0 2px, #161917 2px 4px); }
     .cc-tile canvas[data-live] ~ .ns, .cc-one canvas[data-live] ~ .ns { display: none; }
+    .cc-tile.off canvas, .cc-one.off canvas, .cc-tile.off .rc, .cc-one.off .rc { visibility: hidden; }
+    .cc-tile.off canvas ~ .ns, .cc-one.off canvas ~ .ns { display: grid; color: #d8ddd8; animation: cc-static .24s steps(3) infinite;
+      background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='90'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.4' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .55 0 0 0 0 .5 0 0 0 .8 -.35'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' fill='%23202421'/%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E") 0 0 / 160px 90px; }
+    @keyframes cc-static { 33% { background-position: 37px 51px; } 66% { background-position: 91px 13px; } }
+    .cc-tile .pw { position: absolute; right: 2px; top: 18px; width: 22px; height: 20px; padding: 0; border: 1px solid rgba(255,255,255,.35); border-radius: 3px;
+      background: rgba(0,0,0,.55); color: #9fe8a8; font: 12px/1 system-ui, sans-serif; cursor: pointer; opacity: 0; }
+    .cc-tile:hover .pw, .cc-tile:focus-within .pw, .cc-tile.off .pw { opacity: 1; }
+    .cc-tile.off .pw, .cc-one.off .cc-pad [data-power] { color: #ff6a5a; }
+    .cc-one:focus-visible { outline: 2px solid #f8b636; outline-offset: -2px; }
+    .cc-one.drag { cursor: grabbing; }
+    .cc-pad { position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%); display: flex; gap: 3px; padding: 3px; border-radius: 5px; background: rgba(0,0,0,.5); }
+    .cc-pad button { min-width: 26px; height: 24px; padding: 0 6px; border: 1px solid rgba(255,255,255,.35); border-radius: 3px; background: rgba(30,34,31,.8); color: #e8efe9;
+      font: 600 12px/1 system-ui, sans-serif; cursor: pointer; }
+    .cc-pad button:hover { background: rgba(70,80,72,.9); }
+    .cc-one.off .cc-pad button:not([data-power]) { opacity: .4; pointer-events: none; }
     .cc-tile .ts b { font-weight: inherit; }
     @container (max-width: 300px) { .cc-tile .ts b { display: none; } }
     @container (max-width: 220px) { .cc-tile .fl, .cc-tile .rc span { display: none; } .cc-tile .nm { max-width: 82%; } }
@@ -389,27 +404,43 @@ export function mountDesktop() {
   // ----- Security: the cameras' feeds, a grid of the floor picked or one camera big -----
   // The office draws them (office/systems/cctv.js) into the canvases handed to dash.cctv.want(): only those on screen,
   // and none while the window is closed, minimised or under a maximised one. Opened before the office has ever been,
-  // it mounts the office (unseen) for its cameras.
+  // it mounts the office (unseen) for its cameras. Each camera can be turned off (its tile's ⏻), and the one enlarged
+  // aimed: the pad's arrows, dragging the picture, the arrow keys while it has focus, the wheel or +/− to zoom. That's
+  // office.cameras on the server, so every view and browser (and the camera itself, in the office) follows.
   st.cam = { floor: 'all', one: null, ...st.cam };
   const cc = body('cctv');
   cc.innerHTML = `<div class="xp-cctv"><div class="cc-bar"></div><div class="cc-grid"></div>
-    <button class="cc-one" hidden><canvas width="640" height="360"></canvas><i class="nm"></i><i class="rc"><u>●</u> REC</i><i class="fl"></i><i class="ts"></i><i class="ns">NO SIGNAL</i></button></div>`;
+    <div class="cc-one" tabindex="0" hidden><canvas width="640" height="360"></canvas><i class="nm"></i><i class="rc"><u>●</u> REC</i><i class="fl"></i><i class="ts"></i><i class="ns">NO SIGNAL</i>
+      <div class="cc-pad"><button data-power title="Turn off">⏻</button><button data-pt="-1,0" title="Pan left (←)">◀</button><button data-pt="0,1" title="Tilt up (↑)">▲</button>
+        <button data-pt="0,-1" title="Tilt down (↓)">▼</button><button data-pt="1,0" title="Pan right (→)">▶</button><button data-zm="-1" title="Zoom out (−)">−</button>
+        <button data-zm="1" title="Zoom in (+)">+</button><button data-reset title="Back to its usual aim (0)">Reset</button></div></div></div>`;
   const ccBar = cc.querySelector('.cc-bar'), ccGrid = cc.querySelector('.cc-grid'), ccOne = cc.querySelector('.cc-one'), oneCanvas = ccOne.querySelector('canvas');
   let camList = null, tiles = new Map(), ccKey = '', oneId = null;
   const camLabel = (c) => `CAM ${String(camList.indexOf(c) + 1).padStart(2, '0')} · ${c.name}`;
   const floorLabel = (c) => `${c.floor === 50 ? 'R' : c.floor} · ${c.where.toUpperCase()}`;
   const inFloor = () => camList.filter((c) => st.cam.floor === 'all' || c.floor === st.cam.floor);
+  const camSet = (id) => ({ on: true, pan: 0, tilt: 0, zoom: 1, ...dash.office.cameras?.[id] });
   function buildCctv() {
     camList = dash.cctv.cams;
-    ccGrid.innerHTML = camList.map((c) => `<button class="cc-tile" data-cam="${c.id}" title="${escapeHtml(c.name)}: click to enlarge"><canvas width="384" height="216"></canvas>
-      <i class="nm">${escapeHtml(camLabel(c))}</i><i class="rc"><u>●</u><span> REC</span></i><i class="fl">${escapeHtml(floorLabel(c))}</i><i class="ts"></i><i class="ns">NO SIGNAL</i></button>`).join('');
+    ccGrid.innerHTML = camList.map((c) => `<div class="cc-tile" data-cam="${c.id}" role="button" tabindex="0" title="${escapeHtml(c.name)}: click to enlarge"><canvas width="384" height="216"></canvas>
+      <i class="nm">${escapeHtml(camLabel(c))}</i><i class="rc"><u>●</u><span> REC</span></i><i class="fl">${escapeHtml(floorLabel(c))}</i><i class="ts"></i><i class="ns">NO SIGNAL</i>
+      <button class="pw" data-power="${c.id}" title="Turn off">⏻</button></div>`).join('');
     tiles = new Map([...ccGrid.querySelectorAll('.cc-tile')].map((b) => [b.dataset.cam, b]));
     stampCctv();
+    syncPower();
   }
   // The date shows only where there's room for it (see the tiles' container queries).
   function stampCctv() {
     const [d, t] = stamp(new Date()).split(' ');
     for (const e of cc.querySelectorAll('.ts')) e.innerHTML = `<b>${d} </b>${t}`;
+  }
+  // Off cameras: static and NO SIGNAL in place of the picture, the switch lit up to turn them back on.
+  function syncPower() {
+    if (!camList) return;
+    for (const [id, t] of tiles) { const on = camSet(id).on; t.classList.toggle('off', !on); t.querySelector('.pw').title = on ? 'Turn off' : 'Turn on'; }
+    const on = !oneId || camSet(oneId).on;
+    ccOne.classList.toggle('off', !on);
+    ccOne.querySelector('[data-power]').title = on ? 'Turn off' : 'Turn on';
   }
   // Whether anything's on screen: shown, and not under a maximised window.
   const ccSeen = () => shown('cctv') && !Object.keys(APPS).some((k) => k !== 'cctv' && shown(k) && st.wins[k].max && st.wins[k].z > st.wins.cctv.z);
@@ -438,6 +469,7 @@ export function mountDesktop() {
         ccOne.querySelector('.nm').textContent = camLabel(one); ccOne.querySelector('.fl').textContent = floorLabel(one);
       }
       oneId = one?.id ?? null;
+      syncPower();
     }
     dash.cctv.want(!ccSeen() ? [] : one ? [{ id: one.id, canvas: oneCanvas, fps: 12 }] : list.map((c) => ({ id: c.id, canvas: tiles.get(c.id).querySelector('canvas'), fps: 4 })));
   }
@@ -445,18 +477,62 @@ export function mountDesktop() {
     const list = inFloor(), i = list.findIndex((c) => c.id === st.cam.one);
     st.cam.one = d ? list[(i + d + list.length) % list.length].id : null;
     save(); syncCctv();
+    if (st.cam.one && fullScreen()) ccOne.focus({ preventScroll: true });
   }
+  // A change to a camera: shown at once everywhere on this page, saved at most every 200 ms (a drag sends a few, not
+  // hundreds), and held against the server's echoes of older ones for a moment.
+  let camSave = {}, camTimer = 0;
+  function setCam(id, patch, now) {
+    const c = camList.find((x) => x.id === id), was = camSet(id), next = { ...was, ...patch };
+    next.pan = Math.round(clamp(next.pan, -c.lim.pan, c.lim.pan) * 10) / 10;
+    next.tilt = Math.round(clamp(next.tilt, ...c.lim.tilt) * 10) / 10;
+    next.zoom = Math.round(clamp(next.zoom, 1, c.lim.zoom) * 100) / 100;
+    if (JSON.stringify(next) === JSON.stringify(was)) return;
+    (dash.camHold ||= {})[id] = performance.now() + 1500;
+    dash.putOffice({ cameras: { [id]: next } }, false);
+    camSave[id] = next;
+    if (now) flushCams(); else camTimer ||= setTimeout(flushCams, 200);
+  }
+  function flushCams() {
+    clearTimeout(camTimer); camTimer = 0;
+    if (Object.keys(camSave).length) dash.putOffice({ cameras: camSave });
+    camSave = {};
+  }
+  const nudge = (dp, dt) => { const s = camSet(oneId), k = 5 / s.zoom; setCam(oneId, { pan: s.pan + dp * k, tilt: s.tilt + dt * k * 0.6 }); };
+  const zoomBy = (d) => setCam(oneId, { zoom: camSet(oneId).zoom * (d > 0 ? 1.25 : 0.8) });
+  dash.officeListeners.add(() => syncPower());
   cc.addEventListener('click', (e) => {
-    const b = e.target.closest('button');
-    if (!b || !camList) return;
-    if (b.dataset.floor) { const f = b.dataset.floor; st.cam.floor = f === 'all' ? f : +f; st.cam.one = null; save(); syncCctv(); }
-    else if (b.dataset.go) stepCam(+b.dataset.go);
-    else if (b.dataset.cam) { st.cam.one = b.dataset.cam; save(); syncCctv(); }
-    else if (b === ccOne) stepCam(0);
+    if (!camList) return;
+    const b = e.target.closest('button'), tile = e.target.closest('.cc-tile');
+    if (b?.dataset.power !== undefined) { const id = b.dataset.power || oneId; setCam(id, { on: !camSet(id).on }, true); }
+    else if (b?.dataset.floor) { const f = b.dataset.floor; st.cam.floor = f === 'all' ? f : +f; st.cam.one = null; save(); syncCctv(); }
+    else if (b?.dataset.go) stepCam(+b.dataset.go);
+    else if (b?.dataset.pt) { const [p, t] = b.dataset.pt.split(',').map(Number); nudge(p, t); }
+    else if (b?.dataset.zm) zoomBy(+b.dataset.zm);
+    else if (b?.dataset.reset !== undefined) setCam(oneId, { pan: 0, tilt: 0, zoom: 1 }, true);
+    else if (tile && !b) { st.cam.one = tile.dataset.cam; save(); syncCctv(); if (fullScreen()) ccOne.focus({ preventScroll: true }); }
   });
-  document.addEventListener('keydown', (e) => {
-    if (!fullScreen() || topApp() !== 'cctv' || !st.cam.one || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
-    e.preventDefault(); stepCam(e.key === 'ArrowLeft' ? -1 : 1);
+  ccGrid.addEventListener('keydown', (e) => { const t = e.target.closest('.cc-tile'); if (t && (e.key === 'Enter' || e.key === ' ') && e.target === t) { e.preventDefault(); t.click(); } });
+  // Drag the picture to look round (grab it: drag right and the view goes left), the wheel to zoom.
+  ccOne.addEventListener('pointerdown', (e) => {
+    if (e.button || e.target.closest('button') || !oneId) return;
+    e.preventDefault(); ccOne.focus({ preventScroll: true });
+    const r = oneCanvas.getBoundingClientRect(), s0 = camSet(oneId), x0 = e.clientX, y0 = e.clientY;
+    const deg = 70 / s0.zoom / r.width;   // about the feed's width in degrees, over its width in pixels
+    ccOne.setPointerCapture(e.pointerId); ccOne.classList.add('drag');
+    const move = (m) => setCam(oneId, { pan: s0.pan - (m.clientX - x0) * deg, tilt: s0.tilt + (m.clientY - y0) * deg });
+    const up = () => { ccOne.classList.remove('drag'); ccOne.removeEventListener('pointermove', move); ccOne.removeEventListener('pointerup', up); ccOne.removeEventListener('pointercancel', up); flushCams(); };
+    ccOne.addEventListener('pointermove', move); ccOne.addEventListener('pointerup', up); ccOne.addEventListener('pointercancel', up);
+  });
+  ccOne.addEventListener('wheel', (e) => { if (!oneId) return; e.preventDefault(); setCam(oneId, { zoom: camSet(oneId).zoom * Math.exp(-e.deltaY * 0.002) }); }, { passive: false });
+  ccOne.addEventListener('keydown', (e) => {
+    const k = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, 1], ArrowDown: [0, -1] }[e.key];
+    if (k) nudge(...k);
+    else if (e.key === '+' || e.key === '=') zoomBy(1);
+    else if (e.key === '-' || e.key === '_') zoomBy(-1);
+    else if (e.key === '0') setCam(oneId, { pan: 0, tilt: 0, zoom: 1 }, true);
+    else return;
+    e.preventDefault();
   });
 
   update();
