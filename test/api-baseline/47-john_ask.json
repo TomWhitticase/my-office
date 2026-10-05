@@ -1,0 +1,8 @@
+{
+  "status": 200,
+  "type": "application/json",
+  "cache": null,
+  "body": {
+    "reply": "args 6e202133aa0a\nClaude Code sessions live: 7 (1 working)\n- alpha: working, \"Fix login bug\", branch feat/login, Opus 5.5, CPU x, cost so far $1.23, running Grep\n- golf: waiting, branch main, CPU x, cost so far $0.01\n- foxtrot: idle, branch main, CPU x, cost so far $0.01\n- echo: idle, branch main, CPU x, cost so far $0.01\n- beta: idle, \"Beta work\", branch main, Fable 5.1, CPU x, cost so far $0.02\n- gamma: idle, branch dev, CPU x, cost so far $0.01\n- delta: idle, CPU x, cost so far $0.00\nToday: $0.09 API-equivalent across 7 sessions, 42k tokens\nCONVERSATION SO FAR:\nVisitor: hi\nJohn: Morning.\nVisitor: How are the racks?\nJohn:"
+  }
+}
