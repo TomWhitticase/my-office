@@ -23,7 +23,8 @@ export function install(ctx) {
     lamps.push({ mat: m, eBase });
     return m;
   };
-  const bulbM = glowMat(1.7), barM = glowMat(1.5);
+  // Overhead fittings glow just enough to read as lit, under the bloom threshold so they don't halo (was 1.7 / 1.5).
+  const bulbM = glowMat(0.75), barM = glowMat(0.55);
   function pendant(x, z, { drop = 1.0, light = 0, shade = '#2b2b2b' } = {}) {
     const y = ROOM.h - drop;
     cyl(world, 0.006, 0.006, drop, '#222', x, ROOM.h - drop / 2, z, { shadow: false });
@@ -33,12 +34,14 @@ export function install(ctx) {
     const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 8), bulbM);
     bulb.position.set(x, y - 0.22, z);
     world.add(bulb);
-    if (light) addLamp(x, y - 0.35, z, light);
+    // Half strength and hung a little lower: a point light right under the shade lit the shade's inside and the table
+    // below so hard (inverse square, close up) that they bloomed into a white blob.
+    if (light) addLamp(x, y - 0.5, z, light * 0.5);
   }
   function floorLamp(x, z, light = 10) {
     cyl(world, 0.16, 0.18, 0.03, '#2a2a2a', x, 0.015, z);
     cyl(world, 0.012, 0.012, 1.5, '#2a2a2a', x, 0.77, z);
-    const shade = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.22, 0.3, 24, 1, true), glowMat(0.9, '#efe2c8'));
+    const shade = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.22, 0.3, 24, 1, true), glowMat(0.6, '#efe2c8'));
     shade.position.set(x, 1.56, z);
     world.add(shade);
     if (light) addLamp(x, 1.45, z, light);   // 0: shade glows, no light
