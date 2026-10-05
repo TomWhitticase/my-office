@@ -5,12 +5,16 @@
   "description": "Live dashboard and 3D office for your Claude Code sessions",
   "scripts": {
     "start": "node server.js",
-    "setup": "node bin/setup.mjs"
+    "setup": "node bin/setup.mjs",
+    "test": "node test/run.mjs"
   },
   "engines": {
     "node": ">=18"
   },
   "dependencies": {
     "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.63.0"
   }
 }
