@@ -1,6 +1,6 @@
 // The minimap in the HUD's corner: the office's layers registered with ctx.minimap (or the floor's own map).
 
-import { colliders, dash, LIFT, ROOM } from '../util.js';
+import { colliders, dash, ROOM } from '../util.js';
 
 export function install(ctx) {
   const { mapCtx, camera } = ctx;
