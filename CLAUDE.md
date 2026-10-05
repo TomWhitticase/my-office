@@ -36,7 +36,7 @@ For a change that shouldn't alter anything you can see (a refactor, a tidy-up), 
   - `ctx.js`: the shared context and its registries (below). `hud.js`: the stylesheet and HUD markup. `util.js`: constants, `mat`/`box`/`cyl`, textures, `makeScreen`, the office's `colliders`. `painters.js`: the screens' canvas painters. `people.js`: `Person`, the idle spots and the people sync.
   - `world/`: the building and its rooms (sky, shell, city, furniture helpers, desks, breakroom, whiteboards, lounge, my office, kitchen, guitars, meeting rooms, fittings, clocks).
   - `systems/`: lifts and the `FLOORS` table, the player and walking keys, TVs, chat and John, hover and click actions, minimap, post-processing.
-  - `floors/`: the archive (B2), the gateway and inside a repo, the roof, the server hall (47).
+  - `floors/`: the archive (B2), the gateway and inside a repo, the roof, the helicopter on the roof's pad (`window.__office.heli` drives it), the server hall (47).
   - The centre monitor in the owner's office is the live desktop in a CSS3DObject behind a hole punched in the WebGL frame (`world/my-office.js` installScreen, `systems/post.js` renderFrame).
 - `bin/setup.mjs` and `.claude/skills/setup`: installer and the `/setup` wizard. `bin/statusline-tap.sh`: the status line snapshot tap.
 - `test/`: the refactor harness (`npm test`) and the server's own API snapshots (`test/api-baseline/`).

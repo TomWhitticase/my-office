@@ -18,7 +18,7 @@ const VOWELS = [[730, 1090, 2440], [530, 1840, 2480], [270, 2290, 3010], [570, 8
 
 export function createSounds({ camera, rugs, glass, lift, coffee, doorPos, roof }) {
   let ctx = null, bus = null, master = null, B = null, voices = 0, active = false;
-  let away = false, tone = null, hum = null, humOn = false, pullV = null;   // away: off the office floor, where it can't be heard ('roof' up top, true in the archive)
+  let away = false, tone = null, hum = null, humOn = false, pullV = null, heliV = null;   // away: off the office floor, where it can't be heard ('roof' up top, true in the archive)
   let room = null, fans = [], clickAt = 0, relayAt = 0;   // room: a floor's own sound (see setAway), fans: its hum loops
   const played = {};   // debug counts by kind (window.__office.sfx.played)
   const st = new Map();       // person -> sound state
@@ -201,6 +201,20 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos, roof 
     return make(D, (t) => lp(noise()) * 3.2 * (0.85 + 0.15 * Math.sin(TAU * 3 * t / D)) + f(noise(), 900 + 600 * Math.sin(TAU * 2 * t / D) ** 2, 0.45) * 0.5
       + Math.sin(TAU * 47 * t) * 0.12, 0.8);
   }
+  // The helicopter on the roof: two loops whose rate follows the rotor. The thwop is a two-blade rotor's slap (13 a second at
+  // full speed: low, chopped air with a sharper crack as each blade passes); the whine is the turbine and gearbox.
+  function thwop() {
+    const D = 1, N = 13, lp = biq('lp', 380, 0.9), slap = biq('bp', 140, 1.4), air = biq('bp', 900, 0.6);
+    return make(D, (t) => {
+      const u = (t * N) % 1, e = Math.exp(-u / 0.09), n = noise();
+      return lp(n) * 1.6 * (0.35 + 0.65 * e) + slap(n * e) * 4 + air(n * Math.exp(-u / 0.03)) * 0.5 + Math.sin(TAU * N * t) * 0.25;
+    }, 0.8);
+  }
+  function whine() {
+    const D = 2, hp = biq('bp', 3400, 2);   // whole cycles of every tone in 2 s, so it loops without a seam
+    return make(D, (t) => Math.sin(TAU * 820 * t) * 0.5 + Math.sin(TAU * 1640 * t) * 0.18 + Math.sin(TAU * 2461 * t) * 0.06
+      + Math.sin(TAU * 96 * t) * 0.3 + hp(noise()) * 0.4, 0.7);
+  }
   function bookSlide() {
     const bp = biq('bp', 900, 0.8), th = biq('lp', 200, 0.8);
     return make(0.4, (t) => { const n = noise(), e = env(t, 0, 0.3, 0.03, 0.1) * (0.6 + 0.4 * Math.sin(TAU * 31 * t)); return bp(n * e) + th(n * Math.exp(-Math.abs(t - 0.3) / 0.015)) * 2.5; });
@@ -244,7 +258,7 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos, roof 
       espresso: espresso(), creak: n(3, creak), swish: swish(), rattle: rattle(), chime: chime(), slide: slide(),
       latch: n(2, latch), roll: roll(), thunk: n(2, () => thunk(false)), slam: n(2, () => thunk(true)), rustle: n(3, () => rustle(rnd(0.6, 0.9))), page: n(3, page),
       beep: n(2, beep), buzz: buzz(), accept: accept(), spinup: spinUp(), spindown: null, whoosh: whoosh(), boom: boom(), pull: pullLoop(), book: n(2, bookSlide),
-      seek: n(6, seek), relay: n(2, relay),
+      seek: n(6, seek), relay: n(2, relay), thwop: thwop(), whine: whine(),
     };
     B.spindown = ctx.createBuffer(1, B.spinup.length, ctx.sampleRate);   // the gateway closing: its spin-up, backwards
     B.spindown.getChannelData(0).set(B.spinup.getChannelData(0).slice().reverse());
@@ -550,6 +564,28 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos, roof 
       pullV.g.gain.setTargetAtTime(lv * 0.6, now, 0.12);
       pullV.src.playbackRate.setTargetAtTime(0.6 + 0.9 * lv, now, 0.15);
       if (p && pullV.pan.positionX) { pullV.pan.positionX.value = p.x; pullV.pan.positionY.value = p.y; pullV.pan.positionZ.value = p.z; }
+    },
+    // The helicopter: `rpm` 0..1 (its rotor), `p` where it is (a world position), `inside` you're in the cabin (muffled, and
+    // all round you). Two looping voices that follow the rotor's speed, faded out when it stops or you're off the roof.
+    heli(rpm, p, inside) {
+      if (!ctx || !B || (!heliV && !(rpm > 0.005))) return;
+      if (!heliV) {
+        const pan = ctx.createPanner(), lp = ctx.createBiquadFilter(), v = [B.thwop, B.whine].map((buf) => {
+          const src = ctx.createBufferSource(), g = ctx.createGain(); src.buffer = buf; src.loop = true; g.gain.value = 0;
+          src.connect(g).connect(lp); src.start(); return { src, g };
+        });
+        pan.panningModel = 'equalpower'; pan.distanceModel = 'inverse'; pan.refDistance = 5; pan.rolloffFactor = 1.1;
+        lp.type = 'lowpass'; lp.frequency.value = 8000;
+        lp.connect(pan).connect(bus);
+        heliV = { pan, lp, thwop: v[0], whine: v[1] };
+      }
+      const now = ctx.currentTime, k = away === 'roof' ? rpm : 0;
+      heliV.thwop.g.gain.setTargetAtTime(0.5 * k * (inside ? 0.7 : 1), now, 0.15);
+      heliV.whine.g.gain.setTargetAtTime(0.05 * k * k, now, 0.15);
+      heliV.thwop.src.playbackRate.setTargetAtTime(0.25 + 0.75 * rpm, now, 0.1);
+      heliV.whine.src.playbackRate.setTargetAtTime(0.2 + 0.8 * rpm, now, 0.1);
+      heliV.lp.frequency.setTargetAtTime(inside ? 1600 : 8000, now, 0.2);
+      if (p && heliV.pan.positionX) { heliV.pan.positionX.value = p.x; heliV.pan.positionY.value = p.y; heliV.pan.positionZ.value = p.z; }
     },
     get ready() { return !!ctx && ctx.state; },
     get voices() { return voices; }, played, get buffers() { return B; },

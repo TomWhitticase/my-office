@@ -3296,8 +3296,8 @@
    "carless": false,
    "fly": false,
    "sound": "roof",
-   "colliders": 57,
-   "hits": 2,
+   "colliders": 59,
+   "hits": 4,
    "hooks": [
     "enter",
     "leave",
@@ -4411,14 +4411,14 @@
  ],
  "scenes": {
   "office": {
-   "objects": 2178,
+   "objects": 2246,
    "types": {
     "Scene": 1,
     "HemisphereLight": 1,
     "DirectionalLight": 2,
     "Object3D": 2,
-    "Mesh": 1920,
-    "Group": 344,
+    "Mesh": 1977,
+    "Group": 355,
     "PointLight": 15,
     "Sprite": 9,
     "LineSegments": 1
@@ -4431,10 +4431,11 @@
     "coffee": 1,
     "computer": 1,
     "liftcall": 2,
-    "liftpanel": 3
+    "liftpanel": 3,
+    "heli": 2
    },
-   "ordered": "b111c856",
-   "sorted": "938596c"
+   "ordered": "3785b0ce",
+   "sorted": "cd22024"
   },
   "servers": {
    "objects": 244,

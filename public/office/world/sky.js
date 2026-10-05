@@ -192,7 +192,7 @@ export function install(ctx) {
     const txt = `${daylight > 0.5 ? '☀︎' : '☾'}  ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ${date.toLocaleDateString([], { weekday: 'short' })}`;
     if (txt !== clockText) clockEl.textContent = clockText = txt;
   }
-  Object.assign(ctx, { clockState, lamps, skyU, RAD, hemi, SPEEDS, sunDir, simNow, sky });
+  Object.assign(ctx, { clockState, lamps, skyU, RAD, hemi, sun, SPEEDS, sunDir, simNow, sky });
   Object.defineProperty(ctx, 'daylight', { get: () => daylight, set: (v) => { daylight = v; }, enumerable: true });
   Object.defineProperty(ctx, 'officeExposure', { get: () => officeExposure, set: (v) => { officeExposure = v; }, enumerable: true });
   Object.defineProperty(ctx, 'raysStrength', { get: () => raysStrength, set: (v) => { raysStrength = v; }, enumerable: true });

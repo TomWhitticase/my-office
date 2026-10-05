@@ -49,6 +49,14 @@ export const CSS = `
     .of-wbbar { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); max-width: calc(100% - 32px); display: none; flex-wrap: wrap; justify-content: center; align-items: center; gap: 5px; background: rgba(15,16,19,.86); border: 1px solid rgba(255,255,255,.14); border-radius: 12px; padding: 6px 8px; pointer-events: auto; }
     .of-boarding .of-wbbar, .of-boarding .of-wbhint { display: flex; }
     .of-boarding .of-legend, .of-boarding .of-start, .of-boarding .of-map, .of-boarding .of-count, .of-boarding .of-time, .of-boarding .of-target { display: none; }
+    .of-heli { position: absolute; left: 50%; top: 60px; transform: translateX(-50%); display: none; gap: 18px; align-items: center; background: rgba(15,16,19,.8); border: 1px solid rgba(255,255,255,.14); border-radius: 12px; padding: 8px 14px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .of-heli small { display: block; color: #8b8a85; font-size: 10px; letter-spacing: .08em; }
+    .of-heli b { font-size: 17px; font-weight: 600; }
+    .of-heli .hint { color: #c3c2b7; font-size: 12px; border-left: 1px solid rgba(255,255,255,.14); padding-left: 14px; }
+    .of-heli .hint.on { color: #8fe3a5; }
+    .of-heli kbd { font: inherit; font-weight: 600; color: #fff; background: rgba(255,255,255,.12); border-radius: 4px; padding: 0 5px; }
+    .of-flying .of-heli { display: flex; }
+    .of-flying .of-legend, .of-flying .of-start, .of-flying .of-count, .of-flying .of-time, .of-flying .of-target, .of-flying .of-cross { display: none !important; }
     .of-wbbar button { font: inherit; font-size: 13px; color: #e8e6df; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12); border-radius: 7px; padding: 4px 9px; cursor: pointer; white-space: nowrap; }
     .of-wbbar button:hover { color: #fff; background: rgba(255,255,255,.14); }
     .of-wbbar button[aria-pressed="true"] { background: #3987e5; border-color: #3987e5; color: #fff; }
@@ -123,6 +131,7 @@ export const hudHTML = (ALT, IS_MAC) => `<div class="of-cross"></div><div class=
     <div class="of-time"><span class="of-clock"></span><button data-speed="1">Live</button><button data-speed="120">×120</button><button data-speed="1200">×1200</button><button data-speed="7200">×7200</button></div>
     <div class="of-legend"><kbd>W A S D</kbd> move · <kbd>Shift</kbd> run · <kbd>Click</kbd> talk to someone or use a TV · <kbd>E</kbd> details / set up a TV · <kbd>1</kbd> desks <kbd>2</kbd> breakroom <kbd>3</kbd> my office <kbd>4</kbd> lobby <kbd>5</kbd> meeting rooms · <kbd>T</kbd> time speed · <kbd>G</kbd> graphics · <kbd>H</kbd> hide overlays · <kbd>M</kbd> sounds · <kbd>Esc</kbd> release mouse</div>
     <div class="of-toast"></div>
+    <div class="of-heli"><div><small>ALT</small><b class="alt"></b></div><div><small>SPEED</small><b class="spd"></b></div><div><small>HDG</small><b class="hdg"></b></div><div><small>ROTOR</small><b class="rpm"></b></div><div class="hint"></div></div>
     <div class="of-start"><b>Click to look around</b><span>Walk up to anyone and click to talk to them, or click their screen for details.<br>Click your own monitor to use your computer.</span></div>
     <div class="of-tvhint">Using the <b class="of-tvname"></b> TV · click and type into the page · <kbd>${ALT}M</kbd> mute · <kbd>${ALT}−</kbd> <kbd>${ALT}=</kbd> or <kbd>${ALT}scroll</kbd> volume · <kbd>Esc</kbd> back to walking</div>
     <div class="of-tvbar"><button data-nav="back" title="Back">←</button><button data-nav="forward" title="Forward">→</button><button data-nav="reload" title="Reload">⟳</button><button data-nav="home" title="Back to the TV's own page">⌂</button>

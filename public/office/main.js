@@ -32,6 +32,7 @@ import { install as installPlayer } from './systems/player.js';
 import { install as installArchive } from './floors/archive.js';
 import { install as installGateway } from './floors/gateway.js';
 import { install as installRoof } from './floors/roof.js';
+import { install as installHelicopter } from './floors/helicopter.js';
 import { install as installServerHall } from './floors/server-hall.js';
 import { install as installChat } from './systems/chat.js';
 import { install as installHover } from './systems/hover.js';
@@ -160,6 +161,7 @@ export function mountOffice(container) {
 
   installRoof(ctx);
   const { EDGE, roof } = ctx;
+  installHelicopter(ctx);
 
   installServerHall(ctx);
   const { srv } = ctx;
@@ -249,7 +251,7 @@ export function mountOffice(container) {
       r = renderer.domElement.getBoundingClientRect(); return { x: r.left + (p.x + 1) / 2 * r.width, y: r.top + (1 - p.y) / 2 * r.height }; },
     tvs: () => tvs.map((t) => ({ id: t.id, live: t.live, frame: !!t.frame, url: t.page?.url, title: t.page?.title, dist: t.dist })), seats, sitIn, openLaptop,
       laptop, kitchen, player, keys, camera, people, blinds, door, doors, collide, colliders, desks, idleSpots, lifts, sfx, mine, arch, roof, srv, FLOORS,
-      openJohn, johnChat, setFloor, get away() { return ctx.away; }, callLift,
+      openJohn, johnChat, setFloor, get away() { return ctx.away; }, callLift, heli: ctx.heli,
     goFloor: (n) => {   // debug: straight into your car at floor n, doors opening (headless tests can't sit through a ride)
       const L = mine.L || lifts.find(spare); if (!L) return false;
       Object.assign(mine, { L, call: false, goal: null }); L.player = true;

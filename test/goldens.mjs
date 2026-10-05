@@ -122,6 +122,13 @@ export const POSES = [
     await o.eval(() => window.__office.teleport('Digit2'));
     await o.step(45);   // the lamps ease up
   }],
+  ['heli-cockpit', async (o) => {   // up to the roof at dusk and into the helicopter's pilot seat, the rotor spooling up
+    await o.eval(() => window.__office.goFloor(50));
+    await stepUntil(o, () => window.__office.mine.L?.state === 'open', 80);
+    await o.eval(() => window.__office.heli.board());
+    await stepUntil(o, () => window.__office.heli.S.cam === 'in', 80);
+    await o.step(10);
+  }],
 ];
 
 // Compares two PNGs in the page: counts pixels where any channel differs by more than `tol`.
