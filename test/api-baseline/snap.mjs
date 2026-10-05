@@ -13,9 +13,9 @@ import crypto from 'crypto';
 import { spawn, execFileSync } from 'child_process';
 import { fileURLToPath } from 'url';
 
-const DIR = path.dirname(fileURLToPath(import.meta.url)), ROOT = path.resolve(DIR, '../..');
+const DIR = path.dirname(fileURLToPath(import.meta.url)), ROOT = process.env.SNAP_ROOT || path.resolve(DIR, '../..');   // SNAP_ROOT: another checkout's server
 const FIXED = Date.UTC(2026, 9, 1, 12, 30);
-const PORT = Number(process.env.SNAP_PORT || 7781);
+const PORT = Number(process.env.SNAP_PORT || 7789);
 const mode = process.argv[2] || 'check';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const procs = [];
@@ -301,7 +301,7 @@ async function main() {
     const snaps = await snapshots(home, pids);
     server.kill('SIGTERM');
     await new Promise((r) => server.exitCode !== null ? r() : server.once('exit', r));
-    const log = server.log.replace(/indexed (\d+) transcripts in \d+ms/, 'indexed $1 transcripts in Nms');
+    const log = server.log.replace(/indexed (\d+) transcripts in \d+ms/, 'indexed $1 transcripts in Nms').split(`:${PORT}`).join(':<port>');
     snaps.push(['server log', log.split('\n').filter(Boolean).sort()]);
     if (mode === 'record') {
       for (const f of fs.readdirSync(DIR)) if (/^\d\d-.*\.json$/.test(f)) fs.rmSync(path.join(DIR, f));
