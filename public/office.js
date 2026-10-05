@@ -18,6 +18,7 @@ import { CAN_CHAT, chatView, escapeHtml, titleOf } from './chat.js';
 import { AISLE, EYE, F, FONT, LIFT, MARKER, PP, REDUCED, ROOM, SEATED_EYE, WB_COLORS, angDiff, artTexture, box, brickTexture, clamp, colliders, cyl, damp, dash, ease, faceTo, fit, hash, leafTexture, lerp, makeCanvas, makeScreen, mat, mergedBoxes, rng, rugTexture, solid, sstep, woodTexture } from './office/util.js';
 import { MONO, drawAway, drawBoard, drawCode, drawFeed, drawOff, drawRoster, drawSession, drawUsage, drawWall, statusOf, tokenRoll } from './office/painters.js';
 import { G, Person } from './office/people.js';
+import { createCtx } from './office/ctx.js';
 
 // ---------- the office ----------
 export function mountOffice(container) {
@@ -137,6 +138,18 @@ export function mountOffice(container) {
     .of-tvbtns a { margin-left: auto; }
   `;
   document.head.appendChild(style);
+
+  // ----- the shared context (see office/ctx.js) -----
+  // What every part of the office shares. Values that change (the state, which floor you're on, what you're doing) are
+  // read through it each time, never copied.
+  const ctx = createCtx({
+    THREE, dash, container, colliders, toast, setQuality,
+    get renderer() { return renderer; }, get scene() { return scene; }, get world() { return world; }, get camera() { return camera; },
+    get hud() { return hud; }, get player() { return player; }, get people() { return people; }, get lamps() { return lamps; },
+    get seats() { return seats; }, get sfx() { return sfx; }, get state() { return S; }, get daylight() { return daylight; },
+    get quality() { return hq; }, get away() { return away; }, get mode() { return mode; }, set mode(v) { mode = v; },
+    get active() { return active; }, get locked() { return locked; }, get hover() { return hover; }, get FLOORS() { return FLOORS; },
+  });
 
   // ----- renderers -----
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -5541,21 +5554,10 @@ export function mountOffice(container) {
     if (mode !== 'free') return;
     if (!locked) { renderer.domElement.requestPointerLock(); return; }
     if (!hover) return;
-    if (hover.action === 'computer') { document.exitPointerLock(); dash.setView('desktop'); }
-    else if (hover.action === 'laptop') openLaptop();
-    else if (hover.action === 'board') useBoard(hover.board);
-    else if (hover.action === 'coffee') kitchen.brew();
-    else if (hover.action === 'liftcall') callLift();
-    else if (hover.action === 'liftpanel') pressFloor(hover.floor);
-    else if (hover.action === 'john') openJohn();
-    else if (hover.action === 'cabinet') toggleDrawer(hover.drawer);
-    else if (hover.action === 'folder') pickUp(hover.folder);
-    else if (hover.action === 'gatekey') gatePress(hover.key);
-    else if (hover.action === 'book') readBook(hover.book);
+    const a = hover.action && ctx.actionOf(hover.action);
+    if (a?.click) a.click(hover, e);
     else if (hover.sessionId && hover.screen) { document.exitPointerLock(); dash.openDrawer(hover.sessionId); }
     else if (hover.sessionId) openChat(hover.sessionId);
-    else if (hover.action === 'blinds') { hover.blind.to = hover.blind.to === 1 ? 0 : hover.blind.to + 0.5; dash.putOffice({ blinds: { [hover.blind.key]: hover.blind.to } }); }
-    else if (hover.action === 'door') { const d = hover.door; d.to = d.to ? 0 : 1; if (d === door) dash.putOffice({ door: d.to }); }
     else if (hover.seat) sitIn(hover.seat);
     else if (hover.tv) {
       if (hover.tv.cfg && !e.shiftKey) useTv(hover.tv);
@@ -5581,16 +5583,17 @@ export function mountOffice(container) {
   };
   document.addEventListener('keydown', (e) => {
     if (!active || mode !== 'free' || e.metaKey || e.ctrlKey || e.target.closest?.('input, select, textarea')) return;
-    if (TELEPORTS[e.code]) { if (away || (mine.L?.state === 'travel' && inMyCar())) toast('Take the lift back to the office'); else TELEPORTS[e.code](); return; }
-    if (e.code === 'KeyG') { setQuality(!hq); return; }
-    if (e.code === 'KeyH') { setOverlays(!overlays); return; }
-    if (e.code === 'KeyM') { dash.setSound({ on: !dash.sound.on }); sfx.unlock(); toast(`Sounds ${dash.sound.on ? 'on' : 'off'} · <kbd>M</kbd> to ${dash.sound.on ? 'mute' : 'unmute'}`); return; }
-    if (e.code === 'KeyT') { setSpeed(SPEEDS[(SPEEDS.indexOf(clockState.speed) + 1) % SPEEDS.length]); return; }
-    if (e.code === 'KeyE' && hover?.tv) { document.exitPointerLock(); openTvPanel(hover.tv); return; }
-    if (e.code === 'KeyE' && hover?.sessionId) { document.exitPointerLock(); dash.openDrawer(hover.sessionId); return; }
+    if (ctx.onKey(e)) return;
     if (locked) { keys.add(e.code); if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault(); }
   });
   document.addEventListener('keyup', (e) => keys.delete(e.code));
+  for (const k of Object.keys(TELEPORTS)) ctx.key(k, (e) => { if (away || (mine.L?.state === 'travel' && inMyCar())) toast('Take the lift back to the office'); else TELEPORTS[e.code](); return true; });
+  ctx.key('KeyG', () => { setQuality(!hq); return true; });
+  ctx.key('KeyH', () => { setOverlays(!overlays); return true; });
+  ctx.key('KeyM', () => { dash.setSound({ on: !dash.sound.on }); sfx.unlock(); toast(`Sounds ${dash.sound.on ? 'on' : 'off'} · <kbd>M</kbd> to ${dash.sound.on ? 'mute' : 'unmute'}`); return true; });
+  ctx.key('KeyT', () => { setSpeed(SPEEDS[(SPEEDS.indexOf(clockState.speed) + 1) % SPEEDS.length]); return true; });
+  ctx.key('KeyE', () => { if (!hover?.tv) return false; document.exitPointerLock(); openTvPanel(hover.tv); return true; });
+  ctx.key('KeyE', () => { if (!hover?.sessionId) return false; document.exitPointerLock(); dash.openDrawer(hover.sessionId); return true; });
 
   // ----- using a TV -----
   // Clicking a TV frames it square-on and frees the mouse: the cursor maps onto the page through the screen's UVs, and keys
@@ -5995,10 +5998,7 @@ export function mountOffice(container) {
     hover = null;
     if (locked && mode === 'free') {
       ray.setFromCamera(new THREE.Vector2(0, 0), camera);
-      const targets = away ? [...away.hits] : [lifts.callHit, ...lifts.map((L) => L.panel.mesh), hole, laptop.g, kitchen.hit, ...doors.map((d) => d.pivot), ...desks.flatMap((d) => [d.scr.mesh, d.codeScr.mesh]), ...tvs.map((t) => t.scr.mesh), ...boards.map((b) => b.scr.mesh)];
-      if (!away) targets.push(...new Set(Object.values(blinds).flatMap((b) => b.runs.map((r) => r.slats.parent))));
-      if (!away) world.children.forEach((o) => { if (o.userData.glass) targets.push(o); });
-      if (!away) for (const p of people.values()) targets.push(p.root);
+      const targets = away ? [...away.hits] : ctx.collectTargets([]);
       for (const st of seats) if ((st.floor || 48) === (away?.n ?? 48) && st.obj !== player.seat?.obj && Math.hypot(st.x - player.x, st.z - player.z) < 4) targets.push(st.obj);
       hover = away?.pick?.(ray) || null;   // a floor can find what you're looking at itself (inside a repo)
       if (!hover) for (const hit of ray.intersectObjects(targets, true)) {
@@ -6013,33 +6013,8 @@ export function mountOffice(container) {
     }
     if (!hover) { targetEl.style.display = 'none'; return; }
     targetEl.style.display = 'block';
-    if (hover.action === 'computer' || hover.action === 'laptop') {
-      targetEl.innerHTML = hover.action === 'computer' && !laptop.shown ? '<b>Your computer</b><div class="k">Click to sit down and use it</div>'
-        : `<b>Your MacBook</b><div class="k">${laptop.shown ? 'Click to use it' : laptop.open ? 'Waking up…' : 'Click to sit down and open it'}</div>`;
-      return;
-    }
-    if (hover.action === 'cabinet' || hover.action === 'folder') { targetEl.innerHTML = cabinetHover(hover); return; }
-    if (hover.action === 'gatekey' || hover.action === 'book') { targetEl.innerHTML = tessHover(hover); return; }
-    if (hover.action === 'liftcall' || hover.action === 'liftpanel') {
-      const L = mine.L, f = hover.floor;
-      targetEl.innerHTML = hover.action === 'liftpanel' ? `<b>${floorName(f)} · ${FLOORS.find((F) => F.n === f)?.title}</b><div class="k">${!L || L.state === 'travel' ? '' : f === Math.round(L.floor) ? 'You’re here · click to open the doors' : mine.goal === f ? 'On its way' : 'Click to go'}</div>`
-        : `<b>Lift</b><div class="k">${mine.call ? 'Called · waiting for a free car' : L && (L.state === 'open' || L.state === 'opening') ? 'Doors open · walk in' : L?.state === 'travel' ? 'On its way' : 'Click to call it'}</div>`;
-      return;
-    }
-    if (hover.action === 'info') { targetEl.innerHTML = hover.info(); return; }
-    if (hover.action === 'john') { targetEl.innerHTML = `<b>John</b><div class="m">Sysadmin · ${srv.john.mood === 'sip' ? 'sipping a coffee' : srv.john.mood === 'lean' ? 'leaning back' : 'tapping away at a terminal'}</div><div class="k">${CAN_CHAT ? 'Click to talk to him' : 'He only talks to people on this computer'}</div>`; return; }
-    if (hover.action === 'coffee') {
-      targetEl.innerHTML = `<b>Coffee machine</b><div class="k">${kitchen.brewing() ? 'Brewing…' : 'Click to make a flat white'}</div>`;
-      return;
-    }
-    if (hover.action === 'blinds' || hover.action === 'door') {
-      targetEl.innerHTML = hover.action === 'door' ? `<b>${hover.door.name}</b><div class="k">Click to ${hover.door.to ? 'close' : 'open'}</div>` : `<b>${hover.blind.name}</b><div class="k">Click to ${['lower the blinds', 'close the slats', 'raise the blinds'][hover.blind.to * 2]}</div>`;
-      return;
-    }
-    if (hover.action === 'board') {
-      targetEl.innerHTML = `<b>${hover.board.name[0].toUpperCase() + hover.board.name.slice(1)}</b><div class="k">Click to draw on it</div>`;
-      return;
-    }
+    const a = hover.action && ctx.actionOf(hover.action);
+    if (a?.hover) { targetEl.innerHTML = a.hover(hover); return; }
     if (hover.seat) {
       const taken = seatTaken(hover.seat);
       targetEl.innerHTML = `<b>${hover.seat.name}</b><div class="k">${taken ? 'Someone’s sitting here' : 'Click to sit · move to stand up'}</div>`;
@@ -6059,11 +6034,52 @@ export function mountOffice(container) {
       <div class="m">${escapeHtml(doing.slice(0, 90))}</div><div class="k">${escapeHtml(s.name)} · ${CAN_CHAT && !hover.screen ? 'click to talk · E for details' : 'click for full details'}</div>`;
   }
 
+  // The click actions: what each does, and what its hover card says.
+  const machineHover = (h) => (h.action === 'computer' && !laptop.shown ? '<b>Your computer</b><div class="k">Click to sit down and use it</div>'
+    : `<b>Your MacBook</b><div class="k">${laptop.shown ? 'Click to use it' : laptop.open ? 'Waking up…' : 'Click to sit down and open it'}</div>`);
+  ctx.action('computer', { hover: machineHover, click: () => { document.exitPointerLock(); dash.setView('desktop'); } });
+  ctx.action('laptop', { hover: machineHover, click: () => openLaptop() });
+  ctx.action('cabinet', { hover: (h) => cabinetHover(h), click: (h) => toggleDrawer(h.drawer) });
+  ctx.action('folder', { hover: (h) => cabinetHover(h), click: (h) => pickUp(h.folder) });
+  ctx.action('gatekey', { hover: (h) => tessHover(h), click: (h) => gatePress(h.key) });
+  ctx.action('book', { hover: (h) => tessHover(h), click: (h) => readBook(h.book) });
+  const liftHover = (h) => {
+    const L = mine.L, f = h.floor;
+    return h.action === 'liftpanel' ? `<b>${floorName(f)} · ${FLOORS.find((F) => F.n === f)?.title}</b><div class="k">${!L || L.state === 'travel' ? '' : f === Math.round(L.floor) ? 'You’re here · click to open the doors' : mine.goal === f ? 'On its way' : 'Click to go'}</div>`
+      : `<b>Lift</b><div class="k">${mine.call ? 'Called · waiting for a free car' : L && (L.state === 'open' || L.state === 'opening') ? 'Doors open · walk in' : L?.state === 'travel' ? 'On its way' : 'Click to call it'}</div>`;
+  };
+  ctx.action('liftcall', { hover: liftHover, click: () => callLift() });
+  ctx.action('liftpanel', { hover: liftHover, click: (h) => pressFloor(h.floor) });
+  ctx.action('info', { hover: (h) => h.info() });
+  ctx.action('john', { hover: () => `<b>John</b><div class="m">Sysadmin · ${srv.john.mood === 'sip' ? 'sipping a coffee' : srv.john.mood === 'lean' ? 'leaning back' : 'tapping away at a terminal'}</div><div class="k">${CAN_CHAT ? 'Click to talk to him' : 'He only talks to people on this computer'}</div>`,
+    click: () => openJohn() });
+  ctx.action('coffee', { hover: () => `<b>Coffee machine</b><div class="k">${kitchen.brewing() ? 'Brewing…' : 'Click to make a flat white'}</div>`, click: () => kitchen.brew() });
+  ctx.action('blinds', { hover: (h) => `<b>${h.blind.name}</b><div class="k">Click to ${['lower the blinds', 'close the slats', 'raise the blinds'][h.blind.to * 2]}</div>`,
+    click: (h) => { h.blind.to = h.blind.to === 1 ? 0 : h.blind.to + 0.5; dash.putOffice({ blinds: { [h.blind.key]: h.blind.to } }); } });
+  ctx.action('door', { hover: (h) => `<b>${h.door.name}</b><div class="k">Click to ${h.door.to ? 'close' : 'open'}</div>`,
+    click: (h) => { const d = h.door; d.to = d.to ? 0 : 1; if (d === door) dash.putOffice({ door: d.to }); } });
+  ctx.action('board', { hover: (h) => `<b>${h.board.name[0].toUpperCase() + h.board.name.slice(1)}</b><div class="k">Click to draw on it</div>`, click: (h) => useBoard(h.board) });
+  // What you can point at in the office, nearest first when it's a tie.
+  ctx.hoverTargets(() => [lifts.callHit, ...lifts.map((L) => L.panel.mesh)], 10);
+  ctx.hoverTargets(() => [hole], 20);
+  ctx.hoverTargets(() => [laptop.g], 30);
+  ctx.hoverTargets(() => [kitchen.hit], 40);
+  ctx.hoverTargets(() => doors.map((d) => d.pivot), 50);
+  ctx.hoverTargets(() => desks.flatMap((d) => [d.scr.mesh, d.codeScr.mesh]), 60);
+  ctx.hoverTargets(() => tvs.map((t) => t.scr.mesh), 70);
+  ctx.hoverTargets(() => boards.map((b) => b.scr.mesh), 80);
+  ctx.hoverTargets(() => [...new Set(Object.values(blinds).flatMap((b) => b.runs.map((r) => r.slats.parent)))], 90);
+  ctx.hoverTargets(() => world.children.filter((o) => o.userData.glass), 100);
+  ctx.hoverTargets(() => [...people.values()].map((p) => p.root), 110);
+
   // ----- minimap -----
   function drawMap() {
     if (away) { away.map(); return; }
     const c = mapCtx, W = 440, H = 330, sx = (x) => ((x - ROOM.minX) / 40) * W, sz = (z) => ((z - ROOM.minZ) / 30) * H;
     c.clearRect(0, 0, W, H);
+    ctx.drawMinimap(c, sx, sz);
+  }
+  ctx.minimap((c, sx, sz) => {   // areas, everything solid, and their names
     c.fillStyle = 'rgba(181,138,95,.35)'; c.fillRect(sx(-19.9), sz(2.6), sx(-2) - sx(-19.9), sz(14.9) - sz(2.6));
     c.fillStyle = 'rgba(86,98,115,.55)'; c.fillRect(sx(6), sz(-15), sx(20) - sx(6), sz(-3.5) - sz(-15));
     c.fillStyle = 'rgba(120,160,185,.4)';
@@ -6072,19 +6088,25 @@ export function mountOffice(container) {
     for (const b of colliders) c.fillRect(sx(b.minX), sz(b.minZ), Math.max(2, sx(b.maxX) - sx(b.minX)), Math.max(2, sz(b.maxZ) - sz(b.minZ)));
     c.font = '600 20px system-ui'; c.fillStyle = 'rgba(255,255,255,.55)';
     c.fillText('Desks', sx(-12), sz(-0.6)); c.fillText('Breakroom', sx(-12), sz(13.6)); c.fillText(dash.officeName(), sx(9), sz(-13.4)); c.fillText('Lounge', sx(8), sz(13.6));
+  }, 10);
+  ctx.minimap((c, sx, sz) => {   // the lifts
     c.fillStyle = 'rgba(200,205,212,.9)';
     for (const L of lifts) c.fillRect(sx(LIFT.x) - 3, sz(L.z - DOOR.w / 2), 4, sz(L.z + DOOR.w / 2) - sz(L.z - DOOR.w / 2));
     c.font = '600 15px system-ui'; c.fillStyle = 'rgba(255,255,255,.55)'; c.fillText('Lifts', sx(LIFT.x) - 44, sz(-2.6));
+  }, 20);
+  ctx.minimap((c, sx, sz) => {   // everyone, ringed green while they work
     for (const p of people.values()) {
       if (!p.root.visible) continue;
       c.fillStyle = p.color; c.beginPath(); c.arc(sx(p.root.position.x), sz(p.root.position.z), 7, 0, Math.PI * 2); c.fill();
       if (p.session?.status === 'working') { c.strokeStyle = '#22c55e'; c.lineWidth = 3; c.stroke(); }
     }
+  }, 30);
+  ctx.minimap((c, sx, sz) => {   // you
     const px = sx(camera.position.x), pz = sz(camera.position.z), yaw = camera.rotation.y;
     c.save(); c.translate(px, pz); c.rotate(-yaw);
     c.fillStyle = '#fff'; c.beginPath(); c.moveTo(0, -14); c.lineTo(9, 10); c.lineTo(0, 5); c.lineTo(-9, 10); c.closePath(); c.fill();
     c.restore();
-  }
+  }, 40);
 
   // ----- post-processing -----
   // Transparent things live on layer 1 so the AO pass and the hole's depth pre-pass ignore them.
@@ -6195,11 +6217,8 @@ export function mountOffice(container) {
   // ----- loop -----
   let raf = 0, lastT = performance.now();
   const clock0 = performance.now();
-  function frame(now) {
-    raf = requestAnimationFrame(frame);
-    const dt = clamp((now - lastT) / 1000, 0, 0.05);   // the first rAF stamp can predate lastT
-    lastT = now;
-    const t = (now - clock0) / 1000;
+  // Each frame, in this order: see ctx.onFrame.
+  ctx.onFrame((dt, t) => {
     for (const [id, p] of people) {
       p.update(t, dt);
       // A desk chair turns with whoever's sitting in it (spinning while they wait), and settles back when they leave it.
@@ -6207,7 +6226,9 @@ export function mountOffice(container) {
       if (d) d.chair.rotation.y = seated ? p.rotY : d.chair.rotation.y + angDiff(d.chair.rotation.y, d.rotY) * Math.min(1, dt * 4);
     }
     for (const d of desks) if (!d.owner && d.chair.rotation.y !== d.rotY) d.chair.rotation.y += angDiff(d.chair.rotation.y, d.rotY) * Math.min(1, dt * 4);
-    liftFx(dt);
+  }, 10);
+  ctx.onFrame((dt) => liftFx(dt), 20);
+  ctx.onFrame((dt, t, now) => {
     // Roll the board's token counter up to the latest total over 1.5 s, repainting the board at ~12 fps while it moves.
     if (S && tokenRoll.shown !== tokenRoll.target && now - (tokenRoll.painted || 0) > 80) {
       const u = clamp((now - tokenRoll.at) / 1500, 0, 1);
@@ -6215,6 +6236,8 @@ export function mountOffice(container) {
       tokenRoll.painted = now;
       drawFeed(feedTV, S); feedTV.tex.needsUpdate = true;
     }
+  }, 30);
+  ctx.onFrame((dt, t) => {
     // Ping pong rally when both ends are manned and settled.
     const [a, b] = pp.map((q) => q.occupant);
     const rally = a && b && !a.path.length && !b.path.length && a.spot === pp[0] && b.spot === pp[1];
@@ -6229,30 +6252,43 @@ export function mountOffice(container) {
       a.root.position.z = damp(a.root.position.z, z, 4, dt); b.root.position.z = damp(b.root.position.z, z, 4, dt);
       sfx.rally(k, ball.position);
     }
+  }, 40);
+  ctx.onFrame((dt, t) => {
     const simDate = new Date(simNow());
     updateSky(simDate, t);
     updateClock(simDate);
     updateClocks(simDate);
-    officeFx(dt);
-    kitchen.update(dt, t);
+  }, 50);
+  ctx.onFrame((dt) => officeFx(dt), 60);
+  ctx.onFrame((dt, t) => kitchen.update(dt, t), 70);
+  ctx.onFrame((dt, t) => {
     if (mode === 'free') movePlayer(dt);
     if (mode === 'free' && mine.L?.state === 'travel' && inMyCar()) {   // the ride: a faint sway, strongest mid-shaft
       const k = Math.sin(Math.PI * mine.k);
       camera.position.y += Math.sin(t * 11) * 0.003 * k - 0.012 * Math.sin(Math.PI * Math.min(1, mine.k * 6));
       camera.rotation.z = Math.sin(t * 1.9) * 0.0035 * k;
     }
-    laptopFx(dt);
-    stepTween(now);
-    sfx.update(t, dt, { people, door, blinds, free: mode === 'free' });
-    paintScreens(false);
-    for (const b of boards) if (b.dirty) paintBoard(b);
+  }, 80);
+  ctx.onFrame((dt) => laptopFx(dt), 90);
+  ctx.onFrame((dt, t, now) => stepTween(now), 100);
+  ctx.onFrame((dt, t) => sfx.update(t, dt, { people, door, blinds, free: mode === 'free' }), 110);
+  ctx.onFrame(() => paintScreens(false), 120);
+  ctx.onFrame(() => { for (const b of boards) if (b.dirty) paintBoard(b); }, 130);
+  ctx.onFrame((dt, t, now) => {
     if (tvMove) { tvMouse(tvMove, 'mouseMoved'); tvMove = null; }
     if (!away) updateTVs(now);
-    for (const d of desks) if (d.codeAnim) paintCode(d, performance.now(), false);
-    updateHover();
-    drawMap();
-    sky.position.copy(camera.position);
-    away?.fx?.(dt, t);
+  }, 140);
+  ctx.onFrame(() => { for (const d of desks) if (d.codeAnim) paintCode(d, performance.now(), false); }, 150);
+  ctx.onFrame(() => updateHover(), 160);
+  ctx.onFrame(() => drawMap(), 170);
+  ctx.onFrame(() => sky.position.copy(camera.position), 180);
+  ctx.onFrame((dt, t) => away?.fx?.(dt, t), 190);
+  function frame(now) {
+    raf = requestAnimationFrame(frame);
+    const dt = clamp((now - lastT) / 1000, 0, 0.05);   // the first rAF stamp can predate lastT
+    lastT = now;
+    const t = (now - clock0) / 1000;
+    ctx.runFrame(dt, t, now);
     if (away?.scene) { renderFloor(away); return; }
     renderFrame();
     syncCss();
@@ -6274,7 +6310,7 @@ export function mountOffice(container) {
   }
   new ResizeObserver(resize).observe(container);
 
-  window.__office = { openChat, closeChat, talk, get mode() { return mode; }, teleport: (k) => TELEPORTS[k](), openTv: (id) => openTvPanel(tvs.find((t) => t.id === id)), useTv: (id) => useTv(tvs.find((t) => t.id === id)), leaveTv,
+  window.__office = { ctx, openChat, closeChat, talk, get mode() { return mode; }, teleport: (k) => TELEPORTS[k](), openTv: (id) => openTvPanel(tvs.find((t) => t.id === id)), useTv: (id) => useTv(tvs.find((t) => t.id === id)), leaveTv,
     boards, useBoard: (id) => useBoard(boards.find((b) => b.id === id)), leaveBoard, wb,
     tvPoint: (id, u, v) => { const t = tvs.find((x) => x.id === id), p = t.scr.mesh.localToWorld(new THREE.Vector3((u - 0.5) * t.w, (0.5 - v) * t.h, 0)).project(camera), r = renderer.domElement.getBoundingClientRect(); return { x: r.left + (p.x + 1) / 2 * r.width, y: r.top + (1 - p.y) / 2 * r.height }; },
     tvs: () => tvs.map((t) => ({ id: t.id, live: t.live, frame: !!t.frame, url: t.page?.url, title: t.page?.title, dist: t.dist })), seats, sitIn, openLaptop, laptop, kitchen, player, keys, camera, people, blinds, door, doors, collide, colliders, desks, idleSpots, lifts, sfx, mine, arch, roof, srv, FLOORS, openJohn, johnChat, setFloor, get away() { return away; }, callLift,
