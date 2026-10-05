@@ -191,6 +191,11 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos, roof 
     const f = svf();
     return make(1.3, (t) => { const u = t / 1.3, e = Math.sin(Math.PI * u) ** 2; return f(noise() * e, 150 + 2500 * u * u, 0.5) + Math.sin(TAU * (60 - 30 * u) * t) * e * 0.4; });
   }
+  function boom() {   // through the gateway: a deep drop with a burst of air
+    const lp = biq('lp', 220, 0.8), hi = svf();
+    return make(2.6, (t) => Math.sin(TAU * (28 + 60 * Math.exp(-t / 0.25)) * t) * Math.exp(-t / 0.7) + lp(noise()) * 3 * Math.exp(-t / 0.35)
+      + hi(noise() * Math.exp(-t / 0.5), 300 + 3000 * Math.exp(-t / 0.3), 0.6) * 0.5);
+  }
   function bookSlide() {
     const bp = biq('bp', 900, 0.8), th = biq('lp', 200, 0.8);
     return make(0.4, (t) => { const n = noise(), e = env(t, 0, 0.3, 0.03, 0.1) * (0.6 + 0.4 * Math.sin(TAU * 31 * t)); return bp(n * e) + th(n * Math.exp(-Math.abs(t - 0.3) / 0.015)) * 2.5; });
@@ -233,9 +238,11 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos, roof 
       low: n(14, () => syllable(125)), high: n(14, () => syllable(205)),
       espresso: espresso(), creak: n(3, creak), swish: swish(), rattle: rattle(), chime: chime(), slide: slide(),
       latch: n(2, latch), roll: roll(), thunk: n(2, () => thunk(false)), slam: n(2, () => thunk(true)), rustle: n(3, () => rustle(rnd(0.6, 0.9))), page: n(3, page),
-      beep: n(2, beep), buzz: buzz(), accept: accept(), spinup: spinUp(), whoosh: whoosh(), book: n(2, bookSlide),
+      beep: n(2, beep), buzz: buzz(), accept: accept(), spinup: spinUp(), spindown: null, whoosh: whoosh(), boom: boom(), book: n(2, bookSlide),
       seek: n(6, seek), relay: n(2, relay),
     };
+    B.spindown = ctx.createBuffer(1, B.spinup.length, ctx.sampleRate);   // the gateway closing: its spin-up, backwards
+    B.spindown.getChannelData(0).set(B.spinup.getChannelData(0).slice().reverse());
     for (const [k, v] of Object.entries(B)) for (const b of [v].flat()) b.kind = k;
   }
 
