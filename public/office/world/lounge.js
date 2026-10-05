@@ -2,7 +2,7 @@
 // armchair; while it's open the live desktop moves onto its lid).
 
 import * as THREE from 'three';
-import { box, cyl, FONT, makeCanvas, mat, solid } from '../util.js';
+import { box, cyl, FONT, makeCanvas, makeScreen, mat, mergedBoxes, rng, solid } from '../util.js';
 
 export function install(ctx) {
   const { world, deskTopM, plant, sofa, seats, pendant, floorLamp, legM, officeChair } = ctx;
@@ -105,4 +105,33 @@ export function install(ctx) {
   floorLamp(18.55, 14.3, 10);
   plant(14.7, 14.4, 0.9);
   Object.assign(ctx, { laptop });
+}
+
+export function installVending(ctx) {
+  const { bins, art, rug, sofa, world, floorLamp, metalM } = ctx;
+  // Lounge, by the brick wall: a vending machine with a lit front, recycling bins, some art.
+  {
+    const x = 7.1, z = 14.42;
+    world.add(mergedBoxes([[0.95, 1.85, 0.8, x, 0.925, z, '#1f2a33'], [0.6, 0.12, 0.04, x - 0.12, 0.3, z - 0.41, '#0d1114'], [0.2, 0.5, 0.03, x + 0.33, 1.1, z - 0.41, '#2a3540']], metalM));
+    const v = makeScreen(world, 0.56, 1.2, 280, 600, x - 0.12, 1.15, z - 0.415), c = v.ctx;
+    v.mesh.rotation.y = Math.PI;
+    c.fillStyle = '#0e1a22'; c.fillRect(0, 0, 280, 600);
+    const DR = ['#e0245e', '#7ed321', '#1f6fd1', '#ffb000', '#f4f1ea', '#d97757'], R = rng(77);
+    for (let r = 0; r < 6; r++) {
+      c.fillStyle = 'rgba(255,255,255,.18)'; c.fillRect(10, 92 + r * 96, 260, 4);
+      for (let k = 0; k < 5; k++) { c.fillStyle = DR[Math.floor(R() * DR.length)]; c.fillRect(18 + k * 52, 30 + r * 96, 36, 60); c.fillStyle = 'rgba(255,255,255,.35)'; c.fillRect(22 + k * 52, 34 + r * 96, 6, 52); }
+    }
+    v.tex.needsUpdate = true;
+    solid(x, z, 0.95, 0.8);
+  }
+  bins(8.0, 14.6);
+  art(14.4, 1.85, 14.82, Math.PI, 1.2, 0.9);
+  art(-12.65, 1.95, -14.84, 0, 1.5, 1.0);
+  // A reading nook between the pillar and the lounge: two armchairs, a side table, a standing lamp (glow only, no light).
+  rug(4.5, 7.4, 3.6, 5.7, '#3f4a6b', '#d9a441');
+  sofa(5.0, 4.6, Math.PI / 2, 1.05, '#6b8e4e');
+  sofa(6.9, 4.6, -Math.PI / 2, 1.05, '#b5654a');
+  cyl(world, 0.24, 0.24, 0.03, '#8a6a4a', 5.95, 0.5, 4.6, { seg: 24 }); cyl(world, 0.03, 0.03, 0.5, '#2f3236', 5.95, 0.25, 4.6); solid(5.95, 4.6, 0.5, 0.5);
+  cyl(world, 0.04, 0.035, 0.1, '#f4f1ea', 5.88, 0.565, 4.55);
+  floorLamp(5.95, 5.55, 0);
 }

@@ -2,7 +2,8 @@
 // glass doors, yours shared with every browser through /api/office; officeFx eases the blinds and doors each frame.
 
 import * as THREE from 'three';
-import { box, clamp, colliders, cyl, ease, lerp, makeCanvas, mat, mergedBoxes, ROOM, solid } from '../util.js';
+import { artTexture, box, clamp, colliders, cyl, ease, FONT, lerp, makeCanvas, makeScreen, mat, mergedBoxes, ROOM, solid } from '../util.js';
+import { CSS3DObject } from 'three/addons/renderers/CSS3DRenderer.js';
 
 export function install(ctx) {
   const { world, frameM, winRuns, winKey, WIN, shaftU, collide } = ctx;
@@ -135,4 +136,193 @@ export function install(ctx) {
     }
   }
   Object.assign(ctx, { blinds, door, doors, glassM, frostTex, BL });
+}
+
+export function installScreen(ctx) {
+  const { OWNER, monitor, world, cssScene, laptop } = ctx;
+  Object.assign(ctx, { placeHole, syncCss, layoutCenterMonitor });
+  // The centre monitor: the real dashboard page, sized to the viewport's aspect so the
+  // zoom transition starts and ends pixel-identical to the flat overview.
+  const center = { x: OWNER.x, z: OWNER.z - 0.3, w: 1.25, h: 0.7 };
+  const centerMon = monitor(world, 1, 1, center.x, 0.765, center.z);
+  const holeM = new THREE.MeshBasicMaterial({ color: 0x000000, opacity: 0, blending: THREE.NoBlending, side: THREE.DoubleSide });
+  const hole = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), holeM);
+  hole.userData.action = 'computer';
+  centerMon.g.add(hole);
+  const domScreen = document.createElement('div');
+  domScreen.className = 'of-dom';
+  const cssObj = new CSS3DObject(domScreen);
+  cssObj.element.style.pointerEvents = 'none';
+  cssScene.add(cssObj);
+  const screenWorld = new THREE.Vector3(), lapScr = { w: 0.3, h: 0.19 }, cssPx = { w: 1, h: 1 }, cssS = new THREE.Vector3();
+  // While the MacBook's open the one live page sits on its lid instead, and the monitor says where it went.
+  const awayScr = makeScreen(centerMon.g, 1, 1, 640, 360, 0, 0, 0.011);
+  awayScr.mesh.visible = false;
+  {
+    const { ctx: a } = awayScr, gr = a.createLinearGradient(0, 0, 640, 360);
+    gr.addColorStop(0, '#1b2433'); gr.addColorStop(1, '#0d1118'); a.fillStyle = gr; a.fillRect(0, 0, 640, 360);
+    a.textAlign = 'center'; a.fillStyle = '#e8e6df'; a.font = `600 30px ${FONT}`; a.fillText('Open on your MacBook', 320, 178);
+    a.fillStyle = '#8d96a6'; a.font = `400 18px ${FONT}`; a.fillText('Lounge · corner nook', 320, 212);
+    awayScr.tex.needsUpdate = true;
+  }
+  function layoutCenterMonitor(pxW, pxH) {
+    center.h = center.w * pxH / pxW;
+    // The lid's display area (302 × 196 mm), filled edge to edge: the page is laid out at the lid's shape while it's there.
+    lapScr.w = 0.302; lapScr.h = 0.196;
+    centerMon.bezel.scale.set(center.w + 0.03, center.h + 0.03, 1);
+    centerMon.bezel.position.y = 0.12 + center.h / 2;
+    awayScr.mesh.scale.set(center.w, center.h, 1); awayScr.mesh.position.y = 0.12 + center.h / 2;
+    Object.assign(cssPx, { vw: pxW, vh: pxH });
+    placeHole();
+  }
+  function placeHole() {
+    const lap = laptop.shown, s = lap ? lapScr : center;
+    const pw = cssPx.vw, ph = lap ? Math.round(pw * lapScr.h / lapScr.w) : cssPx.vh;
+    if (pw !== cssPx.w || ph !== cssPx.h) { domScreen.style.width = pw + 'px'; domScreen.style.height = ph + 'px'; Object.assign(cssPx, { w: pw, h: ph }); }
+    (lap ? laptop.pivot : centerMon.g).add(hole);
+    hole.scale.set(s.w, s.h, 1);
+    if (lap) hole.position.set(0, laptop.LH - 0.004 - s.h / 2, 0.001); else hole.position.set(0, 0.12 + center.h / 2, 0.012);
+    awayScr.mesh.visible = lap;
+    centerMon.g.updateWorldMatrix(true, true);
+    (lap ? awayScr.mesh : hole).getWorldPosition(screenWorld);
+    syncCss();
+  }
+  // The CSS3D page follows the hole (the lid moves), at one CSS pixel per screen pixel.
+  function syncCss() {
+    hole.updateWorldMatrix(true, false);
+    hole.matrixWorld.decompose(cssObj.position, cssObj.quaternion, cssS);
+    cssObj.scale.setScalar(cssS.x / cssPx.w);
+  }
+  Object.assign(ctx, { hole, holeM, lapScr, center, screenWorld, domScreen });
+}
+
+export function installDesk(ctx) {
+  const { world, legM, officeChair, monitor, sofa, plant, bookshelf, art, smallPlant, pendant, floorLamp, markerBoard, rug } = ctx;
+  const OWNER = { x: 13, z: -11.6 };
+  box(world, 3.4, 0.05, 1.0, '#2a2724', OWNER.x, 0.74, OWNER.z, { mat: { roughness: 0.35 } });
+  box(world, 0.05, 0.72, 0.9, '', OWNER.x - 1.65, 0.36, OWNER.z, { material: legM });
+  box(world, 0.05, 0.72, 0.9, '', OWNER.x + 1.65, 0.36, OWNER.z, { material: legM });
+  box(world, 0.46, 0.015, 0.15, '#3a3c40', OWNER.x, 0.77, OWNER.z + 0.27);
+  cyl(world, 0.04, 0.035, 0.1, '#d97757', OWNER.x + 0.75, 0.815, OWNER.z + 0.3);
+  solid(OWNER.x, OWNER.z, 3.4, 1.0);
+  officeChair(OWNER.x, OWNER.z + 1.15, Math.PI, '#1d1f22');
+  const leftMon = monitor(world, 0.9, 0.5625, OWNER.x - 1.18, 0.765, OWNER.z - 0.12, 0.5);
+  const usageScr = makeScreen(leftMon.g, 0.9, 0.5625, 800, 500, 0, leftMon.screenY, leftMon.screenZ);
+  const rightMon = monitor(world, 0.9, 0.5625, OWNER.x + 1.18, 0.765, OWNER.z - 0.12, -0.5);
+  const rosterScr = makeScreen(rightMon.g, 0.9, 0.5625, 800, 500, 0, rightMon.screenY, rightMon.screenZ);
+  const wallTV = makeScreen(world, 3.4, 1.7, 1280, 640, OWNER.x, 2.42, -14.86);
+  box(world, 3.5, 1.8, 0.06, '#111214', OWNER.x, 2.42, -14.9);
+  sofa(19.3, -9, -Math.PI / 2, 2.4, '#3d3a36');
+  plant(18.9, -14.3, 1.2); plant(6.6, -14.3);
+
+  bookshelf(8.6, -14.7, 0, 2.4, 2.2, 5);
+  art(17.4, 1.75, -14.92, 0, 1.6, 1.1);
+  smallPlant(world, 16.6, 1.1, -3.0);
+  pendant(13, -10.6, { drop: 0.85, light: 12, shade: '#d97757' });
+  floorLamp(19.3, -10.8, 10);
+  smallPlant(world, OWNER.x - 1.5, 0.765, OWNER.z + 0.3);
+  // Lived-in bits: desk clutter kept below the screens, a credenza under the TV, books and a whiteboard along the glass,
+  // a lounge corner by the windows, a round table for 1:1s and a coat stand by the door.
+  {
+    const vcM = mat('#ffffff', { vertexColors: true, roughness: 0.6 }), shinyM = mat('#ffffff', { vertexColors: true, roughness: 0.3, metalness: 0.7 });
+    const dy = 0.765, dx = OWNER.x, dz = OWNER.z;
+    box(world, 0.21, 0.015, 0.28, '#2b3650', dx - 0.62, dy + 0.008, dz + 0.24).rotation.y = 0.15;   // notebook and pen
+    cyl(world, 0.006, 0.006, 0.14, '#d97757', dx - 0.47, dy + 0.007, dz + 0.24, { seg: 6 }).rotation.x = Math.PI / 2;
+    box(world, 0.075, 0.008, 0.15, '#1c1c1e', dx + 0.45, dy + 0.004, dz + 0.3).rotation.y = -0.2;   // phone
+    // Headphones on a stand at the front corner.
+    world.add(mergedBoxes([[0.12, 0.012, 0.1, dx + 1.56, dy + 0.006, dz + 0.36, '#2a2c30'], [0.015, 0.24, 0.015, dx + 1.56, dy + 0.13, dz + 0.36, '#2a2c30'],
+      [0.03, 0.03, 0.17, dx + 1.56, dy + 0.255, dz + 0.36, '#1c1c1e']], vcM));
+    for (const s of [-1, 1]) {
+      box(world, 0.018, 0.17, 0.02, '#1c1c1e', dx + 1.56, dy + 0.18, dz + 0.36 + s * 0.085);
+      box(world, 0.06, 0.08, 0.035, '#3a3c40', dx + 1.56, dy + 0.11, dz + 0.36 + s * 0.095);
+    }
+
+    // Credenza under the TV: four doors, a speaker, books, a framed photo, a trophy and an espresso machine.
+    const cz = -14.6, cy = 0.76;
+    const cred = [[3.2, 0.62, 0.46, dx, 0.41, cz, '#5e4029'], [3.26, 0.04, 0.5, dx, 0.74, cz, '#3a281a']];
+    for (const fx of [-1.6, 1.6]) for (const fz of [-0.18, 0.18]) cred.push([0.04, 0.1, 0.04, dx + fx * 0.95, 0.05, cz + fz, '#2f3236']);
+    for (let i = 1; i < 4; i++) cred.push([0.01, 0.56, 0.005, dx - 1.6 + i * 0.8, 0.41, cz + 0.232, '#2a1d12']);
+    for (let i = 0; i < 4; i++) cred.push([0.012, 0.16, 0.02, dx - 1.6 + i * 0.8 + (i % 2 ? 0.07 : 0.73), 0.5, cz + 0.24, '#b8bcc2']);
+    world.add(mergedBoxes(cred, vcM));
+    solid(dx, cz, 3.26, 0.5);
+    world.add(mergedBoxes([[0.18, 0.3, 0.18, dx - 1.38, cy + 0.15, cz, '#1c1c1e'], [0.2, 0.032, 0.26, dx - 0.95, cy + 0.016, cz, '#8c3b2f'],
+      [0.18, 0.03, 0.24, dx - 0.95, cy + 0.047, cz, '#e7dcc8'], [0.19, 0.035, 0.25, dx - 0.95, cy + 0.08, cz, '#2f5d62'],
+      [0.015, 0.16, 0.12, dx - 0.62, cy + 0.08, cz, '#2a2c30'], [0.015, 0.16, 0.12, dx - 0.27, cy + 0.08, cz, '#2a2c30']], vcM));
+    cyl(world, 0.05, 0.05, 0.01, '#3a3c40', dx - 1.38, cy + 0.2, cz + 0.091, { seg: 20 }).rotation.x = Math.PI / 2;   // speaker cone
+    cyl(world, 0.025, 0.025, 0.01, '#3a3c40', dx - 1.38, cy + 0.07, cz + 0.091, { seg: 16 }).rotation.x = Math.PI / 2;
+    world.add(mergedBoxes(['#3f4a6b', '#d9a441', '#1f2a33', '#a35d7a', '#6b8e4e', '#c26a3d'].map((c, i) => [0.035, 0.2 + (i % 3) * 0.025, 0.15, dx - 0.585 + 0.045 * (i + 1), cy + 0.1 + (i % 3) * 0.0125, cz, c]), vcM));
+    smallPlant(world, dx - 0.95, cy + 0.1, cz);
+    {
+      const g = new THREE.Group(); g.position.set(dx + 0.3, cy, cz + 0.02); g.rotation.set(-0.15, -0.25, 0); world.add(g);
+      box(g, 0.24, 0.3, 0.02, '#1c1a18', 0, 0.15, 0);
+      const pic = new THREE.Mesh(new THREE.PlaneGeometry(0.18, 0.24), new THREE.MeshStandardMaterial({ map: artTexture(ctx.artSeed++, 0.75), roughness: 0.9 }));
+      pic.position.set(0, 0.15, 0.011); g.add(pic);
+    }
+    // Trophy: plinth, stem, cup.
+    world.add(mergedBoxes([[0.12, 0.06, 0.12, dx + 0.75, cy + 0.03, cz, '#2a2724']], vcM));
+    cyl(world, 0.012, 0.02, 0.08, '#d9a441', dx + 0.75, cy + 0.1, cz, { mat: { metalness: 0.9, roughness: 0.25 } });
+    cyl(world, 0.07, 0.03, 0.1, '#d9a441', dx + 0.75, cy + 0.19, cz, { mat: { metalness: 0.9, roughness: 0.25 } });
+    // Espresso machine with a cup on the drip tray.
+    world.add(mergedBoxes([[0.32, 0.36, 0.3, dx + 1.3, cy + 0.18, cz - 0.03, '#b8bcc2'], [0.24, 0.04, 0.12, dx + 1.3, cy + 0.32, cz + 0.16, '#2a2c30'],
+      [0.24, 0.02, 0.12, dx + 1.3, cy + 0.04, cz + 0.16, '#2a2c30'], [0.06, 0.05, 0.06, dx + 1.3, cy + 0.27, cz + 0.17, '#1c1c1e']], shinyM));
+    cyl(world, 0.03, 0.025, 0.06, '#f4f1ea', dx + 1.3, cy + 0.08, cz + 0.17, { seg: 12 });
+
+    // Neon over the bookshelf, a tall plant beside it.
+    const neon = makeScreen(world, 1.8, 0.45, 720, 180, 8.6, 2.75, -14.86);
+    neon.ctx.clearRect(0, 0, 720, 180);
+    neon.ctx.font = `italic 700 96px ${FONT}`; neon.ctx.textAlign = 'center';
+    neon.ctx.shadowColor = '#ff8a4c'; neon.ctx.shadowBlur = 30; neon.ctx.fillStyle = '#ffe2c8';
+    neon.ctx.fillText('stay curious', 360, 120); neon.ctx.fillText('stay curious', 360, 120);
+    neon.mesh.material.transparent = true; neon.tex.needsUpdate = true;
+    plant(10.4, -14.4, 0.9);
+
+    // Along the west glass: a tall bookcase, a rolling whiteboard, the coat stand by the door. Kept clear of the blind.
+    bookshelf(6.38, -12.4, Math.PI / 2, 2.2, 2.2, 5);
+    const wg = new THREE.Group(); wg.position.set(6.5, 0, -8.6); wg.rotation.y = Math.PI / 2; world.add(wg);
+    wg.add(mergedBoxes([[1.76, 1.02, 0.04, 0, 1.4, -0.01, '#b9bcc0'], [0.04, 1.85, 0.04, -0.86, 0.93, -0.03, '#8d9399'], [0.04, 1.85, 0.04, 0.86, 0.93, -0.03, '#8d9399'],
+      [0.06, 0.04, 0.5, -0.86, 0.08, -0.03, '#5a5f66'], [0.06, 0.04, 0.5, 0.86, 0.08, -0.03, '#5a5f66'], [1.7, 0.03, 0.06, 0, 0.87, 0.03, '#b9bcc0']],
+    mat('#ffffff', { vertexColors: true, roughness: 0.5, metalness: 0.3 })));
+    markerBoard('office', 'whiteboard', makeScreen(wg, 1.7, 0.96, 768, 434, 0, 1.4, 0.012), (c) => {
+      const node = (x, y, t, col) => { c.strokeStyle = col; c.strokeRect(x - 90, y - 34, 180, 68); c.fillStyle = col; c.font = `600 30px "Marker Felt", "Comic Sans MS", ${FONT}`; c.textAlign = 'center'; c.fillText(t, x, y + 10); };
+      node(130, 90, '~/.claude', '#1f6fd1'); node(384, 90, 'server', '#2e8b57'); node(638, 90, 'office', '#c0392b');
+      c.strokeStyle = '#333';
+      for (const x of [220, 474]) { c.beginPath(); c.moveTo(x, 90); c.lineTo(x + 70, 90); c.lineTo(x + 56, 80); c.moveTo(x + 70, 90); c.lineTo(x + 56, 100); c.stroke(); }
+      c.textAlign = 'left'; c.fillStyle = '#333'; c.font = `400 28px "Marker Felt", "Comic Sans MS", ${FONT}`;
+      ['Q4', '- hire 2 engineers', '- launch v2 ✦', '- inbox zero (lol)'].forEach((t, i) => c.fillText(t, 50, 200 + i * 52));
+      c.strokeStyle = '#d97757'; c.beginPath(); c.ellipse(560, 300, 140, 60, 0.1, 0, Math.PI * 2); c.stroke();
+      c.fillStyle = '#d97757'; c.fillText('1:1s Thu', 500, 310);
+    });
+    solid(6.5, -8.6, 0.5, 1.8);
+    {
+      const x = 6.45, z = -5.3;
+      cyl(world, 0.22, 0.24, 0.03, '#2a2a2a', x, 0.015, z, { seg: 20 }); cyl(world, 0.02, 0.025, 1.8, '#5a3d28', x, 0.9, z);
+      for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + 0.4; box(world, 0.16, 0.02, 0.02, '#2a2a2a', x + Math.cos(a) * 0.07, 1.72, z + Math.sin(a) * 0.07).rotation.y = -a; }
+      box(world, 0.16, 0.75, 0.34, '#1f2a44', x + 0.09, 1.32, z - 0.02).rotation.x = 0.05;   // a coat
+      box(world, 0.05, 0.12, 0.3, '#2a2724', x - 0.08, 1.6, z + 0.02);                       // a bag strap
+      solid(x, z, 0.4, 0.4);
+    }
+
+    // Lounge corner by the windows: two armchairs across a coffee table from the sofa, on a rug.
+    rug(16.7, 19.85, -11.4, -6.6, '#e2d6c0', '#8b5a3c');
+    sofa(17.9, -10.65, 0, 1.05, '#8b5a3c'); sofa(17.9, -7.35, Math.PI, 1.05, '#8b5a3c');
+    box(world, 0.9, 0.04, 0.55, '#8a6a4a', 17.9, 0.4, -9, { mat: { roughness: 0.5 } });
+    for (const [ox, oz] of [[-0.4, -0.22], [0.4, -0.22], [-0.4, 0.22], [0.4, 0.22]]) box(world, 0.035, 0.38, 0.035, '', 17.9 + ox, 0.19, -9 + oz, { material: legM });
+    world.add(mergedBoxes([[0.24, 0.03, 0.18, 17.75, 0.435, -9.08, '#1f2a33'], [0.22, 0.025, 0.17, 17.76, 0.462, -9.07, '#d9a441']], vcM));
+    cyl(world, 0.04, 0.035, 0.1, '#2f6f8f', 18.15, 0.47, -8.9);
+    smallPlant(world, 17.98, 0.42, -9.15);
+    solid(17.9, -9, 0.9, 0.55);
+    plant(19.3, -4.2, 1.35);
+
+    // Round table for 1:1s.
+    const tx = 15.4, tz = -5.5;
+    cyl(world, 0.55, 0.55, 0.04, '#f2efe9', tx, 0.74, tz, { seg: 32 });
+    cyl(world, 0.04, 0.04, 0.72, '#2f3236', tx, 0.36, tz);
+    cyl(world, 0.28, 0.28, 0.03, '#2f3236', tx, 0.015, tz);
+    solid(tx, tz, 1.1, 1.1);
+    for (const a of [Math.PI / 2, -Math.PI / 2, 0]) officeChair(tx - Math.sin(a) * 0.85, tz - Math.cos(a) * 0.85, a, '#4b5a6a');
+    box(world, 0.21, 0.015, 0.28, '#e7dcc8', tx - 0.18, 0.768, tz + 0.05).rotation.y = -0.3;
+    cyl(world, 0.04, 0.035, 0.1, '#f4f1ea', tx + 0.22, 0.81, tz - 0.12);
+    pendant(tx, tz, { drop: 1.05, shade: '#2b3650' });
+  }
+  Object.assign(ctx, { OWNER, usageScr, rosterScr, wallTV });
 }
