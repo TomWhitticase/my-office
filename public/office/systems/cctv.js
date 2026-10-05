@@ -123,7 +123,7 @@ function build(ctx) {
       c.on = s.on !== false;
       if (key === c.aim) continue;
       c.aim = key;
-      const yaw = c.yaw0 + pan * D, pitch = THREE.MathUtils.clamp(c.pitch0 + tilt * D, -1.5, 0.5);
+      const yaw = c.yaw0 - pan * D, pitch = THREE.MathUtils.clamp(c.pitch0 + tilt * D, -1.5, 0.5);
       dir.set(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
       lens.copy(c.pivot).addScaledVector(dir, c.reach);
       c.head.position.copy(lens); c.head.quaternion.setFromRotationMatrix(m4.lookAt(tgt.copy(lens).add(dir), lens, UP));
