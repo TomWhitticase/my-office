@@ -48,6 +48,12 @@ function fixtures(home) {
   const C = path.join(home, '.claude'), P = path.join(C, 'projects');
   const alpha = path.join(home, 'work', 'alpha'), beta = path.join(home, 'work', 'beta');
   write(path.join(beta, 'b.txt'), 'one\ntwo\nthree\n');
+  // A stand-in claude CLI for John: answers with the state-derived lines of his prompt and a hash of its arguments.
+  write(path.join(home, 'bin', 'claude'), `#!/bin/sh
+echo "John: args $(printf '%s\\n' "$@" | shasum | cut -c1-12)"
+sed -E 's/CPU [0-9.?]+%, RSS [0-9?]+ MB/CPU x/' | grep -E '^(Claude Code sessions live|- |Today:|CONVERSATION|Visitor:|John:)'
+`);
+  fs.chmodSync(path.join(home, 'bin', 'claude'), 0o755);
   write(path.join(C, 'my-office', 'adblock', 'hosts'), '0.0.0.0 ads.example.com\n0.0.0.0 tracker.example.net\n', mode === 'record' || mode === 'check' ? FIXED : Date.now());
 
   // A: busy, in an Orca terminal, rich transcript, a subagent.
@@ -150,7 +156,7 @@ function fixtures(home) {
 
 // ---------- server + requests ----------
 async function startServer(home, { clock = true } = {}) {
-  const env = { ...process.env, HOME: home, PORT: String(PORT), HOST: '127.0.0.1', TZ: 'UTC' };
+  const env = { ...process.env, HOME: home, PORT: String(PORT), HOST: '127.0.0.1', TZ: 'UTC', PATH: `${path.join(home, 'bin')}:${process.env.PATH}` };
   delete env.FIXED_NOW;
   if (clock) env.FIXED_NOW = String(FIXED);
   const p = spawn(process.execPath, [...(clock ? ['-r', path.join(DIR, 'fixed-clock.cjs')] : []), 'server.js'], { cwd: ROOT, env, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -260,6 +266,7 @@ async function snapshots(home, pids) {
   add('refuse john get', await get('/api/john'));
   add('refuse john foreign', await req('POST', '/api/john', { headers: { ...local, origin: 'http://evil.example' }, body: '{"text":"hi"}' }));
   add('john empty', await req('POST', '/api/john', { headers: local, body: '{"text":"  "}' }));
+  add('john ask', await req('POST', '/api/john', { headers: local, body: JSON.stringify({ text: 'How are the racks?', history: [{ role: 'user', text: 'hi' }, { role: 'john', text: 'Morning.' }] }) }));
   add('john too long', await req('POST', '/api/john', { headers: local, body: JSON.stringify({ text: 'x'.repeat(601) }) }));
   add('refuse send get', await get(`/api/session/${sid(1)}/send`));
   add('refuse send foreign', await req('POST', `/api/session/${sid(1)}/send`, { headers: { ...local, origin: 'http://evil.example' }, body: '{"text":"hi"}' }));
