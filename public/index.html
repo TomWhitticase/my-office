@@ -589,7 +589,12 @@ function connect() {
   };
   es.addEventListener('tvs', (m) => { dash.tvs = JSON.parse(m.data); for (const cb of dash.tvListeners) cb(dash.tvs); });
   es.addEventListener('tvads', (m) => { dash.tvAds = JSON.parse(m.data); for (const cb of dash.tvListeners) cb(dash.tvs); });
-  es.addEventListener('office', (m) => { dash.office = JSON.parse(m.data); for (const cb of dash.officeListeners) cb(dash.office); });
+  es.addEventListener('office', (m) => {
+    const o = JSON.parse(m.data), now = performance.now();
+    // A camera being aimed here keeps this page's aim until a moment after the last change (the echoes lag the drag).
+    for (const [id, t] of Object.entries(dash.camHold || {})) if (t > now && dash.office.cameras?.[id]) (o.cameras ||= {})[id] = dash.office.cameras[id];
+    dash.office = o; for (const cb of dash.officeListeners) cb(dash.office);
+  });
   es.onerror = () => { conn.className = 'conn off'; conn.lastChild.textContent = 'reconnecting…'; };
 }
 // Bridge for the 3D office view (office.js), which reuses live state, colours and the drawer.
@@ -628,13 +633,15 @@ window.dash = {
     flush();
   },
   normUrl: (s) => { s = s.trim(); return !s ? '' : s.startsWith('/') ? location.origin + s : /^[a-z][\w+.-]*:/i.test(s) ? s : (/^(localhost|127\.)/.test(s) ? 'http://' : 'https://') + s; },
-  // Lights, blinds and door (server-side, /api/office). putOffice applies locally at once, then saves.
-  office: { lights: 'auto', brightness: 1, blinds: { side: 0, front: 0, north: 0, east: 0, west: 0, office: 0, meetSouth: 0, meetNorth: 0, meetSmall: 0 }, door: 0 }, officeListeners: new Set(),
-  putOffice(patch) {
-    const o = dash.office;
-    dash.office = { ...o, ...patch, blinds: { ...o.blinds, ...patch.blinds } };
+  // Lights, blinds, door and the security cameras (server-side, /api/office). putOffice applies locally at once, then saves.
+  office: { lights: 'auto', brightness: 1, blinds: { side: 0, front: 0, north: 0, east: 0, west: 0, office: 0, meetSouth: 0, meetNorth: 0, meetSmall: 0 }, door: 0,
+    cameras: {} }, officeListeners: new Set(),
+  putOffice(patch, save = true) {   // save false: this page only (the Security app saves a drag's aim a few times a second)
+    const o = dash.office, cams = { ...o.cameras };
+    for (const [id, c] of Object.entries(patch.cameras || {})) cams[id] = { on: true, pan: 0, tilt: 0, zoom: 1, ...cams[id], ...c };
+    dash.office = { ...o, ...patch, blinds: { ...o.blinds, ...patch.blinds }, cameras: cams };
     for (const cb of dash.officeListeners) cb(dash.office);
-    fetch('/api/office', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(patch) }).catch(() => {});
+    if (save) fetch('/api/office', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(patch) }).catch(() => {});
   },
   // Office ambient sounds: per device (localStorage), as audio is. M in the office, or the Admin tab.
   sound: { on: localStorage.officeSound !== 'off', volume: +(localStorage.officeSoundVol ?? 60) }, soundListeners: new Set(),

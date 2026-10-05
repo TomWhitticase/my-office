@@ -18,23 +18,26 @@ import { dash, mat, ME_LAYER, rng } from '../util.js';
 // Floor, name, where it's mounted ('dome' under the ceiling, or a beam at `ceil`; 'wall' on a bracket from the point `wall`;
 // 'pole' on a mast from the deck), where the lens is and what it looks at, in its floor's own space (the hall's root, the
 // roof's deck). The office's ceiling beams run along z every 4 m (x = 2 mod 4) down to 3.02 m: cameras hang below them.
+// `pan` is how far it turns either way from there (degrees: wall cameras less, so they don't stare into the wall; domes
+// and masts all the way round); tilt is TILT, zoom 1-ZOOM, both for all. The Security app aims them (office.cameras).
 const CAMS = [
-  { id: 'desks-nw', n: 48, name: 'Desk floor · North-west', kind: 'wall', p: [-19.55, 2.85, -14.55], wall: [-19.95, 2.85, -14.95], at: [-6, 0.2, -2] },
+  { id: 'desks-nw', n: 48, name: 'Desk floor · North-west', kind: 'wall', p: [-19.55, 2.85, -14.55], wall: [-19.95, 2.85, -14.95], at: [-6, 0.2, -2], pan: 40 },
   { id: 'desks-se', n: 48, name: 'Desk floor · South-east', kind: 'dome', ceil: 3.02, p: [2, 2.95, 1.4], at: [-10, 0.4, -11] },
   { id: 'breakroom', n: 48, name: 'Breakroom & kitchen', kind: 'dome', ceil: 3.02, p: [-2, 2.95, 3.2], at: [-13, 0.4, 12] },
-  { id: 'lounge', n: 48, name: 'Lounge', kind: 'wall', p: [13.5, 2.85, 3.4], wall: [13.9, 2.85, 3.0], at: [6, 0.4, 12] },
+  { id: 'lounge', n: 48, name: 'Lounge', kind: 'wall', p: [13.5, 2.85, 3.4], wall: [13.9, 2.85, 3.0], at: [6, 0.4, 12], pan: 60 },
   { id: 'lobby', n: 48, name: 'Lift lobby', kind: 'dome', ceil: 3.02, p: [10, 2.95, -2.6], at: [18, 0.9, 0.4] },
-  { id: 'meeting', n: 48, name: 'Meeting rooms corridor', kind: 'wall', p: [12.9, 2.85, 14.5], wall: [12.9, 2.85, 14.95], at: [13, 0.7, 1] },
-  { id: 'my-office', n: 48, name: 'Private office', kind: 'wall', p: [19.55, 2.85, -14.55], wall: [19.95, 2.85, -14.95], at: [11, 0.4, -7] },
-  { id: 'hall-vestibule', n: 47, name: 'Vestibule', kind: 'wall', fov: 68, p: [17.55, 2.9, -1.95], wall: [17.75, 2.9, -2.15], at: [14.5, 0.9, 0.6] },
-  { id: 'hall-aisle', n: 47, name: 'Cold aisle A/B', kind: 'wall', p: [12.1, 1.85, 0.3], wall: [12.1, 2.1, 0.3], at: [0, 0.8, 0] },
-  { id: 'hall-noc', n: 47, name: 'NOC', kind: 'wall', p: [-17.4, 2.7, 18.5], wall: [-17.1, 2.7, 18.9], at: [-18.8, 0.9, 12.6] },
+  { id: 'meeting', n: 48, name: 'Meeting rooms corridor', kind: 'wall', p: [12.9, 2.85, 14.5], wall: [12.9, 2.85, 14.95], at: [13, 0.7, 1], pan: 60 },
+  { id: 'my-office', n: 48, name: 'Private office', kind: 'wall', p: [19.55, 2.85, -14.55], wall: [19.95, 2.85, -14.95], at: [11, 0.4, -7], pan: 40 },
+  { id: 'hall-vestibule', n: 47, name: 'Vestibule', kind: 'wall', fov: 68, p: [17.55, 2.9, -1.95], wall: [17.75, 2.9, -2.15], at: [14.5, 0.9, 0.6], pan: 40 },
+  { id: 'hall-aisle', n: 47, name: 'Cold aisle A/B', kind: 'wall', p: [12.1, 1.85, 0.3], wall: [12.1, 2.1, 0.3], at: [0, 0.8, 0], pan: 60 },
+  { id: 'hall-noc', n: 47, name: 'NOC', kind: 'wall', p: [-17.4, 2.7, 18.5], wall: [-17.1, 2.7, 18.9], at: [-18.8, 0.9, 12.6], pan: 40 },
   { id: 'roof-terrace', n: 50, name: 'Roof terrace', kind: 'pole', p: [17.4, 3.4, -13.6], at: [0, 0.2, -6] },
   { id: 'roof-helipad', n: 50, name: 'Helipad', kind: 'pole', p: [-1.6, 3.6, 3.6], at: [-9.5, 0.4, 8.6] },
 ];
 const LAYER = 3;   // the cameras' own bodies: the office's view sees them, the feeds don't (no lens in its own shot)
 const SLOT = 1;    // feeds refreshed per frame at most
 const FPS = { grid: 4, one: 12 };   // full screen; on the monitor, while the office is drawn too, a quarter of that
+const TILT = [-40, 25], ZOOM = 3, PAN = { dome: 170, wall: 70, pole: 120 };
 const FAR = 30;    // indoors: the city through the windows is the office's dearest part to draw, and blown out on CCTV anyway
 
 /** @param {import('../ctx.js').OfficeCtx} ctx */
@@ -69,8 +72,10 @@ function build(ctx) {
     g.name = `cctv:${c.id}`;
     parent.add(g);
     const ledM = new THREE.MeshStandardMaterial({ color: '#111', emissive: '#22ff55', emissiveIntensity: 2 });
-    // The housing: +z of `head` points down the lens.
-    const head = new THREE.Group();
+    // The housing: +z of `head` points down the lens. It turns about `pivot` (a bullet about its mount, `reach` behind the
+    // lens; a dome about its lens), from the aim it was built with (yaw0, pitch0) by the app's pan and tilt.
+    const head = new THREE.Group(), d0 = v.copy(at).sub(p).normalize();
+    const yaw0 = Math.atan2(d0.x, d0.z), pitch0 = Math.asin(d0.y), reach = c.kind === 'dome' ? 0 : 0.22;
     head.position.copy(p); head.quaternion.setFromRotationMatrix(m4.lookAt(at, p, UP));
     g.add(head);
     if (c.kind === 'dome') {
@@ -103,8 +108,34 @@ function build(ctx) {
     eye.quaternion.setFromRotationMatrix(m4.lookAt(eye.position, at, UP));
     eye.layers.enable(1); eye.layers.enable(ME_LAYER);   // the transparent things (see post.js), and you; not LAYER
     g.add(eye);
-    return { ...c, F, g, eye, ledM, live: false, seen: 0 };
+    const pivot = p.clone().addScaledVector(d0.set(Math.sin(yaw0) * Math.cos(pitch0), Math.sin(pitch0), Math.cos(yaw0) * Math.cos(pitch0)), -reach);
+    const lim = { pan: c.pan ?? PAN[c.kind], tilt: TILT, zoom: ZOOM };
+    return { ...c, F, g, head, eye, ledM, pivot, reach, yaw0, pitch0, fov0: eye.fov, lim, on: true, aim: '', lit: '', seen: 0 };
   });
+
+  // ----- aiming, and on/off: office.cameras[id] = { on, pan, tilt, zoom }, from the server (or the app, at once) -----
+  const D = THREE.MathUtils.DEG2RAD, dir = new THREE.Vector3(), lens = new THREE.Vector3(), tgt = new THREE.Vector3();
+  const setOf = (c) => ({ on: true, pan: 0, tilt: 0, zoom: 1, ...dash.office?.cameras?.[c.id] });
+  function apply() {
+    for (const c of cams) {
+      const s = setOf(c), pan = THREE.MathUtils.clamp(s.pan, -c.lim.pan, c.lim.pan), tilt = THREE.MathUtils.clamp(s.tilt, ...c.lim.tilt);
+      const zoom = THREE.MathUtils.clamp(s.zoom, 1, c.lim.zoom), key = `${pan}|${tilt}|${zoom}`;
+      c.on = s.on !== false;
+      if (key === c.aim) continue;
+      c.aim = key;
+      const yaw = c.yaw0 + pan * D, pitch = THREE.MathUtils.clamp(c.pitch0 + tilt * D, -1.5, 0.5);
+      dir.set(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
+      lens.copy(c.pivot).addScaledVector(dir, c.reach);
+      c.head.position.copy(lens); c.head.quaternion.setFromRotationMatrix(m4.lookAt(tgt.copy(lens).add(dir), lens, UP));
+      c.eye.position.copy(lens).addScaledVector(dir, 0.08);
+      c.eye.quaternion.setFromRotationMatrix(m4.lookAt(c.eye.position, tgt.copy(c.eye.position).add(dir), UP));
+      c.eye.fov = c.fov0 / zoom; c.eye.updateProjectionMatrix();
+      c.g.updateMatrixWorld(true);
+    }
+    for (const c of cams) if (!c.on && c.lit !== 'off') { c.lit = 'off'; c.ledM.emissive.set('#000'); }
+  }
+  apply();
+  dash.officeListeners.add(apply);
 
   // ----- the feeds -----
   // The grade: ACES as the office's tone mapping does it, to sRGB, then the CCTV look. Flipped, so the read-back's rows
@@ -259,16 +290,16 @@ function build(ctx) {
       for (const F of new Set(feeds.map((f) => f.cam.F))) F.cctv?.tick?.(dt, t, cams.filter((c) => c.F === F));
       let shadows = !ctx.active || !!ctx.away;   // the office's own frame isn't updating them
       const slow = ctx.active ? 4 : 1;
-      const due = feeds.filter((f) => !f.busy && now - f.at >= 1000 * slow / f.fps).sort((a, b) => a.at - b.at).slice(0, SLOT);
+      const due = feeds.filter((f) => f.cam.on && !f.busy && now - f.at >= 1000 * slow / f.fps).sort((a, b) => a.at - b.at).slice(0, SLOT);
       for (const f of due) {
         f.at = now;
         if (shadows && !f.cam.F.scene) { renderer.shadowMap.needsUpdate = true; shadows = false; }
         shoot(f, t);
       }
     }
-    if ((n = (n + 1) % 15) === 0) for (const c of cams) {   // red while recording to a screen, green on standby
-      const live = on && t - c.seen < 1;
-      if (live !== c.live) { c.live = live; c.ledM.emissive.set(live ? '#ff2a1a' : '#22ff55'); }
+    if ((n = (n + 1) % 15) === 0) for (const c of cams) {   // red while recording to a screen, green on standby, dark when off
+      const lit = !c.on ? 'off' : on && t - c.seen < 1 ? 'live' : 'standby';
+      if (lit !== c.lit) { c.lit = lit; c.ledM.emissive.set(lit === 'off' ? '#000' : lit === 'live' ? '#ff2a1a' : '#22ff55'); }
     }
   }
   ctx.onFrame(tick, 185);
@@ -290,7 +321,7 @@ function build(ctx) {
     ctx.runFrame(dt, (now - t0) / 1000, now);
   }
 
-  const list = cams.map(({ id, name, n: fl }) => ({ id, name, floor: fl, where: floorOf(fl).title }));
+  const list = cams.map(({ id, name, n: fl, lim }) => ({ id, name, floor: fl, where: floorOf(fl).title, lim }));
   dash.cctv = { cams: list, want, stats };
   Object.assign(ctx, { cctv: { cams, want, resume, stats } });
 }

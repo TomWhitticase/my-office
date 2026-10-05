@@ -1394,7 +1394,8 @@
     "meetNorth": 0,
     "meetSmall": 0
    },
-   "door": 0
+   "door": 0,
+   "cameras": {}
   }
  },
  "GET /api/tvs": {
@@ -3623,7 +3624,8 @@
       "meetNorth": 0,
       "meetSmall": 0
      },
-     "door": 0
+     "door": 0,
+     "cameras": {}
     }
    }
   ]
@@ -3704,7 +3706,8 @@
     "meetNorth": 0,
     "meetSmall": 0
    },
-   "door": 1
+   "door": 1,
+   "cameras": {}
   }
  },
  "GET /api/office (after)": {
@@ -3721,7 +3724,8 @@
    "meetNorth": 0,
    "meetSmall": 0
   },
-  "door": 1
+  "door": 1,
+  "cameras": {}
  },
  "PUT /api/office (put back)": {
   "status": 200,
@@ -3739,7 +3743,143 @@
     "meetNorth": 0,
     "meetSmall": 0
    },
-   "door": 0
+   "door": 0,
+   "cameras": {}
+  }
+ },
+ "PUT /api/office (camera)": {
+  "status": 200,
+  "body": {
+   "lights": "auto",
+   "brightness": 1,
+   "blinds": {
+    "side": 0,
+    "front": 0,
+    "north": 0,
+    "east": 0,
+    "west": 0,
+    "office": 0,
+    "meetSouth": 0,
+    "meetNorth": 0,
+    "meetSmall": 0
+   },
+   "door": 0,
+   "cameras": {
+    "lobby": {
+     "on": false,
+     "pan": 30.12,
+     "tilt": -12,
+     "zoom": 2
+    }
+   }
+  }
+ },
+ "PUT /api/office (camera, partial)": {
+  "status": 200,
+  "body": {
+   "lights": "auto",
+   "brightness": 1,
+   "blinds": {
+    "side": 0,
+    "front": 0,
+    "north": 0,
+    "east": 0,
+    "west": 0,
+    "office": 0,
+    "meetSouth": 0,
+    "meetNorth": 0,
+    "meetSmall": 0
+   },
+   "door": 0,
+   "cameras": {
+    "lobby": {
+     "on": true,
+     "pan": 30.12,
+     "tilt": -12,
+     "zoom": 2
+    }
+   }
+  }
+ },
+ "PUT /api/office (camera, out of range)": {
+  "status": 200,
+  "body": {
+   "lights": "auto",
+   "brightness": 1,
+   "blinds": {
+    "side": 0,
+    "front": 0,
+    "north": 0,
+    "east": 0,
+    "west": 0,
+    "office": 0,
+    "meetSouth": 0,
+    "meetNorth": 0,
+    "meetSmall": 0
+   },
+   "door": 0,
+   "cameras": {
+    "lobby": {
+     "on": true,
+     "pan": 180,
+     "tilt": -60,
+     "zoom": 1
+    }
+   }
+  }
+ },
+ "PUT /api/office (camera, bad ids)": {
+  "status": 200,
+  "body": {
+   "lights": "auto",
+   "brightness": 1,
+   "blinds": {
+    "side": 0,
+    "front": 0,
+    "north": 0,
+    "east": 0,
+    "west": 0,
+    "office": 0,
+    "meetSouth": 0,
+    "meetNorth": 0,
+    "meetSmall": 0
+   },
+   "door": 0,
+   "cameras": {
+    "lobby": {
+     "on": true,
+     "pan": 180,
+     "tilt": -60,
+     "zoom": 1
+    }
+   }
+  }
+ },
+ "PUT /api/office (camera put back)": {
+  "status": 200,
+  "body": {
+   "lights": "auto",
+   "brightness": 1,
+   "blinds": {
+    "side": 0,
+    "front": 0,
+    "north": 0,
+    "east": 0,
+    "west": 0,
+    "office": 0,
+    "meetSouth": 0,
+    "meetNorth": 0,
+    "meetSmall": 0
+   },
+   "door": 0,
+   "cameras": {
+    "lobby": {
+     "on": true,
+     "pan": 0,
+     "tilt": 0,
+     "zoom": 1
+    }
+   }
   }
  },
  "PUT /api/office (bad JSON)": {
