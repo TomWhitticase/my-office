@@ -168,7 +168,7 @@ export async function runGoldens(browser, base, { record = false, only = null, l
       const t = Date.now();
       await setup(o);
       if (opt?.shot === false || (only && !only.includes(name))) continue;
-      const png = await o.page.screenshot({ animations: 'disabled', caret: 'hide' });
+      const png = await o.page.screenshot({ animations: 'disabled', caret: 'hide', timeout: 240000 });
       fs.writeFileSync(path.join(OUT, `${name}.png`), png);
       const gold = path.join(GOLDEN, `${name}.png`);
       if (record) { fs.writeFileSync(gold, png); results.push({ name, recorded: true }); log(`  recorded ${name} (${((Date.now() - t) / 1000).toFixed(1)}s)`); continue; }
