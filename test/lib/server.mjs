@@ -9,7 +9,9 @@ import { T0, PIDS, makeHome } from './fixtures.mjs';
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 export async function startServer({ port = 7781, log = false } = {}) {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'my-office-test-'));
+  // Real path: on macOS os.tmpdir() is /var/folders/…, a symlink to /private/var/…, and the paths the server reports must
+  // match the HOME the snapshots scrub.
+  const home = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'my-office-test-')));
   makeHome(home);
   const env = { HOME: home, PORT: String(port), HOST: '127.0.0.1', TZ: 'Europe/London', PATH: process.env.PATH, LANG: 'en_GB.UTF-8',
     FIXTURE_NOW: String(T0), FIXTURE_PIDS: PIDS.join(',') };
