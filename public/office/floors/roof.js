@@ -315,10 +315,19 @@ export function install(ctx) {
     };
     roof.leave = () => { G.visible = false; };
     roof.bound = (p) => { p.x = clamp(p.x, -EDGE.x + 0.5, EDGE.x - 0.5); p.z = clamp(p.z, -EDGE.z + 0.5, EDGE.z - 0.5); };
-    roof.fx = (dt, t) => {
+    const turn = (dt, t) => {   // the condenser fans and the windsock
       for (const [i, f] of roof.fans.entries()) f.rotation.y += dt * (7 + i);
       roof.sock.rotation.set(Math.sin(t * 1.3) * 0.05, 2.4 + Math.sin(t * 0.31) * 0.35 + Math.sin(t * 0.83) * 0.1, -0.25 + Math.sin(t * 0.5) * 0.12);
+    };
+    roof.fx = (dt, t) => {
+      turn(dt, t);
       roof.cars.forEach((c, i) => { Object.assign(c.ind, { floor: lifts[i].floor, dir: lifts[i].dir }); paintIndicator(c.ind); });   // the other car's lantern
+    };
+    // On the security cameras (systems/cctv.js): the deck is shown for a feed's shot, and turns while you're elsewhere.
+    roof.cctv = {
+      root: G,
+      tick(dt, t) { if (!roof.on) turn(dt, t); },
+      stage() { const was = G.visible; G.visible = true; return () => { G.visible = was; }; },
     };
     addFloor(roof);
   }

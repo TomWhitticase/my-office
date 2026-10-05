@@ -129,6 +129,12 @@ export const POSES = [
     await stepUntil(o, () => window.__office.heli.S.cam === 'in', 80);
     await o.step(10);
   }],
+  ['security-app', async (o) => {   // out of the helicopter to your desktop full screen, the Security app's feeds at dusk
+    await o.eval(() => { window.dash.setView('desktop', 'cctv'); });   // not awaited: the fly-in needs frames
+    await stepUntil(o, () => document.body.dataset.view === 'desktop', 200);
+    await stepUntil(o, () => document.querySelectorAll('.cc-tile canvas[data-live]').length === 12, 200);
+    await o.step(4); await o.idle();
+  }],
 ];
 
 // Compares two PNGs in the page: counts pixels where any channel differs by more than `tol`.

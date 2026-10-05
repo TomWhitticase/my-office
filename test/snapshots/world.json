@@ -4411,17 +4411,18 @@
  ],
  "scenes": {
   "office": {
-   "objects": 2246,
+   "objects": 2323,
    "types": {
     "Scene": 1,
     "HemisphereLight": 1,
     "DirectionalLight": 2,
     "Object3D": 2,
-    "Mesh": 1977,
-    "Group": 355,
+    "Mesh": 2027,
+    "Group": 373,
     "PointLight": 15,
     "Sprite": 9,
-    "LineSegments": 1
+    "LineSegments": 1,
+    "PerspectiveCamera": 9
    },
    "actions": {
     "blinds": 46,
@@ -4434,18 +4435,19 @@
     "liftpanel": 3,
     "heli": 2
    },
-   "ordered": "3785b0ce",
-   "sorted": "cd22024"
+   "ordered": "deafcbe6",
+   "sorted": "e899766a"
   },
   "servers": {
-   "objects": 244,
+   "objects": 271,
    "types": {
     "Scene": 1,
     "HemisphereLight": 1,
     "DirectionalLight": 1,
-    "Group": 25,
+    "Group": 31,
     "Object3D": 1,
-    "Mesh": 215
+    "Mesh": 233,
+    "PerspectiveCamera": 3
    },
    "actions": {
     "info": 28,
@@ -4453,8 +4455,8 @@
     "liftpanel": 1,
     "john": 51
    },
-   "ordered": "a42fc817",
-   "sorted": "9f7941ff"
+   "ordered": "d75f83c5",
+   "sorted": "68535865"
   },
   "archive": {
    "objects": 67,

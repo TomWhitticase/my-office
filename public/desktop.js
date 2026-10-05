@@ -1,5 +1,6 @@
-// Your computer: a pretend Windows-XP-style desktop with three apps, each in a window: the Dashboard (the live overview
-// <main>, moved in, not copied), Office Admin (#view-admin, likewise) and Messages (chat with your sessions, via chat.js).
+// Your computer: a pretend Windows-XP-style desktop with four apps, each in a window: the Dashboard (the live overview
+// <main>, moved in, not copied), Office Admin (#view-admin, likewise), Messages (chat with your sessions, via chat.js)
+// and Security (the building's camera feeds, drawn by the office: office/systems/cctv.js).
 // It's what your office monitor and MacBook show, live (inert there: clicking the screen flies you in), and what you use
 // full screen once you've flown in. Window layout and the open conversation persist in localStorage.
 
@@ -16,8 +17,13 @@ const APPS = {
     icon: svg('<rect x="3" y="3" width="26" height="26" rx="4" fill="#f4f0e2" stroke="#8a7a52"/><path d="M8 10h16M8 16h16M8 22h16" stroke="#8b96a8" stroke-width="2.2" stroke-linecap="round"/><circle cx="13" cy="10" r="3.2" fill="#2f7be8" stroke="#1d4f9e"/><circle cx="21" cy="16" r="3.2" fill="#f0a020" stroke="#9c6408"/><circle cx="11" cy="22" r="3.2" fill="#2fb34a" stroke="#1d7a31"/>') },
   msgs: { title: 'Messages', hash: 'messages', sub: 'Chat with your Claude sessions',
     icon: svg('<rect x="2" y="4" width="20" height="14" rx="4" fill="#5aa8f8" stroke="#1f5fbf"/><path d="M7 17.5l-1 5 6-4.5" fill="#5aa8f8" stroke="#1f5fbf" stroke-linejoin="round"/><rect x="11" y="12" width="19" height="13" rx="4" fill="#86d86f" stroke="#3a8a2a"/><path d="M25 24.5l1 4.5-6-4.5" fill="#86d86f" stroke="#3a8a2a" stroke-linejoin="round"/><path d="M15.5 18.5h10" stroke="#fff" stroke-width="2" stroke-linecap="round"/>') },
+  cctv: { title: 'Security', hash: 'security', sub: 'Cameras: office, server hall, roof',
+    icon: svg('<rect x="3" y="24" width="10" height="3" rx="1" fill="#6b7686"/><path d="M8 24v-6" stroke="#6b7686" stroke-width="2.4"/><g transform="rotate(-14 16 14)"><rect x="5" y="9" width="21" height="9" rx="3" fill="#eef1f4" stroke="#56606e"/><rect x="5" y="7.5" width="22" height="2.4" rx="1" fill="#c9cfd6" stroke="#56606e" stroke-width=".8"/><rect x="24.5" y="10" width="4" height="7" rx="1.2" fill="#1d232b"/><circle cx="9" cy="15" r="1.4" fill="#ff3b2f"/></g>') },
 };
-const DEFAULT = { dash: { open: true, x: 0.09, y: 0.03, w: 0.72, h: 0.88 }, admin: { x: 0.2, y: 0.06, w: 0.6, h: 0.84 }, msgs: { x: 0.3, y: 0.09, w: 0.6, h: 0.78 } };
+const DEFAULT = { dash: { open: true, x: 0.09, y: 0.03, w: 0.72, h: 0.88 }, admin: { x: 0.2, y: 0.06, w: 0.6, h: 0.84 }, msgs: { x: 0.3, y: 0.09, w: 0.6, h: 0.78 },
+  cctv: { x: 0.12, y: 0.04, w: 0.74, h: 0.86 } };
+const FLOOR_TABS = [['all', 'All'], [48, 'Office'], [47, 'Server Hall'], [50, 'Roof']];
+const stamp = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${d.toTimeString().slice(0, 8)}`;
 const STATUS = { working: ['Working', 'w'], idle: ['Idle · waiting for you', 'i'], shell: ['Waiting on a shell task', 's'] };
 
 export function mountDesktop() {
@@ -158,6 +164,40 @@ export function mountDesktop() {
     .xp-conv .st.ok { color: #13871a; } .xp-conv .st.warn { color: #9a6200; } .xp-conv .st.bad { color: #c0261b; }
     .xp-conv kbd { font: inherit; font-weight: bold; background: #fff; border: 1px solid #b9c9e6; border-radius: 3px; padding: 0 4px; }
     .xp-conv.empty form, .xp-conv.empty .st, .xp-conv.empty .hd { display: none; }
+
+    .xp-win[data-app="cctv"] .xp-body { overflow: hidden; }
+    .xp-cctv { height: 100%; display: flex; flex-direction: column; background: #0a0c0b; color: #e8efe9; font: 11px/1.2 Tahoma, Verdana, "Segoe UI", sans-serif; user-select: none; }
+    .cc-bar { flex: none; display: flex; align-items: center; gap: 4px; padding: 4px 6px; background: #ece9d8; color: #000; border-bottom: 1px solid #aca899; }
+    .cc-bar button { padding: 2px 9px; border: 1px solid #003c74; border-radius: 3px; background: linear-gradient(#fff, #ecebe6 85%, #d6d0c5); color: #000; cursor: pointer; font: inherit; }
+    .cc-bar button:hover { box-shadow: inset 0 0 0 1px #f8b636; }
+    .cc-bar button[aria-pressed="true"] { background: linear-gradient(#d6d0c5, #e3e0d6); box-shadow: inset 1px 1px 2px rgba(0,0,0,.25); }
+    .cc-bar small { color: #555; }
+    .cc-bar .sp { flex: 1; }
+    .cc-bar .rec { color: #c0261b; font-weight: bold; }
+    .cc-bar b { padding: 0 6px; }
+    .cc-grid { flex: 1; min-height: 0; display: grid; gap: 3px; padding: 3px; }
+    .cc-tile, .cc-one { position: relative; min-width: 0; min-height: 0; overflow: hidden; padding: 0; border: 0; background: #000; color: inherit; cursor: pointer; font: inherit; text-align: left;
+      container-type: size; }
+    .cc-tile[hidden], .cc-one[hidden], .cc-grid[hidden] { display: none; }
+    .cc-tile:hover { outline: 2px solid #f8b636; outline-offset: -2px; }
+    .cc-tile canvas, .cc-one canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    .cc-one { flex: 1; margin: 3px; cursor: zoom-out; }
+    .cc-one canvas { object-fit: contain; }
+    .cc-tile i, .cc-one i { position: absolute; padding: 1px 4px; font: 600 10px/1.25 ui-monospace, Menlo, Consolas, monospace; font-style: normal; letter-spacing: .02em;
+      color: #f2f6f0; text-shadow: 0 0 2px #000, 1px 1px 0 #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 70%; }
+    .cc-one i { font-size: 14px; padding: 4px 8px; }
+    .cc-tile .nm, .cc-one .nm { left: 2px; top: 2px; }
+    .cc-tile .fl, .cc-one .fl { left: 2px; bottom: 2px; color: #cfd8cf; }
+    .cc-tile .ts, .cc-one .ts { right: 2px; bottom: 2px; }
+    .cc-tile .rc, .cc-one .rc { right: 2px; top: 2px; color: #ff4b3a; }
+    .cc-tile .rc u, .cc-one .rc u { text-decoration: none; animation: cc-blink 1s steps(1) infinite; }
+    @keyframes cc-blink { 50% { color: transparent; } }
+    .cc-tile .ns, .cc-one .ns { inset: 0; max-width: none; display: grid; place-items: center; color: #9aa59b; letter-spacing: .2em;
+      background: repeating-linear-gradient(0deg, #101211 0 2px, #161917 2px 4px); }
+    .cc-tile canvas[data-live] ~ .ns, .cc-one canvas[data-live] ~ .ns { display: none; }
+    .cc-tile .ts b { font-weight: inherit; }
+    @container (max-width: 300px) { .cc-tile .ts b { display: none; } }
+    @container (max-width: 220px) { .cc-tile .fl, .cc-tile .rc span { display: none; } .cc-tile .nm { max-width: 82%; } }
   `;
   document.head.appendChild(style);
 
@@ -206,6 +246,7 @@ export function mountDesktop() {
       .map((k) => `<button data-app="${k}" class="${k === top ? 'on' : ''}" title="${APPS[k].title}">${APPS[k].icon}<span>${APPS[k].title}</span></button>`).join('');
     syncHash();
     syncMsgs();
+    syncCctv();
     save();
   }
   function syncHash() {
@@ -295,7 +336,7 @@ export function mountDesktop() {
     const d = new Date(), t = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
     if (clockEl.textContent !== t) { clockEl.textContent = t; clockEl.title = d.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }); }
   };
-  tick(); setInterval(tick, 1000);
+  tick(); setInterval(() => { tick(); if (shown('cctv')) stampCctv(); }, 1000);
 
   // ----- Messages: your sessions on the left, the conversation on the right -----
   body('msgs').innerHTML = `<div class="xp-msgs"><div class="xp-buddies"></div>
@@ -345,6 +386,79 @@ export function mountDesktop() {
   conv.querySelector('[data-act="details"]').addEventListener('click', () => { if (st.sel) dash.openDrawer(st.sel); });
   dash.onUpdate(() => { if (shown('msgs')) { renderBuddies(); if (chat.id) { renderConvHead(); chat.sync(); } } });
 
+  // ----- Security: the cameras' feeds, a grid of the floor picked or one camera big -----
+  // The office draws them (office/systems/cctv.js) into the canvases handed to dash.cctv.want(): only those on screen,
+  // and none while the window is closed, minimised or under a maximised one. Opened before the office has ever been,
+  // it mounts the office (unseen) for its cameras.
+  st.cam = { floor: 'all', one: null, ...st.cam };
+  const cc = body('cctv');
+  cc.innerHTML = `<div class="xp-cctv"><div class="cc-bar"></div><div class="cc-grid"></div>
+    <button class="cc-one" hidden><canvas width="640" height="360"></canvas><i class="nm"></i><i class="rc"><u>●</u> REC</i><i class="fl"></i><i class="ts"></i><i class="ns">NO SIGNAL</i></button></div>`;
+  const ccBar = cc.querySelector('.cc-bar'), ccGrid = cc.querySelector('.cc-grid'), ccOne = cc.querySelector('.cc-one'), oneCanvas = ccOne.querySelector('canvas');
+  let camList = null, tiles = new Map(), ccKey = '', oneId = null;
+  const camLabel = (c) => `CAM ${String(camList.indexOf(c) + 1).padStart(2, '0')} · ${c.name}`;
+  const floorLabel = (c) => `${c.floor === 50 ? 'R' : c.floor} · ${c.where.toUpperCase()}`;
+  const inFloor = () => camList.filter((c) => st.cam.floor === 'all' || c.floor === st.cam.floor);
+  function buildCctv() {
+    camList = dash.cctv.cams;
+    ccGrid.innerHTML = camList.map((c) => `<button class="cc-tile" data-cam="${c.id}" title="${escapeHtml(c.name)}: click to enlarge"><canvas width="384" height="216"></canvas>
+      <i class="nm">${escapeHtml(camLabel(c))}</i><i class="rc"><u>●</u><span> REC</span></i><i class="fl">${escapeHtml(floorLabel(c))}</i><i class="ts"></i><i class="ns">NO SIGNAL</i></button>`).join('');
+    tiles = new Map([...ccGrid.querySelectorAll('.cc-tile')].map((b) => [b.dataset.cam, b]));
+    stampCctv();
+  }
+  // The date shows only where there's room for it (see the tiles' container queries).
+  function stampCctv() {
+    const [d, t] = stamp(new Date()).split(' ');
+    for (const e of cc.querySelectorAll('.ts')) e.innerHTML = `<b>${d} </b>${t}`;
+  }
+  // Whether anything's on screen: shown, and not under a maximised window.
+  const ccSeen = () => shown('cctv') && !Object.keys(APPS).some((k) => k !== 'cctv' && shown(k) && st.wins[k].max && st.wins[k].z > st.wins.cctv.z);
+  function syncCctv() {
+    if (!shown('cctv') && !camList) return;
+    if (!dash.cctv) {
+      ccBar.innerHTML = '<span>Connecting to the cameras…</span>';
+      dash.ensureOffice?.().then(() => { if (dash.cctv) syncCctv(); }, () => { ccBar.innerHTML = '<span>No cameras: the office couldn’t start.</span>'; });
+      return;
+    }
+    if (!camList) buildCctv();
+    const list = inFloor(), one = list.find((c) => c.id === st.cam.one) || null;
+    // The bar: the floors (with their camera counts), and in the single view prev / next and back to the grid.
+    const key = `${st.cam.floor}|${one?.id}`;
+    if (key !== ccKey) {
+      ccKey = key;
+      ccBar.innerHTML = FLOOR_TABS.map(([f, label]) => `<button data-floor="${f}" aria-pressed="${st.cam.floor === f}">${label} <small>${camList.filter((c) => f === 'all' || c.floor === f).length}</small></button>`).join('')
+        + '<span class="sp"></span>' + (one ? `<button data-go="-1" title="Previous camera">◀</button><b>${escapeHtml(camLabel(one))}</b><button data-go="1" title="Next camera">▶</button><button data-go="0">⊞ Grid</button>`
+          : `<span class="rec">●</span><span>REC · ${list.length} camera${list.length === 1 ? '' : 's'}</span>`);
+      const cols = list.length <= 1 ? 1 : list.length <= 4 ? 2 : list.length <= 9 ? 3 : 4;
+      Object.assign(ccGrid.style, { gridTemplateColumns: `repeat(${cols}, 1fr)`, gridTemplateRows: `repeat(${Math.ceil(list.length / cols)}, 1fr)` });
+      for (const [id, b] of tiles) b.hidden = !list.some((c) => c.id === id);
+      ccGrid.hidden = !!one; ccOne.hidden = !one;
+      if (one && one.id !== oneId) {   // a fresh camera: no signal until its first frame
+        delete oneCanvas.dataset.live; oneCanvas.getContext('bitmaprenderer').transferFromImageBitmap(null);
+        ccOne.querySelector('.nm').textContent = camLabel(one); ccOne.querySelector('.fl').textContent = floorLabel(one);
+      }
+      oneId = one?.id ?? null;
+    }
+    dash.cctv.want(!ccSeen() ? [] : one ? [{ id: one.id, canvas: oneCanvas, fps: 12 }] : list.map((c) => ({ id: c.id, canvas: tiles.get(c.id).querySelector('canvas'), fps: 4 })));
+  }
+  function stepCam(d) {
+    const list = inFloor(), i = list.findIndex((c) => c.id === st.cam.one);
+    st.cam.one = d ? list[(i + d + list.length) % list.length].id : null;
+    save(); syncCctv();
+  }
+  cc.addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b || !camList) return;
+    if (b.dataset.floor) { const f = b.dataset.floor; st.cam.floor = f === 'all' ? f : +f; st.cam.one = null; save(); syncCctv(); }
+    else if (b.dataset.go) stepCam(+b.dataset.go);
+    else if (b.dataset.cam) { st.cam.one = b.dataset.cam; save(); syncCctv(); }
+    else if (b === ccOne) stepCam(0);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (!fullScreen() || topApp() !== 'cctv' || !st.cam.one || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
+    e.preventDefault(); stepCam(e.key === 'ArrowLeft' ? -1 : 1);
+  });
+
   update();
   return {
     el, open, syncHash,
@@ -360,6 +474,7 @@ export function mountDesktop() {
       el.inert = away;
       for (const [e, t] of keep) e.scrollTop = t;
       syncHash();
+      syncCctv();
     },
   };
 }

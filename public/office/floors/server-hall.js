@@ -950,6 +950,22 @@ export function install(ctx) {
   // Per frame while you're here: doors (only those near you move), John, LEDs (15 Hz, only racks within 15 m), faces (2 Hz),
   // the NOC (1 Hz), polling (every 3 s).
   const _mx = new THREE.Matrix4(), _look = new THREE.Vector3();
+  const johnMood = (t) => { const cyc = (t + 5) % 52; return cyc < 14 ? 'type' : cyc < 18 ? 'sip' : cyc < 29 ? 'type' : cyc < 37 ? 'lean' : cyc < 43 ? 'read' : 'type'; };
+  // The LEDs: the ones always lit, and the racks within 15 m of any of `near` ([x, z] in the root's space).
+  function blink(t, near) {
+    const im = srv.leds, col = im.instanceColor;
+    for (const o of srv.dyn) im.setColorAt(o.i, o.fn(o, t));
+    let lo = Infinity, hi = -1;
+    for (const g of srv.ledGroups) {
+      if (!near.some(([x, z]) => (g.x - x) ** 2 + (g.z - z) ** 2 <= 225)) continue;
+      for (const o of g.dyn) im.setColorAt(o.i, o.fn(o, t));
+      if (g.a < lo) lo = g.a;
+      if (g.b > hi) hi = g.b;
+    }
+    col.clearUpdateRanges(); col.addUpdateRange(0, srv.ledAlways * 3);
+    if (hi >= lo) col.addUpdateRange(lo * 3, (hi - lo + 1) * 3);
+    col.needsUpdate = true;
+  }
   srv.fx = (dt, t) => {
     const now = Date.now(), z0 = srv.root.position.z, px = ctx.player.x, pz = ctx.player.z - z0;
     if (performance.now() - srv.polledAt > 3000) pollMachine();
@@ -974,26 +990,12 @@ export function install(ctx) {
         srv.leafFrame.setMatrixAt(i * 2 + s, _mx); }
     });
     if (moved) for (const im of [srv.leafGlass, srv.leafFrame]) { im.instanceMatrix.needsUpdate = true; im.computeBoundingSphere(); }
-    const jn = srv.john, cyc = (t + 5) % 52;
-    jn.mood = ctx.johnChat.open ? 'lean' : cyc < 14 ? 'type' : cyc < 18 ? 'sip' : cyc < 29 ? 'type' : cyc < 37 ? 'lean' : cyc < 43 ? 'read' : 'type';
+    const jn = srv.john;
+    jn.mood = ctx.johnChat.open ? 'lean' : johnMood(t);
     jn.lookAt = ctx.johnChat.open ? _look.set(camera.position.x, 0, camera.position.z - z0) : null;   // his root is in srv.root's space
     jn.update(t, dt);
     srv.jdesk.mug.visible = jn.mood !== 'sip';
-    if ((srv.tick += dt) > 1 / 15) {
-      srv.tick = 0;
-      const im = srv.leds, col = im.instanceColor;
-      for (const o of srv.dyn) im.setColorAt(o.i, o.fn(o, t));
-      let lo = Infinity, hi = -1;
-      for (const g of srv.ledGroups) {
-        if ((g.x - px) ** 2 + (g.z - pz) ** 2 > 225) continue;
-        for (const o of g.dyn) im.setColorAt(o.i, o.fn(o, t));
-        if (g.a < lo) lo = g.a;
-        if (g.b > hi) hi = g.b;
-      }
-      col.clearUpdateRanges(); col.addUpdateRange(0, srv.ledAlways * 3);
-      if (hi >= lo) col.addUpdateRange(lo * 3, (hi - lo + 1) * 3);
-      col.needsUpdate = true;
-    }
+    if ((srv.tick += dt) > 1 / 15) { srv.tick = 0; blink(t, [[px, pz]]); }
     if (now - srv.paintAt > 500) {
       srv.paintAt = now;
       syncSlots(now);
@@ -1025,6 +1027,29 @@ export function install(ctx) {
     c.save(); c.translate(ppx, ppz); c.rotate(-camera.rotation.y);
     c.fillStyle = '#fff'; c.beginPath(); c.moveTo(0, -9); c.lineTo(6, 7); c.lineTo(0, 3); c.lineTo(-6, 7); c.closePath(); c.fill();
     c.restore();
+  };
+  // On the security cameras (systems/cctv.js): while you're elsewhere John still works and the LEDs by the cameras still
+  // blink, and a feed sees the hall lit as you would out of the lift.
+  srv.cctv = {
+    root: srv.root,
+    tick(dt, t, cams) {
+      if (srv.on) return;
+      const jn = srv.john, now = Date.now();
+      jn.mood = johnMood(t); jn.lookAt = null;
+      jn.update(t, dt);
+      srv.jdesk.mug.visible = jn.mood !== 'sip';
+      if ((srv.tick += dt) > 1 / 15) { srv.tick = 0; blink(t, cams.map((c) => [c.p[0], c.p[2]])); }
+      if (now - srv.nocAt > 1000) { srv.nocAt = now; paintNoc(now); }
+    },
+    stage() {
+      const L = srv.look, h = srv.hemi, was = [h.intensity, h.color.clone(), h.groundColor.clone(), srv.scene.environmentIntensity, L.lights.map(([l]) => l.intensity)];
+      h.intensity = L.hemi; h.color.copy(L.sky); h.groundColor.copy(L.ground); srv.scene.environmentIntensity = L.env;
+      for (const [l, v] of L.lights) l.intensity = v;
+      return () => {
+        h.intensity = was[0]; h.color.copy(was[1]); h.groundColor.copy(was[2]); srv.scene.environmentIntensity = was[3];
+        L.lights.forEach(([l], i) => { l.intensity = was[4][i]; });
+      };
+    },
   };
   Object.assign(ctx, { srv });
   ctx.action('info', { hover: (h) => h.info() });

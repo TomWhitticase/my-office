@@ -8,7 +8,7 @@ server on 7777 is never touched):
 |---|---|---|
 | `api` | every `/api` route's response, the `/events` stream's opening, static serving (incl. path traversal), and the same-origin / JSON-only / no-TV / no-headless refusals on every write, the repo routes and the `/tv` socket | `snapshots/api.json` |
 | `world` | the office's collider map and colliders, seats, desks, idle spots, who sits where, every walking route checked against the colliders, the floor table, TVs, boards, doors, blinds, lifts, the click actions in each scene, and a line per object in every scene (type, geometry, material, transform, flags) | `snapshots/world.json`, `snapshots/world-<scene>.txt` |
-| `golden` | 22 screenshots on a walk through the building: your desktop, your chair, each area, a TV and its panel, a whiteboard, (a chat, walked through but not shot), the MacBook, inside a lift car, the archive, an open drawer, the gateway, inside a repo, the server hall, the roof, dusk, and the helicopter's cockpit | `golden/<name>.png` |
+| `golden` | 23 screenshots on a walk through the building: your desktop, your chair, each area, a TV and its panel, a whiteboard, (a chat, walked through but not shot), the MacBook, inside a lift car, the archive, an open drawer, the gateway, inside a repo, the server hall, the roof, dusk, the helicopter's cockpit, and the Security app's camera feeds | `golden/<name>.png` |
 
 ## Running it
 
