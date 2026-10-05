@@ -6,7 +6,7 @@ import { artTexture, box, clamp, colliders, cyl, ease, FONT, lerp, makeCanvas, m
 import { CSS3DObject } from 'three/addons/renderers/CSS3DRenderer.js';
 
 export function install(ctx) {
-  const { world, frameM, winRuns, winKey, WIN, shaftU, collide } = ctx;
+  const { world, frameM, winRuns, winKey, WIN, shaftU } = ctx;
   Object.assign(ctx, { glassDoor, wallGroup, hangBlind, officeFx });
   // ----- my office -----
   // Tinted glass that gets more opaque and reflective at grazing angles, so the walls read as solid.
@@ -132,7 +132,7 @@ export function install(ctx) {
       d.k = want > d.k ? Math.min(1, d.k + dt / 0.9) : Math.max(0, d.k - dt / 0.9);
       d.pivot.rotation.y = d.r0 + d.swing * ease(d.k) * Math.PI * 0.5;
       setDoorBox(d, d.k > 0.85);
-      if (d.k < 0.85 && want === 0) collide(ctx.player);
+      if (d.k < 0.85 && want === 0) ctx.collide(ctx.player);
     }
   }
   Object.assign(ctx, { blinds, door, doors, glassM, frostTex, BL });
