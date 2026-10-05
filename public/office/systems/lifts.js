@@ -266,8 +266,9 @@ export function installRiding(ctx) {
   const addFloor = (F) => { FLOORS.push(F); FLOORS.sort((a, b) => b.n - a.n); for (const P of carPanels()) paintPanel(P, null); ctx.paintDirectory?.(FLOORS); };
   const carPanels = () => [...lifts.map((L) => L.panel), ...FLOORS.filter((F) => F.panel).map((F) => F.panel)];
   const mine = { L: null, call: false, goal: null, from: 48, to: 48, k: 0, dur: 1 };
-  const inMyCar = () => !!mine.L && ctx.player.x > LIFT.x + 0.3 && Math.abs(ctx.player.z - mine.L.z) < CAR.w / 2;
-  const atMyDoor = () => !!mine.L && ctx.player.x > LIFT.x - 0.7 && ctx.player.x < LIFT.x + 0.45 && Math.abs(ctx.player.z - mine.L.z) < DOOR.w / 2 + 0.1;
+  // (Not while the floor has put its lift out of reach: out in the archive's void, see archive-entrance.js.)
+  const inMyCar = () => !!mine.L && !ctx.away?.liftGone && ctx.player.x > LIFT.x + 0.3 && Math.abs(ctx.player.z - mine.L.z) < CAR.w / 2;
+  const atMyDoor = () => !!mine.L && !ctx.away?.liftGone && ctx.player.x > LIFT.x - 0.7 && ctx.player.x < LIFT.x + 0.45 && Math.abs(ctx.player.z - mine.L.z) < DOOR.w / 2 + 0.1;
   const spare = (L) => !L.player && !L.pending.length && !L.cargo.size && !L.callers.size && !L.riders.size && !L.exits.size &&
     ['home', 'away', 'open', 'closing'].includes(L.state);
   function carPanel(parent, z) {   // the car's floor buttons, on the return beside the doors: one per floor, top floor first
@@ -377,7 +378,7 @@ export function installRiding(ctx) {
   // Your car while it's yours: its walls, and the doorway while the doors are open (the core's collider rules otherwise).
   function carCollide(p) {
     const L = mine.L;
-    if (!L) return false;
+    if (!L || ctx.away?.liftGone) return false;
     const r = 0.25, front = LIFT.x + 0.1, open = L.doorK > 0.75, half = DOOR.w / 2 - r, inCar = p.x > front;
     if (!inCar && !(open && p.x > LIFT.x - 0.6 && Math.abs(p.z - L.z) < DOOR.w / 2)) return false;
     if (!inCar && p.x < LIFT.x - r) return true;   // in front of the open doors: nothing to bump into
@@ -479,7 +480,7 @@ export function installShafts(ctx) {
     F.gtao.enabled = ctx.quality;
     // Only the car itself is office-lit: the switch happens across the doorway (0.4 m inside to 0.3 m out), eased over ~1 s,
     // so walking up to the lift from the floor never dims anything.
-    F.out = F.carless ? 1 : damp(F.out ?? 0, clamp((LIFT.x + 0.4 - ctx.player.x) / 0.7, 0, 1), 3, 1 / 60);
+    F.out = F.carless || F.liftGone ? 1 : damp(F.out ?? 0, clamp((LIFT.x + 0.4 - ctx.player.x) / 0.7, 0, 1), 3, 1 / 60);
     const k = ease(F.out);
     renderer.toneMappingExposure = lerp(ctx.officeExposure, L.exposure, k);
     F.hemi.intensity = lerp(hemi.intensity, L.hemi, k);

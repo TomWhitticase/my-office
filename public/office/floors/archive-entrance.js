@@ -4,6 +4,10 @@
 // flickering THE ARCHIVE sign, and at the far end a round bank-vault door. Walk up to it (or click its wheel): the wheel
 // spins, the bolts draw back and it swings open on the white void and the filing cabinet (floors/archive.js), the light
 // pouring into the room. It shuts behind you once you've been through and come back into the room.
+// Out in the void the space doesn't add up: the doorway stands on its own, you can walk all the way round it, and behind it
+// there's only more void (no hall, no lift). Only through the open doorway from the front do you see the hall, drawn into a
+// render target with the hall's own light and shown on a disc across the bore (portalFx); walk back through and you're in
+// it again. `side` is which you're in: 'hall' (the hall's geometry, colliders and lift are there) or 'void' (they're not).
 // Built about the car at z = 0 in `arch.room`, moved onto your car's z when you arrive (arch.enter). The room has its own
 // warm, dim look: the floor's look (arch.look) is blended from the room's to the void's across the vault's doorway (see
 // hallFx). The car itself is still lit like the office's (renderFloor), so the lift looks the same on every floor.
@@ -31,16 +35,19 @@ export function install(ctx) {
 
 /** @param {import('../ctx.js').OfficeCtx} ctx */
 function build(ctx) {
-  const { arch, files, hitBox, CAR } = ctx;
+  const { arch, files, hitBox, CAR, camera } = ctx;
   const S = arch.scene, hall = arch.room = new THREE.Group();
-  S.add(hall);
+  // `inside`: the hall itself, there only on the hall's side (the door, its hinge and the camera too: the door swings into
+  // the hall); `portal`: the doorway's bare frame and sill, there on both. The hall's lights hang from `hall`, always there, dark out in the void (see blendLook).
+  const inside = new THREE.Group(), portal = new THREE.Group();
+  hall.add(inside, portal); S.add(hall);
   const R = rng(202);
   // Inside the hall nothing is fogged: the void's white haze starts 8 m out and would grey the dark wood.
   const M = (color, o = {}) => mat(color, { fog: false, ...o });
   const vc = (o = {}) => M('#ffffff', { vertexColors: true, roughness: 0.6, ...o });
   const brassM = M('#c9a25a', { metalness: 1, roughness: 0.3 }), steelM = M('#8f959b', { metalness: 0.9, roughness: 0.38 });
-  const add = (o, parent = hall) => { parent.add(o); return o; };
-  const mesh = (geo, m, x = 0, y = 0, z = 0, parent = hall) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); parent.add(o); return o; };
+  const add = (o, parent = inside) => { parent.add(o); return o; };
+  const mesh = (geo, m, x = 0, y = 0, z = 0, parent = inside) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); parent.add(o); return o; };
   const tex = (w, h, draw, wrap = false) => {
     const t = makeCanvas(w, h); draw(t.ctx, w, h);
     if (wrap) t.tex.wrapS = t.tex.wrapT = THREE.RepeatWrapping;
@@ -153,14 +160,9 @@ function build(ctx) {
     const out = mat('#e2e0db', { roughness: 0.9 }), x0 = X0 - VT, z1 = HW + T, o = 0.04, t = T - o;
     add(mergedBoxes([[XE - x0, H + T, t, (x0 + XE) / 2, (H + T) / 2, -z1 + t / 2], [XE - x0, H + T, t, (x0 + XE) / 2, (H + T) / 2, z1 - t / 2],
       [t, H + T, z1 * 2, XE - t / 2, (H + T) / 2, 0], [XE - x0, t, z1 * 2, (x0 + XE) / 2, H + T - t / 2, 0]], out));
-    for (const [k, a] of [[1.1, 0.5], [1.5, 0.22]]) {   // its soft shadow on the void's floor (see archive.js)
-      const sh = mesh(new THREE.PlaneGeometry((XE - x0) * 2 * k, z1 * 4 * k), new THREE.MeshBasicMaterial({ map: arch.blob, color: '#000', transparent: true, opacity: a, depthWrite: false }),
-        (x0 + XE) / 2, 0.002, 0);
-      sh.rotation.x = -Math.PI / 2; sh.layers.set(1); sh.raycast = () => {};
-    }
     // The vault's wall: a slab with the round bore through it, steel inside the bore.
     const ws = new THREE.Shape().moveTo(-z1, 0).lineTo(z1, 0).lineTo(z1, H + T).lineTo(-z1, H + T).closePath();
-    ws.holes.push(new THREE.Path().absarc(0, VAULT.y, VAULT.r, 0, Math.PI * 2, true));
+    ws.holes.push(new THREE.Path().absarc(0, VAULT.y, VAULT.ring, 0, Math.PI * 2, true));   // the collar fills it
     const wg = new THREE.ExtrudeGeometry(ws, { depth: VT - o, bevelEnabled: false, curveSegments: 64 }).rotateY(Math.PI / 2).translate(x0, 0, 0);
     arch.vaultWall = add(new THREE.Mesh(wg, [out, M('#6f757b', { metalness: 0.85, roughness: 0.45 })]));
     // and the round steel frame on either face, studded.
@@ -169,14 +171,18 @@ function build(ctx) {
       return new THREE.ExtrudeGeometry(s, { depth: d, bevelEnabled: true, bevelThickness: 0.015, bevelSize: 0.015, bevelSegments: 2, curveSegments: 72 }).rotateY(Math.PI / 2);
     };
     const frameG = ring(VAULT.r, VAULT.ring, 0.1);
-    mesh(frameG, steelM, X0, VAULT.y, 0);
-    mesh(frameG, mat('#a8adb2', { metalness: 0.85, roughness: 0.4 }), x0 - 0.1, VAULT.y, 0);
+    mesh(frameG, steelM, X0, VAULT.y, 0, portal);
+    mesh(frameG, M('#a8adb2', { metalness: 0.85, roughness: 0.4 }), x0 - 0.1, VAULT.y, 0, portal);
+    // The collar between them: the steel bore, and its rim, so the doorway stands whole on its own out in the void.
+    mesh(new THREE.CylinderGeometry(VAULT.r, VAULT.r, VT, 72, 1, true).rotateZ(Math.PI / 2), M('#6f757b', { metalness: 0.85, roughness: 0.45, side: THREE.BackSide }),
+      x0 + VT / 2, VAULT.y, 0, portal);
+    mesh(new THREE.CylinderGeometry(VAULT.ring + 0.015, VAULT.ring + 0.015, VT + 0.23, 96, 1, true).rotateZ(Math.PI / 2), steelM, x0 + VT / 2, VAULT.y, 0, portal);
     const studs = new THREE.InstancedMesh(new THREE.SphereGeometry(0.03, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2).rotateZ(-Math.PI / 2), steelM, 32), m4 = new THREE.Matrix4();
     for (let i = 0; i < 32; i++) { const a = (i / 32) * Math.PI * 2; studs.setMatrixAt(i, m4.makeTranslation(X0 + 0.115, VAULT.y + Math.sin(a) * 1.7, Math.cos(a) * 1.7)); }
-    add(studs);
+    add(studs, portal);
     // A steel bridge plate over the bore's sill, and a step up to it either side.
     add(mergedBoxes([[VT + 0.3, VAULT.sill, 1.0, X0 - VT / 2 + 0.05, VAULT.sill / 2, 0, '#5d6268'], [0.25, 0.1, 1.0, X0 + 0.32, 0.05, 0, '#4a4f55'],
-      [0.25, 0.1, 1.0, X0 - VT - 0.22, 0.05, 0, '#4a4f55']], M('#ffffff', { vertexColors: true, metalness: 0.8, roughness: 0.5 })));
+      [0.25, 0.1, 1.0, X0 - VT - 0.22, 0.05, 0, '#4a4f55']], M('#ffffff', { vertexColors: true, metalness: 0.8, roughness: 0.5 })), portal);
   }
 
   // ----- the vault door -----
@@ -191,6 +197,7 @@ function build(ctx) {
         c.beginPath(); c.arc(256, 256, r, 0, Math.PI * 2); c.stroke(); }
     }).tex;
     const faceM = new THREE.MeshStandardMaterial({ map: brushed, metalness: 0.92, roughness: 0.32, fog: false });
+    // The door is the hall's: it swings into it, and isn't there out in the void.
     const pivot = vault.pivot = add(new THREE.Group()); pivot.position.set(HINGE.x, 0, HINGE.z);
     const slab = vault.slab = add(new THREE.Group(), pivot); slab.position.set(X0 - HINGE.x, VAULT.y, -HINGE.z);
     const along = (g) => g.rotateZ(-Math.PI / 2);   // a cylinder's axis onto x, its top to +x
@@ -271,7 +278,7 @@ function build(ctx) {
       pulls.setMatrixAt(i, m4.makeTranslation(x, y - 0.03, z - 0.02));
       if (pull) out.push([CAT.dw - 0.02, CAT.dh - 0.025, pull, x, y - 0.004, CAT.z - pull / 2, '#6b4428'], [CAT.dw - 0.04, 0.02, pull - 0.01, x, y + 0.03, CAT.z - pull / 2, '#efe6d0']);
     }
-    hall.add(fronts, pulls);
+    inside.add(fronts, pulls);
     const L = CAT.x1 - CAT.x0, cx = (CAT.x0 + CAT.x1) / 2, carcass = [[L, CAT.rows * CAT.dh, 0.43, cx, CAT.y0 + CAT.rows * CAT.dh / 2, HW - 0.235, '#120a05'],
       [L + 0.06, 0.16, 0.47, cx, 0.08, HW - 0.235, '#1f120a'], [L + 0.1, 0.1, 0.52, cx, CAT.y0 + CAT.rows * CAT.dh + 0.07, HW - 0.26, '#3a2214'], ...out];
     for (let s = 0; s <= 4; s++) carcass.push([0.05, CAT.rows * CAT.dh, 0.47, CAT.x0 + 0.025 + s * (CAT.cols * CAT.dw + 0.05), CAT.y0 + CAT.rows * CAT.dh / 2, HW - 0.235, '#3a2214']);
@@ -396,7 +403,7 @@ function build(ctx) {
     const cups = [];
     for (const tb of tubes) {
       const g = new THREE.Mesh(new THREE.TubeGeometry(tb.path, 160, 0.055, 14, false), glassM);
-      g.layers.set(1); g.renderOrder = 2; hall.add(g);
+      g.layers.set(1); g.renderOrder = 2; inside.add(g);
       tb.len = tb.path.getLength();
       for (let s = 0.3; s < tb.len - 0.1; s += 1.1) {
         const p = tb.path.getPointAt(s / tb.len), t = tb.path.getTangentAt(s / tb.len);
@@ -539,6 +546,8 @@ function build(ctx) {
     { minX: 11.15, maxX: 11.25, minZ: CT.z1, maxZ: -1.0 }, { minX: 11.15, maxX: 11.25, minZ: 1.0, maxZ: CAT.z },
     { minX: 12.95, maxX: 13.6, minZ: -3.4, maxZ: -2.85 },
   ];
+  // Out in the void only the doorway's collar stands there: either side of the way through.
+  const collar = [-1, 1].map((s) => ({ minX: x0 - 0.12, maxX: X0 + 0.12, minZ: s < 0 ? -VAULT.ring : VAULT.gap, maxZ: s < 0 ? -VAULT.gap : VAULT.ring }));
   // How the hall is lit: warm and dim, the void's light only through the door. arch.look is blended between the two by
   // how far out into the void you are (voidK, 0 in the hall, 1 a step past the door).
   const voidLook = arch.look;
@@ -550,20 +559,20 @@ function build(ctx) {
   arch.hallLook = hallLook;
   // (1 - v) a + v b, not a + (b - a) v: exactly the void's own look out in it.
   const mix = (a, b, v) => (1 - v) * a + v * b, mixC = (o, a, b, v) => o.setRGB(mix(a.r, b.r, v), mix(a.g, b.g, v), mix(a.b, b.b, v));
+  let side = 'hall';   // which side of the doorway you're on (see sideFx)
+  const roomNow = lights.map(([, v]) => v);   // the hall's lights as they are now (the lamp, the sign's flicker, the spill)
   function blendLook(v, open) {
     for (const k of ['exposure', 'hemi', 'env', 'bloom', 'grade']) look[k] = mix(hallLook[k], voidLook[k], v);
     mixC(look.sky, hallLook.sky, voidLook.sky, v); mixC(look.ground, hallLook.ground, voidLook.ground, v);
     voidLook.lights.forEach(([, val], i) => { look.lights[i][1] = val * v; });
-    lights.forEach(([, val], i) => { look.lights[nVoid + i][1] = val; });
-    look.lights[nVoid + 2][1] = desk.lampOn ? 3.2 : 0;
-    look.lights[nVoid + 3][1] = 2.4 * sign.k;
-    look.lights[nVoid + 4][1] = 24 * open;
+    roomNow[2] = desk.lampOn ? 3.2 : 0; roomNow[3] = 2.4 * sign.k; roomNow[4] = 24 * open;
+    roomNow.forEach((val, i) => { look.lights[nVoid + i][1] = side === 'hall' ? val : 0; });   // dark out in the void: the hall isn't there
   }
   blendLook(1, 0);
 
   // ----- what happens -----
   const chance = rng(2203);   // its own dice: Math.random is seeded under test, and a draw here would shift everyone else's
-  let z0 = 0, voidK = 1;
+  let z0 = 0, voidK = 1, last = null;
   const ledger = { signed: null };
   function paintLedger() {
     const { ctx: c, W, H: h } = desk.ledger, d = new Date();
@@ -604,7 +613,7 @@ function build(ctx) {
     const g = tb.cap;
     g.visible = true;
     caps.push({ tb, g, s: 0, v: 0, rest: 0 });
-    ctx.sfx.cabinet('tube', tb.path.getPointAt(0.5).add(hall.position), 0.4);
+    if (here()) ctx.sfx.cabinet('tube', tb.path.getPointAt(0.5).add(hall.position), 0.4);
     return true;
   }
   const UP = new THREE.Vector3(0, 1, 0), tan = new THREE.Vector3();
@@ -622,8 +631,7 @@ function build(ctx) {
       if (c.s >= c.tb.len) {
         if (c.tb.land) {
           c.g.position.set(14.55, 1.25, -HW + 0.16); c.g.quaternion.setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI / 2); c.rest = 9;
-          ctx.sfx.cabinet('thunk', c.g.position.clone().add(hall.position), 0.22);
-          ctx.sfx.cabinet('bell', c.g.position.clone().add(hall.position), 0.06);
+          if (here()) { ctx.sfx.cabinet('thunk', c.g.position.clone().add(hall.position), 0.22); ctx.sfx.cabinet('bell', c.g.position.clone().add(hall.position), 0.06); }
         } else { c.g.visible = false; caps.splice(caps.indexOf(c), 1); }
       }
     }
@@ -636,7 +644,7 @@ function build(ctx) {
       sign.stutter = Math.max(0, sign.stutter - dt);
       const on = Math.sin(t * 61) * Math.sin(t * 23) > -0.2;
       k = on ? 0.9 : 0.25;
-      if (on !== sign.on && arch.on) ctx.sfx.cabinet('relay', { x: X0 + 0.1, y: 3.8, z: z0 }, 0.025);
+      if (on !== sign.on && here()) ctx.sfx.cabinet('relay', { x: X0 + 0.1, y: 3.8, z: z0 }, 0.025);
       sign.on = on;
     }
     sign.k = k; sign.m.color.copy(sign.base).multiplyScalar(k);
@@ -644,8 +652,9 @@ function build(ctx) {
   function clockFx() {
     const d = new Date(ctx.simNow()), s = d.getSeconds(), m = d.getMinutes() + s / 60, h = (d.getHours() % 12) + m / 60, T2 = -Math.PI * 2;
     clock.h.rotation.z = (h / 12) * T2; clock.m.rotation.z = (m / 60) * T2; clock.s.rotation.z = (s / 60) * T2;
-    if (s !== clock.last) { if (arch.on && clock.last >= 0) ctx.sfx.cabinet('tick', { x: X1 - 0.1, y: 3.7, z: z0 }, 0.12); clock.last = s; }
+    if (s !== clock.last) { if (here() && clock.last >= 0) ctx.sfx.cabinet('tick', { x: X1 - 0.1, y: 3.7, z: z0 }, 0.12); clock.last = s; }
   }
+  const here = () => arch.on && side === 'hall';
   // The vault: shut → unlock (the wheel spins, the bolts draw back) → opening → open → closing → locking → shut.
   const box3 = new THREE.Box3(), part = new THREE.Box3();
   function setVault(s) { vault.state = s; vault.t = 0; }
@@ -685,7 +694,8 @@ function build(ctx) {
     v.pivot.rotation.y = -VAULT.swing * e;
     // The door in the way: across the bore while shut, wherever it's got to otherwise.
     const b = v.box;
-    if (v.k === 0) Object.assign(b, { minX: x0, maxX: X0 + 0.3, minZ: z0 - VAULT.gap, maxZ: z0 + VAULT.gap });
+    if (v.k === 0 && side === 'void' && ctx.player.x > PLANE) Object.assign(b, { minX: 0, maxX: 0, minZ: 0, maxZ: 0 });   // from behind, out in the void: no door
+    else if (v.k === 0) Object.assign(b, { minX: x0, maxX: X0 + 0.3, minZ: z0 - VAULT.gap, maxZ: z0 + VAULT.gap });
     else {
       hall.updateMatrixWorld(); box3.makeEmpty();
       for (const o of v.parts) box3.union(part.copy(o.geometry.boundingBox ?? (o.geometry.computeBoundingBox(), o.geometry.boundingBox)).applyMatrix4(o.matrixWorld));
@@ -706,20 +716,86 @@ function build(ctx) {
     signFx(dt, t); clockFx(); capsulesFx(dt);
     if (t > nextCap) { nextCap = t + 8 + chance() * 16; sendCapsule(chance() < 0.55 ? 0 : 1); }
   }
+  // Which side you're on. Through the doorway (between its jambs, across its middle) you're where you've come out: the
+  // hall going in, the void coming out. Round the outside of it, out in the void, nothing changes. A jump (a teleport, the
+  // way back from a repo) leaves you in the hall only if you've landed inside it.
+  const PLANE = X0 - VT / 2, inBox = (x, lz) => x > x0 - 0.2 && x < XE && Math.abs(lz) < HW + T;
+  function sideFx(px, lz) {
+    if (!last || Math.hypot(px - last.x, lz - last.z) > 1.5) { if (!inBox(px, lz)) setSide('void'); }
+    else if ((last.x - PLANE) * (px - PLANE) < 0 && Math.abs(lz) < VAULT.r) setSide(px > PLANE ? 'hall' : 'void');
+    last = { x: px, z: lz };
+  }
+  const hallHits = [vault.hit, ...vault.parts, arch.vaultWall, desk.bell.hit, desk.lampHit, desk.pages, desk.body, tubes[0].cap, tubes[1].cap];
+  let liftBox = null, liftHits = [];
+  function setSide(s) {
+    if (s === side) return;
+    side = s;
+    const there = s === 'hall';
+    inside.visible = there; arch.lift.visible = there; arch.liftGone = !there;
+    if (!there) vault.out = true;
+    colliders();
+    for (const h of [...hallHits, ...liftHits]) { const i = arch.hits.indexOf(h); if (i >= 0) arch.hits.splice(i, 1); }
+    if (there) arch.hits.push(...hallHits, ...liftHits);
+  }
+  function colliders() {
+    arch.colliders.length = arch.nFixed;
+    if (side === 'hall') { if (liftBox) arch.colliders.push(liftBox); for (const b of fixed) arch.colliders.push({ ...b, minZ: b.minZ + z0, maxZ: b.maxZ + z0 }); }
+    else for (const b of collar) arch.colliders.push({ ...b, minZ: b.minZ + z0, maxZ: b.maxZ + z0 });
+    arch.colliders.push(vault.box);
+  }
+
+  // The doorway from the void's side: the hall drawn from your eye with its own light into a target the size of the frame,
+  // shown on a disc across the bore's mouth (screen-space), scaled for the void's exposure. Only from in front of it.
+  const portalRT = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType });
+  const discM = new THREE.ShaderMaterial({
+    uniforms: { tHall: { value: portalRT.texture }, res: { value: new THREE.Vector2(4, 4) }, k: { value: 1 } },
+    vertexShader: 'void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: 'uniform sampler2D tHall; uniform vec2 res; uniform float k; void main() { gl_FragColor = vec4(texture2D(tHall, gl_FragCoord.xy / res).rgb * k, 1.0); }',
+  });
+  const disc = mesh(new THREE.CircleGeometry(VAULT.r + 0.01, 96).rotateY(-Math.PI / 2), discM, x0 - 0.13, VAULT.y, 0, portal);
+  disc.layers.set(1); disc.visible = false; disc.raycast = () => {};
+  const bufSize = new THREE.Vector2();
+  // The hall as it is from inside it: there, lit by its own lamps, its own hemisphere and environment. Undone by the return.
+  function hallLit() {
+    const h = arch.hemi, was = [h.intensity, h.color.clone(), h.groundColor.clone(), S.environmentIntensity, look.lights.map(([l]) => l.intensity),
+      inside.visible, arch.lift.visible, disc.visible];
+    h.intensity = hallLook.hemi; h.color.copy(hallLook.sky); h.groundColor.copy(hallLook.ground); S.environmentIntensity = hallLook.env;
+    look.lights.forEach(([l], i) => { l.intensity = i < nVoid ? 0 : roomNow[i - nVoid]; });
+    inside.visible = arch.lift.visible = true; disc.visible = false;
+    return () => {
+      h.intensity = was[0]; h.color.copy(was[1]); h.groundColor.copy(was[2]); S.environmentIntensity = was[3];
+      look.lights.forEach(([l], i) => { l.intensity = was[4][i]; });
+      [inside.visible, arch.lift.visible, disc.visible] = was.slice(5);
+    };
+  }
+  function portalFx() {
+    const r = ctx.renderer;
+    disc.visible = side === 'void' && camera.position.x < x0 - 0.13;   // shut, it's the door you see through it, from the hall's side
+    if (!disc.visible) return;
+    r.getDrawingBufferSize(bufSize);
+    if (portalRT.width !== bufSize.x || portalRT.height !== bufSize.y) { portalRT.setSize(bufSize.x, bufSize.y); discM.uniforms.res.value.copy(bufSize); }
+    discM.uniforms.k.value = hallLook.exposure / look.exposure;
+    const undo = hallLit(), prev = r.getRenderTarget();
+    camera.updateMatrixWorld();
+    r.setRenderTarget(portalRT); r.clear(); r.render(S, camera); r.setRenderTarget(prev);
+    undo();
+  }
+
   function hallFx(dt, t) {
     const px = ctx.player.x, pz = ctx.player.z, lz = pz - z0;
-    const inHall = px > X0 - VT - 0.8 && px < XE && Math.abs(lz) < HW + T;
-    const target = inHall ? sstep(X0 - 1.2, X0 + 0.9, px) : 0;   // how much you're in the hall: 1 a step inside the door
+    sideFx(px, lz);
+    const target = side === 'hall' ? sstep(X0 - 1.2, X0 + 0.9, px) : 0;   // how much you're in the hall: 1 a step inside the door
     voidK = Math.abs(1 - target - voidK) > 0.5 ? 1 - target : damp(voidK, 1 - target, 6, dt);   // (a jump is a teleport: no fade)
-    if (px < X0 - 0.5 && Math.abs(lz) < VAULT.r) vault.out = true;
-    const near = Math.hypot(px - X0, lz) < VAULT.near && Math.abs(lz) < VAULT.r + 0.6;
-    const back = vault.out && inHall && px > X0 + 4.3;
+    // Walking up to it opens it: from the hall, or from in front of it out in the void (not from behind).
+    const near = Math.hypot(px - X0, lz) < VAULT.near && Math.abs(lz) < VAULT.r + 0.6 && (side === 'hall' || px < x0);
+    const back = vault.out && side === 'hall' && px > X0 + 4.3;
     vaultFx(dt, near, back);
     if (vault.k !== vault.lastK) { vault.lastK = vault.k; if (ctx.mode === 'free') ctx.collide(ctx.player); }   // the door swinging into you pushes you
     animate(dt, t);
     const open = sstep(0.02, 0.6, vault.k);
     lightFx(open, dt);
     blendLook(voidK, open);
+    portalFx();
     ctx.sfx.voidMix(voidK + (1 - voidK) * open * 0.4);   // the void's air and echo, a little of it through the open door
   }
   function resetHall() {
@@ -727,43 +803,45 @@ function build(ctx) {
     Object.assign(vault, { state: 'shut', k: 0, t: 0, turn: 0, out: false, want: false }); spill.flash = 0;
     vault.wheel.rotation.x = 0; vault.pivot.rotation.y = 0;
     ledger.signed = null;
+    setSide('hall'); last = null;
   }
 
   // Into the floor's hooks (archive.js and gateway.js set them up first).
   const enter0 = arch.enter, leave0 = arch.leave, fx0 = arch.fx, ground0 = arch.ground;
+  liftHits = [arch.callHit, arch.panel.mesh, arch.lift];
   arch.enter = (z) => {
     enter0(z);
+    liftBox = arch.colliders.at(-1);   // the lift's, pushed by archive.js's enter
     z0 = z; hall.position.z = z;
-    resetHall();
-    for (const b of fixed) arch.colliders.push({ ...b, minZ: b.minZ + z, maxZ: b.maxZ + z });
-    arch.colliders.push(vault.box);
+    resetHall(); colliders();
     vaultFx(0, false, false);
     paintLedger();
   };
   arch.leave = () => { leave0?.(); resetHall(); };
   arch.fx = (dt, t) => { fx0?.(dt, t); hallFx(dt, t); };
   arch.ground = (x, z) => (Math.abs(x - (X0 - VT / 2 + 0.05)) < (VT + 0.3) / 2 && Math.abs(z - z0) < 0.5 ? VAULT.sill : ground0 ? ground0(x, z) : 0);
-  arch.hits.push(vault.hit, ...vault.parts, arch.vaultWall, desk.bell.hit, desk.lampHit, desk.pages, desk.body, tubes[0].cap, tubes[1].cap);
+  arch.hits.push(...hallHits);
   desk.pages.userData = { action: 'ledger', reach: 2.6 };
   // On the minimap: the hall's floor and its name (archive.js draws the colliders over it).
+  // Out in the void there's only the doorway.
   arch.mapHall = (c, sx, sz, k) => {
-    c.fillStyle = 'rgba(201,162,90,.18)'; c.fillRect(sx(X0), sz(z0 - HW), (X1 - X0) * k, HW * 2 * k);
-    c.fillStyle = 'rgba(255,255,255,.55)'; c.font = '600 13px system-ui'; c.fillText('Entrance hall', sx(X0), sz(z0 + HW) + 15);
+    c.font = '600 13px system-ui';
+    if (side === 'hall') {
+      c.fillStyle = 'rgba(201,162,90,.18)'; c.fillRect(sx(X0), sz(z0 - HW), (X1 - X0) * k, HW * 2 * k);
+      c.fillStyle = 'rgba(255,255,255,.55)'; c.textAlign = 'right'; c.fillText('Entrance hall', sx(X1), sz(z0 + HW) + 15); c.textAlign = 'left';
+    } else {
+      c.fillStyle = 'rgba(201,162,90,.7)'; c.fillRect(sx(x0) - 1, sz(z0 - VAULT.ring), Math.max(3, VT * k), VAULT.ring * 2 * k);
+      c.fillStyle = 'rgba(255,255,255,.55)'; c.fillText('Doorway', sx(x0) - 22, sz(z0 + VAULT.ring) + 15);
+    }
   };
   // On the security camera (systems/cctv.js): lit as you'd see it from the hall, with the sign, the clock and the tubes going.
   arch.cctv = {
-    root: hall,
+    root: inside,   // its camera is the hall's: never out in the void
     tick(dt, t) { if (!arch.on) animate(dt, t); },
     exposure: hallLook.exposure,
-    stage() {
-      const h = arch.hemi, was = [h.intensity, h.color.clone(), h.groundColor.clone(), S.environmentIntensity, look.lights.map(([l]) => l.intensity)];
+    stage() {   // (the hall is always there for its camera, whichever side you're on)
       if (!arch.on) { lightFx(0); blendLook(0, 0); }
-      h.intensity = hallLook.hemi; h.color.copy(hallLook.sky); h.groundColor.copy(hallLook.ground); S.environmentIntensity = hallLook.env;
-      look.lights.forEach(([l, v], i) => { l.intensity = i < nVoid ? 0 : v; });
-      return () => {
-        h.intensity = was[0]; h.color.copy(was[1]); h.groundColor.copy(was[2]); S.environmentIntensity = was[3];
-        look.lights.forEach(([l], i) => { l.intensity = was[4][i]; });
-      };
+      return hallLit();
     },
   };
 
@@ -796,5 +874,5 @@ function build(ctx) {
     click: () => {},
   });
   // Same handles the debug hooks use (window.__office.arch).
-  Object.assign(arch, { openVault: () => { vault.want = true; }, sendCapsule, spill, X0, VAULT });
+  Object.assign(arch, { openVault: () => { vault.want = true; }, sendCapsule, spill, hallLit, portalRT, X0, VAULT });
 }

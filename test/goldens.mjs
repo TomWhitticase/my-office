@@ -76,12 +76,14 @@ export const POSES = [
     await o.eval(() => window.__office.goFloor(-2));
     await stepUntil(o, () => window.__office.mine.L?.state === 'open', 80);
     await o.idle();
-    await stand(o, 0, 0.4, { x: -6, y: 0.8, z: 0.4 });
+    const A = await o.eval(() => window.__office.ctx.ARCH);   // out in the void, the cabinet ahead
+    await stand(o, A.x + 6, A.z, { x: A.x, y: 0.8, z: A.z });
     await o.step(3);
   }],
   ['archive-drawer', async (o) => {
     await until(o, () => window.__office.arch.files.list);
-    await stand(o, -2.5, -1.6, { x: -4, y: 0.8, z: 0.4 });   // within 5 m, or it slides home again
+    const A = await o.eval(() => window.__office.ctx.ARCH);
+    await stand(o, A.x + 3.5, A.z - 2, { x: A.x + 2, y: 0.8, z: A.z });   // within 5 m, or it slides home again
     await o.eval(() => window.__office.arch.toggleDrawer(1));
     await stepUntil(o, () => window.__office.arch.drawers[1].k === 1, 120);
     await o.step(2);
@@ -89,7 +91,8 @@ export const POSES = [
   ['gateway', async (o) => {
     await o.eval(() => window.__office.arch.toggleDrawer(1));
     await stepUntil(o, () => window.__office.arch.drawers[1].k === 0, 120);
-    await stand(o, -20, 56, { x: -20, y: 2.8, z: 68.4 });
+    const G = await o.eval(() => window.__office.ctx.GATE);   // down the line from the cabinet, the ring facing you
+    await stand(o, G.x + 12, G.z, { x: G.x, y: 2.8, z: G.z });
     await o.step(2);
     // Dial up the first fixture repo on the keypad and wait for its history to load.
     await o.eval(() => { const a = window.__office.arch, f = a.files.list[0]; for (const k of a.coordOf(f)) a.gatePress(k); a.gatePress('GO'); });
@@ -132,7 +135,7 @@ export const POSES = [
   ['security-app', async (o) => {   // out of the helicopter to your desktop full screen, the Security app's feeds at dusk
     await o.eval(() => { window.dash.setView('desktop', 'cctv'); });   // not awaited: the fly-in needs frames
     await stepUntil(o, () => document.body.dataset.view === 'desktop', 200);
-    await stepUntil(o, () => document.querySelectorAll('.cc-tile canvas[data-live]').length === 12, 200);
+    await stepUntil(o, () => document.querySelectorAll('.cc-tile canvas[data-live]').length === 13, 200);
     await o.step(4); await o.idle();
   }],
   ['archive-hall', async (o) => {   // back into the office and down to the archive's entrance hall, the vault shut
@@ -151,6 +154,23 @@ export const POSES = [
     await o.eval(() => window.__office.arch.openVault());
     await stepUntil(o, () => window.__office.arch.vault.state === 'open', 200);
     await o.step(60);
+  }],
+  ['archive-portal', async (o) => {   // out in the void, in front of the doorway: the hall only through it
+    const z = await o.eval(() => window.__office.mine.L.z);
+    await stand(o, 1, z + 0.6, { x: 7, y: 1.7, z });
+    await o.step(4);
+  }],
+  ['archive-behind', async (o) => {   // round the back of it: a frame and its door, and more void
+    const z = await o.eval(() => window.__office.mine.L.z);
+    await stand(o, 12.5, z - 2.5, { x: 6, y: 1.6, z });
+    await o.step(4);
+  }],
+  ['security-archive', async (o) => {   // the Security app's Archive tab: the entrance hall's camera alone
+    await o.eval(() => { window.dash.setView('desktop', 'cctv'); });
+    await stepUntil(o, () => document.body.dataset.view === 'desktop', 200);
+    await o.eval(() => document.querySelector('.cc-bar button[data-floor="-2"]').click());
+    await stepUntil(o, () => !!document.querySelector('.cc-tile:not([hidden]) canvas[data-live]'), 200);
+    await o.step(4); await o.idle();
   }],
 ];
 

@@ -16,12 +16,15 @@ export function install(ctx) {
   // A bright white void: a seamless floor fading into white haze, a freestanding lift back up, and in the middle one steel
   // filing cabinet (`arch.drawers`: a group per drawer, front at +z in the cabinet's space, so sliding one out is +z).
   // Its own scene and composer; while you're down here the office still runs, but isn't drawn or heard.
-  const ARCH = { x: LIFT.x - 24, z: LIFT.z, r: 84 };   // the cabinet, 24 m out from the lift
+  // The cabinet, on the line from the hall's doorway (archive-entrance.js) out to the gateway (gateway.js): 34 m out from the
+  // doorway, far enough that the gateway beyond it is lost in the haze from the doorway and only just shows from the cabinet.
+  // You can walk anywhere within `r` of that line.
+  const ARCH = { x: LIFT.x - 46, z: LIFT.z, r: 36 };
   const arch = { n: ARCHIVE, label: 'ARCHIVE', title: 'The Archive', blurb: 'The Archive · Repositories', on: false, colliders: [], drawers: [], composer: null };
   {
     // Plain white haze, brightened by exposure (see renderFloor): an over-bright background clear gets clamped.
     const S = arch.scene = new THREE.Scene(), haze = new THREE.Color('#ffffff');
-    S.background = haze; S.fog = new THREE.Fog(haze, 8, 95);   // far enough to make out the gateway, 70 m off
+    S.background = haze; S.fog = new THREE.Fog(haze, 8, 95);   // the gateway (gateway.js) just shows from the cabinet, 74 m off, and not from the doorway, 108 m
     S.environment = scene.environment; S.environmentIntensity = 0.7;
     const key = arch.key = new THREE.DirectionalLight('#ffffff', 0.75); key.position.set(-6, 14, 5);
     S.add(arch.hemi = new THREE.HemisphereLight('#ffffff', '#dcdcdc', 1.5), key);
@@ -105,25 +108,27 @@ export function install(ctx) {
       loadRepos();
       arch.colliders.push({ minX: LIFT.x, maxX: LIFT.x + 0.3 + CAR.d, minZ: z - CAR.w / 2 - 0.3, maxZ: z + CAR.w / 2 + 0.3 });
     };
-    arch.bound = (p) => {   // the void ends in a soft wall you don't see
-      const dx = p.x - ARCH.x, dz = p.z - ARCH.z, d = Math.hypot(dx, dz);
-      if (d > ARCH.r) { p.x = ARCH.x + (dx / d) * ARCH.r; p.z = ARCH.z + (dz / d) * ARCH.r; }
+    arch.bound = (p) => {   // the void ends in a soft wall you don't see, ARCH.r round the line from beyond the gateway to the lift
+      const ax = clamp(p.x, ctx.GATE.x - 6, LIFT.x + 6), dx = p.x - ax, dz = p.z - ARCH.z, d = Math.hypot(dx, dz);
+      if (d > ARCH.r) { p.x = ax + (dx / d) * ARCH.r; p.z = ARCH.z + (dz / d) * ARCH.r; }
     };
     arch.map = drawArchiveMap;
     addFloor(arch);
   }
   function drawArchiveMap() {
-    const x0 = ctx.GATE.x - 8, x1 = LIFT.x + 6, z0 = ARCH.z - 8, z1 = ctx.GATE.z + 8, k = Math.min(400 / (x1 - x0), 270 / (z1 - z0));
+    const G = ctx.GATE, x0 = G.x - 8, x1 = LIFT.x + 8, z0 = ARCH.z - 8, z1 = ARCH.z + 8, k = Math.min(420 / (x1 - x0), 270 / (z1 - z0));
     const c = mapCtx, W = 440, H = 330, sx = (x) => W / 2 + (x - (x0 + x1) / 2) * k, sz = (z) => H / 2 + 18 + (z - (z0 + z1) / 2) * k;
     c.clearRect(0, 0, W, H);
-    c.fillStyle = 'rgba(255,255,255,.12)'; c.beginPath(); c.arc(sx(ARCH.x), sz(ARCH.z), ARCH.r * k, 0, Math.PI * 2); c.fill();
+    c.fillStyle = 'rgba(255,255,255,.12)'; c.beginPath();
+    c.roundRect(sx(G.x - 6 - ARCH.r), sz(ARCH.z - ARCH.r), (LIFT.x + 6 - G.x + 6 + ARCH.r * 2) * k, ARCH.r * 2 * k, ARCH.r * k); c.fill();
     arch.mapHall?.(c, sx, sz, k);   // the entrance hall (archive-entrance.js)
     c.fillStyle = 'rgba(255,255,255,.55)';
     for (const b of arch.colliders) c.fillRect(sx(b.minX), sz(b.minZ), Math.max(3, (b.maxX - b.minX) * k), Math.max(3, (b.maxZ - b.minZ) * k));
     c.font = '600 20px system-ui'; c.fillText('THE ARCHIVE · B2', 16, 30);
-    c.font = '600 15px system-ui'; c.fillStyle = 'rgba(255,255,255,.55)'; c.fillText('Lift', sx(LIFT.x) - 6, sz(arch.lift.position.z) - 18);
-    c.fillText('Cabinet', sx(ARCH.x) - 26, sz(ARCH.z) + 26); c.fillText('Gateway', sx(ctx.GATE.x) - 28, sz(ctx.GATE.z) + 34);
-    c.fillRect(sx(ctx.GATE.x - ctx.GATE.PW / 2), sz(ctx.GATE.z - ctx.GATE.PD / 2 - 1.2), ctx.GATE.PW * k, (ctx.GATE.PD + 2.4) * k);
+    c.font = '600 15px system-ui'; c.fillStyle = 'rgba(255,255,255,.55)';
+    if (arch.lift.visible) c.fillText('Lift', sx(LIFT.x) - 6, sz(arch.lift.position.z) - 18);   // (not out in the void: see archive-entrance.js)
+    c.fillText('Cabinet', sx(ARCH.x) - 26, sz(ARCH.z) + 26); c.fillText('Gateway', sx(G.x) - 28, sz(G.z) + 34);
+    c.fillRect(sx(G.x - G.PD / 2 - 1.2), sz(G.z - G.PW / 2), (G.PD + 2.4) * k, G.PW * k);   // the plinth, along the line
     const px = sx(camera.position.x), pz = sz(camera.position.z);
     c.save(); c.translate(px, pz); c.rotate(-camera.rotation.y);
     c.fillStyle = '#fff'; c.beginPath(); c.moveTo(0, -14); c.lineTo(9, 10); c.lineTo(0, 5); c.lineTo(-9, 10); c.closePath(); c.fill();
