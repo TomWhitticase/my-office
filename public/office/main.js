@@ -215,7 +215,7 @@ export function mountOffice(container) {
   installAvatar(ctx);   // after post's layer sort: its name tag is a sprite, kept off your view's layers
 
   // ----- loop -----
-  let raf = 0, lastT = performance.now();
+  let raf = 0, lastT = performance.now(), firstShow = true;   // firstShow: the page has just loaded (see show)
   const clock0 = performance.now();
   // Each frame, in this order: see ctx.onFrame.
   ctx.onFrame((dt, t) => sfx.update(t, dt, { people, door, blinds, free: ctx.mode === 'free' }), 110);
@@ -279,9 +279,13 @@ export function mountOffice(container) {
       lastT = performance.now();
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(frame);
-      const seat = seatedPose();
-      setTimeout(() => tween(fillPose(), seat, 2600, () => {
-        Object.assign(player, { x: seat.x, z: seat.z, eye: seat.y, yaw: seat.yaw, pitch: seat.pitch, seated: true, seat: seat.seat ?? null });
+      // The first time the page shows the office, pull back to wherever you last were (if anywhere but your desk);
+      // coming back from your computer, you're at your desk.
+      const back = firstShow && !laptop.shown ? ctx.restorePose() : null;
+      firstShow = false;
+      const seat = back || seatedPose();
+      setTimeout(() => tween(fillPose(), seat, back ? 3200 : 2600, () => {
+        Object.assign(player, { x: seat.x, z: seat.z, eye: seat.y, yaw: seat.yaw, pitch: seat.pitch, seated: back ? back.seated : true, seat: seat.seat ?? null });
         ctx.mode = 'free';
         hud.classList.remove('hidden');
       }), REDUCED ? 0 : 350);
