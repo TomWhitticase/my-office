@@ -19,6 +19,7 @@ import { install as installLounge, installVending } from './world/lounge.js';
 import { install as installMyOffice, installScreen, installDesk } from './world/my-office.js';
 import { install as installKitchen } from './world/kitchen.js';
 import { install as installGuitars } from './world/guitars.js';
+import { install as installDrinks } from './world/drinks-cabinet.js';
 import { install as installMeetingRooms } from './world/meeting-rooms.js';
 import { install as installFittings } from './world/fittings.js';
 import { install as installClocks } from './world/clocks.js';
@@ -130,6 +131,7 @@ export function mountOffice(container) {
   const { kitchen } = ctx;
   installDesk(ctx);
   installGuitars(ctx);
+  installDrinks(ctx);
 
   installScreen(ctx);
   const { syncCss, layoutCenterMonitor, domScreen } = ctx;

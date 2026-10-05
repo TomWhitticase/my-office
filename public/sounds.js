@@ -248,6 +248,17 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos, roof 
       return noise() * 0.5 + am * (0.3 * Math.sin(TAU * f0 * t) + 0.15 * Math.sin(TAU * f0 * 2.01 * t) + 0.06 * Math.sin(TAU * f0 * 3 * t)) + 0.02 * Math.sin(TAU * f0 * 18.5 * t);
     });
   }
+  function pour() {   // the decanter's stopper lifted (a crystal clink), then whisky glugging into a tumbler, pitch rising as it fills
+    const stream = biq('bp', 1100, 1.4), body = biq('bp', 420, 2);
+    let next = 0.85, b0 = -1, bf = 0;
+    return make(2.6, (t) => {
+      const n = noise(), flow = env(t, 0.8, 2.45, 0.08, 0.2), fill = Math.min(1, Math.max(0, (t - 0.8) / 1.65));
+      if (t >= next && t < 2.35) { b0 = t; bf = rnd(260, 380) * (1 + fill * 0.8); next = t + rnd(0.07, 0.15); }
+      const u = t - b0, glug = b0 >= 0 && u < 0.05 ? Math.sin(TAU * bf * u * (1 + u * 14)) * Math.exp(-u / 0.014) : 0;
+      return (Math.sin(TAU * 3150 * t) * Math.exp(-t / 0.07) + 0.6 * Math.sin(TAU * 4720 * t) * Math.exp(-t / 0.045)) * 0.35
+        + stream(n * flow) * 0.5 + body(n * flow) * 0.25 + glug * flow * 0.8;
+    }, 0.7);
+  }
   function build() {
     const n = (k, f) => Array.from({ length: k }, f);
     B = {
@@ -259,6 +270,7 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos, roof 
       latch: n(2, latch), roll: roll(), thunk: n(2, () => thunk(false)), slam: n(2, () => thunk(true)), rustle: n(3, () => rustle(rnd(0.6, 0.9))), page: n(3, page),
       beep: n(2, beep), buzz: buzz(), accept: accept(), spinup: spinUp(), spindown: null, whoosh: whoosh(), boom: boom(), pull: pullLoop(), book: n(2, bookSlide),
       seek: n(6, seek), relay: n(2, relay), thwop: thwop(), whine: whine(),
+      pour: pour(),
     };
     B.spindown = ctx.createBuffer(1, B.spinup.length, ctx.sampleRate);   // the gateway closing: its spin-up, backwards
     B.spindown.getChannelData(0).set(B.spinup.getChannelData(0).slice().reverse());
@@ -533,6 +545,7 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos, roof 
     // `mine`: your own car, the only lift you can hear from the archive.
     ding(at = lift, mine) { if (!away || mine) play(B?.chime, at.x, 2.4, at.z, 0.35); },
     espresso() { if (!away) play(B?.espresso, coffee.x, coffee.y, coffee.z, 0.5); machineFree = lastT + 7.5; },
+    pour(p) { if (!away) play(B?.pour, p.x, p.y, p.z, 0.45, rnd(0.96, 1.04)); },   // the drinks cabinet's decanter
     slide(at = lift, mine) { if (!away || mine) play(B?.slide, at.x, 1.2, at.z, 0.22, rnd(0.95, 1.05)); },
     // kind: 'roof' up top, or a floor's own sound { hums: [[x, y, z, gain]], clicks, relays: [[x, y, z]] } (the server hall);
     // none is the archive's vast quiet.
