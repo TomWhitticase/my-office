@@ -22,6 +22,7 @@ import { install as installKitchen } from './world/kitchen.js';
 import { install as installGuitars } from './world/guitars.js';
 import { install as installDrinks } from './world/drinks-cabinet.js';
 import { install as installMeetingRooms } from './world/meeting-rooms.js';
+import { install as installAllHands } from './world/all-hands.js';
 import { install as installFittings } from './world/fittings.js';
 import { install as installClocks } from './world/clocks.js';
 import { install as installSky } from './world/sky.js';
@@ -147,6 +148,7 @@ export function mountOffice(container) {
 
   installVending(ctx);
   installDarts(ctx);   // the dartboard on the lounge pillar, its scoreboard and the beanbags behind the oche
+  installAllHands(ctx);
 
   installClocks(ctx);
 
