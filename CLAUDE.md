@@ -13,17 +13,54 @@ Several Claude sessions may work on this repo at once, sometimes in the same che
 ## Checks before committing
 
 ```bash
-node --check server.js && node --check public/office.js && node --check bin/setup.mjs
+for f in server.js server/*.js public/office.js public/office/*.js public/office/*/*.js bin/setup.mjs; do node --check "$f" || echo "FAIL $f"; done
 launchctl kickstart -k gui/$(id -u)/com.my-office.server   # macOS service; Linux: systemctl --user restart my-office
 curl -sf http://127.0.0.1:7777/api/state > /dev/null && echo server ok
 ```
 
-`public/` is served with `no-store`, so front-end changes only need a browser refresh. `server.js` changes need the restart.
+`public/` is served with `no-store`, so front-end changes only need a browser refresh. `server.js` and `server/` changes need the restart.
+
+For a change that shouldn't alter anything you can see (a refactor, a tidy-up), also run the harness: `npm test` (about five minutes; see `test/README.md`). It must say `all match`. If it doesn't, fix the change; only re-record its baselines for an intended visual or behaviour change, after looking at every changed shot.
 
 ## Layout
 
-- `server.js`: tails `~/.claude` (session registry, transcripts incl. subagents, status line snapshots) and pushes state over SSE at `/events`. Per-session detail is at `/api/session/:id`, config at `/api/config`. It also runs the wall TVs: one headless Chrome (CDP over `--remote-debugging-pipe`, profile `~/.claude/my-office/tv-browser`), a tab per TV, screencast frames and input over the dependency-free WebSocket at `/tv`.
-- `public/index.html`: the overview tab, the tabs, and the `window.dash` bridge (state, colours, drawer, config).
-- `public/office.js`: the 3D office (Three.js, vendored via npm and served at `/vendor/three/`). The centre monitor in the owner's office is the live overview `<main>` in a CSS3DObject behind a hole punched in the WebGL frame.
+- `server.js`: the entry point: config, http routing and the `/events` SSE stream. The work is in `server/`:
+  - `transcripts.js` tails `~/.claude/projects/**/*.jsonl` (subagents too); `state.js` the session registry, status line snapshots and the state pushed every second.
+  - `sessions-send.js` delivers chat messages to a session's terminal; `john.js` is John (`claude -p`); `machine.js` samples this machine for the server hall.
+  - `tv-browser.js` runs the wall TVs: one headless Chrome (CDP over `--remote-debugging-pipe`, profile `~/.claude/my-office/tv-browser`), a tab per TV, screencast frames and input over the dependency-free WebSocket at `/tv`.
+  - `repos.js` (your GitHub repos via `gh`, for the archive), `office-settings.js` (lights, blinds, door), `security.js` (same-origin / JSON / no-TV checks on every write), `util.js`.
+- `public/index.html`: the overview tab, the tabs, and the `window.dash` bridge (state, colours, drawer, config). `public/desktop.js` is your computer's desktop, `chat.js` the chat shared with it, `sounds.js` the office's sounds.
+- `public/office.js` re-exports `mountOffice` from `public/office/main.js`. The 3D office is plain ES modules (Three.js vendored via npm, served at `/vendor/three/`):
+  - `main.js`: renderers, HUD, scene and camera; installs every part in order; the frame loop, resize, `window.__office` (the debug and test hooks; keep them working), show/hide.
+  - `ctx.js`: the shared context and its registries (below). `hud.js`: the stylesheet and HUD markup. `util.js`: constants, `mat`/`box`/`cyl`, textures, `makeScreen`, the office's `colliders`. `painters.js`: the screens' canvas painters. `people.js`: `Person`, the idle spots and the people sync.
+  - `world/`: the building and its rooms (sky, shell, city, furniture helpers, desks, breakroom, whiteboards, lounge, my office, kitchen, guitars, meeting rooms, fittings, clocks).
+  - `systems/`: lifts and the `FLOORS` table, the player and walking keys, TVs, chat and John, hover and click actions, minimap, post-processing.
+  - `floors/`: the archive (B2), the gateway and inside a repo, the roof, the server hall (47).
+  - The centre monitor in the owner's office is the live desktop in a CSS3DObject behind a hole punched in the WebGL frame (`world/my-office.js` installScreen, `systems/post.js` renderFrame).
 - `bin/setup.mjs` and `.claude/skills/setup`: installer and the `/setup` wizard. `bin/statusline-tap.sh`: the status line snapshot tap.
+- `test/`: the refactor harness (`npm test`) and the server's own API snapshots (`test/api-baseline/`).
 - `config.json` (gitignored): owner name, city, lat/lon, port.
+
+## How the office's parts fit together
+
+Every part exports `install(ctx)` (some have a second, e.g. `installUse`), and `main.js` calls them in order. A part:
+
+- **reads** what's already built from ctx at the top (`const { world, sofa, desks } = ctx;`), and anything that changes, or is only set by a later part, live where it's used: `ctx.mode`, `ctx.away` (the floor you're on, or null), `ctx.state` (the latest server state), `ctx.daylight`, `ctx.player`. Never destructure a value that changes.
+- **shares** what others need with `Object.assign(ctx, { … })` (or `Object.defineProperty(ctx, 'x', { get, set })` for a value it reassigns).
+- **registers** instead of being called: `ctx.onFrame(fn(dt, t, now), order)` for per-frame work; `ctx.action(name, { hover(h), click(h, e) })` for something you can click (its meshes carry `userData.action = name`, plus `reach`, and whatever the handlers need); `ctx.hoverTargets(() => meshes, order)` for what you can point at in the office; `ctx.key(code, (e) => handled)` for a walking key; `ctx.minimap((c, sx, sz) => …, order)` for a layer of the office's map. Orders run lowest first; leave gaps (they go up in tens).
+
+Things built while installing must not depend on a part installed later: put the new part after what it uses (the harness's world snapshots and screenshots will catch it if not).
+
+### Adding a room or a piece of furniture
+
+1. Make `public/office/world/<room>.js` exporting `install(ctx)`; build into `ctx.world` with the helpers in `util.js` and `world/furniture.js` (`sofa`, `plant`, `pendant`, `addSeat`…); call `solid(x, z, w, d)` for anything you can't walk through.
+2. Register whatever it does each frame, can be clicked, or shows on the map, as above.
+3. Import it in `main.js` and call it after the parts it uses (furniture helpers are installed early).
+
+### Adding a floor
+
+1. Make `public/office/floors/<floor>.js` exporting `install(ctx)`. A floor is an object `{ n, label, title, scene, colliders, hits, look, enter(z), bound(p), map(), fx?(dt, t), leave?(), pick?(ray), ground?(x, z) }` (see `systems/lifts.js`): its own `THREE.Scene` lit by `look` (exposure, hemisphere, env, bloom/grade scale, extra lights), or `y` instead of a scene for one that's part of the office scene (the roof).
+2. Give it a lift to arrive by: `Object.assign(floor, ctx.liftShaft())` and add `floor.lift` to its scene; `enter(z)` moves it onto your car's z.
+3. `ctx.addFloor(floor)` puts it on every car panel. Lifts never import floors.
+4. Its clickables register actions as above; on that floor, hover uses its `hits` (or `pick`) and the minimap its `map()`.
+5. Add a pose for it at the end of `POSES` in `test/goldens.mjs`, and record just that one.
