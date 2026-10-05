@@ -11,10 +11,9 @@ const NEAR = 15, KEEP = 200, CHECK_MS = 100, PAINT_MS = 250, FETCH_MS = 500;
 export function install(ctx) {
   const { desks, camera } = ctx;
   const frustum = new THREE.Frustum(), m4 = new THREE.Matrix4(), cam = new THREE.Vector3();
-  for (const d of desks) {
-    d.term = { sid: null, lines: [], since: 0, count: -1, loading: false, fetched: -Infinity, drawn: -Infinity, dirty: false, shown: false };
-    d.termAt = d.codeScr.mesh.getWorldPosition(new THREE.Vector3());
-  }
+  for (const d of desks) d.term = { sid: null, lines: [], since: 0, count: -1, loading: false, fetched: -Infinity, drawn: -Infinity, dirty: false, shown: false };
+  // Where each code monitor is, once the world's matrices exist (they don't while installing).
+  const termAt = (d) => d.termAt ||= (d.codeScr.mesh.updateWorldMatrix(true, false), d.codeScr.mesh.getWorldPosition(new THREE.Vector3()));
   function fetchFeed(T, s) {
     const sid = s.sessionId;
     if (s.feedN < T.count) Object.assign(T, { lines: [], since: 0 });   // the transcript was read again from the start
@@ -34,7 +33,7 @@ export function install(ctx) {
       const s = d.owner?.session, T = d.term;
       if (!s || d.codePainted !== 'code') { T.shown = false; continue; }   // off, or away from the desk: the whole monitor is dark
       if (T.sid !== s.sessionId) Object.assign(T, { sid: s.sessionId, lines: [], since: 0, count: -1, loading: false, shown: false });
-      const seen = cam.distanceTo(d.termAt) < NEAR && frustum.containsPoint(d.termAt);
+      const at = termAt(d), seen = cam.distanceTo(at) < NEAR && frustum.containsPoint(at);
       if (seen && s.feedN !== T.count && !T.loading && now - T.fetched > FETCH_MS) fetchFeed(T, s);
       if (T.shown && !(T.dirty && seen && now - T.drawn > PAINT_MS)) continue;
       drawTerm(d.codeScr, s, d.owner.color, T.lines, TERM_TOP);

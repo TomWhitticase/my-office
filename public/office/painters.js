@@ -160,9 +160,12 @@ export function drawCode(scr, s, color, shown, cursorOn, H = scr.H) {
   ctx.fillStyle = '#e6e6e6'; ctx.fillText(fit(ctx, base, tabW - 34), 16, 28);
   ctx.textAlign = 'right'; ctx.font = `500 15px ${FONT}`;
   const plus = countLines(code.added), minus = countLines(code.removed);
-  ctx.fillStyle = '#98c379'; const tag = `+${plus}`; ctx.fillText(tag, W - 150, 28);
-  if (minus) { ctx.fillStyle = '#e06c75'; ctx.fillText(`−${minus}`, W - 108, 28); }
-  ctx.fillStyle = '#7f848e'; ctx.fillText(`${code.tool} · ${F.dur(Date.now() - code.t)} ago`, W - 16, 28);
+  // Right to left: when it was written, then −removed and +added just before it.
+  const when = `${code.tool} · ${F.dur(Date.now() - code.t)} ago`;
+  let rx = W - 16;
+  ctx.fillStyle = '#7f848e'; ctx.fillText(when, rx, 28); rx -= ctx.measureText(when).width + 16;
+  if (minus) { ctx.fillStyle = '#e06c75'; ctx.fillText(`−${minus}`, rx, 28); rx -= ctx.measureText(`−${minus}`).width + 10; }
+  ctx.fillStyle = '#98c379'; ctx.fillText(`+${plus}`, rx, 28);
   ctx.textAlign = 'left';
   ctx.font = `400 14px ${FONT}`; ctx.fillStyle = '#5c6370';
   const crumbs = code.file.split('/').join('  ›  ') + (code.agent ? `     ⤷ subagent: ${code.agent}` : '');
@@ -212,7 +215,12 @@ function termRows(l, cols) {
   const sub = l.a ? `${l.a.length > 24 ? l.a.slice(0, 23) + '…' : l.a}: ` : '', name = l.n ? l.n + ' ' : '';
   const w = Math.max(10, cols - 8 - (l.a ? 2 : 0)), out = [];
   for (const para of (sub + name + clean(l.x)).split('\n')) {
-    for (let i = 0; i < Math.max(1, para.length) && out.length <= most; i += w) out.push(para.slice(i, i + w));
+    // At spaces where there's one in the back half of the row, else mid-word.
+    for (let i = 0; i < Math.max(1, para.length) && out.length <= most;) {
+      let j = i + w;
+      if (j < para.length) { const sp = para.lastIndexOf(' ', j); if (sp > i + w / 2) j = sp + 1; }
+      out.push(para.slice(i, j)); i = j;
+    }
     if (out.length > most) break;
   }
   if (out.length > most) { out.length = most; out[most - 1] = out[most - 1].slice(0, w - 1) + '…'; }
