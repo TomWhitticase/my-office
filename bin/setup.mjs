@@ -2,7 +2,7 @@
 // my-office setup: installs dependencies, writes config.json, hooks the Claude Code status line,
 // and runs the server as a background service. Driven by the /setup skill, but usable directly:
 //
-//   node bin/setup.mjs --status                         report what's installed (JSON)
+//   node bin/setup.mjs --status                         report what's installed, incl. optional tools (JSON)
 //   node bin/setup.mjs --owner Sam --city Berlin --lat 52.52 --lon 13.40 [--port 7777]
 //                      [--no-service] [--no-statusline]
 //   node bin/setup.mjs --uninstall                      remove the service and restore the status line
@@ -161,6 +161,31 @@ async function waitForServer(port) {
   return null;
 }
 
+// ---------- optional tools ----------
+// Not needed to run, but each unlocks part of the office. Looked up the way server.js does, including the places a
+// launchd/systemd service's bare PATH misses (Homebrew, Orca's bundled CLI, Claude Code's own install dirs).
+const BIN_DIRS = [...(process.env.PATH || '').split(path.delimiter), '/usr/local/bin', '/opt/homebrew/bin', '/Applications/Orca.app/Contents/Resources/bin',
+  path.join(HOME, '.local', 'bin'), path.join(HOME, '.claude', 'local')];
+const binOf = (name) => BIN_DIRS.map((d) => d && path.join(d, name)).find((p) => p && fs.existsSync(p)) || null;
+function optionalTools() {
+  const gh = binOf('gh'), chrome = [process.env.CHROME_PATH, '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    '/Applications/Chromium.app/Contents/MacOS/Chromium', '/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser'].find((p) => p && fs.existsSync(p)) || null;
+  const ghAuthed = !!gh && spawnSync(gh, ['auth', 'status'], { stdio: 'ignore', timeout: 15000 }).status === 0;
+  return {
+    gh: { found: !!gh, signedIn: ghAuthed, unlocks: 'THE ARCHIVE: your GitHub repos in the filing cabinet and the gateway into them', fix: gh ? 'gh auth login' : 'brew install gh && gh auth login' },
+    chrome: { found: !!chrome, unlocks: 'the wall TVs (each one is a tab in a hidden Chrome)', fix: 'install Google Chrome, or set CHROME_PATH' },
+    orca: { found: !!binOf('orca'), unlocks: 'messaging sessions (Messages app, clicking a person to chat) when they run in Orca terminals', fix: 'run sessions in Orca (orca.app), or in tmux' },
+    tmux: { found: !!binOf('tmux'), unlocks: 'messaging sessions that run inside tmux', fix: 'brew install tmux, and run claude inside it' },
+    claude: { found: !!binOf('claude'), unlocks: 'John in the server room (answers with Claude Haiku via the claude CLI)', fix: 'make sure the claude CLI is on your PATH' },
+  };
+}
+function reportOptional(t) {
+  for (const [name, o] of Object.entries(t)) {
+    const ok = o.found && (o.signedIn ?? true);
+    log(`${ok ? 'Found' : o.found ? 'Not signed in' : 'Missing'}: ${name} (${o.unlocks})${ok ? '' : ` · fix: ${o.fix}`}`);
+  }
+}
+
 // ---------- main ----------
 const nodeMajor = Number(process.versions.node.split('.')[0]);
 const config = readJSON(CONFIG, {});
@@ -169,7 +194,7 @@ if (flag('status')) {
   console.log(JSON.stringify({
     root: ROOT, platform: process.platform, node: process.versions.node, nodeOk: nodeMajor >= 18,
     dependencies: fs.existsSync(path.join(ROOT, 'node_modules', 'three', 'build', 'three.module.js')),
-    claudeDir: fs.existsSync(CLAUDE), config, statusline: statuslineState(), service: serviceState(),
+    claudeDir: fs.existsSync(CLAUDE), config, statusline: statuslineState(), service: serviceState(), optional: optionalTools(),
     running: await fetch(`http://127.0.0.1:${config.port || 7777}/api/config`).then((r) => r.ok, () => false),
   }, null, 2));
   process.exit(0);
@@ -203,3 +228,5 @@ else if (installService()) {
   if (s) log(`Running: http://127.0.0.1:${config.port} · ${s.totals.live} Claude Code sessions live right now`);
   else { console.error(`Server didn't answer on port ${config.port}. Check the logs above, or whether the port is in use.`); process.exit(1); }
 }
+log('Optional extras (everything else works without them):');
+reportOptional(optionalTools());
