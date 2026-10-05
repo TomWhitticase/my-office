@@ -29,6 +29,9 @@ import { install as installGuitars } from './office/world/guitars.js';
 import { install as installMeetingRooms } from './office/world/meeting-rooms.js';
 import { install as installFittings } from './office/world/fittings.js';
 import { install as installClocks } from './office/world/clocks.js';
+import { install as installSky } from './office/world/sky.js';
+import { install as installShell, installReception } from './office/world/shell.js';
+import { install as installCity } from './office/world/city.js';
 
 // ---------- the office ----------
 export function mountOffice(container) {
@@ -155,17 +158,14 @@ export function mountOffice(container) {
   const ctx = createCtx({
     THREE, dash, container, colliders, toast, setQuality,
     get renderer() { return renderer; }, get scene() { return scene; }, get world() { return world; }, get camera() { return camera; },
-    get hud() { return hud; }, get player() { return player; }, get people() { return people; }, get lamps() { return lamps; },
-    get sfx() { return sfx; }, get state() { return S; }, get daylight() { return daylight; },
+    get hud() { return hud; }, get player() { return player; }, get people() { return people; },
+    get sfx() { return sfx; }, get state() { return S; },
     get quality() { return hq; }, get away() { return away; }, get mode() { return mode; }, set mode(v) { mode = v; },
     get active() { return active; }, get locked() { return locked; }, get hover() { return hover; }, get FLOORS() { return FLOORS; },
-    get rug() { return rug; },
-    get frameM() { return frameM; }, get winRuns() { return winRuns; }, get winKey() { return winKey; }, get WIN() { return WIN; },
-    get shaftU() { return shaftU; }, get collide() { return collide; },
+    get collide() { return collide; },
     get cssScene() { return cssScene; },
     get markerBoard() { return markerBoard; },
-    get wallM() { return wallM; },
-    get clockState() { return clockState; },
+    get pmrem() { return pmrem; },
   });
 
   // ----- renderers -----
@@ -216,567 +216,18 @@ export function mountOffice(container) {
   const camera = new THREE.PerspectiveCamera(60, 1, 0.05, 6000);
   camera.rotation.order = 'YXZ';
 
-  // ----- sky, sun, moon, time of day -----
-  // Sun and moon follow the real sky over the configured location (London by default); time can be sped up from the HUD (or T).
-  let officeExposure = 1.05;
-  const hemi = new THREE.HemisphereLight('#e3ecf7', '#b39b80', 0.95);
-  const sun = new THREE.DirectionalLight('#fff1dc', 3);
-  sun.castShadow = true;
-  sun.shadow.mapSize.set(4096, 4096);
-  Object.assign(sun.shadow.camera, { left: -32, right: 32, top: 32, bottom: -32, near: 1, far: 220 });
-  sun.shadow.camera.updateProjectionMatrix();
-  sun.shadow.bias = -0.0003;
-  sun.shadow.normalBias = 0.035;
-  const moonLight = new THREE.DirectionalLight('#9fb4ff', 0);
-  scene.add(hemi, sun, sun.target, moonLight, moonLight.target);
-  const lamps = [];   // { light, base } or { mat, eBase }: dimmed by day, full in the evening
-
-  const skyU = {
-    top: { value: new THREE.Color() }, horizon: { value: new THREE.Color() }, horizonSun: { value: new THREE.Color() }, ground: { value: new THREE.Color() },
-    cloudLit: { value: new THREE.Color() }, cloudDark: { value: new THREE.Color() },
-    sunCol: { value: new THREE.Color() }, sunDir: { value: new THREE.Vector3(0, 1, 0) }, moonDir: { value: new THREE.Vector3(0, -1, 0) },
-    night: { value: 0 }, time: { value: 0 },
-  };
-  const sky = new THREE.Mesh(new THREE.SphereGeometry(100, 48, 24), new THREE.ShaderMaterial({
-    uniforms: skyU, side: THREE.BackSide, depthWrite: false,
-    vertexShader: `varying vec3 vDir;
-      void main() { vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); gl_Position.z = gl_Position.w; }`,
-    fragmentShader: `uniform vec3 top, horizon, horizonSun, ground, cloudLit, cloudDark, sunCol, sunDir, moonDir; uniform float night, time; varying vec3 vDir;
-      float hash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
-      float h2(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-      float n2(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
-        return mix(mix(h2(i), h2(i + vec2(1, 0)), f.x), mix(h2(i + vec2(0, 1)), h2(i + vec2(1, 1)), f.x), f.y); }
-      float fbm(vec2 p) { float v = 0.0, a = 0.5; for (int i = 0; i < 5; i++) { v += a * n2(p); p = p * 2.03 + 1.7; a *= 0.5; } return v; }
-      void main() {
-        vec3 d = normalize(vDir);
-        float h = d.y;
-        // Horizon glows toward the sun (fiery at sunset) and stays cooler on the far side.
-        float toward = pow(dot(normalize(d.xz + 1e-4), normalize(sunDir.xz + 1e-4)) * 0.5 + 0.5, 5.0);
-        vec3 hor = mix(horizon, horizonSun, toward);
-        vec3 col = h > 0.0 ? mix(hor, top, pow(h, 0.5)) : mix(hor, ground, pow(min(-h * 4.0, 1.0), 0.6));
-        float sd = max(dot(d, sunDir), 0.0);
-        col += sunCol * (pow(sd, 1400.0) * 30.0 + pow(sd, 60.0) * 0.6 + pow(sd, 8.0) * 0.25);
-        if (h > 0.0) {
-          float s = hash(floor(d * 700.0));
-          col += vec3(step(0.9982, s) * night * (0.6 + 0.4 * sin(time * 3.0 + s * 60.0)) * smoothstep(0.0, 0.25, h));
-        }
-        float mc = dot(d, moonDir), R = 0.03;
-        if (mc > cos(R)) {
-          vec3 off = d - moonDir * mc;
-          float r = length(off) / sin(R);
-          vec3 n = normalize(off / sin(R) - moonDir * sqrt(max(0.0, 1.0 - r * r)));
-          float lit = smoothstep(-0.08, 0.12, dot(n, sunDir));
-          col = mix(col, vec3(0.95, 0.93, 0.86) * (0.06 + 1.4 * lit), smoothstep(1.0, 0.9, r) * smoothstep(-0.02, 0.03, moonDir.y));
-        }
-        col += vec3(0.6, 0.65, 0.8) * pow(max(mc, 0.0), 200.0) * 0.25 * night;
-        // Clouds: a drifting fbm layer, lit from the sun side (orange-pink undersides at sunset).
-        if (h > 0.01) {
-          vec2 uv = d.xz / (h + 0.06) * 0.9 + vec2(time * 0.006, time * 0.003);
-          float c = smoothstep(0.5, 0.78, fbm(uv)) * smoothstep(0.01, 0.16, h);
-          float lit = pow(sd, 3.0);
-          vec3 cc = mix(cloudDark, cloudLit, 0.35 + 0.65 * (toward * 0.6 + lit * 0.4));
-          cc += sunCol * pow(sd, 12.0) * 0.8;
-          col = mix(col, cc, c * 0.9);
-        }
-        gl_FragColor = vec4(col, 1.0);
-        #include <tonemapping_fragment>
-        #include <colorspace_fragment>
-      }`,
-  }));
-  const skyScene = new THREE.Scene();   // sky alone, rendered into an env map so city glass and water reflect the real sky
-  skyScene.add(new THREE.Mesh(sky.geometry, sky.material));
-  sky.frustumCulled = false;
-  sky.renderOrder = -1;
-  scene.add(sky);
-
-  // [sun elevation°, zenith, horizon, horizon toward the sun, below horizon, cloud lit side, cloud shadow side]
-  const SKY_KEYS = [
-    [-18, '#03050c', '#090f1f', '#0d1226', '#05070c', '#141a2e', '#0a0d18'],
-    [-9, '#0c1434', '#2a2350', '#4a2c5e', '#0b0d14', '#3a2b57', '#191730'],
-    [-4, '#182a64', '#9a4e6e', '#ff6a3d', '#1a1418', '#ff7a5c', '#4a2e5c'],
-    [0, '#26489a', '#e2776a', '#ff8a2e', '#2a1f1c', '#ff9a5a', '#7a4870'],
-    [5, '#3566b5', '#f2a27c', '#ffbd5e', '#3a302a', '#ffd3a0', '#9a7f98'],
-    [16, '#3a80d6', '#bcd8ef', '#e3edf6', '#4a4a48', '#ffffff', '#c3cedb'],
-    [60, '#2a6ccc', '#cbe3f6', '#e6f0f9', '#55534f', '#ffffff', '#d0d8e2'],
-  ].map(([el, ...cs]) => [el, ...cs.map((c) => new THREE.Color(c))]);
-  const SKY_C = Array.from({ length: 6 }, () => new THREE.Color());
-  const SUN_RED = new THREE.Color('#ff4a12'), SUN_GOLD = new THREE.Color('#ffa040'), SUN_HIGH = new THREE.Color('#fff4e4');
-  const HEMI = { daySky: new THREE.Color('#e3ecf7'), dayGnd: new THREE.Color('#b39b80'), nightSky: new THREE.Color('#2c3555'),
-    nightGnd: new THREE.Color('#4a3a2a'), sunset: new THREE.Color('#ff9a66'), sunsetGnd: new THREE.Color('#7a4a3a') };
-  const C = { sun: new THREE.Color() };
-  const LAT = (dash.config?.lat ?? 51.5) * Math.PI / 180, LON = dash.config?.lon ?? -0.13;
-  const J2000 = Date.UTC(2000, 0, 1, 12);
-  const RAD = Math.PI / 180;
-  function altAz(ra, dec, d) {
-    const H = ((18.697374558 + 24.06570982441908 * d) * 15 + LON) * RAD - ra;
-    const el = Math.asin(Math.sin(LAT) * Math.sin(dec) + Math.cos(LAT) * Math.cos(dec) * Math.cos(H));
-    const az = Math.atan2(-Math.sin(H), Math.tan(dec) * Math.cos(LAT) - Math.sin(LAT) * Math.cos(H));   // from north, clockwise
-    return { el, az };
-  }
-  function sunPos(date) {
-    const d = (date - J2000) / 864e5, g = (357.529 + 0.98560028 * d) * RAD;
-    const L = (280.459 + 0.98564736 * d + 1.915 * Math.sin(g) + 0.02 * Math.sin(2 * g)) * RAD, e = (23.439 - 0.00000036 * d) * RAD;
-    return altAz(Math.atan2(Math.cos(e) * Math.sin(L), Math.cos(L)), Math.asin(Math.sin(e) * Math.sin(L)), d);
-  }
-  function moonPos(date) {
-    const d = (date - J2000) / 864e5, e = 23.4397 * RAD;
-    const M = (134.963 + 13.064993 * d) * RAD, F = (93.272 + 13.22935 * d) * RAD;
-    const lon = (218.316 + 13.176396 * d) * RAD + 6.289 * RAD * Math.sin(M), lat = 5.128 * RAD * Math.sin(F);
-    const ra = Math.atan2(Math.sin(lon) * Math.cos(e) - Math.tan(lat) * Math.sin(e), Math.cos(lon));
-    return altAz(ra, Math.asin(Math.sin(lat) * Math.cos(e) + Math.cos(lat) * Math.sin(e) * Math.sin(lon)), d);
-  }
-  // World axes: +x east, +z north, so evening sun pours in through the west windows.
-  const toDir = (p, v) => v.set(Math.sin(p.az) * Math.cos(p.el), Math.sin(p.el), Math.cos(p.az) * Math.cos(p.el));
-  const sunDir = new THREE.Vector3(), moonDir = new THREE.Vector3();
-  let daylight = 1, lampK = 0;
-  let raysStrength = 0, lastEnvEl = 999, lastEnvAt = 0, envRT = null;
-  function updateSky(date, t) {
-    const sp = sunPos(date), mp = moonPos(date);
-    toDir(sp, sunDir); toDir(mp, moonDir);
-    const el = sp.el / RAD, mel = mp.el / RAD;
-    let i = 0;
-    while (i < SKY_KEYS.length - 2 && el > SKY_KEYS[i + 1][0]) i++;
-    const a = SKY_KEYS[i], b = SKY_KEYS[i + 1], k = clamp((el - a[0]) / (b[0] - a[0]), 0, 1);
-    for (let c = 0; c < 6; c++) SKY_C[c].lerpColors(a[c + 1], b[c + 1], k);
-    const [top, hor, horSun, gnd, cLit, cDark] = SKY_C;
-    const night = 1 - sstep(-10, -2, el), dl = sstep(-4, 12, el), sunset = sstep(-6, -0.5, el) * (1 - sstep(8, 20, el));
-    // The sun drops behind the mountain ridge a little before the true horizon.
-    const azDeg = ((Math.round(Math.atan2(sunDir.z, sunDir.x) / RAD) % 360) + 360) % 360;
-    const sunVis = sstep(city.ridge[azDeg] - 0.5, city.ridge[azDeg] + 0.7, el);
-    daylight = dl;
-    if (el < 7) C.sun.lerpColors(SUN_RED, SUN_GOLD, sstep(-1, 7, el)); else C.sun.lerpColors(SUN_GOLD, SUN_HIGH, sstep(7, 28, el));
-    skyU.top.value.copy(top); skyU.horizon.value.copy(hor); skyU.horizonSun.value.copy(horSun); skyU.ground.value.copy(gnd);
-    skyU.cloudLit.value.copy(cLit); skyU.cloudDark.value.copy(cDark);
-    skyU.sunDir.value.copy(sunDir); skyU.moonDir.value.copy(moonDir);
-    skyU.sunCol.value.copy(C.sun).multiplyScalar(sstep(-4, 1, el));
-    skyU.night.value = night; skyU.time.value = t;
-    sun.position.copy(sunDir).multiplyScalar(90); sun.color.copy(C.sun); sun.intensity = 4.2 * sstep(-1.5, 2.5, el) * sunVis;
-    moonLight.position.copy(moonDir).multiplyScalar(90); moonLight.intensity = 0.4 * night * sstep(-2, 8, mel);
-    hemi.intensity = lerp(0.2, 0.9, dl) + 0.12 * sunset;
-    hemi.color.lerpColors(HEMI.nightSky, HEMI.daySky, dl).lerp(HEMI.sunset, sunset * 0.6);
-    hemi.groundColor.lerpColors(HEMI.nightGnd, HEMI.dayGnd, dl).lerp(HEMI.sunsetGnd, sunset * 0.5);
-    scene.environmentIntensity = lerp(0.1, 0.42, dl);
-    scene.fog.color.copy(hor).lerp(horSun, 0.3); scene.background.copy(scene.fog.color);
-    renderer.toneMappingExposure = officeExposure = lerp(1.12, 1.0, dl) + 0.06 * sunset;
-    // Lamps follow the Admin tab: 'auto' keeps them off in daylight (the windows light the office) and fades them up from
-    // dusk as the sun drops below ~12°; 'on'/'off' override that. Eased so switching doesn't snap.
-    const o = dash.office || {}, lampTo = (o.lights === 'on' ? 1 : o.lights === 'off' ? 0 : 1 - dl) * (o.brightness ?? 1);
-    lampK += (lampTo - lampK) * 0.08;
-    for (const L of lamps) {
-      if (L.light) L.light.intensity = L.base * lampK;
-      if (L.mat) L.mat.emissiveIntensity = L.eBase * lampK;
-    }
-    ceilingM.emissiveIntensity = 0.04 + 0.2 * dl;
-    city.mat.emissiveIntensity = 0.04 + 1.25 * night;
-    city.ground.emissiveIntensity = 0.02 + 1.1 * night;
-    city.av.emissiveIntensity = Math.sin(t * 2.4) > 0.55 ? 4 : 0.15;
-    
-    shaftU.uLight.value.copy(sunDir).negate(); shaftU.color.value.copy(C.sun);
-    shaftU.strength.value = sunVis * sstep(-1, 2, el) * (0.25 + 0.75 * (1 - sstep(8, 30, el)));
-    shaftU.time.value = t;
-    raysStrength = sunVis * sstep(-2, 2, el) * (0.45 + 0.9 * sunset);
-    if (Math.abs(el - lastEnvEl) > 0.8 || performance.now() - lastEnvAt > 60000) {
-      lastEnvEl = el; lastEnvAt = performance.now();
-      envRT?.dispose();
-      envRT = pmrem.fromScene(skyScene, 0, 0.1, 500);
-      city.setEnv(envRT.texture);
-    }
-  }
-
-  const SPEEDS = [1, 120, 1200, 7200];
-  const timeEl = hud.querySelector('.of-time'), clockEl = hud.querySelector('.of-clock');
-  const clockState = { speed: 1, simBase: Date.now(), realBase: Date.now() };
-  const simNow = () => (clockState.speed === 1 ? Date.now() : clockState.simBase + (Date.now() - clockState.realBase) * clockState.speed);
-  function setSpeed(sp) {
-    const cur = simNow();
-    Object.assign(clockState, { speed: sp, simBase: sp === 1 ? Date.now() : cur, realBase: Date.now() });
-    localStorage.officeTimeSpeed = sp;
-    for (const b of timeEl.querySelectorAll('button')) b.setAttribute('aria-pressed', String(+b.dataset.speed === sp));
-  }
-  timeEl.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) setSpeed(+b.dataset.speed); });
-  setSpeed(SPEEDS.includes(+localStorage.officeTimeSpeed) ? +localStorage.officeTimeSpeed : 1);
-  let clockText = '';
-  function updateClock(date) {
-    const txt = `${daylight > 0.5 ? '☀︎' : '☾'}  ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ${date.toLocaleDateString([], { weekday: 'short' })}`;
-    if (txt !== clockText) clockEl.textContent = clockText = txt;
-  }
+  installSky(ctx);
+  const { setSpeed, updateSky, updateClock, clockState, lamps, skyU, RAD, hemi, SPEEDS, sunDir, simNow, sky } = ctx;
 
   const world = new THREE.Group();
   scene.add(world);
 
-  // ----- building shell -----
-  const H = ROOM.h + 0.15;
-  const woodTex = woodTexture();
-  woodTex.repeat.set(10, 7.5);
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(40, 30), new THREE.MeshStandardMaterial({ map: woodTex, roughness: 0.55 }));
-  floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; world.add(floor);
-  let rugSeed = 1;
-  const rugs = [];   // soft footsteps
-  function rug(x0, x1, z0, z1, base, accent, y = 0.006) {
-    rugs.push({ x0, x1, z0, z1 });
-    const tex = accent ? rugTexture(base, accent, rugSeed++) : null;
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0), new THREE.MeshStandardMaterial({ color: tex ? '#ffffff' : base, map: tex, roughness: 1 }));
-    m.rotation.x = -Math.PI / 2; m.position.set((x0 + x1) / 2, y, (z0 + z1) / 2); m.receiveShadow = true; world.add(m);
-  }
-  rug(6, 19.9, -14.9, -3.5, '#3a4660', null, 0.004);                       // my office carpet
-  rug(10.5, 15.5, -11, -7.5, '#d8c7a8', '#33405a');
-  rug(-15.9, -12.1, 4.4, 9.6, '#cdb99b', '#8c5a3c');                        // breakroom
-  rug(7.4, 12.6, 6.8, 11.2, '#b5654a', '#e2c9a6');                          // lounge
+  installShell(ctx);
+  const { rug, rugs, frameM, winRuns, winKey, WIN, shaftU, wallM, ceilingM, shafts } = ctx;
 
-  // Ceiling with exposed timber beams.
-  const ceilingM = new THREE.MeshStandardMaterial({ color: '#efe7da', roughness: 1, emissive: '#efe7da', emissiveIntensity: 0.2 });
-  box(world, 40.4, 0.2, 30.4, '', 0, ROOM.h + 0.1, 0, { material: ceilingM });
-  const beamM = mat('#9c6b43', { roughness: 0.75 });
-  for (let x = -18; x <= 18; x += 4) box(world, 0.22, 0.28, 30, '', x, ROOM.h - 0.14, 0, { material: beamM });
-
-  const wallM = mat('#ece3d3', { roughness: 0.95 }), frameM = mat('#2f3236', { metalness: 0.4, roughness: 0.5 });
-  const sillM = mat('#a87447', { roughness: 0.6 });
-  const outerGlassM = new THREE.MeshBasicMaterial({ color: '#cfe3ee', transparent: true, opacity: 0.05, depthWrite: false });
-  // Outer wall along x (z fixed) or z (x fixed); `windows` are [from, to] spans of floor-to-ceiling glazing.
-  // Window blinds are grouped per wall; the stretch of east wall inside my office is its own group.
-  const WIN = ['north', 'east', 'west', 'office'], winKey = (axis, fixed, u) => axis === 'x' ? 'north' : fixed < 0 ? 'west' : u < -3.5 ? 'office' : 'east';
-  const panes = [], winRuns = [];
-  function wall(axis, fixed, from, to, windows = [], m = wallM) {
-    const inward = Math.sign(-fixed);
-    const seg = (a, b, y0, y1, material = m, depth = 0.2, off = 0, shadow = true) => {
-      const len = b - a, mid = (a + b) / 2;
-      return axis === 'x'
-        ? box(world, len, y1 - y0, depth, '', mid, (y0 + y1) / 2, fixed + off * inward, { material, shadow })
-        : box(world, depth, y1 - y0, len, '', fixed + off * inward, (y0 + y1) / 2, mid, { material, shadow });
-    };
-    let cur = from;
-    for (const [a, b] of windows) {
-      if (a > cur) seg(cur, a, 0, H);
-      seg(a, b, 0, 0.45); seg(a, b, 3.05, H);
-      const glass = seg(a, b, 0.45, 3.05, outerGlassM, 0.02, 0, false);
-      seg(a, b, 0.45, 0.49, sillM, 0.3, 0.12);
-      const n = Math.max(1, Math.round((b - a) / 2.5)), step = (b - a) / n;
-      winRuns.push({ axis, fixed, a, b, n, step, inward, glass });
-      for (let q = 0; q <= n; q++) seg(a + q * step - 0.04, a + q * step + 0.04, 0.45, 3.05, frameM, 0.12);
-      for (let q = 0; q < n; q++) panes.push({ axis, fixed, a: a + q * step + 0.04, b: a + (q + 1) * step - 0.04, inward, win: WIN.indexOf(winKey(axis, fixed, a + (q + 0.5) * step)) });
-      seg(a, b, 2.3, 2.36, frameM, 0.1);
-      cur = b;
-    }
-    if (cur < to) seg(cur, to, 0, H);
-  }
-  wall('x', 15, -20, 20, [[-20, 6], [16, 20]]);
-  wall('z', -20, -15, 15, [[-15, 2], [6.8, 10.9]]);   // solid from 10.9 north: the kitchen's tall units stand against it
-  wall('z', 20, -15, 15, [[-15, -3.5], [2.5, 15]]);   // the lift core fills the stretch between my office and the meeting rooms
-  wall('x', -15, -20, 6, [], mat('#2f463b', { roughness: 0.9 }));          // green accent behind the desks
-  wall('x', -15, 6, 20, [], mat('#2b3650', { roughness: 0.9 }));           // navy in my office
-  {
-    const slats = [];
-    for (let x = -19.8; x < 5.9; x += 0.14) if (x < -10.5 || x > -5.9) slats.push([0.05, ROOM.h - 0.1, 0.04, x, (ROOM.h - 0.1) / 2, -14.88]);
-    world.add(mergedBoxes(slats, mat('#b07d4f', { roughness: 0.7 })));
-  }
-  // Sunbeams: each window pane swept along the light direction, drawn additively and faded with depth.
-  // `shut` is how much each window group's blinds cut the light (0 raised, ~0.9 lowered).
-  const shaftU = { uLight: { value: new THREE.Vector3(0, -1, 0) }, color: { value: new THREE.Color() }, strength: { value: 0 }, time: { value: 0 }, shut: { value: WIN.map(() => 0) } };
-  const shafts = (() => {
-    const pos = [], along = [], nIn = [], win = [], idx = [];
-    for (const p of panes) {
-      const y0 = 0.49, y1 = 3.05;
-      const cs = p.axis === 'x' ? [[p.a, y0, p.fixed], [p.b, y0, p.fixed], [p.b, y1, p.fixed], [p.a, y1, p.fixed]]
-        : [[p.fixed, y0, p.a], [p.fixed, y0, p.b], [p.fixed, y1, p.b], [p.fixed, y1, p.a]];
-      const nrm = p.axis === 'x' ? [0, 0, p.inward] : [p.inward, 0, 0], base = pos.length / 3;
-      for (const t of [0, 1]) for (const c of cs) { pos.push(...c); along.push(t); nIn.push(...nrm); win.push(p.win); }
-      for (const [a, b, c, d] of [[0, 1, 2, 3], [4, 5, 6, 7], [0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [3, 0, 4, 7]]) idx.push(base + a, base + b, base + c, base + a, base + c, base + d);
-    }
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-    g.setAttribute('along', new THREE.Float32BufferAttribute(along, 1));
-    g.setAttribute('nIn', new THREE.Float32BufferAttribute(nIn, 3));
-    g.setAttribute('win', new THREE.Float32BufferAttribute(win, 1));
-    g.setIndex(idx);
-    const m = new THREE.Mesh(g, new THREE.ShaderMaterial({
-      uniforms: shaftU, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
-      vertexShader: `attribute float along; attribute vec3 nIn; attribute float win; uniform vec3 uLight; uniform float shut[${WIN.length}]; varying float vA; varying float vFace; varying vec3 vW;
-        void main() { vec3 p = position + along * 16.0 * uLight; vA = along; vFace = max(dot(uLight, nIn), 0.0) * (1.0 - shut[int(win + 0.5)]);
-          vec4 w = modelMatrix * vec4(p, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
-      fragmentShader: `uniform vec3 color; uniform float strength, time; varying float vA; varying float vFace; varying vec3 vW;
-        void main() {
-          float fade = smoothstep(0.0, 0.05, vA) * pow(1.0 - vA, 1.7);
-          float dust = 0.8 + 0.2 * sin(vW.x * 2.1 + vW.y * 3.3 + time * 0.5) * sin(vW.z * 1.7 - time * 0.35);
-          gl_FragColor = vec4(color * strength * vFace * fade * dust * smoothstep(0.0, 0.3, vW.y) * 0.03, 1.0);
-        }`,
-    }));
-    m.frustumCulled = false;
-    world.add(m);
-    return m;
-  })();
-
-  for (const [x, z] of [[4, -8], [4, 8], [-9, 0.5 - 2.6]]) { box(world, 0.5, ROOM.h, 0.5, '#a8774b', x, ROOM.h / 2, z, { mat: { roughness: 0.7 } }); solid(x, z, 0.5, 0.5); }
-
-  // ----- the city outside (we're on the ~48th floor, ~175 m up) -----
-  const city = buildCity();
-  function buildCity() {
-    const GROUND = -175, R = rng(4242);
-    // Facade colour, lit windows at night, and a roughness/metalness map so the glass is glossy and reflective.
-    const fac = makeCanvas(512, 512), lit = makeCanvas(512, 512), rm = makeCanvas(512, 512);
-    fac.ctx.fillStyle = '#9a9a96'; fac.ctx.fillRect(0, 0, 512, 512);
-    lit.ctx.fillStyle = '#000'; lit.ctx.fillRect(0, 0, 512, 512);
-    rm.ctx.fillStyle = 'rgb(0,235,25)'; rm.ctx.fillRect(0, 0, 512, 512);
-    for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) {
-      const x = i * 64, y = j * 64, g = fac.ctx.createLinearGradient(x, y, x + 64, y + 64);
-      g.addColorStop(0, '#2c3a4a'); g.addColorStop(1, '#5f7489');
-      fac.ctx.fillStyle = g; fac.ctx.fillRect(x + 9, y + 10, 46, 40);
-      fac.ctx.fillStyle = 'rgba(0,0,0,.25)'; fac.ctx.fillRect(x + 9, y + 48, 46, 3);
-      rm.ctx.fillStyle = 'rgb(0,40,230)'; rm.ctx.fillRect(x + 9, y + 10, 46, 40);
-      if (R() < 0.42) {
-        lit.ctx.globalAlpha = 0.5 + R() * 0.5;
-        lit.ctx.fillStyle = ['#ffd49a', '#ffe6bf', '#fff1d6', '#cfe0ff', '#ffc27a'][Math.floor(R() * 5)];
-        lit.ctx.fillRect(x + 9, y + 10, 46, 40);
-      }
-    }
-    lit.ctx.globalAlpha = 1;
-    rm.tex.colorSpace = THREE.NoColorSpace;
-    for (const t of [fac.tex, lit.tex, rm.tex]) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.needsUpdate = true; }
-
-    // A river runs north-south just west of us, and the west side is low-rise, so sunsets have a clear view.
-    const riverX = (z) => -230 + 60 * Math.sin(z / 250) + 20 * Math.sin(z / 90), RIVER_W = 42;
-    const bigPark = (gx, gz) => gx >= 2 && gx <= 4 && gz >= -3 && gz <= -1;
-    const geos = [], av = [], trees = [], parks = [], ponds = [];
-    const TINTS = ['#ffffff', '#e8dccb', '#cfd8e3', '#d9d2c5', '#bfc6cc', '#f0e6d8', '#a9b4c0', '#c9b8a6'];
-    const addB = (w, h, d, x, z, tintHex, uo, vo) => {
-      const g = new THREE.BoxGeometry(w, h, d);
-      g.translate(x, GROUND + h / 2, z);
-      const uv = g.attributes.uv, col = new Float32Array(uv.count * 3), tint = new THREE.Color(tintHex);
-      for (let f = 0; f < 6; f++) for (let k = 0; k < 4; k++) {
-        const i = f * 4 + k;
-        if (f === 2 || f === 3) uv.setXY(i, 0.003, 0.003);
-        else uv.setXY(i, uv.getX(i) * (f < 2 ? d : w) / 16 + uo, uv.getY(i) * h / 24 + vo);
-        col[i * 3] = tint.r; col[i * 3 + 1] = tint.g; col[i * 3 + 2] = tint.b;
-      }
-      g.setAttribute('color', new THREE.BufferAttribute(col, 3));
-      geos.push(g);
-    };
-    const tree = (x, z, scale = 1) => trees.push([x, z, (8 + R() * 7) * scale, (2.6 + R() * 1.9) * scale]);
-    addB(40.6, -GROUND - 0.05, 30.6, 0, 0, '#d8d2c8', 0, 0);                // our own tower, below the office
-    for (let gx = -12; gx <= 12; gx++) for (let gz = -12; gz <= 12; gz++) {
-      const cx = gx * 70, cz = gz * 70, dist = Math.hypot(cx, cz), ring = Math.max(Math.abs(gx), Math.abs(gz));
-      if ((gx === 0 && gz === 0) || dist > 880) continue;
-      if (bigPark(gx, gz) || (ring >= 3 && R() < 0.1 && Math.abs(cx - riverX(cz)) > 75)) {
-        parks.push([cx, cz]);
-        if (R() < 0.4) ponds.push([cx + (R() - 0.5) * 20, cz + (R() - 0.5) * 20, 7 + R() * 6]);
-        for (let k = 0; k < 26; k++) {
-          const x = cx + (R() - 0.5) * 48, z = cz + (R() - 0.5) * 48;
-          if (!ponds.some(([px, pz, r]) => Math.hypot(x - px, z - pz) < r + 3)) tree(x, z);
-        }
-        continue;
-      }
-      const n = 1 + Math.floor(R() * 3);
-      for (let k = 0; k < n; k++) {
-        const w = 14 + R() * 22, d = 14 + R() * 22;
-        // Mid-rise next door, well below us, so the view opens over rooftops; a few towers further out top us.
-        const tall = R() < 0.1 ? 120 + R() * 160 : 0;
-        let h = ring === 1 ? 25 + R() * 55 : ring === 2 ? 35 + R() * 70 + (R() < 0.2 ? 25 + R() * 40 : 0) : 25 + R() * 130 * (1 - dist / 1300) + tall;
-        const x = cx + (R() - 0.5) * (54 - w), z = cz + (R() - 0.5) * (54 - d);
-        if (cx < -40 && Math.abs(cz) < -cx * 0.75 + 60) h = Math.min(h, 22 + R() * 30);
-        if (Math.abs(x - riverX(z)) < RIVER_W + Math.max(w, d) / 2 + 6) continue;
-        addB(w, h, d, x, z, TINTS[Math.floor(R() * TINTS.length)], Math.floor(R() * 8) / 8, Math.floor(R() * 8) / 8);
-        if (h > 150) av.push([x, GROUND + h + 1, z]);
-      }
-      if (R() < 0.55) {   // street trees along one or two kerbs
-        const side = Math.floor(R() * 4);
-        for (let k = 0; k < 6; k++) {
-          const o = -22 + k * 8.8;
-          const [x, z] = [[cx + o, cz - 25], [cx + o, cz + 25], [cx - 25, cz + o], [cx + 25, cz + o]][side];
-          if (Math.abs(x - riverX(z)) > RIVER_W + 4) tree(x, z, 0.8);
-        }
-      }
-    }
-    // Riverside parks with trees along both banks.
-    for (let z = -1100; z <= 1100; z += 12) for (const s of [-1, 1]) if (R() < 0.75) tree(riverX(z) + s * (RIVER_W + 6 + R() * 14), z + R() * 6);
-
-    const cityMat = new THREE.MeshStandardMaterial({ map: fac.tex, emissiveMap: lit.tex, emissive: '#ffffff', vertexColors: true,
-      roughnessMap: rm.tex, metalnessMap: rm.tex, roughness: 1, metalness: 1, envMapIntensity: 1.1 });
-    world.add(new THREE.Mesh(mergeGeometries(geos), cityMat));
-
-    const avMat = new THREE.MeshStandardMaterial({ color: '#400', emissive: '#ff2a1a', emissiveIntensity: 3 });
-    const avMesh = new THREE.InstancedMesh(new THREE.SphereGeometry(0.9, 8, 6), avMat, av.length);
-    const m4 = new THREE.Matrix4();
-    av.forEach(([x, y, z], i) => avMesh.setMatrixAt(i, m4.makeTranslation(x, y, z)));
-    world.add(avMesh);
-
-    // Streets: one 70 m block per texture tile, roads on the tile edges, streetlights along the kerbs.
-    const gt = makeCanvas(256, 256), ge = makeCanvas(256, 256), px = 256 / 70;
-    gt.ctx.fillStyle = '#2a2c30'; gt.ctx.fillRect(0, 0, 256, 256);
-    gt.ctx.fillStyle = '#5a5d61'; gt.ctx.fillRect(8 * px, 8 * px, 54 * px, 54 * px);
-    gt.ctx.fillStyle = '#4b5a46'; gt.ctx.fillRect(11 * px, 11 * px, 48 * px, 48 * px);
-    gt.ctx.fillStyle = '#c9c3a8';
-    for (let i = 0; i < 256; i += 14) { gt.ctx.fillRect(i, 0, 7, 1.2); gt.ctx.fillRect(i, 254.8, 7, 1.2); gt.ctx.fillRect(0, i, 1.2, 7); gt.ctx.fillRect(254.8, i, 1.2, 7); }
-    ge.ctx.fillStyle = '#000'; ge.ctx.fillRect(0, 0, 256, 256);
-    for (let i = 4; i < 256; i += 32) for (const [x, y] of [[i, 7 * px], [i, 63 * px], [7 * px, i], [63 * px, i]]) {
-      const g = ge.ctx.createRadialGradient(x, y, 0, x, y, 9);
-      g.addColorStop(0, 'rgba(255,200,130,1)'); g.addColorStop(1, 'rgba(255,170,90,0)');
-      ge.ctx.fillStyle = g; ge.ctx.fillRect(x - 9, y - 9, 18, 18);
-    }
-    for (const t of [gt.tex, ge.tex]) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(86, 86); t.needsUpdate = true; }
-    const groundMat = new THREE.MeshStandardMaterial({ map: gt.tex, emissiveMap: ge.tex, emissive: '#ffffff', roughness: 0.95 });
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(6020, 6020), groundMat);
-    ground.rotation.x = -Math.PI / 2; ground.position.set(35, GROUND, 35);
-    world.add(ground);
-
-    // Grass for parks and river banks, water for the river and ponds.
-    const grassMat = mat('#5f8f4a', { roughness: 1 });
-    const parkMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(56, 0.4, 56), grassMat, parks.length);
-    parks.forEach(([x, z], i) => parkMesh.setMatrixAt(i, m4.makeTranslation(x, GROUND + 0.2, z)));
-    world.add(parkMesh);
-    const waterMat = new THREE.MeshStandardMaterial({ color: '#1b3444', roughness: 0.07, metalness: 0.85, envMapIntensity: 1.2 });
-    const strip = (offA, offB, y, material) => {
-      const pos = [], idx = [];
-      for (let z = -3000, i = 0; z <= 3000; z += 20, i++) {
-        const x = riverX(z);
-        pos.push(x + offA, y, z, x + offB, y, z);
-        if (i) idx.push(2 * i - 2, 2 * i - 1, 2 * i, 2 * i - 1, 2 * i + 1, 2 * i);
-      }
-      const g = new THREE.BufferGeometry();
-      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-      g.setIndex(idx); g.computeVertexNormals();
-      const m = new THREE.Mesh(g, material); m.material.side = THREE.DoubleSide;
-      world.add(m);
-    };
-    strip(-RIVER_W, RIVER_W, GROUND + 0.35, waterMat);
-    strip(RIVER_W, RIVER_W + 24, GROUND + 0.3, grassMat);
-    strip(-RIVER_W - 24, -RIVER_W, GROUND + 0.3, grassMat);
-    const pondMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(1, 1, 0.2, 32), waterMat, ponds.length);
-    const dummy = new THREE.Object3D();
-    ponds.forEach(([x, z, r], i) => { dummy.position.set(x, GROUND + 0.45, z); dummy.scale.set(r, 1, r); dummy.updateMatrix(); pondMesh.setMatrixAt(i, dummy.matrix); });
-    world.add(pondMesh);
-
-    // Trees: autumn palette, it being October.
-    const TREE_COLS = ['#3f7a3a', '#4f8a3c', '#2f6b3a', '#5d9440', '#d08a2a', '#c4572a', '#e0b23a', '#a23a2a', '#b8742a'].map((c) => new THREE.Color(c));
-    const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.22, 0.32, 1, 6), mat('#5a4030', { roughness: 1 }), trees.length);
-    // Crowns: a clump of lumpy blobs, darker underneath, instead of one smooth ball.
-    const crownGeo = mergeGeometries([[0, 0.1, 0, 0.8], [0.5, -0.2, 0.2, 0.62], [-0.45, -0.15, -0.3, 0.64], [0.1, 0.45, -0.25, 0.55], [-0.2, -0.05, 0.5, 0.58], [0.3, 0.2, -0.5, 0.5]].map(([x, y, z, r]) => {
-      const g = new THREE.IcosahedronGeometry(r, 1), p = g.attributes.position, col = new Float32Array(p.count * 3);
-      for (let i = 0; i < p.count; i++) {
-        const n = Math.sin(p.getX(i) * 91.7 + p.getY(i) * 47.3 + p.getZ(i) * 73.1 + x * 13) * 43758.5, k = 0.9 + 0.2 * (n - Math.floor(n));
-        p.setXYZ(i, p.getX(i) * k + x, p.getY(i) * k + y, p.getZ(i) * k + z);
-        col.fill(0.55 + 0.45 * sstep(-0.7, 0.8, p.getY(i)), i * 3, i * 3 + 3);
-      }
-      g.setAttribute('color', new THREE.BufferAttribute(col, 3));
-      return g;
-    }));
-    crownGeo.computeVertexNormals();
-    const crowns = new THREE.InstancedMesh(crownGeo, new THREE.MeshStandardMaterial({ roughness: 0.9, flatShading: true, vertexColors: true }), trees.length);
-    trees.forEach(([x, z, h, r], i) => {
-      dummy.rotation.set(0, 0, 0);
-      dummy.position.set(x, GROUND + h * 0.25, z); dummy.scale.set(1, h * 0.5, 1); dummy.updateMatrix(); trunks.setMatrixAt(i, dummy.matrix);
-      dummy.position.set(x, GROUND + h * 0.62, z); dummy.scale.set(r, r * 1.25, r); dummy.rotation.y = R() * 6; dummy.updateMatrix();
-      crowns.setMatrixAt(i, dummy.matrix);
-      crowns.setColorAt(i, TREE_COLS[R() < 0.55 ? Math.floor(R() * 4) : 4 + Math.floor(R() * 5)]);
-    });
-    world.add(trunks, crowns);
-
-    // Mountains on the far horizon: a ring of ridged fbm terrain, tallest to the north, lower in the west so sunsets clear them.
-    const h2 = (x, y) => { const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return s - Math.floor(s); };
-    const n2 = (x, y) => {
-      const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
-      return lerp(lerp(h2(xi, yi), h2(xi + 1, yi), u), lerp(h2(xi, yi + 1), h2(xi + 1, yi + 1), u), v);
-    };
-    const fbm2 = (x, y) => { let s = 0, a = 0.5; for (let i = 0; i < 5; i++) { s += a * n2(x, y); x = x * 2.03 + 1.7; y = y * 2.03 + 3.1; a *= 0.5; } return s; };
-    // MS scales the peaks up so they still clear the horizon seen from up here.
-    const MBASE = GROUND - 40, R0 = 2700, R1 = 4400, SEG = 720, ROWS = 16, MS = 1.35;
-    const mtnH = (th, t) => {
-      const c = Math.cos(th), sn = Math.sin(th);
-      const amp = 120 + 380 * fbm2(c * 2.2 + 5, sn * 2.2 + 9) + 320 * Math.max(0, sn) + 160 * Math.max(0, c) - 90 * Math.max(0, -c);
-      const ridge = 1 - Math.abs(fbm2(c * 9 + t * 3, sn * 9 - t * 2) * 2 - 1);
-      return amp * Math.pow(Math.sin(Math.PI * clamp(t * 1.15, 0, 1)), 0.85) * (0.5 + 0.5 * ridge);
-    };
-    const mpos = [], mcol = [], midx = [], ridgeDeg = new Array(360).fill(-90);
-    const SNOW = new THREE.Color('#f4f6f9'), ROCK = new THREE.Color('#6b7078'), FOREST = new THREE.Color('#3a5440'), tmpC = new THREE.Color();
-    for (let j = 0; j <= ROWS; j++) {
-      const t = j / ROWS, r = R0 + (R1 - R0) * t;
-      for (let i = 0; i <= SEG; i++) {
-        const th = (i / SEG) * Math.PI * 2, hh = mtnH(th, t), y = MBASE + hh * MS;
-        mpos.push(Math.cos(th) * r, y, Math.sin(th) * r);
-        if (hh > 470 + 60 * n2(i * 0.3, j)) tmpC.copy(SNOW); else tmpC.copy(FOREST).lerp(ROCK, sstep(120, 380, hh));
-        mcol.push(tmpC.r, tmpC.g, tmpC.b);
-        const deg = Math.round(th / RAD) % 360;
-        ridgeDeg[deg] = Math.max(ridgeDeg[deg], Math.atan2(y - 1.65, r) / RAD);
-        if (j && i) { const w = SEG + 1, a = j * w + i, b = a - 1, c = a - w, d = c - 1; midx.push(d, b, a, d, a, c); }
-      }
-    }
-    const mg = new THREE.BufferGeometry();
-    mg.setAttribute('position', new THREE.Float32BufferAttribute(mpos, 3));
-    mg.setAttribute('color', new THREE.Float32BufferAttribute(mcol, 3));
-    mg.setIndex(midx); mg.computeVertexNormals();
-    const mtnMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, color: '#8a8a8a', side: THREE.DoubleSide });
-    // Aerial perspective: the scene's exp² fog, but ~3x thinner, so far ranges fade into the sky instead of vanishing.
-    mtnMat.onBeforeCompile = (sh) => {
-      sh.fragmentShader = sh.fragmentShader.replace('#include <fog_fragment>',
-        `#ifdef USE_FOG
-          float fogFactor = 1.0 - exp(-fogDensity * fogDensity * vFogDepth * vFogDepth * 0.11);
-          gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, fogFactor * 0.9);
-        #endif`);
-    };
-    world.add(new THREE.Mesh(mg, mtnMat));
-
-    // Low cloud drifting between the rooftops: stacked fbm slices, so each cloud has some depth and where a tower pokes
-    // through it fades over a few slices instead of a hard line. Unlit: tinted from the sky colours, glowing over the
-    // city at night. Bottom slice first so they blend back to front from above.
-    const CL = 7, cpos = [], ck = [], cidx = [];
-    for (let i = 0; i < CL; i++) {
-      const y = GROUND + 72 + i * 5, b = i * 4;
-      cpos.push(-3000, y, -3000, 3000, y, -3000, 3000, y, 3000, -3000, y, 3000);
-      ck.push(i / (CL - 1), i / (CL - 1), i / (CL - 1), i / (CL - 1));
-      cidx.push(b, b + 2, b + 1, b, b + 3, b + 2);
-    }
-    const cg = new THREE.BufferGeometry();
-    cg.setAttribute('position', new THREE.Float32BufferAttribute(cpos, 3));
-    cg.setAttribute('k', new THREE.Float32BufferAttribute(ck, 1));
-    cg.setIndex(cidx);
-    const cloudU = { lit: skyU.cloudLit, dark: skyU.cloudDark, sunCol: skyU.sunCol, sunDir: skyU.sunDir, night: skyU.night, time: skyU.time,
-      fogCol: { value: scene.fog.color }, fogD: { value: scene.fog.density }, glow: { value: new THREE.Color('#ff9a52') } };
-    const clouds = new THREE.Mesh(cg, new THREE.ShaderMaterial({
-      uniforms: cloudU, transparent: true, depthWrite: false,
-      vertexShader: `attribute float k; varying float vK; varying vec3 vW;
-        void main() { vK = k; vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
-      fragmentShader: `uniform vec3 lit, dark, sunCol, sunDir, fogCol, glow; uniform float night, time, fogD; varying float vK; varying vec3 vW;
-        float h2(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-        float n2(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
-          return mix(mix(h2(i), h2(i + vec2(1, 0)), f.x), mix(h2(i + vec2(0, 1)), h2(i + vec2(1, 1)), f.x), f.y); }
-        float fbm(vec2 p) { float v = 0.0, a = 0.5; for (int i = 0; i < 4; i++) { v += a * n2(p); p = p * 2.07 + 1.3; a *= 0.5; } return v; }
-        void main() {
-          vec2 p = vW.xz * 0.004 + vec2(time * 0.006, time * 0.0025);
-          float n = (fbm(p + vec2(vK * 0.07, 0.0)) - 0.42) * 2.4 + (n2(p * 0.15 + 1.5) - 0.5) * 1.1;   // ~half cover
-          // Thickest mid-stack: the top and bottom slices only show where the cloud is dense, which rounds the puffs.
-          float a = smoothstep(0.0, 0.3, n - abs(vK - 0.4) * 0.5);
-          float r = length(vW.xz);
-          a *= 0.38 * (1.0 - smoothstep(1500.0, 2900.0, r));
-          if (a < 0.002) discard;
-          vec3 v = normalize(vW - cameraPosition);
-          vec3 col = mix(dark, lit, 0.3 + 0.55 * vK + 0.15 * smoothstep(0.0, 0.5, n));
-          col += sunCol * (pow(max(dot(v, sunDir), 0.0), 6.0) * 0.5 + 0.12 * max(sunDir.y, 0.0) * vK);
-          col += glow * night * (0.16 + 0.12 * (1.0 - vK)) * (1.0 - smoothstep(500.0, 1300.0, r));   // only over the lit city
-          float d = distance(vW, cameraPosition);
-          col = mix(col, fogCol, 1.0 - exp(-fogD * fogD * d * d * 0.5));
-          gl_FragColor = vec4(col, a);
-          #include <tonemapping_fragment>
-          #include <colorspace_fragment>
-        }`,
-    }));
-    clouds.frustumCulled = false;
-    world.add(clouds);
-
-    return {
-      mat: cityMat, ground: groundMat, av: avMat, mtn: mtnMat, ridge: ridgeDeg,
-      setEnv(tex) { for (const m of [cityMat, waterMat]) { if (!m.envMap) m.needsUpdate = true; m.envMap = tex; } },
-    };
-  }
-
-  // Reception, side-on to the lift core, the receptionist's back to the floor sign.
-  box(world, 0.7, 1.05, 2.0, '#c49a6c', 16.6, 0.525, -2.3, { mat: { roughness: 0.55 } });
-  box(world, 0.85, 0.05, 2.1, '#2a2724', 16.6, 1.075, -2.3, { mat: { roughness: 0.35 } });
-  solid(16.6, -2.3, 0.85, 2.1);
-
-  // Brick feature wall in the lounge.
-  {
-    const bt = brickTexture();
-    bt.repeat.set(5, 1.7);
-    box(world, 10, ROOM.h, 0.06, '', 11, ROOM.h / 2, 14.87, { material: new THREE.MeshStandardMaterial({ map: bt, roughness: 0.95 }) });
-  }
+  installCity(ctx);
+  const { city } = ctx;
+  installReception(ctx);
 
   installFurniture(ctx);
   const { sofa, plant, bookshelf, floorLamp, pendant, addLamp, officeChair, monitor, art, smallPlant, addSeat, plantKit, seats, barM, glowMat } = ctx;
@@ -2598,7 +2049,7 @@ export function mountOffice(container) {
     // so walking up to the lift from the floor never dims anything.
     F.out = F.carless ? 1 : damp(F.out ?? 0, clamp((LIFT.x + 0.4 - player.x) / 0.7, 0, 1), 3, 1 / 60);
     const k = ease(F.out);
-    renderer.toneMappingExposure = lerp(officeExposure, L.exposure, k);
+    renderer.toneMappingExposure = lerp(ctx.officeExposure, L.exposure, k);
     F.hemi.intensity = lerp(hemi.intensity, L.hemi, k);
     F.hemi.color.copy(hemi.color).lerp(L.sky, k); F.hemi.groundColor.copy(hemi.groundColor).lerp(L.ground, k);
     for (const [light, v] of L.lights) light.intensity = v * k;
@@ -3933,8 +3384,8 @@ export function mountOffice(container) {
     // The screen wakes partway up and goes dark the moment you stand.
     const shown = L.open && L.k > 0.55;
     if (shown !== L.shown) { L.shown = shown; placeHole(); }
-    L.light.intensity = shown ? 0.04 + 0.08 * (1 - daylight) : 0;   // a faint spill on the keys, not a lamp
-    L.deckM.emissiveIntensity = ease(L.k) * (1 - daylight) * 0.3;
+    L.light.intensity = shown ? 0.04 + 0.08 * (1 - ctx.daylight) : 0;   // a faint spill on the keys, not a lamp
+    L.deckM.emissiveIntensity = ease(L.k) * (1 - ctx.daylight) * 0.3;
   }
   function setCam(p) { camera.position.set(p.x, p.y, p.z); camera.rotation.set(p.pitch, p.yaw, 0); }
   function camPose() { return { x: camera.position.x, y: camera.position.y, z: camera.position.z, yaw: camera.rotation.y, pitch: camera.rotation.x }; }
@@ -4642,7 +4093,7 @@ export function mountOffice(container) {
     camera.getWorldDirection(camFwd);
     sunScreen.copy(sunDir).multiplyScalar(500).add(camera.position).project(camera);
     rays.uniforms.sunPos.value.set(sunScreen.x * 0.5 + 0.5, sunScreen.y * 0.5 + 0.5);
-    rays.uniforms.strength.value = raysStrength * sstep(0.15, 0.55, camFwd.dot(sunDir)) * 1.2;
+    rays.uniforms.strength.value = ctx.raysStrength * sstep(0.15, 0.55, camFwd.dot(sunDir)) * 1.2;
     rays.enabled = hq && rays.uniforms.strength.value > 0.01;
     renderer.shadowMap.needsUpdate = true;
     composer.render();
