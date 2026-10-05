@@ -1,9 +1,9 @@
 // People: the figure every session (and John) is drawn as, its poses, and walking along a path.
 
 import * as THREE from 'three';
-import { AISLE, angDiff, box, clamp, cyl, damp, F, faceTo, hash, makeCanvas, mat, PP } from './util.js';
+import { AISLE, angDiff, box, clamp, cyl, damp, dash, ease, F, faceTo, hash, makeCanvas, mat, PP } from './util.js';
 import { titleOf } from '../chat.js';
-import { drawLabel } from './painters.js';
+import { drawAway, drawCode, drawFeed, drawLabel, drawOff, drawRoster, drawSession, drawUsage, drawWall, tokenRoll } from './painters.js';
 
 // ---------- people ----------
 export const SKIN = ['#f1c7a5', '#e0ac85', '#c68863', '#a0674a', '#7a4a33', '#ffdbbf'];
@@ -261,4 +261,123 @@ export function installSpots(ctx) {
     mrSmall[0], mrSmall[1], sofaB[0], sofaB[1], sofaB[2], ...meet, ...mrSouth, ...mrNorth, ...mrSmall.slice(2)];
   const LOBBY = { key: 'lobby', kind: 'idle', pos: { x: 15.6, z: -0.5 }, rotY: -Math.PI / 2, pose: 'chat', route: R([15.6, AISLE], [15.6, -0.5]) };
   Object.assign(ctx, { idleSpots, LOBBY, IDLE_ORDER, pp });
+}
+
+export function installSync(ctx) {
+  const { countEl, world, arrive, desks, LOBBY, IDLE_ORDER, leave, setClutter, clutterFor, usageScr, rosterScr, wallTV, feedTV, breakBoard } = ctx;
+  Object.assign(ctx, { sendTo, paintScreens, paintCode });
+  // ----- people sync -----
+  const people = new Map();
+  let overlays = localStorage.officeOverlays !== 'off';   // see setOverlays (H)
+  let first = true;
+  let S = null;
+  const routeOut = (p) => (p.spot ? [...p.spot.route].reverse().slice(1) : []);
+  function sendTo(p, target, instant) {
+    if (p.spot === target) return;
+    if (instant) { p.spot = target; p.place(target); return; }
+    p.path = [...routeOut(p), ...target.route].map((q) => ({ ...q }));
+    p.spot = target;
+  }
+  function sync(state) {
+    S = state;
+    const seen = new Set();
+    for (const s of state.live) {
+      seen.add(s.sessionId);
+      let p = people.get(s.sessionId);
+      if (!p) {
+        p = new Person(s.sessionId, dash.colorHex(s.sessionId));
+        p.label.visible = overlays;
+        people.set(s.sessionId, p);
+        world.add(p.root);
+        if (!first) arrive(p);
+      } else if (p.leaving) {   // back before the lift took them: that one carries on leaving, this session arrives afresh
+        people.delete(s.sessionId); people.set({}, p);
+        p = new Person(s.sessionId, dash.colorHex(s.sessionId));
+        p.label.visible = overlays;
+        people.set(s.sessionId, p);
+        world.add(p.root);
+        arrive(p);
+      }
+      p.session = s;
+      const atDesk = s.status !== 'idle';
+      if (!p.desk) { p.desk = desks.find((d) => !d.owner); if (p.desk) p.desk.owner = p; }
+      let target;
+      if (atDesk && p.desk) {
+        if (p.idle) { p.idle.occupant = null; p.idle = null; }
+        target = { ...p.desk.spot, pose: s.status === 'working' ? 'type' : 'wait' };
+        if (p.spot?.key === target.key) { p.spot.pose = target.pose; target = p.spot; }
+      } else {
+        if (!p.idle) { p.idle = IDLE_ORDER.find((q) => !q.occupant) || null; if (p.idle) p.idle.occupant = p; }
+        target = p.idle || LOBBY;
+      }
+      if (p.lift) p.want = target; else sendTo(p, target, first);
+    }
+    for (const [id, p] of people) {
+      if (seen.has(id) || p.leaving) continue;
+      p.leaving = true;
+      if (p.idle) p.idle.occupant = null;
+      if (p.desk) p.desk.owner = null;
+      leave(p);
+    }
+    first = false;
+    for (const d of desks) setClutter(d, d.owner && !d.owner.leaving ? clutterFor(d.owner.session, state.now || Date.now()) : 0);
+    const atDesks = state.live.filter((x) => x.status !== 'idle').length;
+    countEl.innerHTML = `<b>${atDesks}</b> at desks · <b>${state.live.length - atDesks}</b> in the breakroom${state.totals.subagentsActive ? ` · <b>${state.totals.subagentsActive}</b> subagents` : ''}`;
+    paintScreens(true);
+  }
+
+  let lastPaint = 0;
+  function paintScreens(force) {
+    const now = performance.now();
+    if (!S || (!force && now - lastPaint < 1000)) return;
+    lastPaint = now;
+    for (const d of desks) {
+      const s = d.owner?.session;
+      const key = s ? (s.status === 'idle' ? 'away' : 'live') : 'off';
+      if (key === 'off' && d.painted === 'off') continue;
+      if (!s) drawOff(d.scr);
+      else if (s.status === 'idle') drawAway(d.scr, s, d.owner.color);
+      else drawSession(d.scr, s, d.owner.color);
+      d.painted = key;
+      d.scr.mesh.userData.sessionId = d.codeScr.mesh.userData.sessionId = s?.sessionId;
+      d.scr.mesh.userData.screen = d.codeScr.mesh.userData.screen = true;
+      d.scr.tex.needsUpdate = true;
+      paintCode(d, now, true);
+    }
+    for (const p of people.values()) if (p.session && !p.leaving) p.setLabel(p.session);
+    drawUsage(usageScr, S); usageScr.tex.needsUpdate = true;
+    drawRoster(rosterScr, S); rosterScr.tex.needsUpdate = true;
+    drawWall(wallTV, S); wallTV.tex.needsUpdate = true;
+    if (tokenRoll.target !== S.totals.todayTokens) Object.assign(tokenRoll, { from: tokenRoll.shown ?? S.totals.todayTokens, target: S.totals.todayTokens, at: performance.now() });
+    drawFeed(feedTV, S); feedTV.tex.needsUpdate = true;
+    if (breakBoard.list) breakBoard.dirty = true;
+  }
+  // Typing animation: a new edit is revealed over 1.5-9 s (faster for big edits); already-seen edits show in full.
+  function paintCode(d, now, force) {
+    const s = d.owner?.session;
+    if (!s || s.status === 'idle') {
+      if (d.codePainted !== 'off') { drawOff(d.codeScr); d.codeScr.tex.needsUpdate = true; d.codePainted = 'off'; }
+      return;
+    }
+    const code = s.code, id = code?.id || 'none';
+    if (d.codeId !== id) {
+      const fresh = d.codeId !== undefined && code;
+      d.codeId = id;
+      d.codeAnim = fresh ? { start: now, dur: clamp(code.added.length / 0.09, 1500, 9000) } : null;
+    }
+    const a = d.codeAnim, typing = a && now - a.start < a.dur, recent = a && now - a.start < a.dur + 4000;
+    if (!force && !recent) return;
+    if (!force && now - (d.codeDrawn || 0) < (typing ? 70 : 500)) return;
+    d.codeDrawn = now;
+    const len = code ? code.added.length : 0;
+    const shown = typing ? Math.max(1, Math.floor(len * ease(clamp((now - a.start) / a.dur, 0, 1)))) : len;
+    drawCode(d.codeScr, s, d.owner.color, shown, recent ? Math.floor(now / 450) % 2 === 0 : null);
+    d.codeScr.tex.needsUpdate = true;
+    d.codePainted = 'code';
+  }
+
+  dash.onUpdate(sync);
+  Object.assign(ctx, { people, routeOut });
+  Object.defineProperty(ctx, 'overlays', { get: () => overlays, set: (v) => { overlays = v; }, enumerable: true });
+  Object.defineProperty(ctx, 'state', { get: () => S, set: (v) => { S = v; }, enumerable: true });   // the latest state from the server
 }
