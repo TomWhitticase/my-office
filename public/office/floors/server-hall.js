@@ -31,7 +31,7 @@ export function install(ctx) {
   for (const B of BLOCKS) { B.x0 = B.x(B.n - 1) - RK.w / 2; B.x1 = B.x(0) + RK.w / 2; }
   const RACKX = BLOCKS[0].x, AISLES = PODS.map((k) => k * POD), SLOTS = 54;
   const NOC = { x0: SV.x0, x1: -17, z0: 4, z1: SV.z1, h: 3 }, STAGE = { x0: SV.x0, x1: -14, z0: -17.5, z1: -2 };
-  const srv = { n: 47, label: 'SERVERS', title: 'Server Hall', on: false, composer: null, colliders: [], fixed: [], hits: [], slots: [], m: null,
+  const srv = { n: 47, label: 'SERVERS', title: 'Server Hall', blurb: 'Server hall · John, sysadmin', on: false, composer: null, colliders: [], fixed: [], hits: [], slots: [], m: null,
     hist: { cpu: [], mem: [], load: [], sess: [], net: [] }, polledAt: 0, tick: 0, paintAt: 0, nocAt: 0, doors: [], aisleDoors: [], john: null };
   // John: a Person with grey hair in a ponytail, glasses, a grey beard, a flannel shirt and a bit of a belly, at his desk
   // (J: the desk's x, z). His `mood` (type, sip, lean, read) is set in srv.fx; he turns his head to you while you talk.

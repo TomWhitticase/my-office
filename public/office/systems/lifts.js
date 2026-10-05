@@ -87,13 +87,20 @@ export function install(ctx) {
     c.font = `600 26px ${FONT}`; c.fillStyle = '#c3c2b7'; c.fillText('FLOOR', 250, 96);
     c.font = `400 24px ${FONT}`; c.fillText(fit(c, dash.officeName(), 310), 250, 132); c.fillText('Desks · Meeting rooms · Lounge', 250, 164);
     c.fillStyle = 'rgba(255,255,255,.14)'; c.fillRect(40, 214, 520, 2);
-    c.font = `400 22px ${FONT}`; c.fillStyle = '#9a9890';
-    [['R', 'Roof terrace · Helipad'], ['49', 'Plant room'], ['47', 'Server hall'], ['G', 'Lobby · Street · Coffee'],
-      ['B2', 'The Archive']].forEach(([f, t], i) => {
-      c.fillStyle = '#f2efe8'; c.font = `600 22px ${FONT}`; c.fillText(f, 44, 252 + i * 34); c.fillStyle = '#9a9890'; c.font = `400 22px ${FONT}`;
-      c.fillText(t, 100, 252 + i * 34);
-    });
-    sign.mesh.material = new THREE.MeshStandardMaterial({ map: sign.tex, roughness: 0.5 }); sign.tex.needsUpdate = true;
+    sign.mesh.material = new THREE.MeshStandardMaterial({ map: sign.tex, roughness: 0.5 });
+    // The directory: every other floor the lift serves, top first, from the FLOORS table (repainted as floors register).
+    const directory = (floors) => {
+      c.fillStyle = '#26282b'; c.fillRect(0, 222, 600, 178);
+      const rows = floors.filter((F) => F.n !== 48 && !F.carless), h = Math.min(34, 168 / Math.max(1, rows.length));
+      rows.forEach((F, i) => {
+        const y = 252 + i * h;
+        c.fillStyle = '#f2efe8'; c.font = `600 22px ${FONT}`; c.fillText(floorName(F.n), 44, y);
+        c.fillStyle = '#9a9890'; c.font = `400 22px ${FONT}`; c.fillText(fit(c, F.blurb || F.title, 450), 100, y);
+      });
+      sign.tex.needsUpdate = true;
+    };
+    directory([]);
+    Object.assign(ctx, { paintDirectory: directory });
   }
   // Hall lantern over each lift: floor and direction, repainted only when they change.
   const ROOF = 50;   // the roof terrace, two floors up (49 is the plant room); its button and lanterns read R
@@ -256,7 +263,7 @@ export function installRiding(ctx) {
   const OFFICE = /** @type {Floor} */ ({ n: 48, label: 'OFFICE', title: 'Office' }), FLOORS = /** @type {Floor[]} */ ([OFFICE]);
   let away = /** @type {Floor | null} */ (null);
   /** @param {Floor} F */
-  const addFloor = (F) => { FLOORS.push(F); FLOORS.sort((a, b) => b.n - a.n); for (const P of carPanels()) paintPanel(P, null); };
+  const addFloor = (F) => { FLOORS.push(F); FLOORS.sort((a, b) => b.n - a.n); for (const P of carPanels()) paintPanel(P, null); ctx.paintDirectory?.(FLOORS); };
   const carPanels = () => [...lifts.map((L) => L.panel), ...FLOORS.filter((F) => F.panel).map((F) => F.panel)];
   const mine = { L: null, call: false, goal: null, from: 48, to: 48, k: 0, dur: 1 };
   const inMyCar = () => !!mine.L && ctx.player.x > LIFT.x + 0.3 && Math.abs(ctx.player.z - mine.L.z) < CAR.w / 2;

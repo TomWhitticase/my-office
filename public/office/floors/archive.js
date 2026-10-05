@@ -17,7 +17,7 @@ export function install(ctx) {
   // filing cabinet (`arch.drawers`: a group per drawer, front at +z in the cabinet's space, so sliding one out is +z).
   // Its own scene and composer; while you're down here the office still runs, but isn't drawn or heard.
   const ARCH = { x: LIFT.x - 24, z: LIFT.z, r: 84 };   // the cabinet, 24 m out from the lift
-  const arch = { n: ARCHIVE, label: 'ARCHIVE', title: 'The Archive', on: false, colliders: [], drawers: [], composer: null };
+  const arch = { n: ARCHIVE, label: 'ARCHIVE', title: 'The Archive', blurb: 'The Archive · Repositories', on: false, colliders: [], drawers: [], composer: null };
   {
     // Plain white haze, brightened by exposure (see renderFloor): an over-bright background clear gets clamped.
     const S = arch.scene = new THREE.Scene(), haze = new THREE.Color('#ffffff');
