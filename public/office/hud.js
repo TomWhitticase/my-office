@@ -131,7 +131,7 @@ export const CSS = `
 
 export const hudHTML = (ALT, IS_MAC) => `<div class="of-cross"></div><div class="of-target"></div><canvas class="of-map" width="440" height="330" style="width:220px;height:165px"></canvas>
     <div class="of-count"></div>
-    <div class="of-time"><span class="of-clock"></span><button data-speed="1">Live</button><button data-speed="120">×120</button><button data-speed="1200">×1200</button><button data-speed="7200">×7200</button></div>
+    <div class="of-time"><span class="of-clock"></span><button data-speed="live">Live</button><button data-speed="1">×1</button><button data-speed="120">×120</button><button data-speed="1200">×1200</button><button data-speed="7200">×7200</button></div>
     <div class="of-legend"><kbd>W A S D</kbd> move · <kbd>Shift</kbd> run · <kbd>Click</kbd> talk to someone or use a TV · <kbd>E</kbd> details / set up a TV · <kbd>1</kbd> desks <kbd>2</kbd> breakroom <kbd>3</kbd> my office <kbd>4</kbd> lobby <kbd>5</kbd> meeting rooms · <kbd>T</kbd> time speed · <kbd>G</kbd> graphics · <kbd>H</kbd> hide overlays · <kbd>M</kbd> sounds · <kbd>Esc</kbd> release mouse</div>
     <div class="of-toast"></div>
     <div class="of-heli"><div><small>ALT</small><b class="alt"></b></div><div><small>SPEED</small><b class="spd"></b></div><div><small>HDG</small><b class="hdg"></b></div><div><small>ROTOR</small><b class="rpm"></b></div><div class="hint"></div></div>

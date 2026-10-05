@@ -270,7 +270,7 @@ export function mountOffice(container) {
       Object.assign(mine, { L, call: false, goal: null }); L.player = true;
       Object.assign(player, { x: LIFT.x + 1, z: L.z, seated: false, seat: null, eye: EYE });
       L.floor = n; L.dir = 0; setFloor(n === 48 ? null : FLOORS.find((F) => F.n === n)); setLift(L, 'opening'); return true;
-    }, pressFloor, setSpeed, clockState, setTime: (ms) => Object.assign(clockState, { speed: 0.0001, simBase: ms, realBase: Date.now() }) };
+    }, pressFloor, setSpeed, clockState, setTime: (ms) => Object.assign(clockState, { mode: 0.0001, speed: 0.0001, simBase: ms, realBase: Date.now() }) };
 
   return {
     // Adopt your desktop onto the monitor, then pull back from it to the chair.

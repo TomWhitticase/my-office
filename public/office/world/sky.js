@@ -175,18 +175,34 @@ export function install(ctx) {
     }
   }
 
-  const SPEEDS = [1, 120, 1200, 7200];
+  // 'live' is the real clock; a number runs the office's own clock that many times real time from wherever it is now, so
+  // ×1 keeps a sped-up evening going at real speed instead of jumping back to now.
+  const SPEEDS = ['live', 1, 120, 1200, 7200];
   const timeEl = hud.querySelector('.of-time'), clockEl = hud.querySelector('.of-clock');
-  const clockState = { speed: 1, simBase: Date.now(), realBase: Date.now() };
-  const simNow = () => (clockState.speed === 1 ? Date.now() : clockState.simBase + (Date.now() - clockState.realBase) * clockState.speed);
-  function setSpeed(sp) {
-    const cur = simNow();
-    Object.assign(clockState, { speed: sp, simBase: sp === 1 ? Date.now() : cur, realBase: Date.now() });
-    localStorage.officeTimeSpeed = sp;
-    for (const b of timeEl.querySelectorAll('button')) b.setAttribute('aria-pressed', String(+b.dataset.speed === sp));
+  const clockState = { mode: 'live', speed: 1, simBase: Date.now(), realBase: Date.now() };
+  const simNow = () => (clockState.mode === 'live' ? Date.now() : clockState.simBase + (Date.now() - clockState.realBase) * clockState.speed);
+  function setSpeed(m, at = simNow()) {
+    const live = m === 'live';
+    Object.assign(clockState, { mode: m, speed: live ? 1 : m, simBase: live ? Date.now() : at, realBase: Date.now() });
+    saveClock();
+    for (const b of timeEl.querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.speed === String(m)));
   }
-  timeEl.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) setSpeed(+b.dataset.speed); });
-  setSpeed(SPEEDS.includes(+localStorage.officeTimeSpeed) ? +localStorage.officeTimeSpeed : 1);
+  // Saved as 'live' or 'x<speed>' with the office clock's time, so a reload (a deploy reloads open pages) carries on
+  // from where the clock was. Older saves stored a bare number, and 1 meant Live.
+  function saveClock() {
+    localStorage.officeTimeSpeed = clockState.mode === 'live' ? 'live' : `x${clockState.mode}`;
+    localStorage.officeTimeAt = JSON.stringify([simNow(), Date.now()]);
+  }
+  addEventListener('pagehide', saveClock);
+  const speedOf = (v) => (v === 'live' ? 'live' : +v);
+  timeEl.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) setSpeed(speedOf(b.dataset.speed)); });
+  {
+    const saved = localStorage.officeTimeSpeed || 'live';
+    const m = saved.startsWith('x') ? +saved.slice(1) : saved === '1' ? 'live' : speedOf(saved);
+    let at;
+    try { const [sim, real] = JSON.parse(localStorage.officeTimeAt); if (m !== 'live' && Number.isFinite(sim + real)) at = sim + (Date.now() - real) * m; } catch {}
+    setSpeed(SPEEDS.includes(m) ? m : 'live', at);
+  }
   let clockText = '';
   function updateClock(date) {
     const txt = `${daylight > 0.5 ? '☀︎' : '☾'}  ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ${date.toLocaleDateString([], { weekday: 'short' })}`;

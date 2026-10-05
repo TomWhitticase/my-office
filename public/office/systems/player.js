@@ -194,7 +194,7 @@ export function install(ctx) {
   ctx.key('KeyM',
     () => { dash.setSound({ on: !dash.sound.on }); sfx.unlock();
     toast(`Sounds ${dash.sound.on ? 'on' : 'off'} · <kbd>M</kbd> to ${dash.sound.on ? 'mute' : 'unmute'}`); return true; });
-  ctx.key('KeyT', () => { setSpeed(SPEEDS[(SPEEDS.indexOf(clockState.speed) + 1) % SPEEDS.length]); return true; });
+  ctx.key('KeyT', () => { setSpeed(SPEEDS[(SPEEDS.indexOf(clockState.mode) + 1) % SPEEDS.length]); return true; });
   ctx.key('KeyE', () => { if (!ctx.hover?.tv) return false; document.exitPointerLock(); openTvPanel(ctx.hover.tv); return true; });
   ctx.key('KeyE', () => { if (!ctx.hover?.sessionId) return false; document.exitPointerLock(); dash.openDrawer(ctx.hover.sessionId); return true; });
   Object.assign(ctx, { player, keys, seatTaken, TELEPORTS });
