@@ -4081,18 +4081,19 @@ export function mountOffice(container) {
   const fmtCoord = (c) => `${c.slice(0, 4)}·${c.slice(4)}`;
   const fmtSize = (b) => (b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : b >= 1024 ? `${(b / 1024).toFixed(1)} KB` : `${b} B`);
   // Out on its own, 70 m left of the cabinet, up on a plinth with steps either side (PL high, its top PW wide and PD deep). The
-  // ring stands in a slot cut through the plinth, its foot just off the floor and its portal level with the top.
+  // ring stands in a slot cut through the plinth, touching nothing, its foot just off the floor and its portal level with the top.
   const GATE = { x: ARCH.x - 14, z: ARCH.z + 68, y: 2.82, R: 2.6, tube: 0.2, PL: 0.9, PW: 6.4, PD: 3.6, STEP: 0.35, SLOT: 0.3, CUT: 2.2 };
   const portalMat = (core, rim) => new THREE.ShaderMaterial({
-    uniforms: { uOpen: { value: 0 }, uTime: { value: 0 }, uHaze: { value: 0 }, uReady: { value: 0 }, uCore: { value: new THREE.Color(...core) }, uRim: { value: new THREE.Color(...rim) } },
+    uniforms: { uOpen: { value: 0 }, uTime: { value: 0 }, uHaze: { value: 0 }, uReady: { value: 0 }, uFlash: { value: 0 }, uCore: { value: new THREE.Color(...core) }, uRim: { value: new THREE.Color(...rim) } },
     vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-    fragmentShader: `uniform float uOpen, uTime, uHaze, uReady; uniform vec3 uCore, uRim; varying vec2 vUv;
+    fragmentShader: `uniform float uOpen, uTime, uHaze, uReady, uFlash; uniform vec3 uCore, uRim; varying vec2 vUv;
       void main() {
         vec2 p = vUv * 2.0 - 1.0; float r = length(p), a = atan(p.y, p.x);
         float z = 0.35 / (r + 0.04) + uTime * (0.2 + 0.5 * uReady);   // a tunnel of threads, rushing once it's tuned in
         float g = pow(1.0 - abs(fract(a / 6.2831853 * 24.0) - 0.5) * 2.0, 26.0) + pow(1.0 - abs(fract(z) - 0.5) * 2.0, 18.0);
         vec3 c = mix(uCore, uRim, smoothstep(0.0, 0.9, r)) + vec3(1.6, 1.05, 0.45) * g * smoothstep(0.02, 0.35, r) * (0.3 + 0.7 * uReady);
-        gl_FragColor = vec4(mix(c, vec3(1.0), uHaze), uOpen * smoothstep(1.0, 0.94, r));
+        c += vec3(2.4, 1.9, 1.2) * uFlash * (1.0 - 0.6 * r);   // the moment it's ready
+        gl_FragColor = vec4(mix(c, vec3(1.0), uHaze), max(uOpen, uFlash) * smoothstep(1.0, 0.94, r));
       }`,
     transparent: true, depthWrite: false, side: THREE.DoubleSide,
   });
@@ -4130,8 +4131,7 @@ export function mountOffice(container) {
     const { PL, PW, PD, STEP, SLOT, CUT } = GATE, n = Math.round(PL / 0.15), run = n * STEP, side = PW / 2 - CUT;
     const stone = [...[-1, 1].map((s) => [PW, PL, PD / 2 - SLOT, 0, PL / 2, s * (PD / 2 + SLOT) / 2, '#2a2622']),   // either side of the slot
       ...[-1, 1].map((s) => [side, PL, SLOT * 2, s * (CUT + side / 2), PL / 2, 0, '#2a2622']),   // past the ring's ends
-      [CUT * 2, 0.02, SLOT * 2, 0, 0.01, 0, '#0b0907'],   // the slot's floor, in shadow
-      [2.7, 0.04, SLOT * 2 + 0.06, 0, PL - 0.02, 0, '#b08a4a']];   // a brass threshold across it, under the portal
+      [CUT * 2, 0.02, SLOT * 2, 0, 0.01, 0, '#0b0907']];   // the slot's floor, in shadow
     for (let j = 0; j < n; j++) for (const s of [-1, 1]) stone.push([PW, PL - (j + 1) * 0.15, STEP, 0, (PL - (j + 1) * 0.15) / 2, s * (PD / 2 + (j + 0.5) * STEP), j % 2 ? '#2e2a26' : '#332e29']);
     for (const s of [-1, 1]) stone.push([PW + 0.02, 0.02, 0.04, 0, PL + 0.01, s * (PD / 2 - 0.02), '#b08a4a']);   // brass nosing at the top step
     const plinth = mergedBoxes(stone, mat('#ffffff', { vertexColors: true, roughness: 0.7, metalness: 0.2 }));
@@ -4146,7 +4146,7 @@ export function mountOffice(container) {
     arch.ground = (x, z) => {
       if (Math.abs(x - GATE.x) > PW / 2) return 0;
       const d = Math.abs(z - GATE.z) - PD / 2;
-      return d < 0 ? PL : Math.max(0, PL - Math.ceil(d / STEP + 1e-6) * 0.15);   // (the threshold bridges the slot)
+      return d < 0 ? PL : Math.max(0, PL - Math.ceil(d / STEP + 1e-6) * 0.15);   // (you step over the slot)
     };
     // The lectern, on the floor to the right of the steps: the keypad on a sloped brass board, clear of everything.
     const ped = new THREE.Group(), PX = GATE.x + 2.6, PZ = GATE.z - PD / 2 - run - 1.2;
@@ -4209,25 +4209,36 @@ export function mountOffice(container) {
     paintPad();
   }
   async function tune(f, at) {
-    Object.assign(gate, { repo: f, to: 1, ready: false, bad: false, msg: `TUNING IN · ${f.name.toUpperCase()}` });
+    Object.assign(gate, { repo: f, to: 1, ready: false, prog: 0, bad: false, msg: `TUNING IN · ${f.name.toUpperCase()}` });
     sfx.cabinet('accept', at, 0.35); sfx.cabinet('spinup', GATE_P, 0.7);
     const ok = await loadTree(f, ({ done, total }) => {
       if (gate.repo !== f) return false;
-      gate.msg = total ? `TUNING IN · ${done} / ${total} COMMITS` : `TUNING IN · ${f.name.toUpperCase()}`; paintPad();
+      gate.msg = total ? `TUNING IN · ${done} / ${total} COMMITS` : `TUNING IN · ${f.name.toUpperCase()}`; gate.prog = total ? done / total : 0; paintPad();
       return true;
     });
     if (gate.repo !== f) return;
-    if (ok) Object.assign(gate, { ready: true, msg: `OPEN · ${f.name.toUpperCase()} · WALK THROUGH` });
+    if (ok) { Object.assign(gate, { ready: true, flash: 1, prog: 1, msg: `OPEN · ${f.name.toUpperCase()} · WALK THROUGH` }); sfx.cabinet('accept', GATE_P, 0.5); sfx.cabinet('boom', GATE_P, 0.4); }
     else { Object.assign(gate, { to: 0, msg: 'CAN’T REACH IT · TRY AGAIN', bad: true, clear: true }); sfx.cabinet('buzz', at, 0.35); }
     paintPad();
   }
   function gateFx(dt, t) {
-    gate.open = gate.to ? Math.min(1, gate.open + dt / 2.2) : Math.max(0, gate.open - dt / 1.2);
+    // Tuning in (the history still loading): it powers up, flickering and building with the progress, a slow tunnel, the dial
+    // spinning ever faster; only once it's ready does it open fully, with a flash. Before then you can't go through.
+    const loading = gate.to && !gate.ready;
+    gate.open = gate.ready ? Math.min(1, gate.open + dt / 0.8) : Math.max(0, gate.open - dt / 1.2);
+    gate.charge = damp(gate.charge || 0, loading ? Math.max(0.08, gate.prog || 0) : 0, 3, dt);
+    const flick = loading ? 0.55 + 0.45 * Math.abs(Math.sin(t * 11.3) * Math.sin(t * 4.1 + 1)) : 0;
     const u = gate.u;
-    u.uOpen.value = ease(gate.open); u.uTime.value = t; u.uReady.value = damp(u.uReady.value, gate.ready ? 1 : 0, 2, dt);
+    u.uOpen.value = Math.max(ease(gate.open), (0.3 + 0.45 * gate.charge) * flick); u.uTime.value = t;
+    u.uReady.value = damp(u.uReady.value, gate.ready ? 1 : 0.3 * gate.charge, 2, dt);
+    gate.flash = Math.max(0, (gate.flash || 0) - dt / 0.9); u.uFlash.value = gate.flash ** 1.5;
     u.uHaze.value = clamp((Math.hypot(camera.position.x - GATE.x, camera.position.z - GATE.z) - 8) / 87, 0, 1) * 0.9;   // the scene's fog
-    gate.dial.rotation.z += dt * (0.02 + 0.25 * gate.open);
+    gate.dial.rotation.z += dt * (0.02 + 0.25 * gate.open + (loading ? 0.4 + 2.4 * gate.charge : 0));
     if (gate.hot && performance.now() > gate.hotT) { gate.hot = null; paintPad(); }
+    if (loading && mode === 'free' && gate.side < 0 && Math.abs(player.x - GATE.x) < 1.5 && player.z > GATE.z - 0.45) {   // not yet: a soft bounce
+      player.z = GATE.z - 0.45;
+      if (t > (gate.bumpT || 0)) { gate.bumpT = t + 1.2; sfx.cabinet('buzz', GATE_P, 0.25); }
+    }
     const side = Math.sign(player.z - GATE.z) || 1;
     if (side > 0 && gate.side < 0 && gate.ready && gate.open > 0.9 && Math.abs(player.x - GATE.x) < 1.3 && mode === 'free') enterTess();
     gate.side = side;
