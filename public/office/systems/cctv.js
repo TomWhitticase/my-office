@@ -13,7 +13,7 @@
 // full screen) the office keeps running for the feeds on a loop of its own (resume()).
 
 import * as THREE from 'three';
-import { dash, mat, rng } from '../util.js';
+import { dash, mat, ME_LAYER, rng } from '../util.js';
 
 // Floor, name, where it's mounted ('dome' under the ceiling, or a beam at `ceil`; 'wall' on a bracket from the point `wall`;
 // 'pole' on a mast from the deck), where the lens is and what it looks at, in its floor's own space (the hall's root, the
@@ -101,7 +101,7 @@ function build(ctx) {
     const eye = new THREE.PerspectiveCamera(c.fov ?? (c.kind === 'dome' ? 58 : 52), 16 / 9, 0.05, c.n === 50 ? 3000 : FAR);
     eye.position.copy(at).sub(p).setLength(0.08).add(p);
     eye.quaternion.setFromRotationMatrix(m4.lookAt(eye.position, at, UP));
-    eye.layers.enable(1);   // the transparent things (see post.js); not LAYER
+    eye.layers.enable(1); eye.layers.enable(ME_LAYER);   // the transparent things (see post.js), and you; not LAYER
     g.add(eye);
     return { ...c, F, g, eye, ledM, live: false, seen: 0 };
   });

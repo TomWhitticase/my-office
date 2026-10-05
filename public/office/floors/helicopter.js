@@ -508,5 +508,5 @@ function build(ctx) {
   const stage0 = roof.cctv.stage;
   roof.cctv.stage = () => { const undo = stage0(), was = g.visible; g.visible = true; return () => { g.visible = was; undo(); }; };
 
-  ctx.heli = { S, keys: K, board, getOut, goHome, park, get eye() { return eyePose(); } };
+  ctx.heli = { S, body, keys: K, board, getOut, goHome, park, get eye() { return eyePose(); } };
 }

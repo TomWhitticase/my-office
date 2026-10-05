@@ -9,6 +9,7 @@ export const F = dash.fmt;
 export const AISLE = 0.5;
 export const PP = { x: -8.6, z: 12.6 };   // ping pong table centre
 export const EYE = 1.65, SEATED_EYE = 1.2;
+export const ME_LAYER = 2;   // you (systems/avatar.js): drawn only by the security cameras' feeds
 export const ROOM = { minX: -20, maxX: 20, minZ: -15, maxZ: 15, h: 3.3 };
 export const LIFT = { x: 18, z: 0.4 };   // lift lobby: the face of the lift core and its call panel, between the two lifts
 export const FONT = 'system-ui, -apple-system, "Segoe UI", sans-serif';

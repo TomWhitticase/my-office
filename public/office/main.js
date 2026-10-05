@@ -35,6 +35,7 @@ import { install as installRoof } from './floors/roof.js';
 import { install as installHelicopter } from './floors/helicopter.js';
 import { install as installServerHall } from './floors/server-hall.js';
 import { install as installCctv } from './systems/cctv.js';
+import { install as installAvatar } from './systems/avatar.js';
 import { install as installChat } from './systems/chat.js';
 import { install as installHover } from './systems/hover.js';
 import { install as installMinimap } from './systems/minimap.js';
@@ -211,6 +212,7 @@ export function mountOffice(container) {
   setOverlays(ctx.overlays, true);
   installRender(ctx);
   const { renderFrame } = ctx;
+  installAvatar(ctx);   // after post's layer sort: its name tag is a sprite, kept off your view's layers
 
   // ----- loop -----
   let raf = 0, lastT = performance.now();
