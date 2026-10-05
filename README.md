@@ -59,7 +59,8 @@ Click your own monitor to use your computer.
 
 ## How it works
 
-`server.js` is a small Node server with no dependencies. It tails:
+`server.js` is a small Node server with no dependencies (the work is in `server/`: transcripts, state, sending to
+sessions, the TV browser, your repos, John, this machine, the office settings and the security checks). It tails:
 
 | Source | What it gives |
 | --- | --- |
@@ -68,7 +69,15 @@ Click your own monitor to use your computer.
 | `~/.claude/my-office/statusline/*.json` | the latest status line payload per session: cost, context %, prompt cache, plan rate limits. Written by `bin/statusline-tap.sh` |
 | `~/.claude/powerline/usage/` | daily history, if you use claude-powerline (optional) |
 
-It streams state to the browser over Server-Sent Events. The 3D office (`public/office.js`) uses Three.js; the desktop on your monitor is real HTML (`public/desktop.js`) projected into the scene with CSS3DRenderer. The wall TVs are tabs in a hidden Chrome the server drives over the DevTools protocol, streamed onto the screens.
+It streams state to the browser over Server-Sent Events. The 3D office uses Three.js and is plain ES modules under
+`public/office/`, no build step: `main.js` sets up the renderer, scene and loop and installs each part of the building
+(`world/` for the rooms, `systems/` for the lifts, you, the TVs, chat and hover, `floors/` for the archive, the gateway,
+the roof and the server hall), which share one context object. The desktop on your monitor is real HTML
+(`public/desktop.js`) projected into the scene with CSS3DRenderer. The wall TVs are tabs in a hidden Chrome the server
+drives over the DevTools protocol, streamed onto the screens.
+
+`test/` holds the harness that checks a change to the code changed nothing you can see: screenshots of the office at
+fixed poses, snapshots of how it's built and of every API response (see `test/README.md`).
 
 Costs are API-equivalent estimates at list prices. On a Pro/Max subscription they measure usage, not a bill.
 
