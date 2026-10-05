@@ -17,7 +17,7 @@ import { createSounds } from './sounds.js';
 import { CAN_CHAT, chatView, escapeHtml, titleOf } from './chat.js';
 import { AISLE, EYE, F, FONT, LIFT, MARKER, PP, REDUCED, ROOM, SEATED_EYE, WB_COLORS, angDiff, artTexture, box, brickTexture, clamp, colliders, cyl, damp, dash, ease, faceTo, fit, hash, leafTexture, lerp, makeCanvas, makeScreen, mat, mergedBoxes, rng, rugTexture, solid, sstep, woodTexture } from './office/util.js';
 import { MONO, drawAway, drawBoard, drawCode, drawFeed, drawOff, drawRoster, drawSession, drawUsage, drawWall, statusOf, tokenRoll } from './office/painters.js';
-import { G, Person, installSpots } from './office/people.js';
+import { G, Person, installSpots, installSync } from './office/people.js';
 import { createCtx } from './office/ctx.js';
 import { install as installFurniture } from './office/world/furniture.js';
 import { install as installDesks } from './office/world/desks.js';
@@ -40,6 +40,10 @@ import { install as installArchive } from './office/floors/archive.js';
 import { install as installGateway } from './office/floors/gateway.js';
 import { install as installRoof } from './office/floors/roof.js';
 import { install as installServerHall } from './office/floors/server-hall.js';
+import { install as installChat } from './office/systems/chat.js';
+import { install as installHover } from './office/systems/hover.js';
+import { install as installMinimap } from './office/systems/minimap.js';
+import { install as installPost, installRender } from './office/systems/post.js';
 
 // ---------- the office ----------
 export function mountOffice(container) {
@@ -164,22 +168,18 @@ export function mountOffice(container) {
   // What every part of the office shares. Values that change (the state, which floor you're on, what you're doing) are
   // read through it each time, never copied.
   const ctx = createCtx({
-    THREE, dash, container, colliders, toast, setQuality,
+    THREE, dash, container, colliders, toast,
     get renderer() { return renderer; }, get scene() { return scene; }, get world() { return world; }, get camera() { return camera; },
-    get hud() { return hud; }, get people() { return people; },
-    get sfx() { return sfx; }, get state() { return S; },
-    get quality() { return hq; },
-    get hover() { return hover; },
+    get hud() { return hud; },
+    get sfx() { return sfx; },
     get cssScene() { return cssScene; },
     get pmrem() { return pmrem; },
     get ALT() { return ALT; }, get IS_MAC() { return IS_MAC; },
-    get routeOut() { return routeOut; },
-    get sendTo() { return sendTo; },
-    get openChat() { return openChat; }, get closeChat() { return closeChat; },
-    get setOverlays() { return setOverlays; }, get overlays() { return overlays; },
-    get cssRenderer() { return cssRenderer; }, get bloom() { return bloom; }, get grade() { return grade; },
+    get setOverlays() { return setOverlays; },
+    get cssRenderer() { return cssRenderer; },
     get style() { return style; }, get mapCtx() { return mapCtx; },
-    get johnChat() { return johnChat; },
+    get countEl() { return countEl; },
+    get targetEl() { return targetEl; },
   });
 
   // ----- renderers -----
@@ -312,117 +312,8 @@ export function mountOffice(container) {
   const sfx = createSounds({ camera, rugs, glass: { minX: 6, maxX: 20, minZ: -15, maxZ: -3.5 }, lift: LIFT, coffee: { x: -16.5, y: 1.25, z: 14.5, onBrew: () => kitchen.brew(false) }, doorPos: { x: 7.7, z: -3.5 },
     roof: { minX: -EDGE.x, maxX: EDGE.x, minZ: -EDGE.z, maxZ: EDGE.z } });
 
-  // ----- people sync -----
-  const people = new Map();
-  let overlays = localStorage.officeOverlays !== 'off';   // see setOverlays (H)
-  let first = true;
-  let S = null;
-  const routeOut = (p) => (p.spot ? [...p.spot.route].reverse().slice(1) : []);
-  function sendTo(p, target, instant) {
-    if (p.spot === target) return;
-    if (instant) { p.spot = target; p.place(target); return; }
-    p.path = [...routeOut(p), ...target.route].map((q) => ({ ...q }));
-    p.spot = target;
-  }
-  function sync(state) {
-    S = state;
-    const seen = new Set();
-    for (const s of state.live) {
-      seen.add(s.sessionId);
-      let p = people.get(s.sessionId);
-      if (!p) {
-        p = new Person(s.sessionId, dash.colorHex(s.sessionId));
-        p.label.visible = overlays;
-        people.set(s.sessionId, p);
-        world.add(p.root);
-        if (!first) arrive(p);
-      } else if (p.leaving) {   // back before the lift took them: that one carries on leaving, this session arrives afresh
-        people.delete(s.sessionId); people.set({}, p);
-        p = new Person(s.sessionId, dash.colorHex(s.sessionId));
-        p.label.visible = overlays;
-        people.set(s.sessionId, p);
-        world.add(p.root);
-        arrive(p);
-      }
-      p.session = s;
-      const atDesk = s.status !== 'idle';
-      if (!p.desk) { p.desk = desks.find((d) => !d.owner); if (p.desk) p.desk.owner = p; }
-      let target;
-      if (atDesk && p.desk) {
-        if (p.idle) { p.idle.occupant = null; p.idle = null; }
-        target = { ...p.desk.spot, pose: s.status === 'working' ? 'type' : 'wait' };
-        if (p.spot?.key === target.key) { p.spot.pose = target.pose; target = p.spot; }
-      } else {
-        if (!p.idle) { p.idle = IDLE_ORDER.find((q) => !q.occupant) || null; if (p.idle) p.idle.occupant = p; }
-        target = p.idle || LOBBY;
-      }
-      if (p.lift) p.want = target; else sendTo(p, target, first);
-    }
-    for (const [id, p] of people) {
-      if (seen.has(id) || p.leaving) continue;
-      p.leaving = true;
-      if (p.idle) p.idle.occupant = null;
-      if (p.desk) p.desk.owner = null;
-      leave(p);
-    }
-    first = false;
-    for (const d of desks) setClutter(d, d.owner && !d.owner.leaving ? clutterFor(d.owner.session, state.now || Date.now()) : 0);
-    const atDesks = state.live.filter((x) => x.status !== 'idle').length;
-    countEl.innerHTML = `<b>${atDesks}</b> at desks · <b>${state.live.length - atDesks}</b> in the breakroom${state.totals.subagentsActive ? ` · <b>${state.totals.subagentsActive}</b> subagents` : ''}`;
-    paintScreens(true);
-  }
-
-  let lastPaint = 0;
-  function paintScreens(force) {
-    const now = performance.now();
-    if (!S || (!force && now - lastPaint < 1000)) return;
-    lastPaint = now;
-    for (const d of desks) {
-      const s = d.owner?.session;
-      const key = s ? (s.status === 'idle' ? 'away' : 'live') : 'off';
-      if (key === 'off' && d.painted === 'off') continue;
-      if (!s) drawOff(d.scr);
-      else if (s.status === 'idle') drawAway(d.scr, s, d.owner.color);
-      else drawSession(d.scr, s, d.owner.color);
-      d.painted = key;
-      d.scr.mesh.userData.sessionId = d.codeScr.mesh.userData.sessionId = s?.sessionId;
-      d.scr.mesh.userData.screen = d.codeScr.mesh.userData.screen = true;
-      d.scr.tex.needsUpdate = true;
-      paintCode(d, now, true);
-    }
-    for (const p of people.values()) if (p.session && !p.leaving) p.setLabel(p.session);
-    drawUsage(usageScr, S); usageScr.tex.needsUpdate = true;
-    drawRoster(rosterScr, S); rosterScr.tex.needsUpdate = true;
-    drawWall(wallTV, S); wallTV.tex.needsUpdate = true;
-    if (tokenRoll.target !== S.totals.todayTokens) Object.assign(tokenRoll, { from: tokenRoll.shown ?? S.totals.todayTokens, target: S.totals.todayTokens, at: performance.now() });
-    drawFeed(feedTV, S); feedTV.tex.needsUpdate = true;
-    if (breakBoard.list) breakBoard.dirty = true;
-  }
-  // Typing animation: a new edit is revealed over 1.5-9 s (faster for big edits); already-seen edits show in full.
-  function paintCode(d, now, force) {
-    const s = d.owner?.session;
-    if (!s || s.status === 'idle') {
-      if (d.codePainted !== 'off') { drawOff(d.codeScr); d.codeScr.tex.needsUpdate = true; d.codePainted = 'off'; }
-      return;
-    }
-    const code = s.code, id = code?.id || 'none';
-    if (d.codeId !== id) {
-      const fresh = d.codeId !== undefined && code;
-      d.codeId = id;
-      d.codeAnim = fresh ? { start: now, dur: clamp(code.added.length / 0.09, 1500, 9000) } : null;
-    }
-    const a = d.codeAnim, typing = a && now - a.start < a.dur, recent = a && now - a.start < a.dur + 4000;
-    if (!force && !recent) return;
-    if (!force && now - (d.codeDrawn || 0) < (typing ? 70 : 500)) return;
-    d.codeDrawn = now;
-    const len = code ? code.added.length : 0;
-    const shown = typing ? Math.max(1, Math.floor(len * ease(clamp((now - a.start) / a.dur, 0, 1)))) : len;
-    drawCode(d.codeScr, s, d.owner.color, shown, recent ? Math.floor(now / 450) % 2 === 0 : null);
-    d.codeScr.tex.needsUpdate = true;
-    d.codePainted = 'code';
-  }
-
-  dash.onUpdate(sync);
+  installSync(ctx);
+  const { sendTo, paintScreens, paintCode, people, routeOut } = ctx;
 
   installPlayer(ctx);
   const { sitIn, openLaptop, collide, tween, camPose, setCam, movePlayer, laptopFx, stepTween, fillPose, seatedPose, player, keys, seatTaken,
@@ -434,305 +325,21 @@ export function mountOffice(container) {
   installDrawing(ctx);
   const { leaveBoard, useBoard, wb } = ctx;
 
-  // ----- talking to a session -----
-  // Clicking a person opens their conversation (right) and a message bar (bottom); keys go to the bar until Esc. The log,
-  // polling and sending are shared with the desktop's Messages app (chat.js).
-  const chatEl = hud.querySelector('.of-chat'), chatLog = chatEl.querySelector('.of-chatlog'), chatBar = hud.querySelector('.of-chatbar');
-  const chatIn = chatBar.querySelector('textarea');
-  const bubble = new THREE.Sprite(new THREE.SpriteMaterial({ depthWrite: false, transparent: true }));
-  { const b = makeCanvas(128, 96), c = b.ctx;
-    c.fillStyle = '#fff'; c.beginPath(); c.roundRect(8, 6, 112, 64, 22); c.moveTo(40, 68); c.lineTo(30, 92); c.lineTo(62, 68); c.fill();
-    c.fillStyle = '#3987e5'; for (const x of [40, 64, 88]) { c.beginPath(); c.arc(x, 38, 8, 0, Math.PI * 2); c.fill(); }
-    bubble.material.map = b.tex; bubble.scale.set(0.42, 0.315, 1); bubble.visible = false; bubble.layers.set(1); }
-  let bubbleT = 0;
-  const talk = chatView({ log: chatLog, input: chatIn, send: chatBar.querySelector('button'), status: chatBar.querySelector('.st'), keys: ' · <kbd>Esc</kbd> back',
-    onUpdate: renderChatHead,
-    onSent(id) {
-      const p = people.get(id);
-      if (p) { p.root.add(bubble); bubble.position.y = 2.5; bubble.visible = true; clearTimeout(bubbleT); bubbleT = setTimeout(() => (bubble.visible = false), 4000); }
-    } });
-  function openChat(id) {
-    if (!CAN_CHAT) { dash.openDrawer(id); return; }
-    if (ctx.mode !== 'free' && ctx.mode !== 'chat') return;
-    if (document.pointerLockElement) document.exitPointerLock();
-    ctx.mode = 'chat'; keys.clear();
-    hud.classList.add('of-chatting');
-    const p = people.get(id);
-    if (p) p.lookAt = camera.position;
-    talk.open(id);
-    renderChatHead();
-    setTimeout(() => chatIn.focus());
-  }
-  function closeChat(relock) {
-    if (johnChat.open) { closeJohn(relock); return; }
-    if (!talk.id) return;
-    const p = people.get(talk.id);
-    if (p) p.lookAt = null;
-    talk.close();
-    hud.classList.remove('of-chatting');
-    if (ctx.mode === 'chat') ctx.mode = 'free';
-    if (relock) renderer.domElement.requestPointerLock();   // only works from a click; after Esc, click to look around again
-  }
-  function renderChatHead() {
-    const s = S?.live.find((x) => x.sessionId === talk.id), st = s ? statusOf(s) : { text: 'ENDED', color: '#9a9890' };
-    chatEl.querySelector('i').style.background = dash.colorHex(talk.id);
-    chatEl.querySelector('b').textContent = s ? titleOf(s) : 'Session ended';
-    const sm = chatEl.querySelector('small');
-    sm.textContent = s ? `${st.text}${s.status === 'idle' ? ` · ${F.dur(Date.now() - s.statusSince)}` : ''} · ${s.name}` : '';
-    sm.style.color = st.color;
-  }
-  chatEl.addEventListener('click', (e) => {
-    const b = e.target.closest('button');
-    if (b?.dataset.act === 'details') dash.openDrawer(talk.id);
-    else if (b?.dataset.act === 'close') closeChat();
-  });
-  // ----- talking to John (the server hall) -----
-  // The same panel and bar, cloned: John isn't a session, so his messages go to POST /api/john (claude -p on the server,
-  // with a snapshot of the machine and sessions) and live only here. A bubble over his head while he thinks.
-  const johnEl = chatEl.cloneNode(true), johnBar = chatBar.cloneNode(true);
-  johnEl.classList.add('of-john'); johnBar.classList.add('of-john'); hud.append(johnEl, johnBar);
-  johnEl.querySelector('[data-act=details]').remove();
-  johnEl.querySelector('i').style.background = '#7a2e2a';
-  johnEl.querySelector('b').textContent = 'John';
-  johnEl.querySelector('small').textContent = 'Sysadmin · Server hall, floor 47';
-  const johnLog = johnEl.querySelector('.of-chatlog'), johnIn = johnBar.querySelector('textarea'), johnSt = johnBar.querySelector('.st');
-  johnIn.maxLength = 600; johnIn.placeholder = 'Ask John about the servers';
-  const johnChat = { open: false, busy: false, msgs: [{ role: 'john', text: 'Alright? Pull up a chair. What d’you want to know about the boxes?' }], note: null };
-  function renderJohn() {
-    johnLog.innerHTML = johnChat.msgs.map((m) => (m.role === 'user' ? `<div class="u">${escapeHtml(m.text)}</div>` : `<div class="${m.lunch || m.error ? 'n' : 'a'}">${escapeHtml(m.text)}</div>`)).join('')
-      + (johnChat.busy ? '<div class="n typing">John is typing</div>' : '');
-    johnLog.scrollTop = johnLog.scrollHeight;
-    johnSt.className = 'st' + (johnChat.note ? ' bad' : '');
-    johnSt.innerHTML = johnChat.note ? escapeHtml(johnChat.note) : 'He reads the live stats, nothing else · <kbd>Enter</kbd> send · <kbd>Esc</kbd> back';
-    johnIn.disabled = johnBar.querySelector('button').disabled = johnChat.busy;
-  }
-  async function askJohn() {
-    const text = johnIn.value.trim();
-    if (!text || johnChat.busy) return;
-    const history = johnChat.msgs.filter((m) => !m.lunch && !m.error).slice(-10).map(({ role, text }) => ({ role, text }));
-    johnChat.msgs.push({ role: 'user', text }); johnIn.value = ''; johnIn.style.height = '';
-    johnChat.busy = true; johnChat.note = null; renderJohn();
-    srv.john.root.add(bubble); bubble.position.y = 2.0; bubble.visible = true;
-    const r = await fetch('/api/john', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text, history }) })
-      .then((x) => x.json()).catch((e) => ({ error: e.message }));
-    johnChat.busy = false; bubble.visible = false;
-    if (r.reply) johnChat.msgs.push({ role: 'john', text: r.reply, lunch: r.lunch, error: r.error });
-    else { johnChat.note = `John didn’t hear you: ${r.error || 'no answer'}`; johnChat.msgs.pop(); johnIn.value = text; }
-    renderJohn();
-    if (johnChat.open) johnIn.focus();
-  }
-  function openJohn() {
-    if (!CAN_CHAT) { toast('John only talks to people on this computer'); return; }
-    if (ctx.mode !== 'free') return;
-    if (document.pointerLockElement) document.exitPointerLock();
-    ctx.mode = 'chat'; keys.clear(); johnChat.open = true;
-    hud.classList.add('of-johnning');
-    renderJohn();
-    setTimeout(() => johnIn.focus());
-  }
-  function closeJohn(relock) {
-    johnChat.open = false;
-    hud.classList.remove('of-johnning');
-    johnIn.blur();
-    if (ctx.mode === 'chat') ctx.mode = 'free';
-    if (relock) renderer.domElement.requestPointerLock();
-  }
-  johnEl.addEventListener('click', (e) => { if (e.target.closest('button')?.dataset.act === 'close') closeJohn(); });
-  johnBar.querySelector('form').addEventListener('submit', (e) => { e.preventDefault(); askJohn(); });
-  johnIn.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); askJohn(); } });
-  johnIn.addEventListener('input', () => { johnIn.style.height = ''; johnIn.style.height = Math.min(johnIn.scrollHeight + 2, innerHeight * 0.3) + 'px'; });
-  document.addEventListener('keydown', (e) => {
-    if (!johnChat.open) return;
-    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeJohn(); return; }
-    if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey && !e.target.closest?.('input, select, textarea') && !johnIn.disabled) johnIn.focus();
-  }, true);
+  installChat(ctx);
+  const { openChat, closeChat, openJohn, talk, johnChat } = ctx;
 
-  // Esc closes the chat (or just the drawer, if Details is open); typing anywhere goes to the message bar.
-  document.addEventListener('keydown', (e) => {
-    if (!talk.id || document.body.classList.contains('drawer')) return;
-    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeChat(); return; }
-    if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey && !e.target.closest?.('input, select, textarea') && !chatIn.disabled) chatIn.focus();
-  }, true);
+  installHover(ctx);
+  const { updateHover } = ctx;
 
-  // ----- hover / inspect -----
-  const ray = new THREE.Raycaster();
-  ray.far = 14;
-  ray.camera = camera;
-  let hover = null;
-  function updateHover() {
-    hover = null;
-    if (ctx.locked && ctx.mode === 'free') {
-      ray.setFromCamera(new THREE.Vector2(0, 0), camera);
-      const targets = ctx.away ? [...ctx.away.hits] : ctx.collectTargets([]);
-      for (const st of seats) if ((st.floor || 48) === (ctx.away?.n ?? 48) && st.obj !== player.seat?.obj && Math.hypot(st.x - player.x, st.z - player.z) < 4) targets.push(st.obj);
-      hover = ctx.away?.pick?.(ray) || null;   // a floor can find what you're looking at itself (inside a repo)
-      if (!hover) for (const hit of ray.intersectObjects(targets, true)) {
-        const ud = hit.object.userData;
-        if (ud.reach && hit.distance > ud.reach) { if (ud.glass || hit.object.material.transparent) continue; break; }
-        if (ud.action) { hover = { action: ud.action, door: ud.door, board: ud.board, blind: ud.blind || ud.blindAt?.(hit.point), floor: ud.floorAt?.(hit.uv), key: ud.keyAt?.(hit.uv), drawer: ud.drawerAt?.(hit.point), folder: ud.folderAt?.(hit.instanceId), info: ud.info }; break; }
-        if (ud.tv) { hover = { tv: tvs.find((t) => t.id === ud.tv) }; break; }
-        if (ud.sessionId) { hover = { sessionId: ud.sessionId, screen: !!ud.screen }; break; }
-        if ((ud.seat || ud.seatAt) && hit.distance < 3) { hover = { seat: ud.seat || ud.seatAt(hit.point) }; break; }
-        if (hit.object.isMesh && !hit.object.isSprite) break;
-      }
-    }
-    if (!hover) { targetEl.style.display = 'none'; return; }
-    targetEl.style.display = 'block';
-    const a = hover.action && ctx.actionOf(hover.action);
-    if (a?.hover) { targetEl.innerHTML = a.hover(hover); return; }
-    if (hover.seat) {
-      const taken = seatTaken(hover.seat);
-      targetEl.innerHTML = `<b>${hover.seat.name}</b><div class="k">${taken ? 'Someone’s sitting here' : 'Click to sit · move to stand up'}</div>`;
-      return;
-    }
-    if (hover.tv) {
-      const c = hover.tv.cfg;
-      targetEl.innerHTML = `<b>${escapeHtml(hover.tv.name)} TV</b><div class="m">${c ? escapeHtml(hostOf(c.url)) : 'Off'}</div>
-        <div class="k">${c ? 'Click to use it · E (or Shift+click) to set it up' : 'Click to choose what it shows'}</div>`;
-      return;
-    }
-    const s = S?.live.find((x) => x.sessionId === hover.sessionId);
-    if (!s) { targetEl.style.display = 'none'; return; }
-    const st = statusOf(s), tr = s.transcript || {};
-    const doing = s.status !== 'idle' && tr.pendingTool ? `${tr.pendingTool.name}: ${tr.pendingTool.detail || ''}` : s.status === 'idle' ? `idle for ${F.dur(Date.now() - s.statusSince)}` : 'thinking';
-    targetEl.innerHTML = `<b>${escapeHtml(titleOf(s))}</b><div class="m"><span style="color:${st.color}">${st.text}</span> · ${F.usd(s.cost)}${s.statusline?.context ? ` · ${s.statusline.context.used_percentage}% context` : ''}</div>
-      <div class="m">${escapeHtml(doing.slice(0, 90))}</div><div class="k">${escapeHtml(s.name)} · ${CAN_CHAT && !hover.screen ? 'click to talk · E for details' : 'click for full details'}</div>`;
-  }
+  installMinimap(ctx);
+  const { drawMap } = ctx;
 
-  // The click actions: what each does, and what its hover card says.
-  const machineHover = (h) => (h.action === 'computer' && !laptop.shown ? '<b>Your computer</b><div class="k">Click to sit down and use it</div>'
-    : `<b>Your MacBook</b><div class="k">${laptop.shown ? 'Click to use it' : laptop.open ? 'Waking up…' : 'Click to sit down and open it'}</div>`);
-  ctx.action('computer', { hover: machineHover, click: () => { document.exitPointerLock(); dash.setView('desktop'); } });
-  ctx.action('laptop', { hover: machineHover, click: () => openLaptop() });
-  ctx.action('cabinet', { hover: (h) => cabinetHover(h), click: (h) => toggleDrawer(h.drawer) });
-  ctx.action('folder', { hover: (h) => cabinetHover(h), click: (h) => pickUp(h.folder) });
-  ctx.action('gatekey', { hover: (h) => tessHover(h), click: (h) => gatePress(h.key) });
-  ctx.action('book', { hover: (h) => tessHover(h), click: (h) => readBook(h.book) });
-  const liftHover = (h) => {
-    const L = mine.L, f = h.floor;
-    return h.action === 'liftpanel' ? `<b>${floorName(f)} · ${FLOORS.find((F) => F.n === f)?.title}</b><div class="k">${!L || L.state === 'travel' ? '' : f === Math.round(L.floor) ? 'You’re here · click to open the doors' : mine.goal === f ? 'On its way' : 'Click to go'}</div>`
-      : `<b>Lift</b><div class="k">${mine.call ? 'Called · waiting for a free car' : L && (L.state === 'open' || L.state === 'opening') ? 'Doors open · walk in' : L?.state === 'travel' ? 'On its way' : 'Click to call it'}</div>`;
-  };
-  ctx.action('liftcall', { hover: liftHover, click: () => callLift() });
-  ctx.action('liftpanel', { hover: liftHover, click: (h) => pressFloor(h.floor) });
-  ctx.action('info', { hover: (h) => h.info() });
-  ctx.action('john', { hover: () => `<b>John</b><div class="m">Sysadmin · ${srv.john.mood === 'sip' ? 'sipping a coffee' : srv.john.mood === 'lean' ? 'leaning back' : 'tapping away at a terminal'}</div><div class="k">${CAN_CHAT ? 'Click to talk to him' : 'He only talks to people on this computer'}</div>`,
-    click: () => openJohn() });
-  ctx.action('coffee', { hover: () => `<b>Coffee machine</b><div class="k">${kitchen.brewing() ? 'Brewing…' : 'Click to make a flat white'}</div>`, click: () => kitchen.brew() });
-  ctx.action('blinds', { hover: (h) => `<b>${h.blind.name}</b><div class="k">Click to ${['lower the blinds', 'close the slats', 'raise the blinds'][h.blind.to * 2]}</div>`,
-    click: (h) => { h.blind.to = h.blind.to === 1 ? 0 : h.blind.to + 0.5; dash.putOffice({ blinds: { [h.blind.key]: h.blind.to } }); } });
-  ctx.action('door', { hover: (h) => `<b>${h.door.name}</b><div class="k">Click to ${h.door.to ? 'close' : 'open'}</div>`,
-    click: (h) => { const d = h.door; d.to = d.to ? 0 : 1; if (d === door) dash.putOffice({ door: d.to }); } });
-  ctx.action('board', { hover: (h) => `<b>${h.board.name[0].toUpperCase() + h.board.name.slice(1)}</b><div class="k">Click to draw on it</div>`, click: (h) => useBoard(h.board) });
-  // What you can point at in the office, nearest first when it's a tie.
-  ctx.hoverTargets(() => [lifts.callHit, ...lifts.map((L) => L.panel.mesh)], 10);
-  ctx.hoverTargets(() => [hole], 20);
-  ctx.hoverTargets(() => [laptop.g], 30);
-  ctx.hoverTargets(() => [kitchen.hit], 40);
-  ctx.hoverTargets(() => doors.map((d) => d.pivot), 50);
-  ctx.hoverTargets(() => desks.flatMap((d) => [d.scr.mesh, d.codeScr.mesh]), 60);
-  ctx.hoverTargets(() => tvs.map((t) => t.scr.mesh), 70);
-  ctx.hoverTargets(() => boards.map((b) => b.scr.mesh), 80);
-  ctx.hoverTargets(() => [...new Set(Object.values(blinds).flatMap((b) => b.runs.map((r) => r.slats.parent)))], 90);
-  ctx.hoverTargets(() => world.children.filter((o) => o.userData.glass), 100);
-  ctx.hoverTargets(() => [...people.values()].map((p) => p.root), 110);
-
-  // ----- minimap -----
-  function drawMap() {
-    if (ctx.away) { ctx.away.map(); return; }
-    const c = mapCtx, W = 440, H = 330, sx = (x) => ((x - ROOM.minX) / 40) * W, sz = (z) => ((z - ROOM.minZ) / 30) * H;
-    c.clearRect(0, 0, W, H);
-    ctx.drawMinimap(c, sx, sz);
-  }
-  ctx.minimap((c, sx, sz) => {   // areas, everything solid, and their names
-    c.fillStyle = 'rgba(181,138,95,.35)'; c.fillRect(sx(-19.9), sz(2.6), sx(-2) - sx(-19.9), sz(14.9) - sz(2.6));
-    c.fillStyle = 'rgba(86,98,115,.55)'; c.fillRect(sx(6), sz(-15), sx(20) - sx(6), sz(-3.5) - sz(-15));
-    c.fillStyle = 'rgba(120,160,185,.4)';
-    for (const r of [[14, 20, 2.5, 12.5], [-1.8, 3.4, 11.2, 15]]) c.fillRect(sx(r[0]), sz(r[2]), sx(r[1]) - sx(r[0]), sz(r[3]) - sz(r[2]));
-    c.fillStyle = 'rgba(255,255,255,.22)';
-    for (const b of colliders) c.fillRect(sx(b.minX), sz(b.minZ), Math.max(2, sx(b.maxX) - sx(b.minX)), Math.max(2, sz(b.maxZ) - sz(b.minZ)));
-    c.font = '600 20px system-ui'; c.fillStyle = 'rgba(255,255,255,.55)';
-    c.fillText('Desks', sx(-12), sz(-0.6)); c.fillText('Breakroom', sx(-12), sz(13.6)); c.fillText(dash.officeName(), sx(9), sz(-13.4)); c.fillText('Lounge', sx(8), sz(13.6));
-  }, 10);
-  ctx.minimap((c, sx, sz) => {   // the lifts
-    c.fillStyle = 'rgba(200,205,212,.9)';
-    for (const L of lifts) c.fillRect(sx(LIFT.x) - 3, sz(L.z - DOOR.w / 2), 4, sz(L.z + DOOR.w / 2) - sz(L.z - DOOR.w / 2));
-    c.font = '600 15px system-ui'; c.fillStyle = 'rgba(255,255,255,.55)'; c.fillText('Lifts', sx(LIFT.x) - 44, sz(-2.6));
-  }, 20);
-  ctx.minimap((c, sx, sz) => {   // everyone, ringed green while they work
-    for (const p of people.values()) {
-      if (!p.root.visible) continue;
-      c.fillStyle = p.color; c.beginPath(); c.arc(sx(p.root.position.x), sz(p.root.position.z), 7, 0, Math.PI * 2); c.fill();
-      if (p.session?.status === 'working') { c.strokeStyle = '#22c55e'; c.lineWidth = 3; c.stroke(); }
-    }
-  }, 30);
-  ctx.minimap((c, sx, sz) => {   // you
-    const px = sx(camera.position.x), pz = sz(camera.position.z), yaw = camera.rotation.y;
-    c.save(); c.translate(px, pz); c.rotate(-yaw);
-    c.fillStyle = '#fff'; c.beginPath(); c.moveTo(0, -14); c.lineTo(9, 10); c.lineTo(0, 5); c.lineTo(-9, 10); c.closePath(); c.fill();
-    c.restore();
-  }, 40);
-
-  // ----- post-processing -----
-  // Transparent things live on layer 1 so the AO pass and the hole's depth pre-pass ignore them.
-  world.traverse((o) => { if (o.isSprite || (o.material && o.material.transparent)) o.layers.set(1); });
-  camera.layers.enable(1);
-  renderer.shadowMap.autoUpdate = false;
-  const composer = new EffectComposer(renderer);
-  composer.setPixelRatio(renderer.getPixelRatio());
-  composer.addPass(new RenderPass(scene, camera));
-  const gtao = new GTAOPass(scene, camera, 512, 512);
-  gtao.blendIntensity = 0.9;
-  gtao.updateGtaoMaterial({ radius: 0.6, distanceExponent: 1.4, thickness: 1, scale: 1.1, samples: 12 });
-  const gtaoRender = gtao.render.bind(gtao);
-  gtao.render = (...a) => { camera.layers.disable(1); gtaoRender(...a); camera.layers.enable(1); };
-  composer.addPass(gtao);
-  // Screen-space light rays: radial blur of the brightest pixels toward the sun's screen position.
-  const rays = new ShaderPass({
-    uniforms: { tDiffuse: { value: null }, sunPos: { value: new THREE.Vector2() }, strength: { value: 0 } },
-    vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-    fragmentShader: `uniform sampler2D tDiffuse; uniform vec2 sunPos; uniform float strength; varying vec2 vUv;
-      void main() {
-        vec4 base = texture2D(tDiffuse, vUv);
-        vec2 delta = (vUv - sunPos) / 64.0 * 0.95, uv = vUv;
-        float decay = 1.0; vec3 acc = vec3(0.0);
-        for (int i = 0; i < 64; i++) {
-          uv -= delta;
-          vec3 s = texture2D(tDiffuse, clamp(uv, 0.0, 1.0)).rgb;
-          acc += min(s * max(dot(s, vec3(0.2126, 0.7152, 0.0722)) - 1.1, 0.0), vec3(3.0)) * decay;
-          decay *= 0.966;
-        }
-        gl_FragColor = vec4(base.rgb + acc * strength / 64.0, base.a);
-      }`,
-  });
-  composer.addPass(rays);
-  const bloom = new UnrealBloomPass(new THREE.Vector2(512, 512), 0.38, 0.55, 1.3);
-  composer.addPass(bloom);
-  composer.addPass(new OutputPass());
-  const grade = new ShaderPass({
-    uniforms: { tDiffuse: { value: null }, amount: { value: 1 } },
-    vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-    fragmentShader: `uniform sampler2D tDiffuse; uniform float amount; varying vec2 vUv;
-      void main() {
-        vec4 c = texture2D(tDiffuse, vUv);
-        float l = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722));
-        c.rgb = mix(vec3(l), c.rgb, mix(1.0, 1.12, amount));
-        c.rgb *= mix(1.0, mix(0.8, 1.0, smoothstep(0.95, 0.35, length(vUv - 0.5))), amount);
-        gl_FragColor = c;
-      }`,
-  });
-  composer.addPass(grade);
-  let hq = localStorage.officeQuality !== 'low';
-  function setQuality(on) {
-    hq = on; localStorage.officeQuality = on ? 'high' : 'low';
-    gtao.enabled = bloom.enabled = grade.enabled = on;
-    shafts.visible = on;
-  }
-  setQuality(hq);
+  installPost(ctx);
+  const { setQuality, bloom, grade, rays, composer } = ctx;
   // H hides every overlay: HUD panels, minimap, hover cards and the name tags over people. Only the crosshair stays.
   let toastTimer = 0;
   function setOverlays(on, quiet) {
-    overlays = on; localStorage.officeOverlays = on ? 'on' : 'off';
+    ctx.overlays = on; localStorage.officeOverlays = on ? 'on' : 'off';
     hud.classList.toggle('of-bare', !on);
     for (const p of people.values()) p.label.visible = on;
     if (!quiet) toast(`Overlays ${on ? 'shown' : 'hidden'} · <kbd>H</kbd> to ${on ? 'hide' : 'show'}`);
@@ -742,42 +349,9 @@ export function mountOffice(container) {
     t.innerHTML = html;
     t.classList.add('on'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('on'), 1600);
   }
-  setOverlays(overlays, true);
-  const sunScreen = new THREE.Vector3(), camFwd = new THREE.Vector3();
-  const holeScene = new THREE.Scene(), holeProxy = new THREE.Mesh(hole.geometry, holeM);
-  holeProxy.matrixAutoUpdate = false;
-  holeScene.add(holeProxy);
-  const depthOnlyM = new THREE.MeshBasicMaterial({ colorWrite: false });
-  function renderFrame() {
-    camera.getWorldDirection(camFwd);
-    sunScreen.copy(sunDir).multiplyScalar(500).add(camera.position).project(camera);
-    rays.uniforms.sunPos.value.set(sunScreen.x * 0.5 + 0.5, sunScreen.y * 0.5 + 0.5);
-    rays.uniforms.strength.value = ctx.raysStrength * sstep(0.15, 0.55, camFwd.dot(sunDir)) * 1.2;
-    rays.enabled = hq && rays.uniforms.strength.value > 0.01;
-    renderer.shadowMap.needsUpdate = true;
-    composer.render();
-    // The canvas is transparent so the dashboard can show through the hole, which means any pixel the passes leave
-    // below full alpha lets the (white) page behind flash through. Force alpha to 1 everywhere first, then punch.
-    renderer.setRenderTarget(null);
-    const gl = renderer.getContext();
-    gl.colorMask(false, false, false, true); gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT); gl.colorMask(true, true, true, true);
-    renderer.state.buffers.color.reset();   // three caches the mask and clear colour; make it resend both
-    // Re-punch the dashboard hole: depth of opaque geometry, then the hole writes alpha 0 where it's visible.
-    renderer.autoClear = false;
-    renderer.clearDepth();
-    camera.layers.disable(1);
-    // A Color background force-clears the canvas, so drop it for the depth-only pass.
-    const bg = scene.background;
-    scene.background = null;
-    scene.overrideMaterial = depthOnlyM;
-    renderer.render(scene, camera);
-    scene.overrideMaterial = null;
-    scene.background = bg;
-    camera.layers.enable(1);
-    holeProxy.matrix.copy(hole.matrixWorld);
-    renderer.render(holeScene, camera);
-    renderer.autoClear = true;
-  }
+  setOverlays(ctx.overlays, true);
+  installRender(ctx);
+  const { renderFrame } = ctx;
 
   // ----- loop -----
   let raf = 0, lastT = performance.now();
@@ -795,11 +369,11 @@ export function mountOffice(container) {
   ctx.onFrame((dt) => liftFx(dt), 20);
   ctx.onFrame((dt, t, now) => {
     // Roll the board's token counter up to the latest total over 1.5 s, repainting the board at ~12 fps while it moves.
-    if (S && tokenRoll.shown !== tokenRoll.target && now - (tokenRoll.painted || 0) > 80) {
+    if (ctx.state && tokenRoll.shown !== tokenRoll.target && now - (tokenRoll.painted || 0) > 80) {
       const u = clamp((now - tokenRoll.at) / 1500, 0, 1);
       tokenRoll.shown = u >= 1 ? tokenRoll.target : tokenRoll.from + (tokenRoll.target - tokenRoll.from) * ease(u);
       tokenRoll.painted = now;
-      drawFeed(feedTV, S); feedTV.tex.needsUpdate = true;
+      drawFeed(feedTV, ctx.state); feedTV.tex.needsUpdate = true;
     }
   }, 30);
   ctx.onFrame((dt, t) => {

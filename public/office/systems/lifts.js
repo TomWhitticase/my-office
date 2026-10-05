@@ -97,7 +97,7 @@ export function install(ctx) {
 }
 
 export function installCycle(ctx) {
-  const { lifts, world, paintIndicator, sendTo, LOBBY, DOOR } = ctx;
+  const { lifts, world, paintIndicator, LOBBY, DOOR } = ctx;
   Object.assign(ctx, { setLift, arrive, leave, liftFx });
   // ----- lifts -----
   // Each lift is home (closed at 48), away (closed on another floor), travel, opening, open or closing. Arrivals ride up in
@@ -183,7 +183,7 @@ export function installCycle(ctx) {
           break;
         case 'opening':
           L.doorK = Math.min(1, L.doorK + dt / 1.1);
-          if (L.doorK > 0.6) for (const p of L.cargo) { L.cargo.delete(p); p.lift = null; L.exits.add(p); sendTo(p, p.want || LOBBY); }
+          if (L.doorK > 0.6) for (const p of L.cargo) { L.cargo.delete(p); p.lift = null; L.exits.add(p); ctx.sendTo(p, p.want || LOBBY); }
           if (L.doorK === 1) setLift(L, 'open');
           break;
         case 'open':

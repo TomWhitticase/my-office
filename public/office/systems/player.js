@@ -6,8 +6,7 @@ import * as THREE from 'three';
 import { angDiff, clamp, colliders, damp, dash, ease, EYE, lerp, LIFT, REDUCED, ROOM, SEATED_EYE } from '../util.js';
 
 export function install(ctx) {
-  const { OWNER, renderer, laptop, camera, lapScr, center, screenWorld, hole, placeHole, carCollide, people, flyPlayer, sfx, openChat, closeChat,
-    openTvPanel, hud, mine, inMyCar, toast, setQuality, setOverlays, setSpeed, SPEEDS, clockState } = ctx;
+  const { OWNER, renderer, laptop, camera, lapScr, center, screenWorld, hole, placeHole, carCollide, people, flyPlayer, sfx, openTvPanel, hud, mine, inMyCar, toast, setOverlays, setSpeed, SPEEDS, clockState } = ctx;
   Object.assign(ctx, { sitIn, openLaptop, collide, tween, camPose, setCam, movePlayer, laptopFx, stepTween, fillPose, seatedPose });
   // ----- player -----
   const player = { x: OWNER.x, z: OWNER.z + 1.45, eye: SEATED_EYE, yaw: 0, pitch: 0, seated: true };
@@ -135,14 +134,14 @@ export function install(ctx) {
   // ----- input -----
   renderer.domElement.addEventListener('click', (e) => {
     sfx.unlock();
-    if (mode === 'chat') { closeChat(true); return; }
+    if (mode === 'chat') { ctx.closeChat(true); return; }
     if (mode !== 'free') return;
     if (!locked) { renderer.domElement.requestPointerLock(); return; }
     if (!ctx.hover) return;
     const a = ctx.hover.action && ctx.actionOf(ctx.hover.action);
     if (a?.click) a.click(ctx.hover, e);
     else if (ctx.hover.sessionId && ctx.hover.screen) { document.exitPointerLock(); dash.openDrawer(ctx.hover.sessionId); }
-    else if (ctx.hover.sessionId) openChat(ctx.hover.sessionId);
+    else if (ctx.hover.sessionId) ctx.openChat(ctx.hover.sessionId);
     else if (ctx.hover.seat) sitIn(ctx.hover.seat);
     else if (ctx.hover.tv) {
       if (ctx.hover.tv.cfg && !e.shiftKey) ctx.useTv(ctx.hover.tv);
@@ -173,7 +172,7 @@ export function install(ctx) {
   });
   document.addEventListener('keyup', (e) => keys.delete(e.code));
   for (const k of Object.keys(TELEPORTS)) ctx.key(k, (e) => { if (ctx.away || (mine.L?.state === 'travel' && inMyCar())) toast('Take the lift back to the office'); else TELEPORTS[e.code](); return true; });
-  ctx.key('KeyG', () => { setQuality(!ctx.quality); return true; });
+  ctx.key('KeyG', () => { ctx.setQuality(!ctx.quality); return true; });
   ctx.key('KeyH', () => { setOverlays(!ctx.overlays); return true; });
   ctx.key('KeyM', () => { dash.setSound({ on: !dash.sound.on }); sfx.unlock(); toast(`Sounds ${dash.sound.on ? 'on' : 'off'} · <kbd>M</kbd> to ${dash.sound.on ? 'mute' : 'unmute'}`); return true; });
   ctx.key('KeyT', () => { setSpeed(SPEEDS[(SPEEDS.indexOf(clockState.speed) + 1) % SPEEDS.length]); return true; });
