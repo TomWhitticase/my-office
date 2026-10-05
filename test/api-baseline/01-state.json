@@ -583,6 +583,7 @@
           "added": "sub code",
           "removed": "q"
         },
+        "feedN": 29,
         "subagents": {
           "total": 2,
           "active": 1,
@@ -764,6 +765,7 @@
           ]
         },
         "code": null,
+        "feedN": 2,
         "subagents": {
           "total": 0,
           "active": 0,
@@ -905,6 +907,7 @@
           ]
         },
         "code": null,
+        "feedN": 2,
         "subagents": {
           "total": 0,
           "active": 0,
@@ -1046,6 +1049,7 @@
           ]
         },
         "code": null,
+        "feedN": 2,
         "subagents": {
           "total": 0,
           "active": 0,
@@ -1216,6 +1220,7 @@
           "added": "two\nthree",
           "removed": "TWO"
         },
+        "feedN": 3,
         "subagents": {
           "total": 0,
           "active": 0,
@@ -1357,6 +1362,7 @@
           ]
         },
         "code": null,
+        "feedN": 2,
         "subagents": {
           "total": 0,
           "active": 0,
@@ -1384,6 +1390,7 @@
         "statusline": null,
         "transcript": null,
         "code": null,
+        "feedN": 0,
         "subagents": {
           "total": 0,
           "active": 0,

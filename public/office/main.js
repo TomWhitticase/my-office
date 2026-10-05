@@ -24,6 +24,7 @@ import { install as installFittings } from './world/fittings.js';
 import { install as installClocks } from './world/clocks.js';
 import { install as installSky } from './world/sky.js';
 import { install as installShell, installReception } from './world/shell.js';
+import { install as installReceptionist } from './systems/receptionist.js';
 import { install as installCity } from './world/city.js';
 import { install as installWhiteboards, installDrawing } from './world/whiteboards.js';
 import { install as installTVs, installUse } from './systems/tvs.js';
@@ -192,7 +193,8 @@ export function mountOffice(container) {
   const { leaveBoard, useBoard, wb } = ctx;
 
   installChat(ctx);
-  const { openChat, closeChat, openJohn, talk, johnChat } = ctx;
+  installReceptionist(ctx);   // Rosie at reception (wraps closeChat, so before it's read here)
+  const { openChat, closeChat, openJohn, talk, johnChat, rosie, openRosie } = ctx;
 
   installHover(ctx);
 
@@ -260,7 +262,7 @@ export function mountOffice(container) {
       r = renderer.domElement.getBoundingClientRect(); return { x: r.left + (p.x + 1) / 2 * r.width, y: r.top + (1 - p.y) / 2 * r.height }; },
     tvs: () => tvs.map((t) => ({ id: t.id, live: t.live, frame: !!t.frame, url: t.page?.url, title: t.page?.title, dist: t.dist })), seats, sitIn, openLaptop,
       laptop, kitchen, player, keys, camera, people, blinds, door, doors, collide, colliders, desks, idleSpots, lifts, sfx, mine, arch, roof, srv, FLOORS,
-      openJohn, johnChat, setFloor, get away() { return ctx.away; }, callLift, heli: ctx.heli, cctv: ctx.cctv,
+      openJohn, johnChat, rosie, openRosie, setFloor, get away() { return ctx.away; }, callLift, heli: ctx.heli, cctv: ctx.cctv,
     goFloor: (n) => {   // debug: straight into your car at floor n, doors opening (headless tests can't sit through a ride)
       const L = mine.L || lifts.find(spare); if (!L) return false;
       Object.assign(mine, { L, call: false, goal: null }); L.player = true;

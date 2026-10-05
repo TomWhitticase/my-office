@@ -16,6 +16,7 @@
       "meetNorth": 0,
       "meetSmall": 0
     },
-    "door": 1
+    "door": 1,
+    "cameras": {}
   }
 }

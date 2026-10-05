@@ -1,0 +1,10 @@
+{
+  "status": 200,
+  "type": "application/json",
+  "cache": null,
+  "body": {
+    "say": "Just a plain sentence, no JSON here.",
+    "actions": [],
+    "rejected": []
+  }
+}

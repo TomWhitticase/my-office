@@ -1,0 +1,20 @@
+{
+  "status": 200,
+  "type": "application/json",
+  "cache": null,
+  "body": {
+    "say": "Sure",
+    "actions": [],
+    "rejected": [
+      "tv: not a public http(s) URL: \"http://192.168.1.1/admin\"",
+      "tv: not a public http(s) URL: \"http://10.0.0.1/\"",
+      "tv: not a public http(s) URL: \"http://[::1]/\"",
+      "tv: not a public http(s) URL: \"https://user:pw@example.com/\"",
+      "tv: not a public http(s) URL: \"http://router/\"",
+      "tv: empty search",
+      "tv: nothing to do",
+      "tv: the desks-west TV is off; give it a url or a search",
+      "tv: refresh must be a number of seconds"
+    ]
+  }
+}

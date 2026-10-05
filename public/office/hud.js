@@ -74,6 +74,9 @@ export const CSS = `
     .of-chat.of-john, .of-chatbar.of-john { display: none !important; }
     .of-johnning .of-chat.of-john, .of-johnning .of-chatbar.of-john { display: flex !important; }
     .of-johnning .of-legend, .of-johnning .of-start, .of-johnning .of-map, .of-johnning .of-target { display: none; }
+    .of-chat.of-rosie, .of-chatbar.of-rosie { display: none !important; }
+    .of-rosieing .of-chat.of-rosie, .of-rosieing .of-chatbar.of-rosie { display: flex !important; }
+    .of-rosieing .of-legend, .of-rosieing .of-start, .of-rosieing .of-map, .of-rosieing .of-target { display: none; }
     .of-chatlog .n.typing::after { content: '…'; animation: of-dots 1.2s steps(4) infinite; display: inline-block; width: 1.2em; overflow: hidden; vertical-align: bottom; }
     @keyframes of-dots { from { width: 0; } to { width: 1.2em; } }
     .of-chatting .of-chatbar { display: flex; }

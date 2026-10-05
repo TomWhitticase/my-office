@@ -1,0 +1,31 @@
+{
+  "status": 200,
+  "type": "application/json",
+  "cache": null,
+  "body": {
+    "say": "Sure",
+    "actions": [],
+    "rejected": [
+      "unknown action \"sendMessage\"",
+      "unknown action \"runCommand\"",
+      "unknown action \"writeFile\"",
+      "not an action",
+      "not an action",
+      "not an action",
+      "setLights: bad mode \"disco\"",
+      "setLights: nothing to set",
+      "setLights: brightness must be a number",
+      "setBlinds: no blind group \"roof\"",
+      "setBlinds: bad state 0.5",
+      "setDoor: no door \"vault\"",
+      "setDoor: open must be true or false",
+      "setSounds: nothing to set",
+      "tv: no TV \"nope\"",
+      "tv: no TV \"__proto__\"",
+      "tv: not a public http(s) URL: \"file:///etc/passwd\"",
+      "tv: not a public http(s) URL: \"javascript:alert(1)\"",
+      "tv: not a public http(s) URL: \"http://127.0.0.1:7823/api/state\"",
+      "tv: not a public http(s) URL: \"http://localhost/\""
+    ]
+  }
+}

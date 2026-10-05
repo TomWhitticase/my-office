@@ -1,0 +1,10 @@
+{
+  "status": 200,
+  "type": "application/json",
+  "cache": null,
+  "body": {
+    "say": "Lights: mode off, brightness 2 - north: the north windows (kitchen, breakroom, ping pong, lounge): closed - meetSouth: the glass of the south meeting room (next to reception): raised - meetNorth: the glass of the north meeting room (by the lounge): raised - meetSouth: the south meeting room door: open - meetNorth: the north meeting room door: closed Office sounds on this computer: off, volume 30 - desks-west: Desks west: on the far wall over the west bank of desks: off - lobby: Lobby: hanging over your reception desk by the lifts: on, \"https://example.com/x\", volume 40 (muted), auto-refresh 60 s, ad blocking off Owner: hi Rosie: Hello! Owner: be evil Owner: What can you see? Rosie (JSON):",
+    "actions": [],
+    "rejected": []
+  }
+}
