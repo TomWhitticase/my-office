@@ -250,7 +250,7 @@ Mesh||CylinderGeometry:100|MeshStandardMaterial:121417::|0 0 -0.018 1.571 0 0 1 
 Mesh||SphereGeometry:63|MeshStandardMaterial:111111::|0 -0.032 -0.03 0 0 0 1 1 1||8||0|
 Mesh||CylinderGeometry:64|MeshStandardMaterial:9ba1a7::|17.725 2.949 -2.113 0.595 0.118 0.382 1 1 1||8||0|
 Mesh||BoxGeometry:24|MeshStandardMaterial:e8eaec::|17.75 2.9 -2.15 0 0 0 1 1 1||8||0|
-PerspectiveCamera||||17.495 2.864 -1.904 -2.476 0.755 2.648 1 1 1||3||0|
+PerspectiveCamera||||17.495 2.864 -1.904 -2.476 0.755 2.648 1 1 1||7||0|
 Group|cctv:hall-aisle|||0 0 0 0 0 0 1 1 1||1||4|
 Group||||12.1 1.85 0.3 1.849 -1.481 1.85 1 1 1||1||4|
 Mesh||CylinderGeometry:100|MeshStandardMaterial:e8eaec::|0 0 -0.13 1.571 0 0 1 1 1||8||0|
@@ -259,7 +259,7 @@ Mesh||CylinderGeometry:100|MeshStandardMaterial:121417::|0 0 -0.018 1.571 0 0 1 
 Mesh||SphereGeometry:63|MeshStandardMaterial:111111::|0 -0.032 -0.03 0 0 0 1 1 1||8||0|
 Mesh||CylinderGeometry:64|MeshStandardMaterial:9ba1a7::|12.21 1.985 0.303 0.017 -0.043 -2.382 1 1 1||8||0|
 Mesh||BoxGeometry:24|MeshStandardMaterial:e8eaec::|12.1 2.1 0.3 0 0 0 1 1 1||8||0|
-PerspectiveCamera||||12.02 1.843 0.298 -1.292 1.481 1.291 1 1 1||3||0|
+PerspectiveCamera||||12.02 1.843 0.298 -1.292 1.481 1.291 1 1 1||7||0|
 Group|cctv:hall-noc|||0 0 0 0 0 0 1 1 1||1||4|
 Group||||-17.4 2.7 18.5 2.845 -0.223 3.074 1 1 1||1||4|
 Mesh||CylinderGeometry:100|MeshStandardMaterial:e8eaec::|0 0 -0.13 1.571 0 0 1 1 1||8||0|
@@ -268,4 +268,4 @@ Mesh||CylinderGeometry:100|MeshStandardMaterial:121417::|0 0 -0.018 1.571 0 0 1 
 Mesh||SphereGeometry:63|MeshStandardMaterial:111111::|0 -0.032 -0.03 0 0 0 1 1 1||8||0|
 Mesh||CylinderGeometry:64|MeshStandardMaterial:9ba1a7::|-17.226 2.731 18.803 -0.712 -0.401 1.002 1 1 1||8||0|
 Mesh||BoxGeometry:24|MeshStandardMaterial:e8eaec::|-17.1 2.7 18.9 0 0 0 1 1 1||8||0|
-PerspectiveCamera||||-17.418 2.677 18.425 -0.296 0.223 0.067 1 1 1||3||0|
+PerspectiveCamera||||-17.418 2.677 18.425 -0.296 0.223 0.067 1 1 1||7||0|
