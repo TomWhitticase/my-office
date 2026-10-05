@@ -1,3 +1,4 @@
+// @ts-check
 // 3D first-person office view of the live dashboard.
 // Working sessions sit at desks with their stats on screen; idle ones hang out in the breakroom.
 // Your own glass office holds your computer: the centre monitor is the real, live desktop (desktop.js),
@@ -38,6 +39,7 @@ import { install as installMinimap } from './systems/minimap.js';
 import { install as installPost, installRender } from './systems/post.js';
 
 // ---------- the office ----------
+/** @param {HTMLElement} container */
 export function mountOffice(container) {
   const style = document.createElement('style');
   style.textContent = CSS;
@@ -78,7 +80,7 @@ export function mountOffice(container) {
   const IS_MAC = /Mac/.test(navigator.platform), ALT = IS_MAC ? '⌥' : 'Alt+';
   hud.innerHTML = hudHTML(ALT, IS_MAC);
   container.appendChild(hud);
-  const targetEl = hud.querySelector('.of-target'), mapCanvas = hud.querySelector('.of-map'), mapCtx = mapCanvas.getContext('2d'),
+  const targetEl = hud.querySelector('.of-target'), mapCanvas = /** @type {HTMLCanvasElement} */ (hud.querySelector('.of-map')), mapCtx = mapCanvas.getContext('2d'),
     countEl = hud.querySelector('.of-count');
 
   const scene = new THREE.Scene();
@@ -239,7 +241,7 @@ export function mountOffice(container) {
   }
   new ResizeObserver(resize).observe(container);
 
-  window.__office = { ctx, openChat, closeChat, talk, get mode() { return ctx.mode; }, teleport: (k) => TELEPORTS[k](),
+  /** @type {any} */ (window).__office = { ctx, openChat, closeChat, talk, get mode() { return ctx.mode; }, teleport: (k) => TELEPORTS[k](),
     openTv: (id) => openTvPanel(tvs.find((t) => t.id === id)), useTv: (id) => useTv(tvs.find((t) => t.id === id)), leaveTv,
     boards, useBoard: (id) => useBoard(boards.find((b) => b.id === id)), leaveBoard, wb,
     tvPoint: (id, u, v) =>
@@ -279,7 +281,7 @@ export function mountOffice(container) {
     },
     // Fly back into the monitor, then hand the desktop back to the page.
     hide() {
-      return new Promise((resolve) => {
+      return new Promise(/** @param {(v?: any) => void} resolve */ (resolve) => {
         if (document.pointerLockElement) document.exitPointerLock();
         closeChat();
         dash.closeDrawer();

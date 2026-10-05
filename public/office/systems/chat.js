@@ -6,6 +6,7 @@ import { CAN_CHAT, chatView, escapeHtml, titleOf } from '../../chat.js';
 import { dash, F, makeCanvas } from '../util.js';
 import { statusOf } from '../painters.js';
 
+/** @param {import('../ctx.js').OfficeCtx} ctx */
 export function install(ctx) {
   const { hud, people, keys, camera, renderer, srv, toast } = ctx;
   Object.assign(ctx, { openChat, closeChat, openJohn });

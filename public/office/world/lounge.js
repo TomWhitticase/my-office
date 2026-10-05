@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { box, cyl, FONT, makeCanvas, makeScreen, mat, mergedBoxes, rng, solid } from '../util.js';
 
+/** @param {import('../ctx.js').OfficeCtx} ctx */
 export function install(ctx) {
   const { world, deskTopM, plant, sofa, seats, pendant, floorLamp, legM, officeChair } = ctx;
   // ----- lounge / meeting area -----
@@ -114,6 +115,7 @@ export function install(ctx) {
   Object.assign(ctx, { laptop });
 }
 
+/** @param {import('../ctx.js').OfficeCtx} ctx */
 export function installVending(ctx) {
   const { bins, art, rug, sofa, world, floorLamp, metalM } = ctx;
   // Lounge, by the brick wall: a vending machine with a lit front, recycling bins, some art.

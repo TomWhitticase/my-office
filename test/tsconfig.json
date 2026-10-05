@@ -1,0 +1,18 @@
+{
+  // Type-checks only the office modules that opt in with a `// @ts-check` line (checkJs is off); the rest of the module
+  // graph is loaded for its types but not checked. JSDoc types, no TypeScript files. Run: npx tsc -p test/tsconfig.json
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "target": "es2022",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "lib": ["es2023", "dom", "dom.iterable"],
+    "types": [],
+    "strict": false,
+    "noImplicitAny": false,
+    "skipLibCheck": true
+  },
+  "files": ["../public/office.js"]
+}

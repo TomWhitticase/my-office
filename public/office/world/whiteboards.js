@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { box, makeScreen, MARKER, WB_COLORS } from '../util.js';
 import { drawBoard } from '../painters.js';
 
+/** @param {import('../ctx.js').OfficeCtx} ctx */
 export function install(ctx) {
   const { world, plant } = ctx;
   Object.assign(ctx, { markerBoard, inkDefault, paintBoard });
@@ -51,6 +52,7 @@ export function install(ctx) {
   ctx.onFrame(() => { for (const b of boards) if (b.dirty) paintBoard(b); }, 130);
 }
 
+/** @param {import('../ctx.js').OfficeCtx} ctx */
 export function installDrawing(ctx) {
   const { hud, gl, keys, camera, tween, camPose, player, renderer, toast, inkDefault } = ctx;
   Object.assign(ctx, { leaveBoard, useBoard });

@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { box, cyl, damp, FONT, lerp, makeScreen, mat, PP, solid } from '../util.js';
 
+/** @param {import('../ctx.js').OfficeCtx} ctx */
 export function install(ctx) {
   const { sofa, world } = ctx;
   // ----- breakroom -----
@@ -51,6 +52,7 @@ export function install(ctx) {
   }, 40);
 }
 
+/** @param {import('../ctx.js').OfficeCtx} ctx */
 export function installCozy(ctx) {
   const { bookshelf, floorLamp, pendant, plant, addLamp, smallPlant, world } = ctx;
   // Cozy bits: bookshelf divider, lamps, pendants, neon.

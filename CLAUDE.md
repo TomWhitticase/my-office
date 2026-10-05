@@ -14,6 +14,7 @@ Several Claude sessions may work on this repo at once, sometimes in the same che
 
 ```bash
 for f in server.js server/*.js public/office.js public/office/*.js public/office/*/*.js bin/setup.mjs; do node --check "$f" || echo "FAIL $f"; done
+npx tsc -p test/tsconfig.json   # JSDoc types: the office's ctx, registries, FLOORS and floors (files with // @ts-check)
 launchctl kickstart -k gui/$(id -u)/com.my-office.server   # macOS service; Linux: systemctl --user restart my-office
 curl -sf http://127.0.0.1:7777/api/state > /dev/null && echo server ok
 ```
@@ -43,7 +44,7 @@ For a change that shouldn't alter anything you can see (a refactor, a tidy-up), 
 
 ## How the office's parts fit together
 
-Every part exports `install(ctx)` (some have a second, e.g. `installUse`), and `main.js` calls them in order. A part:
+Every part exports `install(ctx)` (some have a second, e.g. `installUse`), and `main.js` calls them in order. The context's shape, the registries, `Floor` and `Lift` are JSDoc types in `ctx.js` (`ctx.js`, `main.js` and `systems/lifts.js` are type-checked; add `// @ts-check` to a file to opt it in). A part:
 
 - **reads** what's already built from ctx at the top (`const { world, sofa, desks } = ctx;`), and anything that changes, or is only set by a later part, live where it's used: `ctx.mode`, `ctx.away` (the floor you're on, or null), `ctx.state` (the latest server state), `ctx.daylight`, `ctx.player`. Never destructure a value that changes.
 - **shares** what others need with `Object.assign(ctx, { … })` (or `Object.defineProperty(ctx, 'x', { get, set })` for a value it reassigns).

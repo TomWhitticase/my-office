@@ -8,6 +8,7 @@ import { box, clamp, cyl, dash, ease, F, fit, FONT, LIFT, makeCanvas, makeScreen
 import { MONO } from '../painters.js';
 import { G, Person } from '../people.js';
 
+/** @param {import('../ctx.js').OfficeCtx} ctx */
 export function install(ctx) {
   const { scene, liftShaft, addFloor, CAR, hitBox, camera, mapCtx } = ctx;
   // ----- SERVER HALL (47) -----

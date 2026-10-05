@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { AISLE, angDiff, box, clamp, cyl, ease, hash, makeScreen, mat, rng, ROOM, solid } from '../util.js';
 import { drawFeed, drawOff, tokenRoll } from '../painters.js';
 
+/** @param {import('../ctx.js').OfficeCtx} ctx */
 export function install(ctx) {
   const { world, barM, monitor, officeChair, smallPlant, rug } = ctx;
   Object.assign(ctx, { setClutter, clutterFor });

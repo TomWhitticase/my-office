@@ -7,6 +7,7 @@ import { escapeHtml } from '../../chat.js';
 import { angDiff, box, clamp, damp, ease, EYE, fit, FONT, hash, lerp, makeCanvas, makeScreen, mat, mergedBoxes, REDUCED, rng } from '../util.js';
 import { MONO } from '../painters.js';
 
+/** @param {import('../ctx.js').OfficeCtx} ctx */
 export function install(ctx) {
   const { ARCH, arch, hud, camera, style, files, loadRepos, setFloor, langColor, scene, toast, mapCtx, renderer, readmeHtml } = ctx;
   Object.assign(ctx, { flyPlayer, gateFx, pullFx, tessHover, gatePress, readBook });

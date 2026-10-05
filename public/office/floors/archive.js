@@ -8,6 +8,7 @@ import { escapeHtml } from '../../chat.js';
 import { clamp, cyl, ease, F, fit, FONT, hash, LIFT, makeCanvas, mat, mergedBoxes, rng } from '../util.js';
 import { MONO } from '../painters.js';
 
+/** @param {import('../ctx.js').OfficeCtx} ctx */
 export function install(ctx) {
   const { ARCHIVE, hud, style, scene, hitBox, liftShaft, CAR, addFloor, mapCtx, camera, renderer } = ctx;
   Object.assign(ctx, { loadRepos, readmeHtml, cabinetHover, toggleDrawer, pickUp });

@@ -239,6 +239,7 @@ export class Person {
   }
 }
 
+/** @param {import('./ctx.js').OfficeCtx} ctx */
 export function installSpots(ctx) {
   const { kitchen, MR } = ctx;
   // ----- idle spots -----
@@ -276,6 +277,7 @@ export function installSpots(ctx) {
   Object.assign(ctx, { idleSpots, LOBBY, IDLE_ORDER, pp });
 }
 
+/** @param {import('./ctx.js').OfficeCtx} ctx */
 export function installSync(ctx) {
   const { countEl, world, arrive, desks, LOBBY, IDLE_ORDER, leave, setClutter, clutterFor, usageScr, rosterScr, wallTV, feedTV, breakBoard } = ctx;
   Object.assign(ctx, { sendTo, paintScreens, paintCode });
