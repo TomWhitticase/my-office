@@ -3,7 +3,7 @@
 
 import * as THREE from 'three';
 import { CAN_CHAT, escapeHtml, titleOf } from '../../chat.js';
-import { dash, F } from '../util.js';
+import { F } from '../util.js';
 import { statusOf } from '../painters.js';
 
 export function install(ctx) {
