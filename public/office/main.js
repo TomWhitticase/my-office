@@ -33,6 +33,7 @@ import { install as installLiftLobby, installCycle, installRiding, installShafts
 import { install as installPlayer } from './systems/player.js';
 import { install as installArchive } from './floors/archive.js';
 import { install as installGateway } from './floors/gateway.js';
+import { install as installArchiveEntrance } from './floors/archive-entrance.js';
 import { install as installRoof } from './floors/roof.js';
 import { install as installHelicopter } from './floors/helicopter.js';
 import { install as installRoofBar } from './floors/roof-bar.js';
@@ -165,6 +166,7 @@ export function mountOffice(container) {
   const { arch } = ctx;
 
   installGateway(ctx);
+  installArchiveEntrance(ctx);   // after the gateway: it wraps the floor's enter, leave, fx and ground
 
   installRoof(ctx);
   const { EDGE, roof } = ctx;
