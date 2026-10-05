@@ -1,0 +1,56 @@
+{
+  "status": 200,
+  "type": "application/json",
+  "cache": "no-store",
+  "body": {
+    "arch": "string",
+    "at": "number",
+    "battery": {
+      "ac": "boolean",
+      "pct": "number",
+      "state": "string"
+    },
+    "cores": [
+      "number"
+    ],
+    "cpuModel": "string",
+    "disks": [
+      {
+        "avail": "number",
+        "dev": "string",
+        "mount": "string",
+        "size": "number",
+        "used": "number"
+      }
+    ],
+    "hostname": "string",
+    "load": [
+      "number"
+    ],
+    "mem": {
+      "total": "number",
+      "used": "number"
+    },
+    "net": null,
+    "os": "string",
+    "sessions": [
+      {
+        "cpu": "number",
+        "name": "string",
+        "pid": "number",
+        "rssMB": "number",
+        "sessionId": "string",
+        "status": "string"
+      }
+    ],
+    "top": [
+      {
+        "cpu": "number",
+        "name": "string",
+        "pid": "number",
+        "rssMB": "number"
+      }
+    ],
+    "uptime": "number"
+  }
+}

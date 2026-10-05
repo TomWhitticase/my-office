@@ -1,0 +1,8 @@
+{
+  "status": 403,
+  "type": "application/json",
+  "cache": null,
+  "body": {
+    "error": "refused: Content-Type must be application/json"
+  }
+}

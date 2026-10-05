@@ -1,0 +1,21 @@
+{
+  "status": 200,
+  "type": "application/json",
+  "cache": "no-store",
+  "body": {
+    "seq": 27,
+    "messages": [
+      {
+        "t": 1790852940000,
+        "role": "user",
+        "text": "Session 5"
+      },
+      {
+        "t": 1790853000000,
+        "role": "assistant",
+        "text": "ok"
+      }
+    ],
+    "cantSend": "more than one Claude session runs in that terminal, so it’s unclear which would get the message"
+  }
+}

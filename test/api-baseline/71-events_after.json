@@ -1,0 +1,1729 @@
+{
+  "status": 200,
+  "type": "text/event-stream",
+  "events": [
+    {
+      "event": "message",
+      "retry": "2000",
+      "data": {
+        "now": 1790857800000,
+        "host": "MacBookPro",
+        "rateLimits": {
+          "five_hour": {
+            "used_percentage": 12
+          }
+        },
+        "rateLimitsAt": 1790857795000,
+        "totals": {
+          "live": 7,
+          "working": 1,
+          "subagentsActive": 1,
+          "todayCost": 0.090785,
+          "todayTokens": 42080,
+          "todayOutput": 1920,
+          "todaySessions": 7,
+          "liveCost": 1.2740500000000001,
+          "linesAdded": 10,
+          "linesRemoved": 3
+        },
+        "models": {
+          "claude-haiku-4-5": {
+            "calls": 3,
+            "cost": 0.0047550000000000005
+          },
+          "claude-opus-5-5": {
+            "calls": 11,
+            "cost": 0.06534
+          },
+          "claude-sonnet-5-5": {
+            "calls": 1,
+            "cost": 0.00634
+          },
+          "claude-fable-5-1": {
+            "calls": 1,
+            "cost": 0.01435
+          }
+        },
+        "tools": {
+          "Edit": 3,
+          "Read": 1,
+          "Bash": 2,
+          "Write": 1,
+          "MultiEdit": 1,
+          "WebFetch": 1,
+          "Agent": 1,
+          "Skill": 1,
+          "Foo": 1,
+          "NotebookEdit": 1,
+          "Grep": 1
+        },
+        "hourly": [
+          {
+            "t": 1790773200000,
+            "cost": 0,
+            "tokens": 0,
+            "output": 0,
+            "bySession": {}
+          },
+          {
+            "t": 1790776800000,
+            "cost": 0,
+            "tokens": 0,
+            "output": 0,
+            "bySession": {}
+          },
+          {
+            "t": 1790780400000,
+            "cost": 0,
+            "tokens": 0,
+            "output": 0,
+            "bySession": {}
+          },
+          {
+            "t": 1790784000000,
+            "cost": 0,
+            "tokens": 0,
+            "output": 0,
+            "bySession": {}
+          },
+          {
+            "t": 1790787600000,
+            "cost": 0,
+            "tokens": 0,
+            "output": 0,
+            "bySession": {}
+          },
+          {
+            "t": 1790791200000,
+            "cost": 0,
+            "tokens": 0,
+            "output": 0,
+            "bySession": {}
+          },
+          {
+            "t": 1790794800000,
+            "cost": 0,
+            "tokens": 0,
+            "output": 0,
+            "bySession": {}
+          },
+          {
+            "t": 1790798400000,
+            "cost": 0,
+            "tokens": 0,
+            "output": 0,
+            "bySession": {}
+          },
+          {
+            "t": 1790802000000,
+            "cost": 0,
+            "tokens": 0,
+            "output": 0,
+            "bySession": {}
+          },
+          {
+            "t": 1790805600000,
+            "cost": 0,
+            "tokens": 0,
+            "output": 0,
+            "bySession": {}
+          },
+          {
+            "t": 1790809200000,
+            "cost": 0,
+            "tokens": 0,
+            "output": 0,
+            "bySession": {}
+          },
+          {
+            "t": 1790812800000,
+            "cost": 0,
+            "tokens": 0,
+            "output": 0,
+            "bySession": {}
+          },
+          {
+            "t": 1790816400000,
+            "cost": 0,
+            "tokens": 0,
+            "output": 0,
+            "bySession": {}
+          },
+          {
+            "t": 1790820000000,
+            "cost": 0,
+            "tokens": 0,
+            "output": 0,
+            "bySession": {}
+          },
+          {
+            "t": 1790823600000,
+            "cost": 0,
+            "tokens": 0,
+            "output": 0,
+            "bySession": {}
+          },
+          {
+            "t": 1790827200000,
+            "cost": 0,
+            "tokens": 0,
+            "output": 0,
+            "bySession": {}
+          },
+          {
+            "t": 1790830800000,
+            "cost": 0,
+            "tokens": 0,
+            "output": 0,
+            "bySession": {}
+          },
+          {
+            "t": 1790834400000,
+            "cost": 0,
+            "tokens": 0,
+            "output": 0,
+            "bySession": {}
+          },
+          {
+            "t": 1790838000000,
+            "cost": 0.01188,
+            "tokens": 5260,
+            "output": 240,
+            "bySession": {
+              "aaaaaaaa-0000-4000-8000-000000000010": 0.01188
+            }
+          },
+          {
+            "t": 1790841600000,
+            "cost": 0,
+            "tokens": 0,
+            "output": 0,
+            "bySession": {}
+          },
+          {
+            "t": 1790845200000,
+            "cost": 0.019405,
+            "tokens": 10520,
+            "output": 480,
+            "bySession": {
+              "aaaaaaaa-0000-4000-8000-000000000001": 0.01782,
+              "aaaaaaaa-0000-4000-8000-000000000011": 0.001585
+            }
+          },
+          {
+            "t": 1790848800000,
+            "cost": 0.01188,
+            "tokens": 5260,
+            "output": 240,
+            "bySession": {
+              "aaaaaaaa-0000-4000-8000-000000000001": 0.00594,
+              "aaaaaaaa-0000-4000-8000-000000000002": 0.00594
+            }
+          },
+          {
+            "t": 1790852400000,
+            "cost": 0.03217,
+            "tokens": 10520,
+            "output": 480,
+            "bySession": {
+              "aaaaaaaa-0000-4000-8000-000000000002": 0.01435,
+              "aaaaaaaa-0000-4000-8000-000000000005": 0.00594,
+              "aaaaaaaa-0000-4000-8000-000000000006": 0.00594,
+              "aaaaaaaa-0000-4000-8000-000000000007": 0.00594
+            }
+          },
+          {
+            "t": 1790856000000,
+            "cost": 0.015449999999999998,
+            "tokens": 10520,
+            "output": 480,
+            "bySession": {
+              "aaaaaaaa-0000-4000-8000-000000000001": 0.015449999999999998
+            }
+          }
+        ],
+        "days": [
+          {
+            "date": "2026-09-30",
+            "cost": 3.5,
+            "entries": 20,
+            "tokens": 10,
+            "output": 2
+          },
+          {
+            "date": "2026-10-01",
+            "cost": 0.090785,
+            "entries": 5,
+            "tokens": 42080,
+            "output": 1920,
+            "live": true
+          }
+        ],
+        "live": [
+          {
+            "pid": "<pid:alpha>",
+            "sessionId": "aaaaaaaa-0000-4000-8000-000000000001",
+            "name": "alpha",
+            "status": "working",
+            "rawStatus": "busy",
+            "statusSince": 1790857740000,
+            "startedAt": 1790854200000,
+            "cwd": "/work/alpha",
+            "kind": "interactive",
+            "entrypoint": "cli",
+            "version": "2.1.0",
+            "proc": {
+              "cpu": "number",
+              "rssMB": "number"
+            },
+            "statusline": {
+              "name": "alpha",
+              "model": "Opus 5.5",
+              "effort": "high",
+              "cost": {
+                "total_cost_usd": 1.23,
+                "total_lines_added": 10,
+                "total_lines_removed": 3
+              },
+              "context": {
+                "used_percentage": 40
+              },
+              "cache": {
+                "hit": 0.9
+              },
+              "repo": "o/r",
+              "worktree": "login",
+              "thinking": true,
+              "at": 1790857795000
+            },
+            "transcript": {
+              "sessionId": "aaaaaaaa-0000-4000-8000-000000000001",
+              "file": "$HOME/.claude/projects/-work-alpha/aaaaaaaa-0000-4000-8000-000000000001.jsonl",
+              "cwd": "$HOME/work/alpha",
+              "branch": "feat/login",
+              "title": "Fix login bug",
+              "model": "claude-sonnet-5-5",
+              "models": {
+                "claude-opus-5-5": {
+                  "calls": 4,
+                  "cost": 0.02376,
+                  "output": 480
+                },
+                "claude-sonnet-5-5": {
+                  "calls": 1,
+                  "cost": 0.00634,
+                  "output": 120
+                }
+              },
+              "effort": "high",
+              "permissionMode": "acceptEdits",
+              "entrypoint": "cli",
+              "tokens": {
+                "input": 50,
+                "output": 600,
+                "cacheRead": 10000,
+                "cacheWrite": 2500
+              },
+              "cost": 0.030100000000000002,
+              "apiCalls": 5,
+              "tools": {
+                "Bash": 1,
+                "Edit": 1,
+                "Write": 1,
+                "MultiEdit": 1,
+                "WebFetch": 1,
+                "Agent": 1,
+                "Skill": 1,
+                "Foo": 1,
+                "NotebookEdit": 1,
+                "Grep": 1
+              },
+              "prompts": 2,
+              "errors": 2,
+              "turns": 1,
+              "avgTurnMs": 5000,
+              "lastTurnMs": 5000,
+              "prs": [
+                {
+                  "url": "https://github.com/o/r/pull/7",
+                  "number": 7,
+                  "repo": "o/r",
+                  "t": 1790846400000
+                }
+              ],
+              "first": 1790845800000,
+              "last": 1790857620000,
+              "mtime": 1790857740000,
+              "lastPrompt": "queued three",
+              "lastPromptAt": 1790854800000,
+              "contextTokens": 2630,
+              "lastStop": "tool_use",
+              "pendingTool": {
+                "name": "Grep",
+                "detail": "login\\(",
+                "t": 1790857620000
+              },
+              "spark": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                120,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                120,
+                0,
+                0,
+                0
+              ],
+              "events": [
+                {
+                  "t": 1790845800000,
+                  "kind": "prompt",
+                  "text": "Fix the login bug"
+                },
+                {
+                  "t": 1790845860000,
+                  "kind": "say",
+                  "text": "Looking into it."
+                },
+                {
+                  "t": 1790845860000,
+                  "kind": "tool",
+                  "name": "Bash",
+                  "text": "List files",
+                  "id": "tu_a1",
+                  "ms": 0
+                },
+                {
+                  "t": 1790845860000,
+                  "kind": "say",
+                  "text": "(repeat block)"
+                },
+                {
+                  "t": 1790845920000,
+                  "kind": "tool",
+                  "name": "Edit",
+                  "text": "alpha/app.js",
+                  "id": "tu_a2",
+                  "ms": 60000
+                },
+                {
+                  "t": 1790846040000,
+                  "kind": "tool",
+                  "name": "Write",
+                  "text": "alpha/new.js",
+                  "id": "tu_a3",
+                  "ms": 0,
+                  "error": true
+                },
+                {
+                  "t": 1790846040000,
+                  "kind": "error",
+                  "name": "Write",
+                  "text": "permission denied"
+                },
+                {
+                  "t": 1790846100000,
+                  "kind": "turn",
+                  "ms": 5000,
+                  "n": 6
+                },
+                {
+                  "t": 1790850600000,
+                  "kind": "command",
+                  "text": "/compact"
+                },
+                {
+                  "t": 1790850660000,
+                  "kind": "compact",
+                  "text": "Context compacted"
+                },
+                {
+                  "t": 1790850720000,
+                  "kind": "recap",
+                  "text": "While you were away: fixed the bug."
+                },
+                {
+                  "t": 1790850780000,
+                  "kind": "error",
+                  "text": "API error 529"
+                },
+                {
+                  "t": 1790854800000,
+                  "kind": "prompt",
+                  "text": "queued three"
+                },
+                {
+                  "t": 1790855400000,
+                  "kind": "notify",
+                  "text": "Build done"
+                },
+                {
+                  "t": 1790855460000,
+                  "kind": "notify",
+                  "text": "channel: hello from a channel"
+                },
+                {
+                  "t": 1790856000000,
+                  "kind": "tool",
+                  "name": "MultiEdit",
+                  "text": "alpha/m.js",
+                  "id": "tu_a4",
+                  "ms": 60000
+                },
+                {
+                  "t": 1790856000000,
+                  "kind": "tool",
+                  "name": "WebFetch",
+                  "text": "example.com",
+                  "id": "tu_a5",
+                  "ms": 60000
+                },
+                {
+                  "t": 1790856000000,
+                  "kind": "tool",
+                  "name": "Agent",
+                  "text": "Find usages",
+                  "id": "tu_a6",
+                  "ms": 120000
+                },
+                {
+                  "t": 1790856000000,
+                  "kind": "tool",
+                  "name": "Skill",
+                  "text": "setup",
+                  "id": "tu_a7",
+                  "ms": 120000
+                },
+                {
+                  "t": 1790856000000,
+                  "kind": "tool",
+                  "name": "Foo",
+                  "text": "bar",
+                  "id": "tu_a8",
+                  "ms": 120000
+                },
+                {
+                  "t": 1790856000000,
+                  "kind": "tool",
+                  "name": "NotebookEdit",
+                  "text": "n/b.ipynb",
+                  "id": "tu_a9",
+                  "ms": 120000
+                },
+                {
+                  "t": 1790857620000,
+                  "kind": "say",
+                  "text": "Now searching."
+                },
+                {
+                  "t": 1790857620000,
+                  "kind": "tool",
+                  "name": "Grep",
+                  "text": "login\\(",
+                  "id": "tu_a10"
+                }
+              ]
+            },
+            "code": {
+              "id": "tu_s1",
+              "t": 1790856600000,
+              "tool": "Edit",
+              "agent": "Find usages",
+              "count": 5,
+              "line": 0,
+              "file": "sub.js",
+              "added": "sub code",
+              "removed": "q"
+            },
+            "subagents": {
+              "total": 2,
+              "active": 1,
+              "cost": 0.00911,
+              "list": [
+                {
+                  "id": "agent-a1",
+                  "type": "Explore",
+                  "description": "Find usages",
+                  "background": true,
+                  "depth": 1,
+                  "active": true,
+                  "cost": 0.00317,
+                  "tokens": {
+                    "input": 20,
+                    "output": 240,
+                    "cacheRead": 4000,
+                    "cacheWrite": 1000
+                  },
+                  "apiCalls": 2,
+                  "toolCalls": 2,
+                  "model": "claude-haiku-4-5",
+                  "first": 1790856600000,
+                  "last": 1790856720000,
+                  "current": "Read: y/z.js"
+                },
+                {
+                  "id": "agent-a2",
+                  "background": false,
+                  "active": false,
+                  "cost": 0.00594,
+                  "tokens": {
+                    "input": 10,
+                    "output": 120,
+                    "cacheRead": 2000,
+                    "cacheWrite": 500
+                  },
+                  "apiCalls": 1,
+                  "toolCalls": 0,
+                  "model": "claude-opus-5-5",
+                  "first": 1790848800000,
+                  "last": 1790848800000,
+                  "current": null
+                }
+              ]
+            },
+            "cost": 1.23
+          },
+          {
+            "pid": "<pid:golf>",
+            "sessionId": "aaaaaaaa-0000-4000-8000-000000000007",
+            "name": "golf",
+            "status": "waiting",
+            "rawStatus": "waiting",
+            "statusSince": 1790857380000,
+            "startedAt": 1790854200000,
+            "cwd": "/work/golf",
+            "kind": "interactive",
+            "entrypoint": "cli",
+            "version": "2.1.0",
+            "proc": {
+              "cpu": "number",
+              "rssMB": "number"
+            },
+            "statusline": null,
+            "transcript": {
+              "sessionId": "aaaaaaaa-0000-4000-8000-000000000007",
+              "file": "$HOME/.claude/projects/-work-e/aaaaaaaa-0000-4000-8000-000000000007.jsonl",
+              "cwd": "/work/e",
+              "branch": "main",
+              "title": null,
+              "model": "claude-opus-5-5",
+              "models": {
+                "claude-opus-5-5": {
+                  "calls": 1,
+                  "cost": 0.00594,
+                  "output": 120
+                }
+              },
+              "effort": "high",
+              "permissionMode": null,
+              "entrypoint": "cli",
+              "tokens": {
+                "input": 10,
+                "output": 120,
+                "cacheRead": 2000,
+                "cacheWrite": 500
+              },
+              "cost": 0.00594,
+              "apiCalls": 1,
+              "tools": {},
+              "prompts": 1,
+              "errors": 0,
+              "turns": 0,
+              "avgTurnMs": 0,
+              "lastTurnMs": 0,
+              "prs": [],
+              "first": 1790854140000,
+              "last": 1790854200000,
+              "mtime": 1790857740000,
+              "lastPrompt": "Session 7",
+              "lastPromptAt": 1790854140000,
+              "contextTokens": 2630,
+              "lastStop": "end_turn",
+              "pendingTool": null,
+              "spark": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "events": [
+                {
+                  "t": 1790854140000,
+                  "kind": "prompt",
+                  "text": "Session 7"
+                },
+                {
+                  "t": 1790854200000,
+                  "kind": "say",
+                  "text": "ok"
+                }
+              ]
+            },
+            "code": null,
+            "subagents": {
+              "total": 0,
+              "active": 0,
+              "cost": 0,
+              "list": []
+            },
+            "cost": 0.00594
+          },
+          {
+            "pid": "<pid:foxtrot>",
+            "sessionId": "aaaaaaaa-0000-4000-8000-000000000006",
+            "name": "foxtrot",
+            "status": "idle",
+            "rawStatus": "idle",
+            "statusSince": 1790857440000,
+            "startedAt": 1790854200000,
+            "cwd": "/work/foxtrot",
+            "kind": "interactive",
+            "entrypoint": "cli",
+            "version": "2.1.0",
+            "proc": {
+              "cpu": "number",
+              "rssMB": "number"
+            },
+            "statusline": null,
+            "transcript": {
+              "sessionId": "aaaaaaaa-0000-4000-8000-000000000006",
+              "file": "$HOME/.claude/projects/-work-e/aaaaaaaa-0000-4000-8000-000000000006.jsonl",
+              "cwd": "/work/e",
+              "branch": "main",
+              "title": null,
+              "model": "claude-opus-5-5",
+              "models": {
+                "claude-opus-5-5": {
+                  "calls": 1,
+                  "cost": 0.00594,
+                  "output": 120
+                }
+              },
+              "effort": "high",
+              "permissionMode": null,
+              "entrypoint": "cli",
+              "tokens": {
+                "input": 10,
+                "output": 120,
+                "cacheRead": 2000,
+                "cacheWrite": 500
+              },
+              "cost": 0.00594,
+              "apiCalls": 1,
+              "tools": {},
+              "prompts": 1,
+              "errors": 0,
+              "turns": 0,
+              "avgTurnMs": 0,
+              "lastTurnMs": 0,
+              "prs": [],
+              "first": 1790853540000,
+              "last": 1790853600000,
+              "mtime": 1790857740000,
+              "lastPrompt": "Session 6",
+              "lastPromptAt": 1790853540000,
+              "contextTokens": 2630,
+              "lastStop": "end_turn",
+              "pendingTool": null,
+              "spark": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "events": [
+                {
+                  "t": 1790853540000,
+                  "kind": "prompt",
+                  "text": "Session 6"
+                },
+                {
+                  "t": 1790853600000,
+                  "kind": "say",
+                  "text": "ok"
+                }
+              ]
+            },
+            "code": null,
+            "subagents": {
+              "total": 0,
+              "active": 0,
+              "cost": 0,
+              "list": []
+            },
+            "cost": 0.00594
+          },
+          {
+            "pid": "<pid:echo>",
+            "sessionId": "aaaaaaaa-0000-4000-8000-000000000005",
+            "name": "echo",
+            "status": "idle",
+            "rawStatus": "idle",
+            "statusSince": 1790857500000,
+            "startedAt": 1790854200000,
+            "cwd": "/work/echo",
+            "kind": "interactive",
+            "entrypoint": "cli",
+            "version": "2.1.0",
+            "proc": {
+              "cpu": "number",
+              "rssMB": "number"
+            },
+            "statusline": null,
+            "transcript": {
+              "sessionId": "aaaaaaaa-0000-4000-8000-000000000005",
+              "file": "$HOME/.claude/projects/-work-e/aaaaaaaa-0000-4000-8000-000000000005.jsonl",
+              "cwd": "/work/e",
+              "branch": "main",
+              "title": null,
+              "model": "claude-opus-5-5",
+              "models": {
+                "claude-opus-5-5": {
+                  "calls": 1,
+                  "cost": 0.00594,
+                  "output": 120
+                }
+              },
+              "effort": "high",
+              "permissionMode": null,
+              "entrypoint": "cli",
+              "tokens": {
+                "input": 10,
+                "output": 120,
+                "cacheRead": 2000,
+                "cacheWrite": 500
+              },
+              "cost": 0.00594,
+              "apiCalls": 1,
+              "tools": {},
+              "prompts": 1,
+              "errors": 0,
+              "turns": 0,
+              "avgTurnMs": 0,
+              "lastTurnMs": 0,
+              "prs": [],
+              "first": 1790852940000,
+              "last": 1790853000000,
+              "mtime": 1790857740000,
+              "lastPrompt": "Session 5",
+              "lastPromptAt": 1790852940000,
+              "contextTokens": 2630,
+              "lastStop": "end_turn",
+              "pendingTool": null,
+              "spark": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "events": [
+                {
+                  "t": 1790852940000,
+                  "kind": "prompt",
+                  "text": "Session 5"
+                },
+                {
+                  "t": 1790853000000,
+                  "kind": "say",
+                  "text": "ok"
+                }
+              ]
+            },
+            "code": null,
+            "subagents": {
+              "total": 0,
+              "active": 0,
+              "cost": 0,
+              "list": []
+            },
+            "cost": 0.00594
+          },
+          {
+            "pid": "<pid:beta>",
+            "sessionId": "aaaaaaaa-0000-4000-8000-000000000002",
+            "name": "beta",
+            "status": "idle",
+            "rawStatus": "idle",
+            "statusSince": 1790857680000,
+            "startedAt": 1790854200000,
+            "cwd": "/work/beta",
+            "kind": "interactive",
+            "entrypoint": "cli",
+            "version": "2.1.0",
+            "proc": {
+              "cpu": "number",
+              "rssMB": "number"
+            },
+            "statusline": {
+              "name": "beta",
+              "model": "Fable 5.1",
+              "at": 1790857750000
+            },
+            "transcript": {
+              "sessionId": "aaaaaaaa-0000-4000-8000-000000000002",
+              "file": "$HOME/.claude/projects/-work-beta/aaaaaaaa-0000-4000-8000-000000000002.jsonl",
+              "cwd": "$HOME/work/beta",
+              "branch": "main",
+              "title": "Beta work",
+              "model": "claude-fable-5-1",
+              "models": {
+                "claude-opus-5-5": {
+                  "calls": 1,
+                  "cost": 0.00594,
+                  "output": 120
+                },
+                "claude-fable-5-1": {
+                  "calls": 1,
+                  "cost": 0.01435,
+                  "output": 120
+                }
+              },
+              "effort": "high",
+              "permissionMode": null,
+              "entrypoint": "cli",
+              "tokens": {
+                "input": 20,
+                "output": 240,
+                "cacheRead": 4000,
+                "cacheWrite": 1000
+              },
+              "cost": 0.02029,
+              "apiCalls": 2,
+              "tools": {
+                "Edit": 1
+              },
+              "prompts": 1,
+              "errors": 0,
+              "turns": 0,
+              "avgTurnMs": 0,
+              "lastTurnMs": 0,
+              "prs": [],
+              "first": 1790851800000,
+              "last": 1790852400000,
+              "mtime": 1790857740000,
+              "lastPrompt": "Tweak b.txt",
+              "lastPromptAt": 1790851800000,
+              "contextTokens": 2630,
+              "lastStop": "end_turn",
+              "pendingTool": null,
+              "spark": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "events": [
+                {
+                  "t": 1790851800000,
+                  "kind": "prompt",
+                  "text": "Tweak b.txt"
+                },
+                {
+                  "t": 1790851860000,
+                  "kind": "tool",
+                  "name": "Edit",
+                  "text": "beta/b.txt",
+                  "id": "tu_b1",
+                  "ms": 60000
+                },
+                {
+                  "t": 1790852400000,
+                  "kind": "say",
+                  "text": "Done."
+                }
+              ]
+            },
+            "code": {
+              "id": "tu_b1",
+              "t": 1790851860000,
+              "tool": "Edit",
+              "agent": null,
+              "count": 1,
+              "line": 2,
+              "file": "b.txt",
+              "added": "two\nthree",
+              "removed": "TWO"
+            },
+            "subagents": {
+              "total": 0,
+              "active": 0,
+              "cost": 0,
+              "list": []
+            },
+            "cost": 0.02029
+          },
+          {
+            "pid": "<pid:gamma>",
+            "sessionId": "aaaaaaaa-0000-4000-8000-000000000003",
+            "name": "gamma",
+            "status": "idle",
+            "rawStatus": "idle",
+            "statusSince": 1790857620000,
+            "startedAt": 1790854200000,
+            "cwd": "/work/gamma",
+            "kind": "interactive",
+            "entrypoint": "cli",
+            "version": "2.1.0",
+            "proc": {
+              "cpu": "number",
+              "rssMB": "number"
+            },
+            "statusline": null,
+            "transcript": {
+              "sessionId": "aaaaaaaa-0000-4000-8000-000000000003",
+              "file": "$HOME/.claude/projects/-work-gamma/aaaaaaaa-0000-4000-8000-000000000003.jsonl",
+              "cwd": "/work/gamma",
+              "branch": "dev",
+              "title": null,
+              "model": "claude-opus-5-5",
+              "models": {
+                "claude-opus-5-5": {
+                  "calls": 1,
+                  "cost": 0.00594,
+                  "output": 120
+                }
+              },
+              "effort": "high",
+              "permissionMode": null,
+              "entrypoint": "cli",
+              "tokens": {
+                "input": 10,
+                "output": 120,
+                "cacheRead": 2000,
+                "cacheWrite": 500
+              },
+              "cost": 0.00594,
+              "apiCalls": 1,
+              "tools": {},
+              "prompts": 1,
+              "errors": 0,
+              "turns": 0,
+              "avgTurnMs": 0,
+              "lastTurnMs": 0,
+              "prs": [],
+              "first": 1790617800000,
+              "last": 1790617860000,
+              "mtime": 1790598600000,
+              "lastPrompt": "Old one",
+              "lastPromptAt": 1790617800000,
+              "contextTokens": 2630,
+              "lastStop": "end_turn",
+              "pendingTool": null,
+              "spark": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "events": [
+                {
+                  "t": 1790617800000,
+                  "kind": "prompt",
+                  "text": "Old one"
+                },
+                {
+                  "t": 1790617860000,
+                  "kind": "say",
+                  "text": "Hi"
+                }
+              ]
+            },
+            "code": null,
+            "subagents": {
+              "total": 0,
+              "active": 0,
+              "cost": 0,
+              "list": []
+            },
+            "cost": 0.00594
+          },
+          {
+            "pid": "<pid:delta>",
+            "sessionId": "aaaaaaaa-0000-4000-8000-000000000004",
+            "name": "delta",
+            "status": "idle",
+            "rawStatus": "idle",
+            "statusSince": 1790857560000,
+            "startedAt": 1790854200000,
+            "cwd": "/work/delta",
+            "kind": "sdk",
+            "entrypoint": "sdk-ts",
+            "version": "2.1.0",
+            "proc": {
+              "cpu": "number",
+              "rssMB": "number"
+            },
+            "statusline": null,
+            "transcript": null,
+            "code": null,
+            "subagents": {
+              "total": 0,
+              "active": 0,
+              "cost": 0,
+              "list": []
+            },
+            "cost": 0
+          }
+        ],
+        "recent": [
+          {
+            "sessionId": "aaaaaaaa-0000-4000-8000-000000000010",
+            "title": "Recent thing",
+            "cwd": "/work/r",
+            "branch": "main",
+            "model": "claude-opus-5-5",
+            "cost": 0.01188,
+            "prompts": 1,
+            "apiCalls": 2,
+            "toolCalls": 1,
+            "first": 1790839800000,
+            "last": 1790840400000,
+            "lastPrompt": "Do the recent thing"
+          }
+        ],
+        "feed": [
+          {
+            "t": 1790857620000,
+            "kind": "say",
+            "text": "Now searching.",
+            "sessionId": "aaaaaaaa-0000-4000-8000-000000000001",
+            "session": "alpha"
+          },
+          {
+            "t": 1790857620000,
+            "kind": "tool",
+            "name": "Grep",
+            "text": "login\\(",
+            "id": "tu_a10",
+            "sessionId": "aaaaaaaa-0000-4000-8000-000000000001",
+            "session": "alpha"
+          },
+          {
+            "t": 1790856000000,
+            "kind": "tool",
+            "name": "MultiEdit",
+            "text": "alpha/m.js",
+            "id": "tu_a4",
+            "ms": 60000,
+            "sessionId": "aaaaaaaa-0000-4000-8000-000000000001",
+            "session": "alpha"
+          },
+          {
+            "t": 1790856000000,
+            "kind": "tool",
+            "name": "WebFetch",
+            "text": "example.com",
+            "id": "tu_a5",
+            "ms": 60000,
+            "sessionId": "aaaaaaaa-0000-4000-8000-000000000001",
+            "session": "alpha"
+          },
+          {
+            "t": 1790856000000,
+            "kind": "tool",
+            "name": "Agent",
+            "text": "Find usages",
+            "id": "tu_a6",
+            "ms": 120000,
+            "sessionId": "aaaaaaaa-0000-4000-8000-000000000001",
+            "session": "alpha"
+          },
+          {
+            "t": 1790856000000,
+            "kind": "tool",
+            "name": "Skill",
+            "text": "setup",
+            "id": "tu_a7",
+            "ms": 120000,
+            "sessionId": "aaaaaaaa-0000-4000-8000-000000000001",
+            "session": "alpha"
+          },
+          {
+            "t": 1790856000000,
+            "kind": "tool",
+            "name": "Foo",
+            "text": "bar",
+            "id": "tu_a8",
+            "ms": 120000,
+            "sessionId": "aaaaaaaa-0000-4000-8000-000000000001",
+            "session": "alpha"
+          },
+          {
+            "t": 1790856000000,
+            "kind": "tool",
+            "name": "NotebookEdit",
+            "text": "n/b.ipynb",
+            "id": "tu_a9",
+            "ms": 120000,
+            "sessionId": "aaaaaaaa-0000-4000-8000-000000000001",
+            "session": "alpha"
+          },
+          {
+            "t": 1790855460000,
+            "kind": "notify",
+            "text": "channel: hello from a channel",
+            "sessionId": "aaaaaaaa-0000-4000-8000-000000000001",
+            "session": "alpha"
+          },
+          {
+            "t": 1790855400000,
+            "kind": "notify",
+            "text": "Build done",
+            "sessionId": "aaaaaaaa-0000-4000-8000-000000000001",
+            "session": "alpha"
+          },
+          {
+            "t": 1790854800000,
+            "kind": "prompt",
+            "text": "queued three",
+            "sessionId": "aaaaaaaa-0000-4000-8000-000000000001",
+            "session": "alpha"
+          },
+          {
+            "t": 1790854200000,
+            "kind": "say",
+            "text": "ok",
+            "sessionId": "aaaaaaaa-0000-4000-8000-000000000007",
+            "session": "golf"
+          },
+          {
+            "t": 1790854140000,
+            "kind": "prompt",
+            "text": "Session 7",
+            "sessionId": "aaaaaaaa-0000-4000-8000-000000000007",
+            "session": "golf"
+          },
+          {
+            "t": 1790853600000,
+            "kind": "say",
+            "text": "ok",
+            "sessionId": "aaaaaaaa-0000-4000-8000-000000000006",
+            "session": "foxtrot"
+          },
+          {
+            "t": 1790853540000,
+            "kind": "prompt",
+            "text": "Session 6",
+            "sessionId": "aaaaaaaa-0000-4000-8000-000000000006",
+            "session": "foxtrot"
+          },
+          {
+            "t": 1790853000000,
+            "kind": "say",
+            "text": "ok",
+            "sessionId": "aaaaaaaa-0000-4000-8000-000000000005",
+            "session": "echo"
+          },
+          {
+            "t": 1790852940000,
+            "kind": "prompt",
+            "text": "Session 5",
+            "sessionId": "aaaaaaaa-0000-4000-8000-000000000005",
+            "session": "echo"
+          },
+          {
+            "t": 1790852400000,
+            "kind": "say",
+            "text": "Done.",
+            "sessionId": "aaaaaaaa-0000-4000-8000-000000000002",
+            "session": "beta"
+          },
+          {
+            "t": 1790851860000,
+            "kind": "tool",
+            "name": "Edit",
+            "text": "beta/b.txt",
+            "id": "tu_b1",
+            "ms": 60000,
+            "sessionId": "aaaaaaaa-0000-4000-8000-000000000002",
+            "session": "beta"
+          },
+          {
+            "t": 1790851800000,
+            "kind": "prompt",
+            "text": "Tweak b.txt",
+            "sessionId": "aaaaaaaa-0000-4000-8000-000000000002",
+            "session": "beta"
+          },
+          {
+            "t": 1790850780000,
+            "kind": "error",
+            "text": "API error 529",
+            "sessionId": "aaaaaaaa-0000-4000-8000-000000000001",
+            "session": "alpha"
+          },
+          {
+            "t": 1790850720000,
+            "kind": "recap",
+            "text": "While you were away: fixed the bug.",
+            "sessionId": "aaaaaaaa-0000-4000-8000-000000000001",
+            "session": "alpha"
+          },
+          {
+            "t": 1790850660000,
+            "kind": "compact",
+            "text": "Context compacted",
+            "sessionId": "aaaaaaaa-0000-4000-8000-000000000001",
+            "session": "alpha"
+          },
+          {
+            "t": 1790850600000,
+            "kind": "command",
+            "text": "/compact",
+            "sessionId": "aaaaaaaa-0000-4000-8000-000000000001",
+            "session": "alpha"
+          },
+          {
+            "t": 1790846100000,
+            "kind": "turn",
+            "ms": 5000,
+            "n": 6,
+            "sessionId": "aaaaaaaa-0000-4000-8000-000000000001",
+            "session": "alpha"
+          },
+          {
+            "t": 1790846040000,
+            "kind": "tool",
+            "name": "Write",
+            "text": "alpha/new.js",
+            "id": "tu_a3",
+            "ms": 0,
+            "error": true,
+            "sessionId": "aaaaaaaa-0000-4000-8000-000000000001",
+            "session": "alpha"
+          },
+          {
+            "t": 1790846040000,
+            "kind": "error",
+            "name": "Write",
+            "text": "permission denied",
+            "sessionId": "aaaaaaaa-0000-4000-8000-000000000001",
+            "session": "alpha"
+          },
+          {
+            "t": 1790845920000,
+            "kind": "tool",
+            "name": "Edit",
+            "text": "alpha/app.js",
+            "id": "tu_a2",
+            "ms": 60000,
+            "sessionId": "aaaaaaaa-0000-4000-8000-000000000001",
+            "session": "alpha"
+          },
+          {
+            "t": 1790845860000,
+            "kind": "say",
+            "text": "Looking into it.",
+            "sessionId": "aaaaaaaa-0000-4000-8000-000000000001",
+            "session": "alpha"
+          },
+          {
+            "t": 1790845860000,
+            "kind": "tool",
+            "name": "Bash",
+            "text": "List files",
+            "id": "tu_a1",
+            "ms": 0,
+            "sessionId": "aaaaaaaa-0000-4000-8000-000000000001",
+            "session": "alpha"
+          },
+          {
+            "t": 1790845860000,
+            "kind": "say",
+            "text": "(repeat block)",
+            "sessionId": "aaaaaaaa-0000-4000-8000-000000000001",
+            "session": "alpha"
+          },
+          {
+            "t": 1790845800000,
+            "kind": "prompt",
+            "text": "Fix the login bug",
+            "sessionId": "aaaaaaaa-0000-4000-8000-000000000001",
+            "session": "alpha"
+          },
+          {
+            "t": 1790617860000,
+            "kind": "say",
+            "text": "Hi",
+            "sessionId": "aaaaaaaa-0000-4000-8000-000000000003",
+            "session": "gamma"
+          },
+          {
+            "t": 1790617800000,
+            "kind": "prompt",
+            "text": "Old one",
+            "sessionId": "aaaaaaaa-0000-4000-8000-000000000003",
+            "session": "gamma"
+          }
+        ]
+      }
+    },
+    {
+      "event": "tvs",
+      "data": {
+        "lobby": {
+          "url": "https://example.com/x",
+          "refresh": 60,
+          "volume": 40,
+          "muted": true,
+          "adblock": false,
+          "at": 1790857800000
+        }
+      }
+    },
+    {
+      "event": "tvads",
+      "data": {}
+    },
+    {
+      "event": "office",
+      "data": {
+        "lights": "off",
+        "brightness": 2,
+        "blinds": {
+          "side": 0.5,
+          "front": 0,
+          "north": 1,
+          "east": 1,
+          "west": 0,
+          "office": 0,
+          "meetSouth": 0,
+          "meetNorth": 0,
+          "meetSmall": 0
+        },
+        "door": 1
+      }
+    }
+  ]
+}

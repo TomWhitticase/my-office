@@ -1,0 +1,16 @@
+[
+  "[refused] POST /api/john: missing or foreign Origin (origin http://evil.example, host 127.0.0.1:7781)",
+  "[refused] POST /api/session/aaaaaaaa-0000-4000-8000-000000000001/send: Content-Type must be application/json (origin http://127.0.0.1:7781, host 127.0.0.1:7781)",
+  "[refused] POST /api/session/aaaaaaaa-0000-4000-8000-000000000001/send: missing or foreign Origin (origin http://evil.example, host 127.0.0.1:7781)",
+  "[refused] POST /api/session/aaaaaaaa-0000-4000-8000-000000000001/send: not from a TV or headless browser (origin http://127.0.0.1:7781, host 127.0.0.1:7781)",
+  "[refused] PUT /api/office: Content-Type must be application/json (origin http://127.0.0.1:7781, host 127.0.0.1:7781)",
+  "[refused] PUT /api/office: missing or foreign Origin (origin -, host 127.0.0.1:7781)",
+  "[refused] PUT /api/office: missing or foreign Origin (origin http://evil.example, host 127.0.0.1:7781)",
+  "[refused] PUT /api/office: not from a TV or headless browser (origin http://127.0.0.1:7781, host 127.0.0.1:7781)",
+  "[refused] PUT /api/office: not from a TV or headless browser (origin http://127.0.0.1:7781, host 127.0.0.1:7781)",
+  "[refused] PUT /api/office: unknown Host (origin http://evil.example, host evil.example)",
+  "[refused] PUT /api/tvs/lobby: missing or foreign Origin (origin http://evil.example, host 127.0.0.1:7781)",
+  "adblock: 26 domains",
+  "indexed 10 transcripts in Nms",
+  "my-office on http://127.0.0.1:7781"
+]

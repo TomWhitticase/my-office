@@ -1,0 +1,325 @@
+{
+  "status": 200,
+  "type": "application/json",
+  "cache": null,
+  "body": {
+    "sessionId": "aaaaaaaa-0000-4000-8000-000000000001",
+    "file": "$HOME/.claude/projects/-work-alpha/aaaaaaaa-0000-4000-8000-000000000001.jsonl",
+    "cwd": "$HOME/work/alpha",
+    "branch": "feat/login",
+    "title": "Fix login bug",
+    "model": "claude-sonnet-5-5",
+    "models": {
+      "claude-opus-5-5": {
+        "calls": 4,
+        "cost": 0.02376,
+        "output": 480
+      },
+      "claude-sonnet-5-5": {
+        "calls": 1,
+        "cost": 0.00634,
+        "output": 120
+      }
+    },
+    "effort": "high",
+    "permissionMode": "acceptEdits",
+    "entrypoint": "cli",
+    "tokens": {
+      "input": 50,
+      "output": 600,
+      "cacheRead": 10000,
+      "cacheWrite": 2500
+    },
+    "cost": 0.030100000000000002,
+    "apiCalls": 5,
+    "tools": {
+      "Bash": 1,
+      "Edit": 1,
+      "Write": 1,
+      "MultiEdit": 1,
+      "WebFetch": 1,
+      "Agent": 1,
+      "Skill": 1,
+      "Foo": 1,
+      "NotebookEdit": 1,
+      "Grep": 1
+    },
+    "prompts": 2,
+    "errors": 2,
+    "turns": 1,
+    "avgTurnMs": 5000,
+    "lastTurnMs": 5000,
+    "prs": [
+      {
+        "url": "https://github.com/o/r/pull/7",
+        "number": 7,
+        "repo": "o/r",
+        "t": 1790846400000
+      }
+    ],
+    "first": 1790845800000,
+    "last": 1790857620000,
+    "mtime": 1790857740000,
+    "lastPrompt": "queued three",
+    "lastPromptAt": 1790854800000,
+    "contextTokens": 2630,
+    "lastStop": "tool_use",
+    "pendingTool": {
+      "name": "Grep",
+      "detail": "login\\(",
+      "t": 1790857620000
+    },
+    "spark": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      120,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      120,
+      0,
+      0,
+      0
+    ],
+    "events": [
+      {
+        "t": 1790845800000,
+        "kind": "prompt",
+        "text": "Fix the login bug"
+      },
+      {
+        "t": 1790845860000,
+        "kind": "say",
+        "text": "Looking into it."
+      },
+      {
+        "t": 1790845860000,
+        "kind": "tool",
+        "name": "Bash",
+        "text": "List files",
+        "id": "tu_a1",
+        "ms": 0
+      },
+      {
+        "t": 1790845860000,
+        "kind": "say",
+        "text": "(repeat block)"
+      },
+      {
+        "t": 1790845920000,
+        "kind": "tool",
+        "name": "Edit",
+        "text": "alpha/app.js",
+        "id": "tu_a2",
+        "ms": 60000
+      },
+      {
+        "t": 1790846040000,
+        "kind": "tool",
+        "name": "Write",
+        "text": "alpha/new.js",
+        "id": "tu_a3",
+        "ms": 0,
+        "error": true
+      },
+      {
+        "t": 1790846040000,
+        "kind": "error",
+        "name": "Write",
+        "text": "permission denied"
+      },
+      {
+        "t": 1790846100000,
+        "kind": "turn",
+        "ms": 5000,
+        "n": 6
+      },
+      {
+        "t": 1790850600000,
+        "kind": "command",
+        "text": "/compact"
+      },
+      {
+        "t": 1790850660000,
+        "kind": "compact",
+        "text": "Context compacted"
+      },
+      {
+        "t": 1790850720000,
+        "kind": "recap",
+        "text": "While you were away: fixed the bug."
+      },
+      {
+        "t": 1790850780000,
+        "kind": "error",
+        "text": "API error 529"
+      },
+      {
+        "t": 1790854800000,
+        "kind": "prompt",
+        "text": "queued three"
+      },
+      {
+        "t": 1790855400000,
+        "kind": "notify",
+        "text": "Build done"
+      },
+      {
+        "t": 1790855460000,
+        "kind": "notify",
+        "text": "channel: hello from a channel"
+      },
+      {
+        "t": 1790856000000,
+        "kind": "tool",
+        "name": "MultiEdit",
+        "text": "alpha/m.js",
+        "id": "tu_a4",
+        "ms": 60000
+      },
+      {
+        "t": 1790856000000,
+        "kind": "tool",
+        "name": "WebFetch",
+        "text": "example.com",
+        "id": "tu_a5",
+        "ms": 60000
+      },
+      {
+        "t": 1790856000000,
+        "kind": "tool",
+        "name": "Agent",
+        "text": "Find usages",
+        "id": "tu_a6",
+        "ms": 120000
+      },
+      {
+        "t": 1790856000000,
+        "kind": "tool",
+        "name": "Skill",
+        "text": "setup",
+        "id": "tu_a7",
+        "ms": 120000
+      },
+      {
+        "t": 1790856000000,
+        "kind": "tool",
+        "name": "Foo",
+        "text": "bar",
+        "id": "tu_a8",
+        "ms": 120000
+      },
+      {
+        "t": 1790856000000,
+        "kind": "tool",
+        "name": "NotebookEdit",
+        "text": "n/b.ipynb",
+        "id": "tu_a9",
+        "ms": 120000
+      },
+      {
+        "t": 1790857620000,
+        "kind": "say",
+        "text": "Now searching."
+      },
+      {
+        "t": 1790857620000,
+        "kind": "tool",
+        "name": "Grep",
+        "text": "login\\(",
+        "id": "tu_a10"
+      }
+    ],
+    "subagents": [
+      {
+        "id": "agent-a1",
+        "type": "Explore",
+        "description": "Find usages",
+        "background": true,
+        "depth": 1,
+        "active": true,
+        "cost": 0.00317,
+        "tokens": {
+          "input": 20,
+          "output": 240,
+          "cacheRead": 4000,
+          "cacheWrite": 1000
+        },
+        "apiCalls": 2,
+        "toolCalls": 2,
+        "model": "claude-haiku-4-5",
+        "first": 1790856600000,
+        "last": 1790856720000,
+        "current": "Read: y/z.js"
+      },
+      {
+        "id": "agent-a2",
+        "background": false,
+        "active": false,
+        "cost": 0.00594,
+        "tokens": {
+          "input": 10,
+          "output": 120,
+          "cacheRead": 2000,
+          "cacheWrite": 500
+        },
+        "apiCalls": 1,
+        "toolCalls": 0,
+        "model": "claude-opus-5-5",
+        "first": 1790848800000,
+        "last": 1790848800000,
+        "current": null
+      }
+    ]
+  }
+}

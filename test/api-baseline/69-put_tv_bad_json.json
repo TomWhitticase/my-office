@@ -1,0 +1,8 @@
+{
+  "status": 400,
+  "type": "application/json",
+  "cache": null,
+  "body": {
+    "error": "Expected property name or '}' in JSON at position 1 (line 1 column 2)"
+  }
+}

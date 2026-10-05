@@ -1,0 +1,10 @@
+{
+  "status": 200,
+  "type": "application/json",
+  "cache": "no-store",
+  "body": {
+    "seq": 0,
+    "messages": [],
+    "cantSend": "can’t send to this session from here: it isn’t a terminal session (sdk-ts)"
+  }
+}

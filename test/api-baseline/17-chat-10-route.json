@@ -1,0 +1,27 @@
+{
+  "status": 200,
+  "type": "application/json",
+  "cache": "no-store",
+  "body": {
+    "seq": 34,
+    "messages": [
+      {
+        "t": 1790839800000,
+        "role": "user",
+        "text": "Do the recent thing"
+      },
+      {
+        "t": 1790839860000,
+        "role": "tool",
+        "name": "Bash",
+        "text": "npm test"
+      },
+      {
+        "t": 1790840400000,
+        "role": "assistant",
+        "text": "Tests pass."
+      }
+    ],
+    "cantSend": "this session isn’t running"
+  }
+}

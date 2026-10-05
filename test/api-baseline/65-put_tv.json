@@ -1,0 +1,13 @@
+{
+  "status": 200,
+  "type": "application/json",
+  "cache": null,
+  "body": {
+    "url": "https://example.com/x",
+    "refresh": 60,
+    "volume": 100,
+    "muted": true,
+    "adblock": true,
+    "at": 1790857800000
+  }
+}
