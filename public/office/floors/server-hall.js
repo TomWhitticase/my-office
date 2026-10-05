@@ -854,4 +854,5 @@ export function install(ctx) {
     c.restore();
   };
   Object.assign(ctx, { srv });
+  ctx.action('info', { hover: (h) => h.info() });
 }

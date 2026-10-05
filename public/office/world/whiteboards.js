@@ -47,6 +47,7 @@ export function install(ctx) {
   box(world, 0.04, 1.38, 2.48, '#b9bcc0', -19.9, 1.6, 4.6, { shadow: false });
   plant(-2.6, 14.3, 1.1); plant(-19.3, 3.1); plant(-11, 14.3, 0.9);
   Object.assign(ctx, { boards, breakBoard });
+  ctx.onFrame(() => { for (const b of boards) if (b.dirty) paintBoard(b); }, 130);
 }
 
 export function installDrawing(ctx) {
@@ -218,4 +219,6 @@ export function installDrawing(ctx) {
     e.preventDefault(); wbSync();
   });
   Object.assign(ctx, { wb });
+  ctx.action('board', { hover: (h) => `<b>${h.board.name[0].toUpperCase() + h.board.name.slice(1)}</b><div class="k">Click to draw on it</div>`, click: (h) => useBoard(h.board) });
+  ctx.hoverTargets(() => ctx.boards.map((b) => b.scr.mesh), 80);
 }

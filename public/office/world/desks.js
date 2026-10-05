@@ -2,8 +2,8 @@
 // the clutter that piles up on the hardest-working desks, and the big activity screen over them.
 
 import * as THREE from 'three';
-import { AISLE, angDiff, box, cyl, hash, makeScreen, mat, rng, ROOM, solid } from '../util.js';
-import { drawOff } from '../painters.js';
+import { AISLE, angDiff, box, clamp, cyl, ease, hash, makeScreen, mat, rng, ROOM, solid } from '../util.js';
+import { drawFeed, drawOff, tokenRoll } from '../painters.js';
 
 export function install(ctx) {
   const { world, barM, monitor, officeChair, smallPlant, rug } = ctx;
@@ -136,4 +136,14 @@ export function install(ctx) {
   const feedTV = makeScreen(world, 4.2, 2.1, 1280, 640, -8.2, 2.05, -14.86);
   box(world, 4.3, 2.2, 0.06, '#111214', -8.2, 2.05, -14.9);
   Object.assign(ctx, { deskTopM, legM, desks, feedTV });
+  ctx.onFrame((dt, t, now) => {
+    // Roll the board's token counter up to the latest total over 1.5 s, repainting the board at ~12 fps while it moves.
+    if (ctx.state && tokenRoll.shown !== tokenRoll.target && now - (tokenRoll.painted || 0) > 80) {
+      const u = clamp((now - tokenRoll.at) / 1500, 0, 1);
+      tokenRoll.shown = u >= 1 ? tokenRoll.target : tokenRoll.from + (tokenRoll.target - tokenRoll.from) * ease(u);
+      tokenRoll.painted = now;
+      drawFeed(feedTV, ctx.state); feedTV.tex.needsUpdate = true;
+    }
+  }, 30);
+  ctx.hoverTargets(() => desks.flatMap((d) => [d.scr.mesh, d.codeScr.mesh]), 60);
 }

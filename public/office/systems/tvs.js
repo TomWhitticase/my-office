@@ -179,6 +179,7 @@ export function install(ctx) {
   }
   Object.assign(ctx, { tvSend, tvs, hostOf });
   Object.defineProperty(ctx, 'using', { get: () => using, set: (v) => { using = v; }, enumerable: true });
+  ctx.hoverTargets(() => tvs.map((t) => t.scr.mesh), 70);
 }
 
 export function installUse(ctx) {
@@ -293,4 +294,8 @@ export function installUse(ctx) {
   });
   Object.assign(ctx, { gl });
   Object.defineProperty(ctx, 'tvMove', { get: () => tvMove, set: (v) => { tvMove = v; }, enumerable: true });
+  ctx.onFrame((dt, t, now) => {
+    if (ctx.tvMove) { tvMouse(ctx.tvMove, 'mouseMoved'); ctx.tvMove = null; }
+    if (!ctx.away) ctx.updateTVs(now);
+  }, 140);
 }

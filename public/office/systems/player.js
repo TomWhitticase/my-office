@@ -183,4 +183,21 @@ export function install(ctx) {
   Object.defineProperty(ctx, 'active', { get: () => active, set: (v) => { active = v; }, enumerable: true });
   Object.defineProperty(ctx, 'locked', { get: () => locked, set: (v) => { locked = v; }, enumerable: true });
   Object.defineProperty(ctx, 'anim', { get: () => anim, set: (v) => { anim = v; }, enumerable: true });
+  ctx.onFrame((dt, t) => {
+    if (ctx.mode === 'free') movePlayer(dt);
+    if (ctx.mode === 'free' && mine.L?.state === 'travel' && inMyCar()) {   // the ride: a faint sway, strongest mid-shaft
+      const k = Math.sin(Math.PI * mine.k);
+      camera.position.y += Math.sin(t * 11) * 0.003 * k - 0.012 * Math.sin(Math.PI * Math.min(1, mine.k * 6));
+      camera.rotation.z = Math.sin(t * 1.9) * 0.0035 * k;
+    }
+  }, 80);
+  ctx.onFrame((dt) => laptopFx(dt), 90);
+  ctx.onFrame((dt, t, now) => stepTween(now), 100);
+  // Your computer and your MacBook: click to use them.
+  const machineHover = (h) => (h.action === 'computer' && !laptop.shown ? '<b>Your computer</b><div class="k">Click to sit down and use it</div>'
+    : `<b>Your MacBook</b><div class="k">${laptop.shown ? 'Click to use it' : laptop.open ? 'Waking up…' : 'Click to sit down and open it'}</div>`);
+  ctx.action('computer', { hover: machineHover, click: () => { document.exitPointerLock(); dash.setView('desktop'); } });
+  ctx.action('laptop', { hover: machineHover, click: () => openLaptop() });
+  ctx.hoverTargets(() => [hole], 20);
+  ctx.hoverTargets(() => [laptop.g], 30);
 }

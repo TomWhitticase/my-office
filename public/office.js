@@ -231,26 +231,24 @@ export function mountOffice(container) {
   camera.rotation.order = 'YXZ';
 
   installSky(ctx);
-  const { setSpeed, updateSky, updateClock, clockState, lamps, skyU, RAD, hemi, SPEEDS, sunDir, simNow, sky } = ctx;
+  const { setSpeed, clockState } = ctx;
 
   const world = new THREE.Group();
   scene.add(world);
 
   installShell(ctx);
-  const { rug, rugs, frameM, winRuns, winKey, WIN, shaftU, wallM, ceilingM, shafts } = ctx;
+  const { rugs } = ctx;
 
   installCity(ctx);
-  const { city } = ctx;
   installReception(ctx);
 
   installFurniture(ctx);
-  const { sofa, plant, bookshelf, floorLamp, pendant, addLamp, officeChair, monitor, art, smallPlant, addSeat, plantKit, seats, barM, glowMat } = ctx;
+  const { seats } = ctx;
   installDesks(ctx);
-  const { setClutter, clutterFor, deskTopM, legM, desks, feedTV } = ctx;
+  const { desks } = ctx;
   installBreakroom(ctx);
-  const { ball } = ctx;
   installWhiteboards(ctx);
-  const { markerBoard, inkDefault, paintBoard, boards, breakBoard } = ctx;
+  const { boards } = ctx;
 
   installCozy(ctx);
 
@@ -258,49 +256,44 @@ export function mountOffice(container) {
   const { laptop } = ctx;
 
   installMyOffice(ctx);
-  const { glassDoor, wallGroup, hangBlind, officeFx, blinds, door, doors, glassM, frostTex, BL } = ctx;
+  const { blinds, door, doors } = ctx;
   installKitchen(ctx);
   const { kitchen } = ctx;
   installDesk(ctx);
-  const { OWNER, usageScr, rosterScr, wallTV } = ctx;
   installGuitars(ctx);
 
   installScreen(ctx);
-  const { placeHole, syncCss, layoutCenterMonitor, hole, holeM, lapScr, center, screenWorld, domScreen } = ctx;
+  const { syncCss, layoutCenterMonitor, domScreen } = ctx;
 
   installMeetingRooms(ctx);
-  const { MR } = ctx;
 
   installFittings(ctx);
-  const { bins, metalM } = ctx;
 
   installLiftLobby(ctx);
-  const { paintIndicator, lifts, ROOF, DOOR, CAR, floorName, CORE } = ctx;
+  const { lifts } = ctx;
 
   installVending(ctx);
 
   installClocks(ctx);
-  const { updateClocks } = ctx;
 
   installTVs(ctx);
-  const { tvQuiet, openTvPanel, updateTVs, tvSocket, tvSend, tvs, hostOf } = ctx;
+  const { tvQuiet, openTvPanel, tvSocket, tvs } = ctx;
 
   installSpots(ctx);
-  const { idleSpots, LOBBY, IDLE_ORDER, pp } = ctx;
+  const { idleSpots } = ctx;
 
   installCycle(ctx);
-  const { setLift, arrive, leave, liftFx } = ctx;
+  const { setLift } = ctx;
 
   installRiding(ctx);
-  const { callLift, pressFloor, myLift, myCar, carPanel, paintPanel, carCollide, resetLift, ARCHIVE, mine, FLOORS, hitBox, addFloor, inMyCar, spare } = ctx;
+  const { callLift, pressFloor, resetLift, mine, FLOORS, spare } = ctx;
   installShafts(ctx);
-  const { setFloor, liftShaft, renderFloor } = ctx;
+  const { setFloor, renderFloor } = ctx;
 
   installArchive(ctx);
-  const { loadRepos, readmeHtml, cabinetHover, toggleDrawer, pickUp, ARCH, arch, files, langColor } = ctx;
+  const { arch } = ctx;
 
   installGateway(ctx);
-  const { flyPlayer, gateFx, pullFx, tessHover, gatePress, readBook, GATE, tess, fmtCoord, coordOf } = ctx;
 
   installRoof(ctx);
   const { EDGE, roof } = ctx;
@@ -313,14 +306,13 @@ export function mountOffice(container) {
     roof: { minX: -EDGE.x, maxX: EDGE.x, minZ: -EDGE.z, maxZ: EDGE.z } });
 
   installSync(ctx);
-  const { sendTo, paintScreens, paintCode, people, routeOut } = ctx;
+  const { people } = ctx;
 
   installPlayer(ctx);
-  const { sitIn, openLaptop, collide, tween, camPose, setCam, movePlayer, laptopFx, stepTween, fillPose, seatedPose, player, keys, seatTaken,
-    TELEPORTS } = ctx;
+  const { sitIn, openLaptop, collide, tween, camPose, setCam, laptopFx, fillPose, seatedPose, player, keys, TELEPORTS } = ctx;
 
   installUse(ctx);
-  const { leaveTv, tvBarSync, useTv, tvMouse, gl } = ctx;
+  const { leaveTv, useTv } = ctx;
 
   installDrawing(ctx);
   const { leaveBoard, useBoard, wb } = ctx;
@@ -329,13 +321,11 @@ export function mountOffice(container) {
   const { openChat, closeChat, openJohn, talk, johnChat } = ctx;
 
   installHover(ctx);
-  const { updateHover } = ctx;
 
   installMinimap(ctx);
-  const { drawMap } = ctx;
 
   installPost(ctx);
-  const { setQuality, bloom, grade, rays, composer } = ctx;
+  const { composer } = ctx;
   // H hides every overlay: HUD panels, minimap, hover cards and the name tags over people. Only the crosshair stays.
   let toastTimer = 0;
   function setOverlays(on, quiet) {
@@ -357,70 +347,7 @@ export function mountOffice(container) {
   let raf = 0, lastT = performance.now();
   const clock0 = performance.now();
   // Each frame, in this order: see ctx.onFrame.
-  ctx.onFrame((dt, t) => {
-    for (const [id, p] of people) {
-      p.update(t, dt);
-      // A desk chair turns with whoever's sitting in it (spinning while they wait), and settles back when they leave it.
-      const d = p.desk, seated = d && !p.path.length && p.spot?.key === d.spot.key;
-      if (d) d.chair.rotation.y = seated ? p.rotY : d.chair.rotation.y + angDiff(d.chair.rotation.y, d.rotY) * Math.min(1, dt * 4);
-    }
-    for (const d of desks) if (!d.owner && d.chair.rotation.y !== d.rotY) d.chair.rotation.y += angDiff(d.chair.rotation.y, d.rotY) * Math.min(1, dt * 4);
-  }, 10);
-  ctx.onFrame((dt) => liftFx(dt), 20);
-  ctx.onFrame((dt, t, now) => {
-    // Roll the board's token counter up to the latest total over 1.5 s, repainting the board at ~12 fps while it moves.
-    if (ctx.state && tokenRoll.shown !== tokenRoll.target && now - (tokenRoll.painted || 0) > 80) {
-      const u = clamp((now - tokenRoll.at) / 1500, 0, 1);
-      tokenRoll.shown = u >= 1 ? tokenRoll.target : tokenRoll.from + (tokenRoll.target - tokenRoll.from) * ease(u);
-      tokenRoll.painted = now;
-      drawFeed(feedTV, ctx.state); feedTV.tex.needsUpdate = true;
-    }
-  }, 30);
-  ctx.onFrame((dt, t) => {
-    // Ping pong rally when both ends are manned and settled.
-    const [a, b] = pp.map((q) => q.occupant);
-    const rally = a && b && !a.path.length && !b.path.length && a.spot === pp[0] && b.spot === pp[1];
-    ball.visible = !!rally;
-    if (rally) {
-      const P = 1.05, k = (t % (2 * P)) / P, dir = k < 1, u = dir ? k : k - 1;
-      const x0 = PP.x - 1.45, x1 = PP.x + 1.45;
-      const z = PP.z + 0.35 * Math.sin(t * 0.9);
-      ball.position.set(dir ? lerp(x0, x1, u) : lerp(x1, x0, u), 0.79 + 0.32 * Math.abs(Math.sin(u * Math.PI * 2 * 0.75 + 0.1)), z);
-      a.swing = dir ? Math.max(0, 1 - u * 4) : Math.max(0, (u - 0.75) * 4);
-      b.swing = dir ? Math.max(0, (u - 0.75) * 4) : Math.max(0, 1 - u * 4);
-      a.root.position.z = damp(a.root.position.z, z, 4, dt); b.root.position.z = damp(b.root.position.z, z, 4, dt);
-      sfx.rally(k, ball.position);
-    }
-  }, 40);
-  ctx.onFrame((dt, t) => {
-    const simDate = new Date(simNow());
-    updateSky(simDate, t);
-    updateClock(simDate);
-    updateClocks(simDate);
-  }, 50);
-  ctx.onFrame((dt) => officeFx(dt), 60);
-  ctx.onFrame((dt, t) => kitchen.update(dt, t), 70);
-  ctx.onFrame((dt, t) => {
-    if (ctx.mode === 'free') movePlayer(dt);
-    if (ctx.mode === 'free' && mine.L?.state === 'travel' && inMyCar()) {   // the ride: a faint sway, strongest mid-shaft
-      const k = Math.sin(Math.PI * mine.k);
-      camera.position.y += Math.sin(t * 11) * 0.003 * k - 0.012 * Math.sin(Math.PI * Math.min(1, mine.k * 6));
-      camera.rotation.z = Math.sin(t * 1.9) * 0.0035 * k;
-    }
-  }, 80);
-  ctx.onFrame((dt) => laptopFx(dt), 90);
-  ctx.onFrame((dt, t, now) => stepTween(now), 100);
   ctx.onFrame((dt, t) => sfx.update(t, dt, { people, door, blinds, free: ctx.mode === 'free' }), 110);
-  ctx.onFrame(() => paintScreens(false), 120);
-  ctx.onFrame(() => { for (const b of boards) if (b.dirty) paintBoard(b); }, 130);
-  ctx.onFrame((dt, t, now) => {
-    if (ctx.tvMove) { tvMouse(ctx.tvMove, 'mouseMoved'); ctx.tvMove = null; }
-    if (!ctx.away) updateTVs(now);
-  }, 140);
-  ctx.onFrame(() => { for (const d of desks) if (d.codeAnim) paintCode(d, performance.now(), false); }, 150);
-  ctx.onFrame(() => updateHover(), 160);
-  ctx.onFrame(() => drawMap(), 170);
-  ctx.onFrame(() => sky.position.copy(camera.position), 180);
   ctx.onFrame((dt, t) => ctx.away?.fx?.(dt, t), 190);
   function frame(now) {
     raf = requestAnimationFrame(frame);

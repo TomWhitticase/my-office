@@ -488,4 +488,6 @@ export function install(ctx) {
     return out.join('') || '<p class="n">The README is empty.</p>';
   }
   Object.assign(ctx, { ARCH, arch, files, langColor });
+  ctx.action('cabinet', { hover: (h) => cabinetHover(h), click: (h) => toggleDrawer(h.drawer) });
+  ctx.action('folder', { hover: (h) => cabinetHover(h), click: (h) => pickUp(h.folder) });
 }

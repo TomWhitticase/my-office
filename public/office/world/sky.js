@@ -195,4 +195,11 @@ export function install(ctx) {
   Object.defineProperty(ctx, 'daylight', { get: () => daylight, set: (v) => { daylight = v; }, enumerable: true });
   Object.defineProperty(ctx, 'officeExposure', { get: () => officeExposure, set: (v) => { officeExposure = v; }, enumerable: true });
   Object.defineProperty(ctx, 'raysStrength', { get: () => raysStrength, set: (v) => { raysStrength = v; }, enumerable: true });
+  ctx.onFrame((dt, t) => {
+    const simDate = new Date(simNow());
+    updateSky(simDate, t);
+    updateClock(simDate);
+    ctx.updateClocks(simDate);
+  }, 50);
+  ctx.onFrame(() => sky.position.copy(ctx.camera.position), 180);
 }

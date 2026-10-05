@@ -129,4 +129,6 @@ export function install(ctx) {
     if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey && !e.target.closest?.('input, select, textarea') && !chatIn.disabled) chatIn.focus();
   }, true);
   Object.assign(ctx, { talk, johnChat });
+  ctx.action('john', { hover: () => `<b>John</b><div class="m">Sysadmin · ${srv.john.mood === 'sip' ? 'sipping a coffee' : srv.john.mood === 'lean' ? 'leaning back' : 'tapping away at a terminal'}</div><div class="k">${CAN_CHAT ? 'Click to talk to him' : 'He only talks to people on this computer'}</div>`,
+    click: () => openJohn() });
 }

@@ -715,4 +715,6 @@ export function install(ctx) {
       <div class="k">Click to read it as it was ${k ? `${k} commit${k > 1 ? 's' : ''} ago` : 'now'}</div>`;
   }
   Object.assign(ctx, { GATE, tess, fmtCoord, coordOf });
+  ctx.action('gatekey', { hover: (h) => tessHover(h), click: (h) => gatePress(h.key) });
+  ctx.action('book', { hover: (h) => tessHover(h), click: (h) => readBook(h.book) });
 }

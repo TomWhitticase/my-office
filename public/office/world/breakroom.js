@@ -2,7 +2,7 @@
 // (installCozy, after the whiteboard) its bookshelf divider, lamps, pendants and neon.
 
 import * as THREE from 'three';
-import { box, cyl, FONT, makeScreen, mat, PP, solid } from '../util.js';
+import { box, cyl, damp, FONT, lerp, makeScreen, mat, PP, solid } from '../util.js';
 
 export function install(ctx) {
   const { sofa, world } = ctx;
@@ -33,6 +33,22 @@ export function install(ctx) {
     b.scale.set(1, 0.55, 1); b.position.set(-18.35, 0.26, z); b.castShadow = true; b.receiveShadow = true; world.add(b);
   }
   Object.assign(ctx, { ball });
+  ctx.onFrame((dt, t) => {
+    // Ping pong rally when both ends are manned and settled.
+    const [a, b] = ctx.pp.map((q) => q.occupant);
+    const rally = a && b && !a.path.length && !b.path.length && a.spot === ctx.pp[0] && b.spot === ctx.pp[1];
+    ball.visible = !!rally;
+    if (rally) {
+      const P = 1.05, k = (t % (2 * P)) / P, dir = k < 1, u = dir ? k : k - 1;
+      const x0 = PP.x - 1.45, x1 = PP.x + 1.45;
+      const z = PP.z + 0.35 * Math.sin(t * 0.9);
+      ball.position.set(dir ? lerp(x0, x1, u) : lerp(x1, x0, u), 0.79 + 0.32 * Math.abs(Math.sin(u * Math.PI * 2 * 0.75 + 0.1)), z);
+      a.swing = dir ? Math.max(0, 1 - u * 4) : Math.max(0, (u - 0.75) * 4);
+      b.swing = dir ? Math.max(0, (u - 0.75) * 4) : Math.max(0, 1 - u * 4);
+      a.root.position.z = damp(a.root.position.z, z, 4, dt); b.root.position.z = damp(b.root.position.z, z, 4, dt);
+      ctx.sfx.rally(k, ball.position);
+    }
+  }, 40);
 }
 
 export function installCozy(ctx) {
