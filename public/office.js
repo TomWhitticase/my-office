@@ -3998,6 +3998,7 @@ export function mountOffice(container) {
     if (mode === 'folder') mode = 'free';
   }
   function cabinetReset() {   // leaving B2: everything filed away and shut
+    if (!tess.warping) pullFx(0);
     dropHeld(true);
     for (const d of arch.drawers) { d.roll?.stop(); d.k = d.to = d.was = 0; d.roll = null; }
     cabinetFx(0);
@@ -4230,6 +4231,40 @@ export function mountOffice(container) {
     const side = Math.sign(player.z - GATE.z) || 1;
     if (side > 0 && gate.side < 0 && gate.ready && gate.open > 0.9 && Math.abs(player.x - GATE.x) < 1.3 && mode === 'free') enterTess();
     gate.side = side;
+    const d = Math.hypot(player.x - GATE.x, player.z - GATE.z);
+    if (d > PULL + 0.5) gate.armed = true;   // (not straight back in when you've just come out)
+    const s = gate.ready && gate.open > 0.9 && gate.armed && side < 0 && mode === 'free' ? pullOf(d) : 0;
+    if (s) { pullTo(dt, s, GATE.x, GATE.y, GATE.z + 0.8, false); collide(player); }
+    pullFx(s, WARP_IN, GATE_P);
+  }
+
+  // The pull: within PULL m of an open ring, on the side you go in by, it draws you to its centre and turns you to face it.
+  // Gently at first (you can walk away from the edge), then faster than you can walk against; the view starts to stretch and
+  // streak, and a rush builds, until you're through and the crossing takes over.
+  const PULL = 6, PULL_V = 9;
+  const pullOf = (d) => clamp(1 - d / PULL, 0, 1) ** 1.5;
+  function pullTo(dt, s, tx, ty, tz, fly) {
+    const ey = fly ? player.eye : player.eye + (player.fy || 0);
+    const dx = tx - player.x, dy = fly ? ty - ey : 0, dz = tz - player.z, d = Math.hypot(dx, dy, dz) || 1, v = Math.min(d, s * PULL_V * dt);
+    player.x += (dx / d) * v; player.z += (dz / d) * v; if (fly) player.eye += (dy / d) * v;
+    const k = Math.min(1, s * 2.5 * dt), h = Math.hypot(tx - player.x, tz - player.z);
+    player.yaw += angDiff(player.yaw, Math.atan2(-(tx - player.x), -(tz - player.z))) * k;
+    player.pitch += (Math.atan2(ty - ey, Math.max(h, 0.5)) * 0.6 - player.pitch) * k;
+  }
+  const WARP_IN = { ray: 'rgba(255,196,110,.9)', flash: '#fff1cf', bg: '#0b0704' }, WARP_OUT = { ray: 'rgba(255,255,255,.95)', flash: '#ffffff', bg: '#f4f1ea' };
+  function pullFx(s, look, at) {
+    if (tess.warping) return;
+    tess.pullS = s;
+    if (s > 0.005) {
+      fadeEl.style.setProperty('--ray', look.ray); fadeEl.style.setProperty('--flash', look.flash); fadeEl.style.setProperty('--bg', look.bg);
+      fadeEl.classList.add('on');
+      const r = (performance.now() / 40) % 360;
+      Object.assign(raysA.style, { opacity: (s * 0.55).toFixed(3), transform: `scale(${(0.12 + 0.4 * s).toFixed(3)}) rotate(${r.toFixed(1)}deg)` });
+      Object.assign(raysB.style, { opacity: (s * 0.4).toFixed(3), transform: `scale(${(0.08 + 0.3 * s).toFixed(3)}) rotate(${(-r * 0.7).toFixed(1)}deg)` });
+      flashEl.style.opacity = (s * s * 0.3).toFixed(3);
+    } else if (fadeEl.classList.contains('on')) { fadeEl.classList.remove('on'); for (const e of [raysA, raysB, flashEl]) e.style.opacity = 0; }
+    if (!away?.fly) { const fov = FOV0 + 16 * s; if (Math.abs(camera.fov - fov) > 0.01) { camera.fov = fov; camera.updateProjectionMatrix(); } }   // (flying, flyPlayer adds it)
+    sfx.pull(s, at);
   }
 
   // Through the ring: the view stretches as you're pulled in, threads of light streak past and fold into a flash, a deep boom,
@@ -4260,10 +4295,13 @@ export function mountOffice(container) {
     fadeEl.classList.add('on');
     sfx.cabinet('whoosh', camera.position, 0.6); sfx.cabinet('spinup', camera.position, 0.35);
     const IN = { duration: 1100, easing: 'cubic-bezier(.55,0,.9,.4)', fill: 'forwards' };
-    raysA.animate([{ transform: 'scale(.12) rotate(0deg)', opacity: 0 }, { transform: 'scale(.8) rotate(30deg)', opacity: 1, offset: 0.55 }, { transform: 'scale(3) rotate(80deg)', opacity: 1 }], IN);
-    raysB.animate([{ transform: 'scale(.08) rotate(0deg)', opacity: 0 }, { transform: 'scale(.6) rotate(-20deg)', opacity: 0.8, offset: 0.6 }, { transform: 'scale(2.4) rotate(-55deg)', opacity: 1 }], IN);
-    flashEl.animate([{ opacity: 0 }, { opacity: 0, offset: 0.6 }, { opacity: 1 }], IN);
-    await fovTo(FOV0, FOV0 + 70, 1100, easeIn);
+    const from = (e, t) => ({ transform: e.style.transform || t, opacity: +(e.style.opacity || 0) });   // where the pull left it
+    raysA.animate([from(raysA, 'scale(.12) rotate(0deg)'), { transform: 'scale(.8) rotate(30deg)', opacity: 1, offset: 0.55 }, { transform: 'scale(3) rotate(80deg)', opacity: 1 }], IN);
+    raysB.animate([from(raysB, 'scale(.08) rotate(0deg)'), { transform: 'scale(.6) rotate(-20deg)', opacity: 0.8, offset: 0.6 }, { transform: 'scale(2.4) rotate(-55deg)', opacity: 1 }], IN);
+    const f0 = +(flashEl.style.opacity || 0);
+    flashEl.animate([{ opacity: f0 }, { opacity: f0, offset: 0.6 }, { opacity: 1 }], IN);
+    sfx.pull(0);
+    await fovTo(camera.fov, FOV0 + 70, 1100, easeIn);
     sfx.cabinet('boom', camera.position, 0.8);
     then();
     if (mode === 'warp') mode = 'free';
@@ -4275,18 +4313,19 @@ export function mountOffice(container) {
     flashEl.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 1200, easing: 'ease-out', fill: 'forwards' });
     await fovTo(FOV0 + 70, FOV0, 1600, easeOut);
     fadeEl.classList.remove('on');
+    for (const e of [raysA, raysB, flashEl]) { e.getAnimations().forEach((a) => a.cancel()); e.style.transform = ''; e.style.opacity = 0; }
     tess.warping = false;
   }
-  const enterTess = () => warp({ ray: 'rgba(255,196,110,.9)', flash: '#fff1cf', bg: '#0b0704' }, () => setFloor(tess));
-  const exitTess = () => warp({ ray: 'rgba(255,255,255,.95)', flash: '#ffffff', bg: '#f4f1ea' }, () => {
+  const enterTess = () => warp(WARP_IN, () => setFloor(tess));
+  const exitTess = () => warp(WARP_OUT, () => {
     setFloor(arch);
     arch.out = 1;   // straight into the void's own light
     Object.assign(player, { x: GATE.x, z: GATE.z - 1.2, eye: EYE, fy: GATE.PL, yaw: 0, pitch: -0.05, seated: false, seat: null });   // on the plinth, looking back down the path
-    gate.side = -1;
+    gate.side = -1; gate.armed = false;
   });
 
   // ----- inside a repo -----
-  const EXIT_Z = 26;   // the way out, 26 m in front of the first bookcases (you arrive 4 m inside it)
+  const EXIT_Z = 26;   // the way out, 26 m in front of the first bookcases (you arrive 9 m inside it, clear of its pull)
   const TX = -3000, BW = 2.4, BH = 2.0, BD = 0.36, GX = 3.3, GY = 2.9, GZ = 5, PER = 56, SLOT = (BW - 0.12) / 14, SHELF = (BH - 0.1) / 4, WC = 8, WB = 4, WK = 3;
   const EXT = { js: 'JavaScript', mjs: 'JavaScript', cjs: 'JavaScript', jsx: 'JavaScript', ts: 'TypeScript', tsx: 'TypeScript', py: 'Python', html: 'HTML', css: 'CSS', scss: 'SCSS',
     java: 'Java', cs: 'C#', cpp: 'C++', cc: 'C++', h: 'C', c: 'C', go: 'Go', rs: 'Rust', sh: 'Shell', swift: 'Swift', kt: 'Kotlin', rb: 'Ruby', php: 'PHP', dart: 'Dart',
@@ -4532,14 +4571,15 @@ export function mountOffice(container) {
 
   tess.enter = () => {
     const T = tess.t, r = T.rootP;
-    Object.assign(player, { x: r.x, z: EXIT_Z - 4, eye: r.y - 0.4, yaw: 0, pitch: 0.02, seated: false, seat: null });
-    tess.vel.set(0, 0, 0); tess.prevZ = EXIT_Z - 4;
+    Object.assign(player, { x: r.x, z: EXIT_Z - 9, eye: r.y - 0.4, yaw: 0, pitch: 0.02, seated: false, seat: null });
+    tess.vel.set(0, 0, 0); tess.prevZ = EXIT_Z - 9; tess.armed = false;
     tessWindow(0, true);
     hud.classList.add('of-tess');
     toast(`<b>INSIDE ${escapeHtml(T.repo.name.toUpperCase())}</b> · the further in, the further back`);
   };
   tess.leave = () => {
     const T = tess.t;
+    if (!tess.warping) pullFx(0);
     tess.boost = 0;
     if (camera.fov !== FOV0 && !tess.warping) { camera.fov = FOV0; camera.updateProjectionMatrix(); }
     if (T?.held) { T.held = null; tess.pulled.visible = false; tessWindow(T.cur, true); }
@@ -4569,6 +4609,11 @@ export function mountOffice(container) {
     const g = tess.exit.g.position;   // through the white ring: back to the archive
     if (tess.prevZ < g.z && player.z >= g.z && Math.hypot(player.x - g.x, player.eye - g.y) < 1.8 && mode === 'free') exitTess();
     tess.prevZ = player.z;
+    const d = Math.hypot(player.x - g.x, player.eye - g.y, player.z - g.z);
+    if (d > PULL + 0.5) tess.armed = true;
+    const s = tess.armed && player.z < g.z && mode === 'free' ? pullOf(d) : 0;
+    if (s) { pullTo(dt, s, g.x, g.y, g.z + 0.8, true); tess.vel.multiplyScalar(1 - Math.min(1, s * 3 * dt)); }
+    pullFx(s, WARP_OUT, g);
   };
   // What you're looking at: the books are in planes (each layer's front, or back if you're looking forward in time), so find
   // where the ray crosses the nearest few and which bookcase, shelf and slot that is.
@@ -4615,7 +4660,7 @@ export function mountOffice(container) {
     tess.boost = shift && going ? Math.min(1, (tess.boost || 0) + dt / 7) : Math.max(0, (tess.boost || 0) - dt / 1.2);
     const speed = shift ? lerp(9, tess.t?.top || 60, tess.boost ** 2) : 3.5;
     tess.vel.lerp(flyV.multiplyScalar(speed), Math.min(1, dt * (tess.vel.length() > speed ? 1.6 : 2.5)));
-    const fov = FOV0 + 14 * clamp((tess.vel.length() - 6) / 50, 0, 1) + 6 * clamp((tess.vel.length() - 60) / 260, 0, 1);
+    const fov = FOV0 + 14 * clamp((tess.vel.length() - 6) / 50, 0, 1) + 6 * clamp((tess.vel.length() - 60) / 260, 0, 1) + 16 * (tess.pullS || 0);
     if (!tess.warping && Math.abs(camera.fov - fov) > 0.01) { camera.fov = damp(camera.fov, fov, 4, dt); camera.updateProjectionMatrix(); }
     player.x += tess.vel.x * dt; player.eye += tess.vel.y * dt; player.z += tess.vel.z * dt;
     tess.bound(player);

@@ -18,7 +18,7 @@ const VOWELS = [[730, 1090, 2440], [530, 1840, 2480], [270, 2290, 3010], [570, 8
 
 export function createSounds({ camera, rugs, glass, lift, coffee, doorPos, roof }) {
   let ctx = null, bus = null, master = null, B = null, voices = 0, active = false;
-  let away = false, tone = null, hum = null, humOn = false;   // away: off the office floor, where it can't be heard ('roof' up top, true in the archive)
+  let away = false, tone = null, hum = null, humOn = false, pullV = null;   // away: off the office floor, where it can't be heard ('roof' up top, true in the archive)
   let room = null, fans = [], clickAt = 0, relayAt = 0;   // room: a floor's own sound (see setAway), fans: its hum loops
   const played = {};   // debug counts by kind (window.__office.sfx.played)
   const st = new Map();       // person -> sound state
@@ -196,6 +196,11 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos, roof 
     return make(2.6, (t) => Math.sin(TAU * (28 + 60 * Math.exp(-t / 0.25)) * t) * Math.exp(-t / 0.7) + lp(noise()) * 3 * Math.exp(-t / 0.35)
       + hi(noise() * Math.exp(-t / 0.5), 300 + 3000 * Math.exp(-t / 0.3), 0.6) * 0.5);
   }
+  function pullLoop() {   // a ring drawing you in: a deep rumble under a rushing wind, looped (its level and pitch follow the pull)
+    const lp = biq('lp', 110, 0.8), f = svf(), D = 4;
+    return make(D, (t) => lp(noise()) * 3.2 * (0.85 + 0.15 * Math.sin(TAU * 3 * t / D)) + f(noise(), 900 + 600 * Math.sin(TAU * 2 * t / D) ** 2, 0.45) * 0.5
+      + Math.sin(TAU * 47 * t) * 0.12, 0.8);
+  }
   function bookSlide() {
     const bp = biq('bp', 900, 0.8), th = biq('lp', 200, 0.8);
     return make(0.4, (t) => { const n = noise(), e = env(t, 0, 0.3, 0.03, 0.1) * (0.6 + 0.4 * Math.sin(TAU * 31 * t)); return bp(n * e) + th(n * Math.exp(-Math.abs(t - 0.3) / 0.015)) * 2.5; });
@@ -238,7 +243,7 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos, roof 
       low: n(14, () => syllable(125)), high: n(14, () => syllable(205)),
       espresso: espresso(), creak: n(3, creak), swish: swish(), rattle: rattle(), chime: chime(), slide: slide(),
       latch: n(2, latch), roll: roll(), thunk: n(2, () => thunk(false)), slam: n(2, () => thunk(true)), rustle: n(3, () => rustle(rnd(0.6, 0.9))), page: n(3, page),
-      beep: n(2, beep), buzz: buzz(), accept: accept(), spinup: spinUp(), spindown: null, whoosh: whoosh(), boom: boom(), book: n(2, bookSlide),
+      beep: n(2, beep), buzz: buzz(), accept: accept(), spinup: spinUp(), spindown: null, whoosh: whoosh(), boom: boom(), pull: pullLoop(), book: n(2, bookSlide),
       seek: n(6, seek), relay: n(2, relay),
     };
     B.spindown = ctx.createBuffer(1, B.spinup.length, ctx.sampleRate);   // the gateway closing: its spin-up, backwards
@@ -530,6 +535,21 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos, roof 
       v.src.stop(t0 + d + 0.02);
       const pp = v.pan;
       return { move(q) { if (pp.positionX) { pp.positionX.value = q.x; pp.positionY.value = q.y; pp.positionZ.value = q.z; } }, stop() { try { v.g.gain.cancelScheduledValues(ctx.currentTime); v.g.gain.setTargetAtTime(0, ctx.currentTime, 0.03); v.src.stop(ctx.currentTime + 0.15); } catch {} } };
+    },
+    // A ring pulling you in: `level` 0..1, from `p` (a world position). One looping voice, faded in and out.
+    pull(level, p) {
+      if (!ctx || !B || (!pullV && !(level > 0.005))) return;
+      if (!pullV) {
+        const src = ctx.createBufferSource(), g = ctx.createGain(), pan = ctx.createPanner();
+        src.buffer = B.pull; src.loop = true; g.gain.value = 0;
+        pan.panningModel = 'HRTF'; pan.distanceModel = 'inverse'; pan.refDistance = 3; pan.rolloffFactor = 0.6;
+        src.connect(g).connect(pan).connect(bus); src.start();
+        pullV = { src, g, pan };
+      }
+      const now = ctx.currentTime, lv = away ? level || 0 : 0;
+      pullV.g.gain.setTargetAtTime(lv * 0.6, now, 0.12);
+      pullV.src.playbackRate.setTargetAtTime(0.6 + 0.9 * lv, now, 0.15);
+      if (p && pullV.pan.positionX) { pullV.pan.positionX.value = p.x; pullV.pan.positionY.value = p.y; pullV.pan.positionZ.value = p.z; }
     },
     get ready() { return !!ctx && ctx.state; },
     get voices() { return voices; }, played, get buffers() { return B; },
