@@ -5,7 +5,7 @@ description: Setup wizard for my-office, the live Claude Code dashboard with a 3
 
 # my-office setup wizard
 
-You are setting up **my-office** for the user: a local web dashboard of every Claude Code session on this machine, with an Overview tab and a first-person 3D Office tab. Everything runs locally and only reads Claude Code's own files under `~/.claude`. Nothing is sent anywhere.
+You are setting up **my-office** for the user: a first-person 3D office where every Claude Code session on this machine is a person at a desk (or on a break), with a live dashboard on the computer on their desk. It runs locally and reads Claude Code's own files under `~/.claude`. The only things that leave the machine are ones the user turns on: the wall TVs load whatever pages they choose, the archive asks GitHub for their repos via `gh`, and John in the server room asks Claude via their own `claude` CLI.
 
 The mechanical work is done by `node bin/setup.mjs`. Your job is to check the machine, ask a few questions, run the script with the right flags, and confirm it works. Keep it friendly and brief: this is a wizard, not a lecture.
 
@@ -21,7 +21,8 @@ It prints JSON. Act on it:
 - `nodeOk: false` or `node` missing: stop and tell the user to install Node.js 18+ (e.g. `brew install node`, or nodejs.org). Don't try to install Node yourself.
 - `claudeDir: false`: Claude Code hasn't been run on this machine yet. Stop and say so.
 - `config` already filled in and `service` installed: this is a re-run. Ask whether they want to change settings, repair, or uninstall, rather than starting from scratch.
-- `platform` other than `darwin`/`linux`: setup still works, but the server must be started manually with `npm start` (pass `--no-service`).
+- `platform` other than `darwin`/`linux`: setup still works, but the server must be started manually with `npm start` (pass `--no-service`). It's built and tested on macOS; Linux should work but is less tested, and Windows isn't supported.
+- `optional`: tools that aren't needed but each unlock part of the office (see step 4). Don't install anything yourself; just note what's missing so you can tell them at the end.
 
 ## 2. Ask the user
 
@@ -52,13 +53,19 @@ If the status line hook reports "your own status line script already saves snaps
 
 ## 4. Open it and hand over
 
-Open `http://127.0.0.1:<port>` in their browser (`open` on macOS, `xdg-open` on Linux). Then tell them, briefly:
+Open `http://127.0.0.1:<port>` in their browser (`open` on macOS, `xdg-open` on Linux). Then give them a short tour (a few lines, not all of this):
 
-- **Overview tab**: live sessions, plan limits, cost, activity feed and charts. Click any session for full detail.
-- **Office tab**: the camera zooms out of their monitor into a 3D office. Working sessions sit at desks with live stats on their screens, and idle ones hang out in the breakroom.
-  - Controls: click to look around, WASD to move, Shift to run, and click a person or screen for details.
-  - Keys: 1–4 jump between areas, T speeds up time, and G toggles heavy graphics effects.
+- **The office**: it opens in first person at their desk. Working sessions sit at the desk pods typing; waiting ones lean back, scroll a phone or spin their chair; idle ones take a break (kitchen, coffee, sofas, ping pong, meeting rooms). People arrive and leave by lift. The sky outside follows the real sun and moon for their city.
+- **Controls**: click to look around, WASD to move, Shift to run. Click a person to chat with that session, click a chair to sit, click doors, blinds and whiteboards. Keys: 1–5 jump between areas, T speeds up time, G toggles heavy graphics, H hides the overlays, M toggles sounds, E shows details, Esc releases the mouse.
+- **Their computer**: click the monitor on their desk to use it. It's an XP-style desktop with Dashboard (live sessions, plan limits, cost, charts), Office Admin (lights, blinds, door, sounds, TVs) and Messages. There's also a MacBook on the lounge table that shows the same desktop.
+- **The lift**: walk into a lift to visit the Roof terrace, the Server Hall (47: a rack per session, and John the sysadmin to chat with) and THE ARCHIVE (B2: their GitHub repos in a filing cabinet, and a gateway into them).
+- **Wall TVs**: click one to show any web page (YouTube, dashboards…), with ad blocking, volume and auto-refresh.
 - **Status line timing**: the status line data appears for each session the next time its status line redraws, which happens on that session's next message.
+- **Optional extras**: from the `optional` block in `--status` (setup also prints it at the end), say plainly which features won't work yet and the one-line fix for each:
+  - `gh` missing or not signed in → THE ARCHIVE's cabinet is empty: `brew install gh && gh auth login`.
+  - `chrome` missing → the wall TVs don't work: install Google Chrome (or set `CHROME_PATH`).
+  - `orca` and `tmux` both missing → they can read sessions' chats but not send to them: run Claude Code sessions in Orca or inside tmux.
+  - `claude` not found → John is "on his lunch break": put the `claude` CLI on the PATH.
 - **Uninstall**: `node bin/setup.mjs --uninstall` removes the service and restores their original status line.
 
 If they didn't install the service, tell them to start it with `npm start` in the repo.
