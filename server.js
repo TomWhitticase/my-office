@@ -11,10 +11,10 @@ const fs = require('fs');
 const path = require('path');
 const http = require('http');
 const os = require('os');
-const net = require('net');
 const crypto = require('crypto');
 const { execFile, spawn } = require('child_process');
 const { CLAUDE, safeJSON, readJSON, clip, pidAlive, ts, hourKey, minuteKey, binOf, run, clients } = require('./server/util');
+const { TV_UA_TAG, trustedHost, deny } = require('./server/security');
 
 // config.json (written by `npm run setup`) holds owner name, location and port; env vars override.
 const CONFIG = (() => { try { return JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8')); } catch { return {}; } })();
@@ -760,7 +760,6 @@ function putTv(id, body) {
 const TV_PROFILE = path.join(CLAUDE, 'my-office', 'tv-browser');
 const TV_FRAMES = path.join(CLAUDE, 'my-office', 'tv-frames');   // last frame per TV, shown until it's live again
 const TV_W = 1280, TV_H = 720, TV_MAX_TABS = 8, TV_MAX_CASTS = 4;
-const TV_UA_TAG = 'my-office-tv';   // on the TV browser's user agent, so a TV showing the office can't open TV streams itself
 const CHROME = [process.env.CHROME_PATH, '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/Applications/Chromium.app/Contents/MacOS/Chromium',
   '/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser'].find((p) => p && fs.existsSync(p));
 const UA_OS = { darwin: 'Macintosh; Intel Mac OS X 10_15_7', win32: 'Windows NT 10.0; Win64; x64' }[process.platform] || 'X11; Linux x86_64';
@@ -1107,10 +1106,6 @@ function wsSend(sock, op, data) {
   if (n >= 65536) { head[0] = 0x80 | op; head[1] = 127; head.writeBigUInt64BE(BigInt(n), 2); }
   sock.cork(); sock.write(head); sock.write(data); sock.uncork();
 }
-function trustedHost(host) {
-  const h = host.replace(/:\d+$/, '').replace(/^\[|\]$/g, '');
-  return h === 'localhost' || net.isIP(h) || h === os.hostname() || h.endsWith('.local');
-}
 function tvUpgrade(req, sock) {
   const host = req.headers.host || '', key = req.headers['sec-websocket-key'];
   if (new URL(req.url, 'http://x').pathname !== '/tv' || !key || !trustedHost(host) || req.headers.origin !== `http://${host}`
@@ -1383,25 +1378,6 @@ const repoBlob = (o, n, ref, file) => cached(`blob:${o}/${n}@${ref}:${file}`, as
 });
 
 // ---------- http ----------
-// Anything that changes state must come from this dashboard: JSON (a foreign page then needs a CORS preflight, which is never
-// approved), our own Origin on our own Host (no other site, no DNS rebinding), and not a TV or headless browser (a TV showing
-// the dashboard must not drive it).
-function refuse(req) {
-  const host = req.headers.host || '', ua = req.headers['user-agent'] || '';
-  if (!trustedHost(host)) return 'unknown Host';
-  if (req.headers.origin !== `http://${host}`) return 'missing or foreign Origin';
-  if (!/^application\/json\s*(;|$)/i.test(req.headers['content-type'] || '')) return 'Content-Type must be application/json';
-  if (/HeadlessChrome/.test(ua) || ua.includes(TV_UA_TAG)) return 'not from a TV or headless browser';
-  return null;
-}
-function deny(req, res) {
-  const why = refuse(req);
-  if (!why) return false;
-  console.log(`[refused] ${req.method} ${req.url}: ${why} (origin ${req.headers.origin || '-'}, host ${req.headers.host || '-'})`);
-  res.writeHead(403, { 'content-type': 'application/json' });
-  res.end(JSON.stringify({ error: `refused: ${why}` }));
-  return true;
-}
 const INDEX = path.join(__dirname, 'public', 'index.html');
 const STATIC_ROOTS = [
   ['/vendor/three/', path.join(__dirname, 'node_modules', 'three')],
