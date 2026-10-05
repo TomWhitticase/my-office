@@ -3,8 +3,14 @@
 // panels and the FLOORS table (installRiding). Floors register themselves with ctx.addFloor; lifts never import floors.
 
 import * as THREE from 'three';
-import { AISLE, box, clamp, cyl, dash, ease, faceTo, fit, FONT, lerp, LIFT, makeCanvas, makeScreen, mat, mergedBoxes, rng, ROOM, solid } from '../util.js';
+import { AISLE, box, clamp, cyl, damp, dash, ease, faceTo, fit, FONT, lerp, LIFT, makeCanvas, makeScreen, mat, mergedBoxes, rng, ROOM, solid } from '../util.js';
 import { MONO } from '../painters.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 export function install(ctx) {
   const { world } = ctx;
@@ -204,7 +210,7 @@ export function installCycle(ctx) {
 }
 
 export function installRiding(ctx) {
-  const { lifts, world, CAR, DOOR, floorName, toast, setLift, setFloor, paintIndicator } = ctx;
+  const { lifts, world, CAR, DOOR, floorName, toast, setLift, paintIndicator } = ctx;
   Object.assign(ctx, { callLift, pressFloor, myLift, myCar, carPanel, paintPanel, carCollide, resetLift });
   // ----- riding the lifts yourself -----
   // Click the call panel and the nearest car no session needs is yours (`mine.L`, `L.player`) until you step out and it
@@ -260,7 +266,7 @@ export function installRiding(ctx) {
   function travelTo(L, f) {
     Object.assign(mine, { from: L.floor, to: f, k: 0, dur: clamp(Math.abs(f - L.floor) / 11, 2.5, 5.5) });
     L.goal = f; L.dir = Math.sign(f - L.floor); setLift(L, 'travel');
-    if (inMyCar()) { setFloor(f === 48 ? null : FLOORS.find((F) => F.n === f)); ctx.sfx.hum(true); }
+    if (inMyCar()) { ctx.setFloor(f === 48 ? null : FLOORS.find((F) => F.n === f)); ctx.sfx.hum(true); }
   }
   function release(L) {   // back to the sessions, closed at whatever floor it's on
     L.player = false; L.floor = Math.round(L.floor); L.dir = 0; L.doorK = 0;
@@ -321,7 +327,7 @@ export function installRiding(ctx) {
     mine.call = false;
     if (mine.L) release(mine.L);
     ctx.sfx.hum(false);
-    setFloor(null);
+    ctx.setFloor(null);
   }
   // Your car while it's yours: its walls, and the doorway while the doors are open (the core's collider rules otherwise).
   function carCollide(p) {
@@ -341,4 +347,85 @@ export function installRiding(ctx) {
   }
   Object.assign(ctx, { ARCHIVE, mine, FLOORS, hitBox, addFloor, inMyCar, spare });
   Object.defineProperty(ctx, 'away', { get: () => away, set: (v) => { away = v; }, enumerable: true });
+}
+
+export function installShafts(ctx) {
+  const { CAR, DOOR, ARCHIVE, hitBox, carPanel, paintPanel, cssRenderer, mine, tvQuiet, container, renderer, hemi, scene, camera } = ctx;
+  Object.assign(ctx, { setFloor, liftShaft, renderFloor });
+  // Another floor's car: a freestanding stone shaft and the same car as the office's, facing -x at LIFT.x about z = 0, with
+  // its own doors, hall lantern, call button and floor panel (moved onto your car's z when you arrive, see setFloor).
+  function liftShaft() {
+    const lift = new THREE.Group(), fx = LIFT.x + 0.05, front = LIFT.x + 0.1, cx = front + CAR.d / 2, back = front + CAR.d, sw = CAR.w / 2 + 0.3, top = ROOM.h;
+    const stone = [[0.1, top, sw - DOOR.w / 2, fx, top / 2, -(sw + DOOR.w / 2) / 2], [0.1, top, sw - DOOR.w / 2, fx, top / 2, (sw + DOOR.w / 2) / 2], [0.1, top - DOOR.h, DOOR.w, fx, (top + DOOR.h) / 2, 0],
+      [back + 0.2 - front, top, 0.3, (front + back + 0.2) / 2, top / 2, -sw + 0.15], [back + 0.2 - front, top, 0.3, (front + back + 0.2) / 2, top / 2, sw - 0.15],
+      [0.2, top, CAR.w, back + 0.1, top / 2, 0], [back + 0.2 - front, top - CAR.h - 0.04, CAR.w, (front + back + 0.2) / 2, (top + CAR.h + 0.04) / 2, 0]];
+    for (let y = 0.9; y < top; y += 0.9) for (const s of y > DOOR.h ? [0] : [-1, 1]) stone.push([0.012, 0.006, s ? sw - DOOR.w / 2 - 0.08 : sw * 2, LIFT.x - 0.001, y, s * (sw + DOOR.w / 2 + 0.08) / 2]);   // panel joints, not across the doorway
+    lift.add(mergedBoxes(stone.map((b) => [...b, b[1] === 0.006 ? '#5d5852' : '#77716a']), mat('#ffffff', { vertexColors: true, roughness: 0.55 })));
+    const steel = [[0.05, 0.08, DOOR.w + 0.16, LIFT.x - 0.02, DOOR.h + 0.04, 0], [0.34, 0.012, DOOR.w, fx + 0.02, 0.006, 0], [0.04, 0.26, 0.56, LIFT.x - 0.02, 2.5, 0],
+      [0.02, 0.38, 0.15, LIFT.x - 0.01, 1.1, DOOR.w / 2 + 0.3], [back + 0.24 - LIFT.x, 0.03, sw * 2 + 0.02, (LIFT.x + back + 0.24) / 2, top + 0.015, 0]];
+    for (const s of [-1, 1]) steel.push([0.05, DOOR.h + 0.08, 0.08, LIFT.x - 0.02, (DOOR.h + 0.08) / 2, s * (DOOR.w / 2 + 0.04)]);
+    const steelM = ctx.liftSteelM;   // the office's brushed steel, so doors and surrounds match on every floor
+    lift.add(mergedBoxes(steel, steelM));
+    const car = [[CAR.d, 0.02, CAR.w, cx, 0.01, 0, '#2c2b2a'], [CAR.d, 0.04, CAR.w, cx, CAR.h, 0, '#232426'], [0.04, CAR.h, CAR.w, back, CAR.h / 2, 0, '#8a6446'],
+      [0.035, 0.035, CAR.w - 0.2, back - 0.06, 0.95, 0, '#dfe2e5'], [0.02, 0.4, 0.16, LIFT.x + 0.35, 1.2, CAR.w / 2 - 0.03, '#5a5f66']];
+    for (const s of [-1, 1]) car.push([CAR.d, CAR.h, 0.04, cx, CAR.h / 2, s * CAR.w / 2, '#aeb4ba'], [CAR.d - 0.3, 0.035, 0.035, cx + 0.1, 0.95, s * (CAR.w / 2 - 0.06), '#dfe2e5']);
+    lift.add(mergedBoxes(car, mat('#ffffff', { vertexColors: true, roughness: 0.45, metalness: 0.35 })), mergedBoxes([[0.01, 1.05, CAR.w - 0.3, back - 0.025, 1.65, 0]], mat('#dfe4e8', { metalness: 1, roughness: 0.05 })),
+      mergedBoxes([[CAR.d - 0.5, 0.01, CAR.w - 0.45, cx, CAR.h - 0.025, 0]], new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: '#fff3df', emissiveIntensity: 1.6 })));
+    const leaves = [-1, 1].map((s) => box(lift, 0.03, DOOR.h, DOOR.w / 2 + 0.01, '', LIFT.x + 0.13, DOOR.h / 2, s * DOOR.w / 4, { material: steelM, shadow: false }));
+    const ind = { ind: makeScreen(lift, 0.48, 0.2, 192, 80, LIFT.x - 0.045, 2.5, 0), floor: ARCHIVE, dir: 0 };
+    ind.ind.mesh.rotation.y = -Math.PI / 2;
+    const callM = new THREE.MeshStandardMaterial({ color: '#e6e3dc', emissive: '#ffb347', emissiveIntensity: 0, roughness: 0.4 });
+    for (const y of [1.16, 1.04]) cyl(lift, 0.026, 0.026, 0.02, '', LIFT.x - 0.025, y, DOOR.w / 2 + 0.3, { material: y > 1.1 ? mat('#e6e3dc', { roughness: 0.4 }) : callM, seg: 16, shadow: false }).rotation.z = Math.PI / 2;
+    const callHit = hitBox(lift, 0.06, 0.42, 0.22, LIFT.x - 0.03, 1.1, DOOR.w / 2 + 0.3, { action: 'liftcall', reach: 2.5 });
+    const panel = carPanel(lift, 0); paintPanel(panel, null);
+    return { lift, leaves, ind, callM, callHit, panel };
+  }
+  // Going to (F) or leaving (null) another floor, behind closed doors.
+  function setFloor(F) {
+    if (ctx.away === F) return;
+    if (ctx.away) { ctx.away.on = false; ctx.away.leave?.(); }
+    ctx.away = F;
+    if (F) {
+      F.on = true; F.out = 0;
+      F.enter(mine.L.z); F.scene?.updateMatrixWorld();
+      tvQuiet();
+    }
+    cssRenderer.domElement.style.visibility = F ? 'hidden' : '';
+    ctx.sfx.setAway(!!F, F?.sound);
+  }
+  // Inside the car it's lit like the office car upstairs; stepping out of the doorway, your eyes adjust to the floor's own `look`:
+  // exposure, hemisphere light, environment and extra lights, and the office's bloom and grade scaled by look.bloom/grade.
+  function renderFloor(F) {
+    const w = container.clientWidth, h = container.clientHeight, L = F.look;
+    if (!F.composer) {
+      const c = F.composer = new EffectComposer(renderer);
+      c.setPixelRatio(renderer.getPixelRatio());
+      c.addPass(new RenderPass(F.scene, camera));
+      const ao = F.gtao = new GTAOPass(F.scene, camera, 512, 512);
+      ao.blendIntensity = 0.8;
+      ao.updateGtaoMaterial({ radius: 0.5, distanceExponent: 1.4, thickness: 1, scale: 1.1, samples: 12 });
+      if (L.aoSkip1) { const aoRender = ao.render.bind(ao); ao.render = (...a) => { camera.layers.disable(1); aoRender(...a); camera.layers.enable(1); }; }
+      F.bloom = new UnrealBloomPass(new THREE.Vector2(512, 512), ctx.bloom.strength, ctx.bloom.radius, ctx.bloom.threshold);
+      F.grade = new ShaderPass(ctx.grade.material.clone());
+      c.addPass(ao); c.addPass(F.bloom); c.addPass(new OutputPass()); c.addPass(F.grade);
+      c.setSize(w, h);
+    }
+    F.gtao.enabled = ctx.quality;
+    // Only the car itself is office-lit: the switch happens across the doorway (0.4 m inside to 0.3 m out), eased over ~1 s,
+    // so walking up to the lift from the floor never dims anything.
+    F.out = F.carless ? 1 : damp(F.out ?? 0, clamp((LIFT.x + 0.4 - ctx.player.x) / 0.7, 0, 1), 3, 1 / 60);
+    const k = ease(F.out);
+    renderer.toneMappingExposure = lerp(ctx.officeExposure, L.exposure, k);
+    F.hemi.intensity = lerp(hemi.intensity, L.hemi, k);
+    F.hemi.color.copy(hemi.color).lerp(L.sky, k); F.hemi.groundColor.copy(hemi.groundColor).lerp(L.ground, k);
+    for (const [light, v] of L.lights) light.intensity = v * k;
+    F.bloom.strength = ctx.bloom.strength * lerp(1, L.bloom, k); F.bloom.enabled = ctx.quality && F.bloom.strength > 0.004;
+    F.grade.enabled = ctx.quality; F.grade.uniforms.amount.value = lerp(1, L.grade, k);
+    F.scene.environmentIntensity = lerp(scene.environmentIntensity, L.env, k);
+    F.composer.render();
+    renderer.setRenderTarget(null);
+    const gl = renderer.getContext();   // full alpha everywhere: no dashboard hole down here (see renderFrame)
+    gl.colorMask(false, false, false, true); gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT); gl.colorMask(true, true, true, true);
+    renderer.state.buffers.color.reset();
+  }
 }
