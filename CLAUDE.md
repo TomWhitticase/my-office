@@ -13,13 +13,19 @@ Several Claude sessions may work on this repo at once, sometimes in the same che
 ## Checks before committing
 
 ```bash
-for f in server.js server/*.js public/office.js public/office/*.js public/office/*/*.js bin/setup.mjs; do node --check "$f" || echo "FAIL $f"; done
+for f in server.js server/*.js bin/setup.mjs; do node --check "$f" || echo "FAIL $f"; done
+# The front end is ES modules: `node --check file.js` passes one with a syntax error in it (no "type" in package.json), so pipe it in as a module.
+for f in public/*.js public/office/*.js public/office/*/*.js; do node --input-type=module --check < "$f" || echo "FAIL $f"; done
 npx tsc -p test/tsconfig.json   # JSDoc types: the office's ctx, registries, FLOORS and floors (files with // @ts-check)
-launchctl kickstart -k gui/$(id -u)/com.my-office.server   # macOS service; Linux: systemctl --user restart my-office
-curl -sf http://127.0.0.1:7777/api/state > /dev/null && echo server ok
 ```
 
-`public/` is served with `no-store`, so front-end changes only need a browser refresh. `server.js` and `server/` changes need the restart.
+To try a change, run your own server from your checkout with an isolated HOME on a spare port (7831-7840), not the live one.
+
+## Live site
+
+The live office on http://127.0.0.1:7777 runs from a dedicated checkout, `/Users/admin/orca/workspaces/my-office/office-live`, kept on origin/main by `bin/live.sh` (launchd agent `com.my-office.live`). **Never edit that checkout or restart its server by hand**: push to main and it deploys within about 30 s. live.sh syntax-checks each new commit first (one that fails, or whose server doesn't come up, is skipped), runs `npm install` when package files change, and restarts the server only when `server.js`, `server/` or package files changed; `public/` is served with `no-store`, and open pages poll `/api/build` and reload themselves (unless you're typing, chatting, at a TV or whiteboard, flying…). What it did is in `office-live/.live.log`.
+
+On another machine, the installer's service (`launchctl kickstart -k gui/$(id -u)/com.my-office.server`; Linux: `systemctl --user restart my-office`) runs the server instead, and `server.js` / `server/` changes need that restart.
 
 For a change that shouldn't alter anything you can see (a refactor, a tidy-up), also run the harness: `npm test` (about five minutes; see `test/README.md`). It must say `all match`. If it doesn't, fix the change; only re-record its baselines for an intended visual or behaviour change, after looking at every changed shot.
 

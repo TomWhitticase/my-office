@@ -767,6 +767,19 @@ function syncAdmin() {
 }
 buildAdmin();
 connect();
+// A new version went live (the deploy moved the server's checkout): reload to pick it up, once you're not in the middle of
+// typing, a chat, a TV / whiteboard / archive folder, flying, or a camera move. The office puts you back where you were (see restorePose).
+(() => {
+  let build = null, pending = false;
+  const busy = () => document.activeElement?.matches?.('input, textarea, select, [contenteditable]') || ['chat', 'tv', 'board', 'read', 'folder', 'heli', 'warp', 'intro', 'outro'].includes(window.__office?.mode);
+  setInterval(async () => {
+    const b = await fetch('/api/build', { cache: 'no-store' }).then((r) => r.json()).then((j) => j.build, () => null);
+    if (!b) return;
+    if (build === null) build = b;
+    else if (b !== build) pending = true;
+    if (pending && !busy()) location.reload();
+  }, 5000);
+})();
 // Keep relative times ticking between pushes.
 setInterval(() => { for (const el of document.querySelectorAll('[data-rel]')) el.textContent = relText(el.dataset.rel, Number(el.dataset.t)); }, 1000);
 </script>
