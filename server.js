@@ -1338,27 +1338,52 @@ const repoDetail = (o, n) => cached(`repo:${o}/${n}`, async () => {
     commits: (Array.isArray(commits) ? commits : []).map((c) => ({ sha: c.sha.slice(0, 7), message: c.commit.message.split('\n')[0], author: c.commit.author?.name || c.author?.login || '', date: c.commit.author?.date })),
   };
 });
-// The tesseract: the whole tree (paths and sizes, at HEAD) and the last commits with the files each touched, so the office can
-// rebuild the tree as it was before each one. Commit details are one call each, a few at a time.
-const TREE_MAX = 5000, HISTORY = 30, EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';   // (GitHub 404s on git's empty tree)
+// The tesseract: the whole tree (paths and sizes, at HEAD) and the repo's whole history (up to HISTORY_MAX commits, newest first)
+// with the files each commit touched, so the office can rebuild the tree as it was at every commit. That's one call per commit,
+// ten at a time; a commit never changes, so what each touched is kept for good (COMMIT_FILES) and a refresh only asks about new
+// ones. It takes a while the first time, so it runs as a job: /tree answers 202 with { done, total } until it's ready.
+const TREE_MAX = 5000, HISTORY_MAX = 3000, EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';   // (GitHub 404s on git's empty tree)
+const COMMIT_FILES = new Map(), treeJobs = new Map();
 async function pool(list, n, fn) {
   const out = new Array(list.length);
   let i = 0;
   await Promise.all(Array.from({ length: n }, async () => { while (i < list.length) { const j = i++; out[j] = await fn(list[j]).catch(() => null); } }));
   return out;
 }
-const repoTree = (o, n) => cached(`tree:${o}/${n}`, async () => {
-  const log = await gh(['api', `repos/${o}/${n}/commits?per_page=${HISTORY}`]).catch((e) => { if (/409|empty/i.test(e.message)) return []; throw e; });
+async function repoTree(o, n, job) {
+  const log = [];
+  for (let page = 1; log.length < HISTORY_MAX; page++) {
+    const batch = await gh(['api', `repos/${o}/${n}/commits?per_page=100&page=${page}`]).catch((e) => { if (/409|empty/i.test(e.message)) return []; throw e; });
+    log.push(...batch);
+    job.total = log.length;
+    if (batch.length < 100) break;
+  }
   if (!log.length) return { head: null, truncated: false, files: [], commits: [] };
   const head = log[0].sha, tree = log[0].commit.tree.sha === EMPTY_TREE ? { tree: [] } : await gh(['api', `repos/${o}/${n}/git/trees/${log[0].commit.tree.sha}?recursive=1`]);
   const blobs = tree.tree.filter((e) => e.type === 'blob');
-  const changes = await pool(log, 6, (c) => gh(['api', `repos/${o}/${n}/commits/${c.sha}`, '--jq', '[.files[]? | [.filename, .status, .previous_filename // ""]]']));
+  const changes = await pool(log, 10, async (c) => {
+    const key = `${o}/${n}@${c.sha}`;
+    if (!COMMIT_FILES.has(key)) COMMIT_FILES.set(key, await gh(['api', `repos/${o}/${n}/commits/${c.sha}`, '--jq', '[.files[]? | [.filename, .status, .previous_filename // ""]]']));
+    job.done++;
+    return COMMIT_FILES.get(key);
+  });
   return {
-    head, truncated: !!tree.truncated || blobs.length > TREE_MAX,
+    head, truncated: !!tree.truncated || blobs.length > TREE_MAX, capped: log.length >= HISTORY_MAX,
     files: blobs.slice(0, TREE_MAX).map((e) => [e.path, e.size || 0]),
     commits: log.map((c, i) => ({ sha: c.sha, message: c.commit.message.split('\n')[0], author: c.commit.author?.name || c.author?.login || '', date: c.commit.author?.date, files: changes[i] || [] })),
   };
-});
+}
+// { status, body }: the finished tree (cached ~10 minutes), or 202 and how far along it is.
+function treeJob(o, n) {
+  const key = `${o}/${n}`, j = treeJobs.get(key);
+  if (j?.res && Date.now() - j.at < REPO_TTL) return { status: 200, body: j.res };
+  if (j?.err) { treeJobs.delete(key); return { status: j.err.signin ? 401 : 502, body: { error: j.err.message, signin: !!j.err.signin } }; }
+  if (j && !j.res) return { status: 202, body: { done: j.done, total: j.total } };
+  const job = { done: 0, total: 0, res: null, err: null, at: 0 };
+  treeJobs.set(key, job);
+  repoTree(o, n, job).then((res) => Object.assign(job, { res, at: Date.now() }), (err) => { job.err = err; });
+  return { status: 202, body: { done: 0, total: 0 } };
+}
 // One file at one commit, as text (or a note that it's binary or too big).
 const BLOB_MAX = 160000;
 const repoBlob = (o, n, ref, file) => cached(`blob:${o}/${n}@${ref}:${file}`, async () => {
@@ -1488,7 +1513,8 @@ const server = http.createServer((req, res) => {
     if (!trustedHost(req.headers.host || '') || ua.includes(TV_UA_TAG) || /^(cross-site|same-site)$/.test(req.headers['sec-fetch-site'] || '')) return reply(403, { error: 'refused' });
     const ref = url.searchParams.get('ref') || '', file = url.searchParams.get('path') || '';
     if (repo[3] === 'blob' && (!/^[0-9a-f]{40}$/i.test(ref) || !file || file.length > 1024 || file.split('/').some((x) => !x || x === '.' || x === '..'))) return reply(400, { error: 'bad path or ref' });
-    (repo[3] === 'tree' ? repoTree(repo[1], repo[2]) : repo[3] === 'blob' ? repoBlob(repo[1], repo[2], ref, file) : repo[1] ? repoDetail(repo[1], repo[2]) : listRepos()).then((o) => reply(200, o), (e) => reply(e.signin ? 401 : 502, { error: e.message, signin: !!e.signin }));
+    if (repo[3] === 'tree') { const r = treeJob(repo[1], repo[2]); return reply(r.status, r.body); }
+    (repo[3] === 'blob' ? repoBlob(repo[1], repo[2], ref, file) : repo[1] ? repoDetail(repo[1], repo[2]) : listRepos()).then((o) => reply(200, o), (e) => reply(e.signin ? 401 : 502, { error: e.message, signin: !!e.signin }));
     return;
   }
   if (url.pathname === '/api/state') {
