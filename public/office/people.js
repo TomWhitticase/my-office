@@ -241,7 +241,7 @@ export class Person {
 
 /** @param {import('./ctx.js').OfficeCtx} ctx */
 export function installSpots(ctx) {
-  const { kitchen, MR } = ctx;
+  const { kitchen, MR, darts } = ctx;
   // ----- idle spots -----
   const R = (...pts) => pts.map(([x, z]) => ({ x, z }));
   const idleSpots = [];
@@ -262,6 +262,9 @@ export function installSpots(ctx) {
     spot('chat2', -9.6, 5.65, Math.PI, 'chat', R([-8.2, AISLE], [-8.2, 5.65])),
   ];
   const bean = [7.6, 9.6].map((z, i) => spot(`bean${i}`, -17.9, z, Math.PI / 2, 'beanbag', R([-11.6, AISLE], [-11.6, 10], [-16.9, 10], [-16.9, z])));
+  // The beanbags behind the oche: round the east of the pillar and the darts, and in behind the thrower.
+  const beanDarts = darts.BEANS.map((b, i) => { const x = b.x + Math.sin(b.rotY) * 0.45, z = b.z + Math.cos(b.rotY) * 0.45;
+    return spot(`bean${i + 2}`, x, z, b.rotY, 'beanbag', R([7.6, AISLE], [7.6, 11.6], [x, 11.6])); });
   const meet = [8.8, 10, 11.2].map((x, i) => spot(`meet${i}`, x, 7.55, 0, 'chat', R([x, AISLE])));
   // Meeting rooms: a seat each side of the table per `xs`, south side facing +z; filled in facing pairs.
   const mrSeats = MR.map((r, ri) => r.xs.flatMap((x, i) => {
@@ -271,7 +274,7 @@ export function installSpots(ctx) {
   }));
   const [mrSouth, mrNorth, mrSmall] = mrSeats;
   const IDLE_ORDER = [sofaA[1], coffee[0], pp[0], pp[1], stool[1], sofaA[0], chat[0], stool[2], chat[1], bean[0], coffee[1], sofaA[2], fridge, stool[0],
-    bean[1], chat[2], stool[3],
+    bean[1], chat[2], stool[3], ...beanDarts,
     mrSmall[0], mrSmall[1], sofaB[0], sofaB[1], sofaB[2], ...meet, ...mrSouth, ...mrNorth, ...mrSmall.slice(2)];
   const LOBBY = { key: 'lobby', kind: 'idle', pos: { x: 15.6, z: -0.5 }, rotY: -Math.PI / 2, pose: 'chat', route: R([15.6, AISLE], [15.6, -0.5]) };
   Object.assign(ctx, { idleSpots, LOBBY, IDLE_ORDER, pp });

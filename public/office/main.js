@@ -16,6 +16,7 @@ import { install as installFurniture } from './world/furniture.js';
 import { install as installDesks } from './world/desks.js';
 import { install as installBreakroom, installCozy } from './world/breakroom.js';
 import { install as installLounge, installVending } from './world/lounge.js';
+import { install as installDarts } from './world/darts.js';
 import { install as installMyOffice, installScreen, installDesk } from './world/my-office.js';
 import { install as installKitchen } from './world/kitchen.js';
 import { install as installGuitars } from './world/guitars.js';
@@ -145,6 +146,7 @@ export function mountOffice(container) {
   const { lifts } = ctx;
 
   installVending(ctx);
+  installDarts(ctx);   // the dartboard on the lounge pillar, its scoreboard and the beanbags behind the oche
 
   installClocks(ctx);
 

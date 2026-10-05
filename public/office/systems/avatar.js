@@ -59,7 +59,7 @@ function build(ctx) {
   me.spot = { pose: null, rotY: 0 };
   const last = new THREE.Vector3(), at = new THREE.Vector3();
   let parent = null;
-  const seatPose = (st) => (!st ? 'type' : /Sofa|Armchair/.test(st.name) ? 'sofa' : st.name === 'Stool' ? 'stool' : 'sit');
+  const seatPose = (st) => (!st ? 'type' : /Sofa|Armchair/.test(st.name) ? 'sofa' : st.name === 'Stool' ? 'stool' : st.name === 'Beanbag' ? 'beanbag' : 'sit');
 
   ctx.onFrame((dt, t) => {
     const p = ctx.player, H = ctx.heli, F = ctx.away, mode = ctx.mode;

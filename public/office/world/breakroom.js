@@ -28,12 +28,17 @@ export function install(ctx) {
   cyl(world, 0.25, 0.25, 0.03, '#2f3236', -9.6, 0.015, 4.9);
   solid(-9.6, 4.9, 0.8, 0.8);
   cyl(world, 0.04, 0.035, 0.1, '#d97757', -9.5, 1.13, 4.85);
-  // Beanbags.
-  for (const z of [7.6, 9.6]) {
-    const b = new THREE.Mesh(new THREE.SphereGeometry(0.5, 18, 14), mat(z < 8 ? '#c0573e' : '#e0a63a', { roughness: 1 }));
-    b.scale.set(1, 0.55, 1); b.position.set(-18.35, 0.26, z); b.castShadow = true; b.receiveShadow = true; world.add(b);
+  // Beanbags, facing rotY. You sit on the front of one, where an idle session sits (0.4 to 0.45 m forward of the middle).
+  function beanbag(x, z, rotY, color, material = mat(color, { roughness: 1 })) {
+    const b = new THREE.Mesh(new THREE.SphereGeometry(0.5, 18, 14), material);
+    b.scale.set(1, 0.55, 1); b.position.set(x, 0.26, z); b.rotation.y = rotY; b.castShadow = true; b.receiveShadow = true; world.add(b);
+    const seat = ctx.addSeat(b, 'Beanbag', 0, 0.9);
+    seat.x += Math.sin(rotY) * 0.4; seat.z += Math.cos(rotY) * 0.4;
+    b.userData.seat = seat;
+    return b;
   }
-  Object.assign(ctx, { ball });
+  for (const z of [7.6, 9.6]) beanbag(-18.35, z, Math.PI / 2, z < 8 ? '#c0573e' : '#e0a63a');
+  Object.assign(ctx, { ball, beanbag });
   ctx.onFrame((dt, t) => {
     // Ping pong rally when both ends are manned and settled.
     const [a, b] = ctx.pp.map((q) => q.occupant);
