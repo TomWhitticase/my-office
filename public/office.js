@@ -3612,7 +3612,7 @@ export function mountOffice(container) {
   // A bright white void: a seamless floor fading into white haze, a freestanding lift back up, and in the middle one steel
   // filing cabinet (`arch.drawers`: a group per drawer, front at +z in the cabinet's space, so sliding one out is +z).
   // Its own scene and composer; while you're down here the office still runs, but isn't drawn or heard.
-  const ARCH = { x: LIFT.x - 24, z: LIFT.z, r: 34 };   // the cabinet, 24 m out from the lift
+  const ARCH = { x: LIFT.x - 24, z: LIFT.z, r: 58 };   // the cabinet, 24 m out from the lift
   const arch = { n: ARCHIVE, label: 'ARCHIVE', title: 'The Archive', on: false, colliders: [], drawers: [], composer: null };
   {
     // Plain white haze, brightened by exposure (see renderFloor): an over-bright background clear gets clamped.
@@ -4079,7 +4079,8 @@ export function mountOffice(container) {
   const coordOf = (f) => hash(`${f.owner}/${f.name}`).toString(16).toUpperCase().padStart(8, '0');
   const fmtCoord = (c) => `${c.slice(0, 4)}·${c.slice(4)}`;
   const fmtSize = (b) => (b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : b >= 1024 ? `${(b / 1024).toFixed(1)} KB` : `${b} B`);
-  const GATE = { x: ARCH.x - 3, z: ARCH.z + 24, y: 1.92, R: 2.6, tube: 0.2 };
+  // Out on its own, 45 m left of the cabinet, up on a plinth with steps either side (PL high, its top PW wide and PD deep).
+  const GATE = { x: ARCH.x - 8, z: ARCH.z + 44, y: 2.52, R: 2.6, tube: 0.2, PL: 0.6, PW: 6.4, PD: 3.6, STEP: 0.35 };
   const portalMat = (core, rim) => new THREE.ShaderMaterial({
     uniforms: { uOpen: { value: 0 }, uTime: { value: 0 }, uHaze: { value: 0 }, uReady: { value: 0 }, uCore: { value: new THREE.Color(...core) }, uRim: { value: new THREE.Color(...rim) } },
     vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
@@ -4123,21 +4124,45 @@ export function mountOffice(container) {
     ...makeGate(arch.scene, GATE.x, GATE.y, GATE.z, [0.3, 0.17, 0.06], [0.012, 0.009, 0.006]) };
   const GATE_P = new THREE.Vector3(GATE.x, GATE.y, GATE.z);
   {
-    for (const s of [-1, 1]) {   // where the ring meets the floor: a soft shadow, and you can't walk through it there
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.4), new THREE.MeshBasicMaterial({ map: arch.blob, color: '#000', transparent: true, opacity: 0.45, depthWrite: false }));
-      m.rotation.x = -Math.PI / 2; m.position.set(GATE.x + s * 2.05, 0.002, GATE.z); m.layers.set(1); arch.scene.add(m);
+    // The plinth: dark stone, four steps up from the cabinet's side and four down the far side, the ring standing in the middle.
+    const { PL, PW, PD, STEP } = GATE, n = Math.round(PL / 0.15), run = n * STEP, stone = [[PW, PL, PD, 0, PL / 2, 0, '#2a2622']];
+    for (let j = 0; j < n; j++) for (const s of [-1, 1]) stone.push([PW, PL - (j + 1) * 0.15, STEP, 0, (PL - (j + 1) * 0.15) / 2, s * (PD / 2 + (j + 0.5) * STEP), j % 2 ? '#2e2a26' : '#332e29']);
+    for (const s of [-1, 1]) stone.push([PW + 0.02, 0.02, 0.04, 0, PL + 0.01, s * (PD / 2 - 0.02), '#b08a4a']);   // brass nosing at the top step
+    const plinth = mergedBoxes(stone, mat('#ffffff', { vertexColors: true, roughness: 0.7, metalness: 0.2 }));
+    plinth.position.set(GATE.x, 0, GATE.z); arch.scene.add(plinth);
+    const psh = new THREE.Mesh(new THREE.PlaneGeometry(PW * 1.7, (PD + 2 * run) * 1.5), new THREE.MeshBasicMaterial({ map: arch.blob, color: '#000', transparent: true, opacity: 0.4, depthWrite: false }));
+    psh.rotation.x = -Math.PI / 2; psh.position.set(GATE.x, 0.002, GATE.z); psh.layers.set(1); arch.scene.add(psh);
+    for (const s of [-1, 1]) {   // the ring's feet, and the plinth's sides (you go up by the steps)
       arch.colliders.push({ minX: GATE.x + s * 2.05 - 0.6, maxX: GATE.x + s * 2.05 + 0.6, minZ: GATE.z - 0.25, maxZ: GATE.z + 0.25 });
+      arch.colliders.push({ minX: GATE.x + s * PW / 2 - 0.05, maxX: GATE.x + s * PW / 2 + 0.05, minZ: GATE.z - PD / 2 - run, maxZ: GATE.z + PD / 2 + run });
     }
-    const ped = new THREE.Group();
-    ped.position.set(GATE.x + 3.4, 0, GATE.z - 1.4); ped.rotation.y = Math.PI + 0.35;   // facing you as you come from the cabinet
-    ped.add(mergedBoxes([[0.62, 0.08, 0.5, 0, 0.04, 0, '#1f1d1b'], [0.36, 0.96, 0.3, 0, 0.56, -0.02, '#2a2622'], [0.5, 0.06, 0.42, 0, 1.06, 0, '#b08a4a']], mat('#ffffff', { vertexColors: true, metalness: 0.6, roughness: 0.4 })));
-    const pad = gate.pad = makeScreen(ped, 0.34, 0.44, 340, 440, 0, 1.2, 0.02);
-    pad.mesh.rotation.x = -1.05; pad.mesh.position.set(0, 1.16, 0.03);
+    // How high the ground is here: the plinth's top, a step, or the floor (see movePlayer).
+    arch.ground = (x, z) => {
+      if (Math.abs(x - GATE.x) > PW / 2) return 0;
+      const d = Math.abs(z - GATE.z) - PD / 2;
+      return d < 0 ? PL : Math.max(0, PL - Math.ceil(d / STEP + 1e-6) * 0.15);
+    };
+    // A dashed path across the floor from beside the cabinet to the foot of the steps, so you can find it in the haze.
+    const a = new THREE.Vector2(ARCH.x - 0.6, ARCH.z + 1.6), b = new THREE.Vector2(GATE.x, GATE.z - PD / 2 - run - 0.6), dir = b.clone().sub(a), len = dir.length();
+    dir.normalize();
+    const dashes = [];
+    for (let t = 0; t < len; t += 1.5) dashes.push(new THREE.PlaneGeometry(0.16, Math.min(0.8, len - t)).rotateX(-Math.PI / 2).rotateY(Math.atan2(dir.x, dir.y)).translate(a.x + dir.x * (t + 0.4), 0.003, a.y + dir.y * (t + 0.4)));
+    const path = new THREE.Mesh(mergeGeometries(dashes), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.36, 0.34, 0.31), transparent: true, opacity: 0.8, depthWrite: false }));
+    path.layers.set(1); arch.scene.add(path);   // (transparent: drawn after the floor, as THE ARCHIVE lettering is, so no fighting it for depth)
+    arch.path = [a, b];
+    // The lectern, on the floor to the right of the steps: the keypad on a sloped brass board, clear of everything.
+    const ped = new THREE.Group(), PX = GATE.x + 2.6, PZ = GATE.z - PD / 2 - run - 1.2;
+    ped.position.set(PX, 0, PZ); ped.rotation.y = Math.PI + 0.25;   // facing you as you come along the path
+    ped.add(mergedBoxes([[0.62, 0.08, 0.5, 0, 0.04, 0, '#1f1d1b'], [0.32, 1.1, 0.26, 0, 0.63, -0.03, '#2a2622']], mat('#ffffff', { vertexColors: true, metalness: 0.6, roughness: 0.4 })));
+    const pad = gate.pad = makeScreen(ped, 0.34, 0.44, 340, 440, 0, 1.32, 0.03);
+    pad.mesh.rotation.x = -1.05;
+    const board = box(ped, 0.4, 0.5, 0.04, '', 0, 1.32 - 0.87 * 0.022, 0.03 - 0.5 * 0.022, { material: mat('#b08a4a', { metalness: 0.9, roughness: 0.35 }) });
+    board.rotation.x = -1.05;
     Object.assign(pad.mesh.userData, { action: 'gatekey', reach: 2.4, keyAt: (uv) => keyAt(uv) });
     const sh = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.4), new THREE.MeshBasicMaterial({ map: arch.blob, color: '#000', transparent: true, opacity: 0.5, depthWrite: false }));
-    sh.rotation.x = -Math.PI / 2; sh.position.set(GATE.x + 3.4, 0.002, GATE.z - 1.4); sh.layers.set(1);
+    sh.rotation.x = -Math.PI / 2; sh.position.set(PX, 0.002, PZ); sh.layers.set(1);
     arch.scene.add(ped, sh);
-    arch.colliders.push({ minX: GATE.x + 3.1, maxX: GATE.x + 3.7, minZ: GATE.z - 1.7, maxZ: GATE.z - 1.1 });
+    arch.colliders.push({ minX: PX - 0.3, maxX: PX + 0.3, minZ: PZ - 0.3, maxZ: PZ + 0.3 });
     arch.hits.push(pad.mesh);
     arch.nFixed = arch.colliders.length;   // the cabinet, its drawer and the gateway (the lift's goes after, see arch.enter)
   }
@@ -4216,7 +4241,7 @@ export function mountOffice(container) {
   const exitTess = () => warp('#ffffff', () => {
     setFloor(arch);
     arch.out = 1;   // straight into the void's own light
-    Object.assign(player, { x: GATE.x, z: GATE.z - 1.6, eye: EYE, yaw: 0, pitch: 0, seated: false, seat: null });
+    Object.assign(player, { x: GATE.x, z: GATE.z - 1.2, eye: EYE, fy: GATE.PL, yaw: 0, pitch: -0.05, seated: false, seat: null });   // on the plinth, looking back down the path
     gate.side = -1;
   });
 
@@ -4448,7 +4473,7 @@ export function mountOffice(container) {
     const T = tess.t, k = T.cur, c = T.slices[k].c;
     stripEl.innerHTML = `<b>${escapeHtml(T.repo.name)}</b> · ${ago(k)} · <code>${escapeHtml((c.sha || '').slice(0, 7))}</code> ${escapeHtml(c.message || '')}
       <div class="bar">${T.slices.map((_, j) => `<i${j === k ? ' class="on"' : ''}></i>`).join('')}</div>
-      <small><kbd>W</kbd><kbd>S</kbd> fly where you look · <kbd>A</kbd><kbd>D</kbd> sideways · <kbd>Space</kbd> up · <kbd>C</kbd> down · <kbd>Shift</kbd> faster · deeper is further back in time · the way out is behind where you came in</small>`;
+      <small><kbd>W</kbd><kbd>S</kbd> fly where you look · <kbd>A</kbd><kbd>D</kbd> sideways · <kbd>Space</kbd> up · <kbd>C</kbd> down · hold <kbd>Shift</kbd> to build speed · deeper is further back in time · the way out is behind where you came in</small>`;
   }
 
   tess.enter = () => {
@@ -4461,6 +4486,8 @@ export function mountOffice(container) {
   };
   tess.leave = () => {
     const T = tess.t;
+    tess.boost = 0;
+    if (camera.fov !== FOV0) { camera.fov = FOV0; camera.updateProjectionMatrix(); }
     if (T?.held) { T.held = null; tess.pulled.visible = false; tessWindow(T.cur, true); }
     pageEl.classList.remove('on');
     if (mode === 'read') mode = 'free';
@@ -4520,7 +4547,7 @@ export function mountOffice(container) {
     c.fillStyle = 'rgba(255,213,143,.25)'; c.fillRect(W - 24, t0, 4, t1 - t0);
     c.fillStyle = '#ffd58f'; c.fillRect(W - 30, t0 + u * (t1 - t0) - 2, 16, 4);
   };
-  const flyV = new THREE.Vector3();
+  const flyV = new THREE.Vector3(), FOV0 = camera.fov;
   function flyPlayer(dt) {   // inside a repo you float: where you look, plus up and down
     const f = (keys.has('KeyW') || keys.has('ArrowUp') ? 1 : 0) - (keys.has('KeyS') || keys.has('ArrowDown') ? 1 : 0);
     const s = (keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) - (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0);
@@ -4528,7 +4555,14 @@ export function mountOffice(container) {
     const cy = Math.cos(player.yaw), sy = Math.sin(player.yaw), cp = Math.cos(player.pitch), sp = Math.sin(player.pitch);
     flyV.set(-sy * cp * f + cy * s, sp * f + up, -cy * cp * f - sy * s);
     if (flyV.lengthSq() > 1) flyV.normalize();
-    tess.vel.lerp(flyV.multiplyScalar(keys.has('ShiftLeft') || keys.has('ShiftRight') ? 10 : 3.5), Math.min(1, dt * 2.5));
+    // Shift: faster, and the longer you hold it on the move the more it builds, up to a long glide (60 m/s after ~7 s);
+    // let go or stop and it eases off. The view widens a touch with speed.
+    const shift = keys.has('ShiftLeft') || keys.has('ShiftRight'), going = flyV.lengthSq() > 0.01;
+    tess.boost = shift && going ? Math.min(1, (tess.boost || 0) + dt / 7) : Math.max(0, (tess.boost || 0) - dt / 1.2);
+    const speed = shift ? lerp(9, 60, tess.boost ** 2) : 3.5;
+    tess.vel.lerp(flyV.multiplyScalar(speed), Math.min(1, dt * (tess.vel.length() > speed ? 1.6 : 2.5)));
+    const fov = FOV0 + 14 * clamp((tess.vel.length() - 6) / 50, 0, 1);
+    if (Math.abs(camera.fov - fov) > 0.01) { camera.fov = damp(camera.fov, fov, 4, dt); camera.updateProjectionMatrix(); }
     player.x += tess.vel.x * dt; player.eye += tess.vel.y * dt; player.z += tess.vel.z * dt;
     tess.bound(player);
     setCam({ x: player.x, y: player.eye + Math.sin(performance.now() / 1300) * 0.02, z: player.z, yaw: player.yaw, pitch: player.pitch });
@@ -4700,13 +4734,16 @@ export function mountOffice(container) {
     renderer.state.buffers.color.reset();
   }
   function drawArchiveMap() {
-    const c = mapCtx, W = 440, H = 330, k = Math.min(W / (LIFT.x - ARCH.x + 14), H / (GATE.z - ARCH.z + 10)), sx = (x) => W / 2 + (x - (ARCH.x + LIFT.x) / 2) * k, sz = (z) => H / 2 + (z - (ARCH.z + GATE.z) / 2) * k;
+    const x0 = GATE.x - 8, x1 = LIFT.x + 6, z0 = ARCH.z - 8, z1 = GATE.z + 8, k = Math.min(400 / (x1 - x0), 270 / (z1 - z0));
+    const c = mapCtx, W = 440, H = 330, sx = (x) => W / 2 + (x - (x0 + x1) / 2) * k, sz = (z) => H / 2 + 18 + (z - (z0 + z1) / 2) * k;
     c.clearRect(0, 0, W, H);
     c.fillStyle = 'rgba(255,255,255,.12)'; c.beginPath(); c.arc(sx(ARCH.x), sz(ARCH.z), ARCH.r * k, 0, Math.PI * 2); c.fill();
     c.fillStyle = 'rgba(255,255,255,.55)';
     for (const b of arch.colliders) c.fillRect(sx(b.minX), sz(b.minZ), Math.max(3, (b.maxX - b.minX) * k), Math.max(3, (b.maxZ - b.minZ) * k));
     c.font = '600 20px system-ui'; c.fillText('THE ARCHIVE · B2', 16, 30);
-    c.font = '600 15px system-ui'; c.fillStyle = 'rgba(255,255,255,.55)'; c.fillText('Lift', sx(LIFT.x) - 6, sz(arch.lift.position.z) - 18); c.fillText('Cabinet', sx(ARCH.x) - 26, sz(ARCH.z) + 26); c.fillText('Gateway', sx(GATE.x) - 28, sz(GATE.z) + 26);
+    c.font = '600 15px system-ui'; c.fillStyle = 'rgba(255,255,255,.55)'; c.fillText('Lift', sx(LIFT.x) - 6, sz(arch.lift.position.z) - 18); c.fillText('Cabinet', sx(ARCH.x) - 26, sz(ARCH.z) + 26); c.fillText('Gateway', sx(GATE.x) - 28, sz(GATE.z) + 34);
+    c.fillRect(sx(GATE.x - GATE.PW / 2), sz(GATE.z - GATE.PD / 2 - 1.2), GATE.PW * k, (GATE.PD + 2.4) * k);
+    c.setLineDash([3, 4]); c.strokeStyle = 'rgba(255,255,255,.4)'; c.lineWidth = 2; c.beginPath(); c.moveTo(sx(arch.path[0].x), sz(arch.path[0].y)); c.lineTo(sx(arch.path[1].x), sz(arch.path[1].y)); c.stroke(); c.setLineDash([]);
     const px = sx(camera.position.x), pz = sz(camera.position.z);
     c.save(); c.translate(px, pz); c.rotate(-camera.rotation.y);
     c.fillStyle = '#fff'; c.beginPath(); c.moveTo(0, -14); c.lineTo(9, 10); c.lineTo(0, 5); c.lineTo(-9, 10); c.closePath(); c.fill();
@@ -6084,7 +6121,8 @@ export function mountOffice(container) {
     }
     player.eye = damp(player.eye, player.seated ? player.seat?.eye ?? SEATED_EYE : EYE, 5, dt);
     const bob = (f || s) && !player.seated ? Math.sin(performance.now() / 140) * 0.025 : 0;
-    setCam({ x: player.x, y: player.eye + bob + (away?.y || 0), z: player.z, yaw: player.yaw, pitch: player.pitch });
+    player.fy = damp(player.fy || 0, away?.ground?.(player.x, player.z) || 0, 14, dt);   // up steps (the gateway's plinth)
+    setCam({ x: player.x, y: player.eye + bob + (away?.y || 0) + player.fy, z: player.z, yaw: player.yaw, pitch: player.pitch });
   }
 
   // ----- input -----
@@ -6830,7 +6868,7 @@ export function mountOffice(container) {
   window.__office = { openChat, closeChat, talk, get mode() { return mode; }, teleport: (k) => TELEPORTS[k](), openTv: (id) => openTvPanel(tvs.find((t) => t.id === id)), useTv: (id) => useTv(tvs.find((t) => t.id === id)), leaveTv,
     boards, useBoard: (id) => useBoard(boards.find((b) => b.id === id)), leaveBoard, wb,
     tvPoint: (id, u, v) => { const t = tvs.find((x) => x.id === id), p = t.scr.mesh.localToWorld(new THREE.Vector3((u - 0.5) * t.w, (0.5 - v) * t.h, 0)).project(camera), r = renderer.domElement.getBoundingClientRect(); return { x: r.left + (p.x + 1) / 2 * r.width, y: r.top + (1 - p.y) / 2 * r.height }; },
-    tvs: () => tvs.map((t) => ({ id: t.id, live: t.live, frame: !!t.frame, url: t.page?.url, title: t.page?.title, dist: t.dist })), seats, sitIn, openLaptop, laptop, kitchen, player, people, blinds, door, doors, collide, colliders, desks, idleSpots, lifts, sfx, mine, arch, roof, srv, FLOORS, openJohn, johnChat, setFloor, get away() { return away; }, callLift,
+    tvs: () => tvs.map((t) => ({ id: t.id, live: t.live, frame: !!t.frame, url: t.page?.url, title: t.page?.title, dist: t.dist })), seats, sitIn, openLaptop, laptop, kitchen, player, keys, camera, people, blinds, door, doors, collide, colliders, desks, idleSpots, lifts, sfx, mine, arch, roof, srv, FLOORS, openJohn, johnChat, setFloor, get away() { return away; }, callLift,
     goFloor: (n) => {   // debug: straight into your car at floor n, doors opening (headless tests can't sit through a ride)
       const L = mine.L || lifts.find(spare); if (!L) return false;
       Object.assign(mine, { L, call: false, goal: null }); L.player = true;
