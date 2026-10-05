@@ -178,6 +178,11 @@ export class Person {
           { lean: 0.06, sh0: -0.55 - 0.25 * (0.5 + 0.5 * Math.sin(t * 1.9 + ph)), el0: -1.2 + 0.25 * Math.sin(t * 2.7 + ph), sh1: -0.5, el1: -1.0,
           shz0: -0.1, shz1: 0.12, headX: 0.04 * Math.sin(t * 1.3 + ph), headY: 0.35 * Math.sin(t * 0.35 + ph) });
         break;
+      case 'audience':   // in the all-hands rows: hands in the lap, watching the screen, a nod now and then
+        sit(0.47);
+        Object.assign(j, { lean: -0.06, sh0: -0.15, sh1: -0.15, shz0: 0.1, shz1: -0.1, el0: -0.8, el1: -0.8,
+          headX: 0.04 + 0.08 * Math.max(0, Math.sin(t * 0.9 + ph)) ** 8, headY: 0.15 * Math.sin(t * 0.13 + ph) });
+        break;
       case 'press':   // calling the lift: reach for the button, then wait
         if (t - this.pressAt < 1.1) Object.assign(j, { sh0: -1.25, el0: -0.25, shz0: 0.1, headX: 0.1 });
         break;
@@ -241,7 +246,7 @@ export class Person {
 
 /** @param {import('./ctx.js').OfficeCtx} ctx */
 export function installSpots(ctx) {
-  const { kitchen, MR, darts } = ctx;
+  const { kitchen, MR, darts, allHands } = ctx;
   // ----- idle spots -----
   const R = (...pts) => pts.map(([x, z]) => ({ x, z }));
   const idleSpots = [];
@@ -265,7 +270,11 @@ export function installSpots(ctx) {
   // The beanbags behind the oche: round the east of the pillar and the darts, and in behind the thrower.
   const beanDarts = darts.BEANS.map((b, i) => { const x = b.x + Math.sin(b.rotY) * 0.45, z = b.z + Math.cos(b.rotY) * 0.45;
     return spot(`bean${i + 2}`, x, z, b.rotY, 'beanbag', R([7.6, AISLE], [7.6, 11.6], [x, 11.6])); });
-  const meet = [8.8, 10, 11.2].map((x, i) => spot(`meet${i}`, x, 7.55, 0, 'chat', R([x, AISLE])));
+  // Round the east end of the all-hands stage to the lounge table.
+  const meet = [8.8, 10, 11.2].map((x, i) => spot(`meet${i}`, x, 7.55, 0, 'chat', R([13.3, AISLE], [13.3, 7.55])));
+  // The all-hands: the beanbags at the front, then the rows from the front, the centre aisle out.
+  const ah = allHands.spots.map((s, i) => spot(`ah${i}`, s.x, s.z, 0, s.pose, s.route));
+  const ahOrder = [...ah.filter((s) => s.pose === 'beanbag'), ...ah.filter((s) => s.pose !== 'beanbag')];
   // Meeting rooms: a seat each side of the table per `xs`, south side facing +z; filled in facing pairs.
   const mrSeats = MR.map((r, ri) => r.xs.flatMap((x, i) => {
     const via = R(...r.entry), s = r.tz - r.co + 0.06, n = r.tz + r.co - 0.06;
@@ -274,8 +283,8 @@ export function installSpots(ctx) {
   }));
   const [mrSouth, mrNorth, mrSmall] = mrSeats;
   const IDLE_ORDER = [sofaA[1], coffee[0], pp[0], pp[1], stool[1], sofaA[0], chat[0], stool[2], chat[1], bean[0], coffee[1], sofaA[2], fridge, stool[0],
-    bean[1], chat[2], stool[3], ...beanDarts,
-    mrSmall[0], mrSmall[1], sofaB[0], sofaB[1], sofaB[2], ...meet, ...mrSouth, ...mrNorth, ...mrSmall.slice(2)];
+    bean[1], chat[2], stool[3], ...beanDarts, ...ahOrder.slice(0, 6),
+    mrSmall[0], mrSmall[1], sofaB[0], sofaB[1], sofaB[2], ...meet, ...mrSouth, ...mrNorth, ...mrSmall.slice(2), ...ahOrder.slice(6)];
   const LOBBY = { key: 'lobby', kind: 'idle', pos: { x: 15.6, z: -0.5 }, rotY: -Math.PI / 2, pose: 'chat', route: R([15.6, AISLE], [15.6, -0.5]) };
   Object.assign(ctx, { idleSpots, LOBBY, IDLE_ORDER, pp });
 }
