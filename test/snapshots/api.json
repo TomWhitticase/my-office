@@ -1,0 +1,3908 @@
+{
+ "GET /api/state": {
+  "status": 200,
+  "type": "application/json",
+  "cache": null,
+  "body": {
+   "now": 1781703000000,
+   "host": "fixture-host",
+   "rateLimits": {
+    "five_hour": {
+     "used_percentage": 38,
+     "resets_at": 1781710800
+    },
+    "seven_day": {
+     "used_percentage": 72,
+     "resets_at": 1781962200
+    }
+   },
+   "rateLimitsAt": 1781702880000,
+   "totals": {
+    "live": 5,
+    "working": 2,
+    "subagentsActive": 1,
+    "todayCost": 0.448688,
+    "todayTokens": 368340,
+    "todayOutput": 11543,
+    "todaySessions": 7,
+    "liveCost": 5.578304000000001,
+    "linesAdded": 212,
+    "linesRemoved": 52
+   },
+   "models": {
+    "claude-opus-5-5": {
+     "calls": 15,
+     "cost": 0.448688
+    }
+   },
+   "tools": {
+    "Grep": 2,
+    "Read": 1,
+    "Edit": 1,
+    "Bash": 3,
+    "Write": 1
+   },
+   "hourly": [
+    {
+     "t": 1781618400000,
+     "cost": 0,
+     "tokens": 0,
+     "output": 0,
+     "bySession": {}
+    },
+    {
+     "t": 1781622000000,
+     "cost": 0,
+     "tokens": 0,
+     "output": 0,
+     "bySession": {}
+    },
+    {
+     "t": 1781625600000,
+     "cost": 0,
+     "tokens": 0,
+     "output": 0,
+     "bySession": {}
+    },
+    {
+     "t": 1781629200000,
+     "cost": 0,
+     "tokens": 0,
+     "output": 0,
+     "bySession": {}
+    },
+    {
+     "t": 1781632800000,
+     "cost": 0,
+     "tokens": 0,
+     "output": 0,
+     "bySession": {}
+    },
+    {
+     "t": 1781636400000,
+     "cost": 0,
+     "tokens": 0,
+     "output": 0,
+     "bySession": {}
+    },
+    {
+     "t": 1781640000000,
+     "cost": 0,
+     "tokens": 0,
+     "output": 0,
+     "bySession": {}
+    },
+    {
+     "t": 1781643600000,
+     "cost": 0,
+     "tokens": 0,
+     "output": 0,
+     "bySession": {}
+    },
+    {
+     "t": 1781647200000,
+     "cost": 0,
+     "tokens": 0,
+     "output": 0,
+     "bySession": {}
+    },
+    {
+     "t": 1781650800000,
+     "cost": 0,
+     "tokens": 0,
+     "output": 0,
+     "bySession": {}
+    },
+    {
+     "t": 1781654400000,
+     "cost": 0,
+     "tokens": 0,
+     "output": 0,
+     "bySession": {}
+    },
+    {
+     "t": 1781658000000,
+     "cost": 0,
+     "tokens": 0,
+     "output": 0,
+     "bySession": {}
+    },
+    {
+     "t": 1781661600000,
+     "cost": 0,
+     "tokens": 0,
+     "output": 0,
+     "bySession": {}
+    },
+    {
+     "t": 1781665200000,
+     "cost": 0,
+     "tokens": 0,
+     "output": 0,
+     "bySession": {}
+    },
+    {
+     "t": 1781668800000,
+     "cost": 0,
+     "tokens": 0,
+     "output": 0,
+     "bySession": {}
+    },
+    {
+     "t": 1781672400000,
+     "cost": 0.060004,
+     "tokens": 49140,
+     "output": 1534,
+     "bySession": {
+      "22222222-bbbb-4bbb-8bbb-000000000002": 0.060004
+     }
+    },
+    {
+     "t": 1781676000000,
+     "cost": 0,
+     "tokens": 0,
+     "output": 0,
+     "bySession": {}
+    },
+    {
+     "t": 1781679600000,
+     "cost": 0,
+     "tokens": 0,
+     "output": 0,
+     "bySession": {}
+    },
+    {
+     "t": 1781683200000,
+     "cost": 0.060004,
+     "tokens": 49140,
+     "output": 1534,
+     "bySession": {
+      "22222222-bbbb-4bbb-8bbb-000000000001": 0.060004
+     }
+    },
+    {
+     "t": 1781686800000,
+     "cost": 0,
+     "tokens": 0,
+     "output": 0,
+     "bySession": {}
+    },
+    {
+     "t": 1781690400000,
+     "cost": 0,
+     "tokens": 0,
+     "output": 0,
+     "bySession": {}
+    },
+    {
+     "t": 1781694000000,
+     "cost": 0,
+     "tokens": 0,
+     "output": 0,
+     "bySession": {}
+    },
+    {
+     "t": 1781697600000,
+     "cost": 0.18076,
+     "tokens": 146520,
+     "output": 4450,
+     "bySession": {
+      "11111111-aaaa-4aaa-8aaa-000000000001": 0.056903999999999996,
+      "11111111-aaaa-4aaa-8aaa-000000000002": 0.056903999999999996,
+      "11111111-aaaa-4aaa-8aaa-000000000004": 0.033476,
+      "11111111-aaaa-4aaa-8aaa-000000000005": 0.033476
+     }
+    },
+    {
+     "t": 1781701200000,
+     "cost": 0.14792,
+     "tokens": 123540,
+     "output": 4025,
+     "bySession": {
+      "11111111-aaaa-4aaa-8aaa-000000000001": 0.08274,
+      "11111111-aaaa-4aaa-8aaa-000000000002": 0.043828,
+      "11111111-aaaa-4aaa-8aaa-000000000003": 0.021352
+     }
+    }
+   ],
+   "days": [
+    {
+     "date": "2026-06-05",
+     "cost": 14.9,
+     "entries": 76,
+     "tokens": 1140000,
+     "output": 108000
+    },
+    {
+     "date": "2026-06-06",
+     "cost": 3,
+     "entries": 73,
+     "tokens": 1080000,
+     "output": 99000
+    },
+    {
+     "date": "2026-06-07",
+     "cost": 9.8,
+     "entries": 70,
+     "tokens": 1020000,
+     "output": 90000
+    },
+    {
+     "date": "2026-06-08",
+     "cost": 16.6,
+     "entries": 67,
+     "tokens": 960000,
+     "output": 81000
+    },
+    {
+     "date": "2026-06-09",
+     "cost": 4.7,
+     "entries": 64,
+     "tokens": 900000,
+     "output": 72000
+    },
+    {
+     "date": "2026-06-10",
+     "cost": 11.5,
+     "entries": 61,
+     "tokens": 840000,
+     "output": 63000
+    },
+    {
+     "date": "2026-06-11",
+     "cost": 18.299999999999997,
+     "entries": 58,
+     "tokens": 780000,
+     "output": 54000
+    },
+    {
+     "date": "2026-06-12",
+     "cost": 6.4,
+     "entries": 55,
+     "tokens": 720000,
+     "output": 45000
+    },
+    {
+     "date": "2026-06-13",
+     "cost": 13.2,
+     "entries": 52,
+     "tokens": 660000,
+     "output": 36000
+    },
+    {
+     "date": "2026-06-14",
+     "cost": 20,
+     "entries": 49,
+     "tokens": 600000,
+     "output": 27000
+    },
+    {
+     "date": "2026-06-15",
+     "cost": 8.1,
+     "entries": 46,
+     "tokens": 540000,
+     "output": 18000
+    },
+    {
+     "date": "2026-06-16",
+     "cost": 14.9,
+     "entries": 43,
+     "tokens": 480000,
+     "output": 9000
+    },
+    {
+     "date": "2026-06-17",
+     "cost": 0.448688,
+     "tokens": 368340,
+     "output": 11543,
+     "entries": 0,
+     "live": true
+    }
+   ],
+   "live": [
+    {
+     "pid": 41002,
+     "sessionId": "11111111-aaaa-4aaa-8aaa-000000000002",
+     "name": "docs-site",
+     "status": "working",
+     "rawStatus": "busy",
+     "statusSince": 1781702460000,
+     "startedAt": 1781695800000,
+     "cwd": "/Users/fixture/code/docs-site",
+     "kind": "interactive",
+     "entrypoint": "cli",
+     "version": "2.9.0",
+     "proc": {
+      "cpu": 7.5,
+      "rssMB": 220
+     },
+     "statusline": {
+      "name": "docs-site",
+      "model": "Opus 5.5",
+      "cost": {
+       "total_cost_usd": 1.12,
+       "total_lines_added": 30,
+       "total_lines_removed": 12
+      },
+      "context": {
+       "used_percentage": 83
+      },
+      "at": 1781702820000
+     },
+     "transcript": {
+      "sessionId": "11111111-aaaa-4aaa-8aaa-000000000002",
+      "file": "$HOME/.claude/projects/-Users-fixture-code-docs-site/11111111-aaaa-4aaa-8aaa-000000000002.jsonl",
+      "cwd": "/Users/fixture/code/docs-site",
+      "branch": "main",
+      "title": "Rewrite the getting started guide",
+      "model": "claude-opus-5-5",
+      "models": {
+       "claude-opus-5-5": {
+        "calls": 3,
+        "cost": 0.10073199999999999,
+        "output": 2677
+       }
+      },
+      "effort": null,
+      "permissionMode": null,
+      "entrypoint": "cli",
+      "tokens": {
+       "input": 3683,
+       "output": 2677,
+       "cacheRead": 67300,
+       "cacheWrite": 3800
+      },
+      "cost": 0.10073199999999999,
+      "apiCalls": 3,
+      "tools": {
+       "Write": 1
+      },
+      "prompts": 2,
+      "errors": 0,
+      "turns": 0,
+      "avgTurnMs": 0,
+      "lastTurnMs": 0,
+      "prs": [],
+      "first": 1781699700000,
+      "last": 1781702520000,
+      "mtime": 1781702460000,
+      "lastPrompt": "Add a section on the office",
+      "lastPromptAt": 1781702460000,
+      "contextTokens": 29600,
+      "lastStop": "end_turn",
+      "pendingTool": null,
+      "spark": [
+       0,
+       0,
+       0,
+       0,
+       0,
+       826,
+       0,
+       0,
+       0,
+       573,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       1278,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "events": [
+       {
+        "t": 1781699700000,
+        "kind": "prompt",
+        "text": "Rewrite the getting started guide so it fits on one page"
+       },
+       {
+        "t": 1781699760000,
+        "kind": "say",
+        "text": "Reading the current guide first."
+       },
+       {
+        "t": 1781700000000,
+        "kind": "tool",
+        "name": "Write",
+        "text": "docs-site/guide.md",
+        "id": "toolu_3",
+        "ms": 0
+       },
+       {
+        "t": 1781702460000,
+        "kind": "prompt",
+        "text": "Add a section on the office"
+       },
+       {
+        "t": 1781702520000,
+        "kind": "say",
+        "text": "Adding it after the install steps."
+       }
+      ]
+     },
+     "code": {
+      "id": "toolu_3",
+      "t": 1781700000000,
+      "tool": "Write",
+      "agent": null,
+      "count": 1,
+      "line": 1,
+      "file": "guide.md",
+      "added": "# Getting started\n\nInstall it, run it, open the office.\n",
+      "removed": ""
+     },
+     "subagents": {
+      "total": 0,
+      "active": 0,
+      "cost": 0,
+      "list": []
+     },
+     "cost": 1.12
+    },
+    {
+     "pid": 41001,
+     "sessionId": "11111111-aaaa-4aaa-8aaa-000000000001",
+     "name": "api-server",
+     "status": "working",
+     "rawStatus": "busy",
+     "statusSince": 1781702760000,
+     "startedAt": 1781695800000,
+     "cwd": "/Users/fixture/code/api-server",
+     "kind": "interactive",
+     "entrypoint": "cli",
+     "version": "2.9.0",
+     "proc": {
+      "cpu": 0,
+      "rssMB": 180
+     },
+     "statusline": {
+      "name": "api-server",
+      "model": "Opus 5.5",
+      "effort": "high",
+      "cost": {
+       "total_cost_usd": 4.37,
+       "total_lines_added": 182,
+       "total_lines_removed": 40
+      },
+      "context": {
+       "used_percentage": 46
+      },
+      "at": 1781702880000
+     },
+     "transcript": {
+      "sessionId": "11111111-aaaa-4aaa-8aaa-000000000001",
+      "file": "$HOME/.claude/projects/-Users-fixture-code-api-server/11111111-aaaa-4aaa-8aaa-000000000001.jsonl",
+      "cwd": "/Users/fixture/code/api-server",
+      "branch": "feat/rate-limits",
+      "title": "Add rate limiting to the API",
+      "model": "claude-opus-5-5",
+      "models": {
+       "claude-opus-5-5": {
+        "calls": 4,
+        "cost": 0.120368,
+        "output": 3273
+       }
+      },
+      "effort": null,
+      "permissionMode": null,
+      "entrypoint": "cli",
+      "tokens": {
+       "input": 4467,
+       "output": 3273,
+       "cacheRead": 87700,
+       "cacheWrite": 3900
+      },
+      "cost": 0.120368,
+      "apiCalls": 4,
+      "tools": {
+       "Read": 1,
+       "Edit": 1,
+       "Bash": 1
+      },
+      "prompts": 2,
+      "errors": 0,
+      "turns": 1,
+      "avgTurnMs": 1200000,
+      "lastTurnMs": 1200000,
+      "prs": [],
+      "first": 1781700600000,
+      "last": 1781702340000,
+      "mtime": 1781702760000,
+      "lastPrompt": "Now run the tests",
+      "lastPromptAt": 1781702280000,
+      "contextTokens": 27380,
+      "lastStop": "tool_use",
+      "pendingTool": {
+       "name": "Bash",
+       "detail": "Run the test suite",
+       "t": 1781702340000
+      },
+      "spark": [
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       826,
+       573,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       755,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       1119,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "events": [
+       {
+        "t": 1781700600000,
+        "kind": "prompt",
+        "text": "Add per-user rate limiting to the public API, with tests"
+       },
+       {
+        "t": 1781700660000,
+        "kind": "say",
+        "text": "I’ll start by reading the request pipeline."
+       },
+       {
+        "t": 1781700720000,
+        "kind": "tool",
+        "name": "Read",
+        "text": "src/app.js",
+        "id": "toolu_3",
+        "ms": 0
+       },
+       {
+        "t": 1781701200000,
+        "kind": "tool",
+        "name": "Edit",
+        "text": "src/greet.js",
+        "id": "toolu_5",
+        "ms": 0
+       },
+       {
+        "t": 1781701800000,
+        "kind": "turn",
+        "ms": 1200000,
+        "n": 6
+       },
+       {
+        "t": 1781702280000,
+        "kind": "prompt",
+        "text": "Now run the tests"
+       },
+       {
+        "t": 1781702340000,
+        "kind": "tool",
+        "name": "Bash",
+        "text": "Run the test suite",
+        "id": "toolu_9"
+       }
+      ]
+     },
+     "code": {
+      "id": "toolu_5",
+      "t": 1781701200000,
+      "tool": "Edit",
+      "agent": null,
+      "count": 1,
+      "line": 0,
+      "file": "src/greet.js",
+      "added": "export function greet(name) {\n  // Say hello, politely.\n  const who = String(name ?? 'world').trim();\n  if (!who) throw new Error('nobody to greet');\n  return `Hello, ${who}!`;\n}\n\nexport const farewell = (name) => `Goodbye, ${name}.`;\n",
+      "removed": "old"
+     },
+     "subagents": {
+      "total": 1,
+      "active": 1,
+      "cost": 0.019276,
+      "list": [
+       {
+        "id": "agent-fixture1",
+        "type": "Explore",
+        "description": "Find the rate limit hooks",
+        "background": false,
+        "depth": 1,
+        "active": true,
+        "cost": 0.019276,
+        "tokens": {
+         "input": 929,
+         "output": 391,
+         "cacheRead": 18700,
+         "cacheWrite": 800
+        },
+        "apiCalls": 1,
+        "toolCalls": 1,
+        "model": "claude-opus-5-5",
+        "first": 1781702640000,
+        "last": 1781702640000,
+        "current": "Grep: rateLimit"
+       }
+      ]
+     },
+     "cost": 4.37
+    },
+    {
+     "pid": 41003,
+     "sessionId": "11111111-aaaa-4aaa-8aaa-000000000003",
+     "name": "infra",
+     "status": "shell",
+     "rawStatus": "shell",
+     "statusSince": 1781702880000,
+     "startedAt": 1781695800000,
+     "cwd": "/Users/fixture/code/infra",
+     "kind": "interactive",
+     "entrypoint": "cli",
+     "version": "2.9.0",
+     "proc": {
+      "cpu": 15,
+      "rssMB": 260
+     },
+     "statusline": null,
+     "transcript": {
+      "sessionId": "11111111-aaaa-4aaa-8aaa-000000000003",
+      "file": "$HOME/.claude/projects/-Users-fixture-code-infra/11111111-aaaa-4aaa-8aaa-000000000003.jsonl",
+      "cwd": "/Users/fixture/code/infra",
+      "branch": "ops/upgrade",
+      "title": "Upgrade the build image",
+      "model": "claude-opus-5-5",
+      "models": {
+       "claude-opus-5-5": {
+        "calls": 1,
+        "cost": 0.021352,
+        "output": 482
+       }
+      },
+      "effort": null,
+      "permissionMode": null,
+      "entrypoint": "cli",
+      "tokens": {
+       "input": 958,
+       "output": 482,
+       "cacheRead": 19400,
+       "cacheWrite": 800
+      },
+      "cost": 0.021352,
+      "apiCalls": 1,
+      "tools": {
+       "Bash": 1
+      },
+      "prompts": 1,
+      "errors": 0,
+      "turns": 0,
+      "avgTurnMs": 0,
+      "lastTurnMs": 0,
+      "prs": [],
+      "first": 1781701500000,
+      "last": 1781701560000,
+      "mtime": 1781702880000,
+      "lastPrompt": "Upgrade the build image to the new LTS and rebuild",
+      "lastPromptAt": 1781701500000,
+      "contextTokens": 21640,
+      "lastStop": "tool_use",
+      "pendingTool": {
+       "name": "Bash",
+       "detail": "Rebuild the image",
+       "t": 1781701560000
+      },
+      "spark": [
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       482,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "events": [
+       {
+        "t": 1781701500000,
+        "kind": "prompt",
+        "text": "Upgrade the build image to the new LTS and rebuild"
+       },
+       {
+        "t": 1781701560000,
+        "kind": "tool",
+        "name": "Bash",
+        "text": "Rebuild the image",
+        "id": "toolu_2"
+       }
+      ]
+     },
+     "code": null,
+     "subagents": {
+      "total": 0,
+      "active": 0,
+      "cost": 0,
+      "list": []
+     },
+     "cost": 0.021352
+    },
+    {
+     "pid": 41004,
+     "sessionId": "11111111-aaaa-4aaa-8aaa-000000000004",
+     "name": "mobile",
+     "status": "idle",
+     "rawStatus": "idle",
+     "statusSince": 1781701980000,
+     "startedAt": 1781695800000,
+     "cwd": "/Users/fixture/code/mobile",
+     "kind": "interactive",
+     "entrypoint": "cli",
+     "version": "2.9.0",
+     "proc": {
+      "cpu": 22.5,
+      "rssMB": 300
+     },
+     "statusline": null,
+     "transcript": {
+      "sessionId": "11111111-aaaa-4aaa-8aaa-000000000004",
+      "file": "$HOME/.claude/projects/-Users-fixture-code-mobile/11111111-aaaa-4aaa-8aaa-000000000004.jsonl",
+      "cwd": "/Users/fixture/code/mobile",
+      "branch": "fix/login",
+      "title": "Fix the login crash",
+      "model": "claude-opus-5-5",
+      "models": {
+       "claude-opus-5-5": {
+        "calls": 1,
+        "cost": 0.033476,
+        "output": 826
+       }
+      },
+      "effort": null,
+      "permissionMode": null,
+      "entrypoint": "cli",
+      "tokens": {
+       "input": 1274,
+       "output": 826,
+       "cacheRead": 21800,
+       "cacheWrite": 1500
+      },
+      "cost": 0.033476,
+      "apiCalls": 1,
+      "tools": {},
+      "prompts": 1,
+      "errors": 0,
+      "turns": 1,
+      "avgTurnMs": 540000,
+      "lastTurnMs": 540000,
+      "prs": [],
+      "first": 1781698800000,
+      "last": 1781699400000,
+      "mtime": 1781701980000,
+      "lastPrompt": "The app crashes on login with an empty password",
+      "lastPromptAt": 1781698800000,
+      "contextTokens": 25400,
+      "lastStop": "end_turn",
+      "pendingTool": null,
+      "spark": [
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "events": [
+       {
+        "t": 1781698800000,
+        "kind": "prompt",
+        "text": "The app crashes on login with an empty password"
+       },
+       {
+        "t": 1781698860000,
+        "kind": "say",
+        "text": "Found it: the validator assumes a string."
+       },
+       {
+        "t": 1781699400000,
+        "kind": "turn",
+        "ms": 540000,
+        "n": 6
+       }
+      ]
+     },
+     "code": null,
+     "subagents": {
+      "total": 0,
+      "active": 0,
+      "cost": 0,
+      "list": []
+     },
+     "cost": 0.033476
+    },
+    {
+     "pid": 41005,
+     "sessionId": "11111111-aaaa-4aaa-8aaa-000000000005",
+     "name": "notes",
+     "status": "idle",
+     "rawStatus": "idle",
+     "statusSince": 1781701020000,
+     "startedAt": 1781695800000,
+     "cwd": "/Users/fixture/notes",
+     "kind": "interactive",
+     "entrypoint": "cli",
+     "version": "2.9.0",
+     "proc": {
+      "cpu": 30,
+      "rssMB": 340
+     },
+     "statusline": null,
+     "transcript": {
+      "sessionId": "11111111-aaaa-4aaa-8aaa-000000000005",
+      "file": "$HOME/.claude/projects/-Users-fixture-notes/11111111-aaaa-4aaa-8aaa-000000000005.jsonl",
+      "cwd": "/Users/fixture/notes",
+      "branch": null,
+      "title": null,
+      "model": "claude-opus-5-5",
+      "models": {
+       "claude-opus-5-5": {
+        "calls": 1,
+        "cost": 0.033476,
+        "output": 826
+       }
+      },
+      "effort": null,
+      "permissionMode": null,
+      "entrypoint": "cli",
+      "tokens": {
+       "input": 1274,
+       "output": 826,
+       "cacheRead": 21800,
+       "cacheWrite": 1500
+      },
+      "cost": 0.033476,
+      "apiCalls": 1,
+      "tools": {},
+      "prompts": 1,
+      "errors": 0,
+      "turns": 1,
+      "avgTurnMs": 60000,
+      "lastTurnMs": 60000,
+      "prs": [],
+      "first": 1781697600000,
+      "last": 1781697720000,
+      "mtime": 1781701020000,
+      "lastPrompt": "Summarise this week’s meeting notes",
+      "lastPromptAt": 1781697600000,
+      "contextTokens": 25400,
+      "lastStop": "end_turn",
+      "pendingTool": null,
+      "spark": [
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "events": [
+       {
+        "t": 1781697600000,
+        "kind": "prompt",
+        "text": "Summarise this week’s meeting notes"
+       },
+       {
+        "t": 1781697660000,
+        "kind": "say",
+        "text": "Here’s the summary."
+       },
+       {
+        "t": 1781697720000,
+        "kind": "turn",
+        "ms": 60000,
+        "n": 6
+       }
+      ]
+     },
+     "code": null,
+     "subagents": {
+      "total": 0,
+      "active": 0,
+      "cost": 0,
+      "list": []
+     },
+     "cost": 0.033476
+    }
+   ],
+   "recent": [
+    {
+     "sessionId": "22222222-bbbb-4bbb-8bbb-000000000001",
+     "title": "Bump dependencies",
+     "cwd": "/Users/fixture/code/api-server",
+     "branch": "main",
+     "model": "claude-opus-5-5",
+     "cost": 0.060004,
+     "prompts": 1,
+     "apiCalls": 2,
+     "toolCalls": 1,
+     "first": 1781685000000,
+     "last": 1781685660000,
+     "lastPrompt": "Bump all dependencies"
+    },
+    {
+     "sessionId": "22222222-bbbb-4bbb-8bbb-000000000002",
+     "title": "Fix broken links",
+     "cwd": "/Users/fixture/code/docs-site",
+     "branch": "main",
+     "model": "claude-opus-5-5",
+     "cost": 0.060004,
+     "prompts": 1,
+     "apiCalls": 2,
+     "toolCalls": 1,
+     "first": 1781673000000,
+     "last": 1781674260000,
+     "lastPrompt": "Fix the broken links"
+    }
+   ],
+   "feed": [
+    {
+     "t": 1781702520000,
+     "kind": "say",
+     "text": "Adding it after the install steps.",
+     "sessionId": "11111111-aaaa-4aaa-8aaa-000000000002",
+     "session": "docs-site"
+    },
+    {
+     "t": 1781702460000,
+     "kind": "prompt",
+     "text": "Add a section on the office",
+     "sessionId": "11111111-aaaa-4aaa-8aaa-000000000002",
+     "session": "docs-site"
+    },
+    {
+     "t": 1781702340000,
+     "kind": "tool",
+     "name": "Bash",
+     "text": "Run the test suite",
+     "id": "toolu_9",
+     "sessionId": "11111111-aaaa-4aaa-8aaa-000000000001",
+     "session": "api-server"
+    },
+    {
+     "t": 1781702280000,
+     "kind": "prompt",
+     "text": "Now run the tests",
+     "sessionId": "11111111-aaaa-4aaa-8aaa-000000000001",
+     "session": "api-server"
+    },
+    {
+     "t": 1781701800000,
+     "kind": "turn",
+     "ms": 1200000,
+     "n": 6,
+     "sessionId": "11111111-aaaa-4aaa-8aaa-000000000001",
+     "session": "api-server"
+    },
+    {
+     "t": 1781701560000,
+     "kind": "tool",
+     "name": "Bash",
+     "text": "Rebuild the image",
+     "id": "toolu_2",
+     "sessionId": "11111111-aaaa-4aaa-8aaa-000000000003",
+     "session": "Upgrade the build image"
+    },
+    {
+     "t": 1781701500000,
+     "kind": "prompt",
+     "text": "Upgrade the build image to the new LTS and rebuild",
+     "sessionId": "11111111-aaaa-4aaa-8aaa-000000000003",
+     "session": "Upgrade the build image"
+    },
+    {
+     "t": 1781701200000,
+     "kind": "tool",
+     "name": "Edit",
+     "text": "src/greet.js",
+     "id": "toolu_5",
+     "ms": 0,
+     "sessionId": "11111111-aaaa-4aaa-8aaa-000000000001",
+     "session": "api-server"
+    },
+    {
+     "t": 1781700720000,
+     "kind": "tool",
+     "name": "Read",
+     "text": "src/app.js",
+     "id": "toolu_3",
+     "ms": 0,
+     "sessionId": "11111111-aaaa-4aaa-8aaa-000000000001",
+     "session": "api-server"
+    },
+    {
+     "t": 1781700660000,
+     "kind": "say",
+     "text": "I’ll start by reading the request pipeline.",
+     "sessionId": "11111111-aaaa-4aaa-8aaa-000000000001",
+     "session": "api-server"
+    },
+    {
+     "t": 1781700600000,
+     "kind": "prompt",
+     "text": "Add per-user rate limiting to the public API, with tests",
+     "sessionId": "11111111-aaaa-4aaa-8aaa-000000000001",
+     "session": "api-server"
+    },
+    {
+     "t": 1781700000000,
+     "kind": "tool",
+     "name": "Write",
+     "text": "docs-site/guide.md",
+     "id": "toolu_3",
+     "ms": 0,
+     "sessionId": "11111111-aaaa-4aaa-8aaa-000000000002",
+     "session": "docs-site"
+    },
+    {
+     "t": 1781699760000,
+     "kind": "say",
+     "text": "Reading the current guide first.",
+     "sessionId": "11111111-aaaa-4aaa-8aaa-000000000002",
+     "session": "docs-site"
+    },
+    {
+     "t": 1781699700000,
+     "kind": "prompt",
+     "text": "Rewrite the getting started guide so it fits on one page",
+     "sessionId": "11111111-aaaa-4aaa-8aaa-000000000002",
+     "session": "docs-site"
+    },
+    {
+     "t": 1781699400000,
+     "kind": "turn",
+     "ms": 540000,
+     "n": 6,
+     "sessionId": "11111111-aaaa-4aaa-8aaa-000000000004",
+     "session": "Fix the login crash"
+    },
+    {
+     "t": 1781698860000,
+     "kind": "say",
+     "text": "Found it: the validator assumes a string.",
+     "sessionId": "11111111-aaaa-4aaa-8aaa-000000000004",
+     "session": "Fix the login crash"
+    },
+    {
+     "t": 1781698800000,
+     "kind": "prompt",
+     "text": "The app crashes on login with an empty password",
+     "sessionId": "11111111-aaaa-4aaa-8aaa-000000000004",
+     "session": "Fix the login crash"
+    },
+    {
+     "t": 1781697720000,
+     "kind": "turn",
+     "ms": 60000,
+     "n": 6,
+     "sessionId": "11111111-aaaa-4aaa-8aaa-000000000005",
+     "session": "notes"
+    },
+    {
+     "t": 1781697660000,
+     "kind": "say",
+     "text": "Here’s the summary.",
+     "sessionId": "11111111-aaaa-4aaa-8aaa-000000000005",
+     "session": "notes"
+    },
+    {
+     "t": 1781697600000,
+     "kind": "prompt",
+     "text": "Summarise this week’s meeting notes",
+     "sessionId": "11111111-aaaa-4aaa-8aaa-000000000005",
+     "session": "notes"
+    }
+   ]
+  }
+ },
+ "GET /api/config": {
+  "status": 200,
+  "type": "application/json",
+  "cache": null,
+  "body": {
+   "city": "string",
+   "lat": "number",
+   "lon": "number",
+   "owner": "string"
+  }
+ },
+ "GET /api/office": {
+  "status": 200,
+  "type": "application/json",
+  "cache": "no-store",
+  "body": {
+   "lights": "auto",
+   "brightness": 1,
+   "blinds": {
+    "side": 0,
+    "front": 0,
+    "north": 0,
+    "east": 0,
+    "west": 0,
+    "office": 0,
+    "meetSouth": 0,
+    "meetNorth": 0,
+    "meetSmall": 0
+   },
+   "door": 0
+  }
+ },
+ "GET /api/tvs": {
+  "status": 200,
+  "type": "application/json",
+  "cache": "no-store",
+  "body": {}
+ },
+ "GET /api/session/11111111-aaaa-4aaa-8aaa-000000000001": {
+  "status": 200,
+  "type": "application/json",
+  "cache": null,
+  "body": {
+   "sessionId": "11111111-aaaa-4aaa-8aaa-000000000001",
+   "file": "$HOME/.claude/projects/-Users-fixture-code-api-server/11111111-aaaa-4aaa-8aaa-000000000001.jsonl",
+   "cwd": "/Users/fixture/code/api-server",
+   "branch": "feat/rate-limits",
+   "title": "Add rate limiting to the API",
+   "model": "claude-opus-5-5",
+   "models": {
+    "claude-opus-5-5": {
+     "calls": 4,
+     "cost": 0.120368,
+     "output": 3273
+    }
+   },
+   "effort": null,
+   "permissionMode": null,
+   "entrypoint": "cli",
+   "tokens": {
+    "input": 4467,
+    "output": 3273,
+    "cacheRead": 87700,
+    "cacheWrite": 3900
+   },
+   "cost": 0.120368,
+   "apiCalls": 4,
+   "tools": {
+    "Read": 1,
+    "Edit": 1,
+    "Bash": 1
+   },
+   "prompts": 2,
+   "errors": 0,
+   "turns": 1,
+   "avgTurnMs": 1200000,
+   "lastTurnMs": 1200000,
+   "prs": [],
+   "first": 1781700600000,
+   "last": 1781702340000,
+   "mtime": 1781702760000,
+   "lastPrompt": "Now run the tests",
+   "lastPromptAt": 1781702280000,
+   "contextTokens": 27380,
+   "lastStop": "tool_use",
+   "pendingTool": {
+    "name": "Bash",
+    "detail": "Run the test suite",
+    "t": 1781702340000
+   },
+   "spark": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    826,
+    573,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    755,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1119,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "events": [
+    {
+     "t": 1781700600000,
+     "kind": "prompt",
+     "text": "Add per-user rate limiting to the public API, with tests"
+    },
+    {
+     "t": 1781700660000,
+     "kind": "say",
+     "text": "I’ll start by reading the request pipeline."
+    },
+    {
+     "t": 1781700720000,
+     "kind": "tool",
+     "name": "Read",
+     "text": "src/app.js",
+     "id": "toolu_3",
+     "ms": 0
+    },
+    {
+     "t": 1781701200000,
+     "kind": "tool",
+     "name": "Edit",
+     "text": "src/greet.js",
+     "id": "toolu_5",
+     "ms": 0
+    },
+    {
+     "t": 1781701800000,
+     "kind": "turn",
+     "ms": 1200000,
+     "n": 6
+    },
+    {
+     "t": 1781702280000,
+     "kind": "prompt",
+     "text": "Now run the tests"
+    },
+    {
+     "t": 1781702340000,
+     "kind": "tool",
+     "name": "Bash",
+     "text": "Run the test suite",
+     "id": "toolu_9"
+    }
+   ],
+   "subagents": [
+    {
+     "id": "agent-fixture1",
+     "type": "Explore",
+     "description": "Find the rate limit hooks",
+     "background": false,
+     "depth": 1,
+     "active": true,
+     "cost": 0.019276,
+     "tokens": {
+      "input": 929,
+      "output": 391,
+      "cacheRead": 18700,
+      "cacheWrite": 800
+     },
+     "apiCalls": 1,
+     "toolCalls": 1,
+     "model": "claude-opus-5-5",
+     "first": 1781702640000,
+     "last": 1781702640000,
+     "current": "Grep: rateLimit"
+    }
+   ]
+  }
+ },
+ "GET /api/session/11111111-aaaa-4aaa-8aaa-000000000002": {
+  "status": 200,
+  "type": "application/json",
+  "cache": null,
+  "body": {
+   "sessionId": "11111111-aaaa-4aaa-8aaa-000000000002",
+   "file": "$HOME/.claude/projects/-Users-fixture-code-docs-site/11111111-aaaa-4aaa-8aaa-000000000002.jsonl",
+   "cwd": "/Users/fixture/code/docs-site",
+   "branch": "main",
+   "title": "Rewrite the getting started guide",
+   "model": "claude-opus-5-5",
+   "models": {
+    "claude-opus-5-5": {
+     "calls": 3,
+     "cost": 0.10073199999999999,
+     "output": 2677
+    }
+   },
+   "effort": null,
+   "permissionMode": null,
+   "entrypoint": "cli",
+   "tokens": {
+    "input": 3683,
+    "output": 2677,
+    "cacheRead": 67300,
+    "cacheWrite": 3800
+   },
+   "cost": 0.10073199999999999,
+   "apiCalls": 3,
+   "tools": {
+    "Write": 1
+   },
+   "prompts": 2,
+   "errors": 0,
+   "turns": 0,
+   "avgTurnMs": 0,
+   "lastTurnMs": 0,
+   "prs": [],
+   "first": 1781699700000,
+   "last": 1781702520000,
+   "mtime": 1781702460000,
+   "lastPrompt": "Add a section on the office",
+   "lastPromptAt": 1781702460000,
+   "contextTokens": 29600,
+   "lastStop": "end_turn",
+   "pendingTool": null,
+   "spark": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    826,
+    0,
+    0,
+    0,
+    573,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1278,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "events": [
+    {
+     "t": 1781699700000,
+     "kind": "prompt",
+     "text": "Rewrite the getting started guide so it fits on one page"
+    },
+    {
+     "t": 1781699760000,
+     "kind": "say",
+     "text": "Reading the current guide first."
+    },
+    {
+     "t": 1781700000000,
+     "kind": "tool",
+     "name": "Write",
+     "text": "docs-site/guide.md",
+     "id": "toolu_3",
+     "ms": 0
+    },
+    {
+     "t": 1781702460000,
+     "kind": "prompt",
+     "text": "Add a section on the office"
+    },
+    {
+     "t": 1781702520000,
+     "kind": "say",
+     "text": "Adding it after the install steps."
+    }
+   ],
+   "subagents": []
+  }
+ },
+ "GET /api/session/11111111-aaaa-4aaa-8aaa-000000000003": {
+  "status": 200,
+  "type": "application/json",
+  "cache": null,
+  "body": {
+   "sessionId": "11111111-aaaa-4aaa-8aaa-000000000003",
+   "file": "$HOME/.claude/projects/-Users-fixture-code-infra/11111111-aaaa-4aaa-8aaa-000000000003.jsonl",
+   "cwd": "/Users/fixture/code/infra",
+   "branch": "ops/upgrade",
+   "title": "Upgrade the build image",
+   "model": "claude-opus-5-5",
+   "models": {
+    "claude-opus-5-5": {
+     "calls": 1,
+     "cost": 0.021352,
+     "output": 482
+    }
+   },
+   "effort": null,
+   "permissionMode": null,
+   "entrypoint": "cli",
+   "tokens": {
+    "input": 958,
+    "output": 482,
+    "cacheRead": 19400,
+    "cacheWrite": 800
+   },
+   "cost": 0.021352,
+   "apiCalls": 1,
+   "tools": {
+    "Bash": 1
+   },
+   "prompts": 1,
+   "errors": 0,
+   "turns": 0,
+   "avgTurnMs": 0,
+   "lastTurnMs": 0,
+   "prs": [],
+   "first": 1781701500000,
+   "last": 1781701560000,
+   "mtime": 1781702880000,
+   "lastPrompt": "Upgrade the build image to the new LTS and rebuild",
+   "lastPromptAt": 1781701500000,
+   "contextTokens": 21640,
+   "lastStop": "tool_use",
+   "pendingTool": {
+    "name": "Bash",
+    "detail": "Rebuild the image",
+    "t": 1781701560000
+   },
+   "spark": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    482,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "events": [
+    {
+     "t": 1781701500000,
+     "kind": "prompt",
+     "text": "Upgrade the build image to the new LTS and rebuild"
+    },
+    {
+     "t": 1781701560000,
+     "kind": "tool",
+     "name": "Bash",
+     "text": "Rebuild the image",
+     "id": "toolu_2"
+    }
+   ],
+   "subagents": []
+  }
+ },
+ "GET /api/session/11111111-aaaa-4aaa-8aaa-000000000004": {
+  "status": 200,
+  "type": "application/json",
+  "cache": null,
+  "body": {
+   "sessionId": "11111111-aaaa-4aaa-8aaa-000000000004",
+   "file": "$HOME/.claude/projects/-Users-fixture-code-mobile/11111111-aaaa-4aaa-8aaa-000000000004.jsonl",
+   "cwd": "/Users/fixture/code/mobile",
+   "branch": "fix/login",
+   "title": "Fix the login crash",
+   "model": "claude-opus-5-5",
+   "models": {
+    "claude-opus-5-5": {
+     "calls": 1,
+     "cost": 0.033476,
+     "output": 826
+    }
+   },
+   "effort": null,
+   "permissionMode": null,
+   "entrypoint": "cli",
+   "tokens": {
+    "input": 1274,
+    "output": 826,
+    "cacheRead": 21800,
+    "cacheWrite": 1500
+   },
+   "cost": 0.033476,
+   "apiCalls": 1,
+   "tools": {},
+   "prompts": 1,
+   "errors": 0,
+   "turns": 1,
+   "avgTurnMs": 540000,
+   "lastTurnMs": 540000,
+   "prs": [],
+   "first": 1781698800000,
+   "last": 1781699400000,
+   "mtime": 1781701980000,
+   "lastPrompt": "The app crashes on login with an empty password",
+   "lastPromptAt": 1781698800000,
+   "contextTokens": 25400,
+   "lastStop": "end_turn",
+   "pendingTool": null,
+   "spark": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "events": [
+    {
+     "t": 1781698800000,
+     "kind": "prompt",
+     "text": "The app crashes on login with an empty password"
+    },
+    {
+     "t": 1781698860000,
+     "kind": "say",
+     "text": "Found it: the validator assumes a string."
+    },
+    {
+     "t": 1781699400000,
+     "kind": "turn",
+     "ms": 540000,
+     "n": 6
+    }
+   ],
+   "subagents": []
+  }
+ },
+ "GET /api/session/11111111-aaaa-4aaa-8aaa-000000000005": {
+  "status": 200,
+  "type": "application/json",
+  "cache": null,
+  "body": {
+   "sessionId": "11111111-aaaa-4aaa-8aaa-000000000005",
+   "file": "$HOME/.claude/projects/-Users-fixture-notes/11111111-aaaa-4aaa-8aaa-000000000005.jsonl",
+   "cwd": "/Users/fixture/notes",
+   "branch": null,
+   "title": null,
+   "model": "claude-opus-5-5",
+   "models": {
+    "claude-opus-5-5": {
+     "calls": 1,
+     "cost": 0.033476,
+     "output": 826
+    }
+   },
+   "effort": null,
+   "permissionMode": null,
+   "entrypoint": "cli",
+   "tokens": {
+    "input": 1274,
+    "output": 826,
+    "cacheRead": 21800,
+    "cacheWrite": 1500
+   },
+   "cost": 0.033476,
+   "apiCalls": 1,
+   "tools": {},
+   "prompts": 1,
+   "errors": 0,
+   "turns": 1,
+   "avgTurnMs": 60000,
+   "lastTurnMs": 60000,
+   "prs": [],
+   "first": 1781697600000,
+   "last": 1781697720000,
+   "mtime": 1781701020000,
+   "lastPrompt": "Summarise this week’s meeting notes",
+   "lastPromptAt": 1781697600000,
+   "contextTokens": 25400,
+   "lastStop": "end_turn",
+   "pendingTool": null,
+   "spark": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "events": [
+    {
+     "t": 1781697600000,
+     "kind": "prompt",
+     "text": "Summarise this week’s meeting notes"
+    },
+    {
+     "t": 1781697660000,
+     "kind": "say",
+     "text": "Here’s the summary."
+    },
+    {
+     "t": 1781697720000,
+     "kind": "turn",
+     "ms": 60000,
+     "n": 6
+    }
+   ],
+   "subagents": []
+  }
+ },
+ "GET /api/session/<unknown>": {
+  "status": 404,
+  "type": null,
+  "cache": null,
+  "body": {}
+ },
+ "GET /api/session/:id/chat": {
+  "status": 200,
+  "type": "application/json",
+  "cache": "no-store",
+  "body": {
+   "seq": "number",
+   "messages": [
+    {
+     "t": 1781700600000,
+     "role": "user",
+     "text": "Add per-user rate limiting to the public API, with tests"
+    },
+    {
+     "t": 1781700660000,
+     "role": "assistant",
+     "text": "I’ll start by reading the request pipeline."
+    },
+    {
+     "t": 1781700720000,
+     "role": "tool",
+     "name": "Read",
+     "text": "src/app.js"
+    },
+    {
+     "t": 1781701200000,
+     "role": "tool",
+     "name": "Edit",
+     "text": "src/greet.js"
+    },
+    {
+     "t": 1781702280000,
+     "role": "user",
+     "text": "Now run the tests"
+    },
+    {
+     "t": 1781702340000,
+     "role": "tool",
+     "name": "Bash",
+     "text": "Run the test suite"
+    }
+   ]
+  }
+ },
+ "GET /api/session/:id/chat?seq=<same>": {
+  "status": 200,
+  "type": "application/json",
+  "cache": "no-store",
+  "body": [
+   "seq"
+  ]
+ },
+ "GET /api/machine": {
+  "status": 200,
+  "type": "application/json",
+  "cache": "no-store",
+  "body": {
+   "arch": "string",
+   "at": "number",
+   "battery": {
+    "ac": "boolean",
+    "pct": "number",
+    "state": "string"
+   },
+   "cores": [
+    "number"
+   ],
+   "cpuModel": "string",
+   "disks": [
+    {
+     "avail": "number",
+     "dev": "string",
+     "mount": "string",
+     "size": "number",
+     "used": "number"
+    }
+   ],
+   "hostname": "string",
+   "load": [
+    "number"
+   ],
+   "mem": {
+    "total": "number",
+    "used": "number"
+   },
+   "net": null,
+   "os": "string",
+   "sessions": [
+    {
+     "cpu": "number",
+     "name": "string",
+     "pid": "number",
+     "rssMB": "number",
+     "sessionId": "string",
+     "status": "string"
+    }
+   ],
+   "top": [
+    {
+     "cpu": "number",
+     "name": "string",
+     "pid": "number",
+     "rssMB": "number"
+    }
+   ],
+   "uptime": "number"
+  }
+ },
+ "GET /api/repos": {
+  "status": 401,
+  "type": "application/json",
+  "cache": "no-store",
+  "signin": true
+ },
+ "GET /events": {
+  "status": 200,
+  "type": "text/event-stream",
+  "events": [
+   {
+    "retry": "2000",
+    "data": {
+     "now": 1781703000000,
+     "host": "fixture-host",
+     "rateLimits": {
+      "five_hour": {
+       "used_percentage": 38,
+       "resets_at": 1781710800
+      },
+      "seven_day": {
+       "used_percentage": 72,
+       "resets_at": 1781962200
+      }
+     },
+     "rateLimitsAt": 1781702880000,
+     "totals": {
+      "live": 5,
+      "working": 2,
+      "subagentsActive": 1,
+      "todayCost": 0.448688,
+      "todayTokens": 368340,
+      "todayOutput": 11543,
+      "todaySessions": 7,
+      "liveCost": 5.578304000000001,
+      "linesAdded": 212,
+      "linesRemoved": 52
+     },
+     "models": {
+      "claude-opus-5-5": {
+       "calls": 15,
+       "cost": 0.448688
+      }
+     },
+     "tools": {
+      "Grep": 2,
+      "Read": 1,
+      "Edit": 1,
+      "Bash": 3,
+      "Write": 1
+     },
+     "hourly": [
+      {
+       "t": 1781618400000,
+       "cost": 0,
+       "tokens": 0,
+       "output": 0,
+       "bySession": {}
+      },
+      {
+       "t": 1781622000000,
+       "cost": 0,
+       "tokens": 0,
+       "output": 0,
+       "bySession": {}
+      },
+      {
+       "t": 1781625600000,
+       "cost": 0,
+       "tokens": 0,
+       "output": 0,
+       "bySession": {}
+      },
+      {
+       "t": 1781629200000,
+       "cost": 0,
+       "tokens": 0,
+       "output": 0,
+       "bySession": {}
+      },
+      {
+       "t": 1781632800000,
+       "cost": 0,
+       "tokens": 0,
+       "output": 0,
+       "bySession": {}
+      },
+      {
+       "t": 1781636400000,
+       "cost": 0,
+       "tokens": 0,
+       "output": 0,
+       "bySession": {}
+      },
+      {
+       "t": 1781640000000,
+       "cost": 0,
+       "tokens": 0,
+       "output": 0,
+       "bySession": {}
+      },
+      {
+       "t": 1781643600000,
+       "cost": 0,
+       "tokens": 0,
+       "output": 0,
+       "bySession": {}
+      },
+      {
+       "t": 1781647200000,
+       "cost": 0,
+       "tokens": 0,
+       "output": 0,
+       "bySession": {}
+      },
+      {
+       "t": 1781650800000,
+       "cost": 0,
+       "tokens": 0,
+       "output": 0,
+       "bySession": {}
+      },
+      {
+       "t": 1781654400000,
+       "cost": 0,
+       "tokens": 0,
+       "output": 0,
+       "bySession": {}
+      },
+      {
+       "t": 1781658000000,
+       "cost": 0,
+       "tokens": 0,
+       "output": 0,
+       "bySession": {}
+      },
+      {
+       "t": 1781661600000,
+       "cost": 0,
+       "tokens": 0,
+       "output": 0,
+       "bySession": {}
+      },
+      {
+       "t": 1781665200000,
+       "cost": 0,
+       "tokens": 0,
+       "output": 0,
+       "bySession": {}
+      },
+      {
+       "t": 1781668800000,
+       "cost": 0,
+       "tokens": 0,
+       "output": 0,
+       "bySession": {}
+      },
+      {
+       "t": 1781672400000,
+       "cost": 0.060004,
+       "tokens": 49140,
+       "output": 1534,
+       "bySession": {
+        "22222222-bbbb-4bbb-8bbb-000000000002": 0.060004
+       }
+      },
+      {
+       "t": 1781676000000,
+       "cost": 0,
+       "tokens": 0,
+       "output": 0,
+       "bySession": {}
+      },
+      {
+       "t": 1781679600000,
+       "cost": 0,
+       "tokens": 0,
+       "output": 0,
+       "bySession": {}
+      },
+      {
+       "t": 1781683200000,
+       "cost": 0.060004,
+       "tokens": 49140,
+       "output": 1534,
+       "bySession": {
+        "22222222-bbbb-4bbb-8bbb-000000000001": 0.060004
+       }
+      },
+      {
+       "t": 1781686800000,
+       "cost": 0,
+       "tokens": 0,
+       "output": 0,
+       "bySession": {}
+      },
+      {
+       "t": 1781690400000,
+       "cost": 0,
+       "tokens": 0,
+       "output": 0,
+       "bySession": {}
+      },
+      {
+       "t": 1781694000000,
+       "cost": 0,
+       "tokens": 0,
+       "output": 0,
+       "bySession": {}
+      },
+      {
+       "t": 1781697600000,
+       "cost": 0.18076,
+       "tokens": 146520,
+       "output": 4450,
+       "bySession": {
+        "11111111-aaaa-4aaa-8aaa-000000000001": 0.056903999999999996,
+        "11111111-aaaa-4aaa-8aaa-000000000002": 0.056903999999999996,
+        "11111111-aaaa-4aaa-8aaa-000000000004": 0.033476,
+        "11111111-aaaa-4aaa-8aaa-000000000005": 0.033476
+       }
+      },
+      {
+       "t": 1781701200000,
+       "cost": 0.14792,
+       "tokens": 123540,
+       "output": 4025,
+       "bySession": {
+        "11111111-aaaa-4aaa-8aaa-000000000001": 0.08274,
+        "11111111-aaaa-4aaa-8aaa-000000000002": 0.043828,
+        "11111111-aaaa-4aaa-8aaa-000000000003": 0.021352
+       }
+      }
+     ],
+     "days": [
+      {
+       "date": "2026-06-05",
+       "cost": 14.9,
+       "entries": 76,
+       "tokens": 1140000,
+       "output": 108000
+      },
+      {
+       "date": "2026-06-06",
+       "cost": 3,
+       "entries": 73,
+       "tokens": 1080000,
+       "output": 99000
+      },
+      {
+       "date": "2026-06-07",
+       "cost": 9.8,
+       "entries": 70,
+       "tokens": 1020000,
+       "output": 90000
+      },
+      {
+       "date": "2026-06-08",
+       "cost": 16.6,
+       "entries": 67,
+       "tokens": 960000,
+       "output": 81000
+      },
+      {
+       "date": "2026-06-09",
+       "cost": 4.7,
+       "entries": 64,
+       "tokens": 900000,
+       "output": 72000
+      },
+      {
+       "date": "2026-06-10",
+       "cost": 11.5,
+       "entries": 61,
+       "tokens": 840000,
+       "output": 63000
+      },
+      {
+       "date": "2026-06-11",
+       "cost": 18.299999999999997,
+       "entries": 58,
+       "tokens": 780000,
+       "output": 54000
+      },
+      {
+       "date": "2026-06-12",
+       "cost": 6.4,
+       "entries": 55,
+       "tokens": 720000,
+       "output": 45000
+      },
+      {
+       "date": "2026-06-13",
+       "cost": 13.2,
+       "entries": 52,
+       "tokens": 660000,
+       "output": 36000
+      },
+      {
+       "date": "2026-06-14",
+       "cost": 20,
+       "entries": 49,
+       "tokens": 600000,
+       "output": 27000
+      },
+      {
+       "date": "2026-06-15",
+       "cost": 8.1,
+       "entries": 46,
+       "tokens": 540000,
+       "output": 18000
+      },
+      {
+       "date": "2026-06-16",
+       "cost": 14.9,
+       "entries": 43,
+       "tokens": 480000,
+       "output": 9000
+      },
+      {
+       "date": "2026-06-17",
+       "cost": 0.448688,
+       "tokens": 368340,
+       "output": 11543,
+       "entries": 0,
+       "live": true
+      }
+     ],
+     "live": [
+      {
+       "pid": 41002,
+       "sessionId": "11111111-aaaa-4aaa-8aaa-000000000002",
+       "name": "docs-site",
+       "status": "working",
+       "rawStatus": "busy",
+       "statusSince": 1781702460000,
+       "startedAt": 1781695800000,
+       "cwd": "/Users/fixture/code/docs-site",
+       "kind": "interactive",
+       "entrypoint": "cli",
+       "version": "2.9.0",
+       "proc": {
+        "cpu": 7.5,
+        "rssMB": 220
+       },
+       "statusline": {
+        "name": "docs-site",
+        "model": "Opus 5.5",
+        "cost": {
+         "total_cost_usd": 1.12,
+         "total_lines_added": 30,
+         "total_lines_removed": 12
+        },
+        "context": {
+         "used_percentage": 83
+        },
+        "at": 1781702820000
+       },
+       "transcript": {
+        "sessionId": "11111111-aaaa-4aaa-8aaa-000000000002",
+        "file": "$HOME/.claude/projects/-Users-fixture-code-docs-site/11111111-aaaa-4aaa-8aaa-000000000002.jsonl",
+        "cwd": "/Users/fixture/code/docs-site",
+        "branch": "main",
+        "title": "Rewrite the getting started guide",
+        "model": "claude-opus-5-5",
+        "models": {
+         "claude-opus-5-5": {
+          "calls": 3,
+          "cost": 0.10073199999999999,
+          "output": 2677
+         }
+        },
+        "effort": null,
+        "permissionMode": null,
+        "entrypoint": "cli",
+        "tokens": {
+         "input": 3683,
+         "output": 2677,
+         "cacheRead": 67300,
+         "cacheWrite": 3800
+        },
+        "cost": 0.10073199999999999,
+        "apiCalls": 3,
+        "tools": {
+         "Write": 1
+        },
+        "prompts": 2,
+        "errors": 0,
+        "turns": 0,
+        "avgTurnMs": 0,
+        "lastTurnMs": 0,
+        "prs": [],
+        "first": 1781699700000,
+        "last": 1781702520000,
+        "mtime": 1781702460000,
+        "lastPrompt": "Add a section on the office",
+        "lastPromptAt": 1781702460000,
+        "contextTokens": 29600,
+        "lastStop": "end_turn",
+        "pendingTool": null,
+        "spark": [
+         0,
+         0,
+         0,
+         0,
+         0,
+         826,
+         0,
+         0,
+         0,
+         573,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         1278,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0
+        ],
+        "events": [
+         {
+          "t": 1781699700000,
+          "kind": "prompt",
+          "text": "Rewrite the getting started guide so it fits on one page"
+         },
+         {
+          "t": 1781699760000,
+          "kind": "say",
+          "text": "Reading the current guide first."
+         },
+         {
+          "t": 1781700000000,
+          "kind": "tool",
+          "name": "Write",
+          "text": "docs-site/guide.md",
+          "id": "toolu_3",
+          "ms": 0
+         },
+         {
+          "t": 1781702460000,
+          "kind": "prompt",
+          "text": "Add a section on the office"
+         },
+         {
+          "t": 1781702520000,
+          "kind": "say",
+          "text": "Adding it after the install steps."
+         }
+        ]
+       },
+       "code": {
+        "id": "toolu_3",
+        "t": 1781700000000,
+        "tool": "Write",
+        "agent": null,
+        "count": 1,
+        "line": 1,
+        "file": "guide.md",
+        "added": "# Getting started\n\nInstall it, run it, open the office.\n",
+        "removed": ""
+       },
+       "subagents": {
+        "total": 0,
+        "active": 0,
+        "cost": 0,
+        "list": []
+       },
+       "cost": 1.12
+      },
+      {
+       "pid": 41001,
+       "sessionId": "11111111-aaaa-4aaa-8aaa-000000000001",
+       "name": "api-server",
+       "status": "working",
+       "rawStatus": "busy",
+       "statusSince": 1781702760000,
+       "startedAt": 1781695800000,
+       "cwd": "/Users/fixture/code/api-server",
+       "kind": "interactive",
+       "entrypoint": "cli",
+       "version": "2.9.0",
+       "proc": {
+        "cpu": 0,
+        "rssMB": 180
+       },
+       "statusline": {
+        "name": "api-server",
+        "model": "Opus 5.5",
+        "effort": "high",
+        "cost": {
+         "total_cost_usd": 4.37,
+         "total_lines_added": 182,
+         "total_lines_removed": 40
+        },
+        "context": {
+         "used_percentage": 46
+        },
+        "at": 1781702880000
+       },
+       "transcript": {
+        "sessionId": "11111111-aaaa-4aaa-8aaa-000000000001",
+        "file": "$HOME/.claude/projects/-Users-fixture-code-api-server/11111111-aaaa-4aaa-8aaa-000000000001.jsonl",
+        "cwd": "/Users/fixture/code/api-server",
+        "branch": "feat/rate-limits",
+        "title": "Add rate limiting to the API",
+        "model": "claude-opus-5-5",
+        "models": {
+         "claude-opus-5-5": {
+          "calls": 4,
+          "cost": 0.120368,
+          "output": 3273
+         }
+        },
+        "effort": null,
+        "permissionMode": null,
+        "entrypoint": "cli",
+        "tokens": {
+         "input": 4467,
+         "output": 3273,
+         "cacheRead": 87700,
+         "cacheWrite": 3900
+        },
+        "cost": 0.120368,
+        "apiCalls": 4,
+        "tools": {
+         "Read": 1,
+         "Edit": 1,
+         "Bash": 1
+        },
+        "prompts": 2,
+        "errors": 0,
+        "turns": 1,
+        "avgTurnMs": 1200000,
+        "lastTurnMs": 1200000,
+        "prs": [],
+        "first": 1781700600000,
+        "last": 1781702340000,
+        "mtime": 1781702760000,
+        "lastPrompt": "Now run the tests",
+        "lastPromptAt": 1781702280000,
+        "contextTokens": 27380,
+        "lastStop": "tool_use",
+        "pendingTool": {
+         "name": "Bash",
+         "detail": "Run the test suite",
+         "t": 1781702340000
+        },
+        "spark": [
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         826,
+         573,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         755,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         1119,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0
+        ],
+        "events": [
+         {
+          "t": 1781700600000,
+          "kind": "prompt",
+          "text": "Add per-user rate limiting to the public API, with tests"
+         },
+         {
+          "t": 1781700660000,
+          "kind": "say",
+          "text": "I’ll start by reading the request pipeline."
+         },
+         {
+          "t": 1781700720000,
+          "kind": "tool",
+          "name": "Read",
+          "text": "src/app.js",
+          "id": "toolu_3",
+          "ms": 0
+         },
+         {
+          "t": 1781701200000,
+          "kind": "tool",
+          "name": "Edit",
+          "text": "src/greet.js",
+          "id": "toolu_5",
+          "ms": 0
+         },
+         {
+          "t": 1781701800000,
+          "kind": "turn",
+          "ms": 1200000,
+          "n": 6
+         },
+         {
+          "t": 1781702280000,
+          "kind": "prompt",
+          "text": "Now run the tests"
+         },
+         {
+          "t": 1781702340000,
+          "kind": "tool",
+          "name": "Bash",
+          "text": "Run the test suite",
+          "id": "toolu_9"
+         }
+        ]
+       },
+       "code": {
+        "id": "toolu_5",
+        "t": 1781701200000,
+        "tool": "Edit",
+        "agent": null,
+        "count": 1,
+        "line": 0,
+        "file": "src/greet.js",
+        "added": "export function greet(name) {\n  // Say hello, politely.\n  const who = String(name ?? 'world').trim();\n  if (!who) throw new Error('nobody to greet');\n  return `Hello, ${who}!`;\n}\n\nexport const farewell = (name) => `Goodbye, ${name}.`;\n",
+        "removed": "old"
+       },
+       "subagents": {
+        "total": 1,
+        "active": 1,
+        "cost": 0.019276,
+        "list": [
+         {
+          "id": "agent-fixture1",
+          "type": "Explore",
+          "description": "Find the rate limit hooks",
+          "background": false,
+          "depth": 1,
+          "active": true,
+          "cost": 0.019276,
+          "tokens": {
+           "input": 929,
+           "output": 391,
+           "cacheRead": 18700,
+           "cacheWrite": 800
+          },
+          "apiCalls": 1,
+          "toolCalls": 1,
+          "model": "claude-opus-5-5",
+          "first": 1781702640000,
+          "last": 1781702640000,
+          "current": "Grep: rateLimit"
+         }
+        ]
+       },
+       "cost": 4.37
+      },
+      {
+       "pid": 41003,
+       "sessionId": "11111111-aaaa-4aaa-8aaa-000000000003",
+       "name": "infra",
+       "status": "shell",
+       "rawStatus": "shell",
+       "statusSince": 1781702880000,
+       "startedAt": 1781695800000,
+       "cwd": "/Users/fixture/code/infra",
+       "kind": "interactive",
+       "entrypoint": "cli",
+       "version": "2.9.0",
+       "proc": {
+        "cpu": 15,
+        "rssMB": 260
+       },
+       "statusline": null,
+       "transcript": {
+        "sessionId": "11111111-aaaa-4aaa-8aaa-000000000003",
+        "file": "$HOME/.claude/projects/-Users-fixture-code-infra/11111111-aaaa-4aaa-8aaa-000000000003.jsonl",
+        "cwd": "/Users/fixture/code/infra",
+        "branch": "ops/upgrade",
+        "title": "Upgrade the build image",
+        "model": "claude-opus-5-5",
+        "models": {
+         "claude-opus-5-5": {
+          "calls": 1,
+          "cost": 0.021352,
+          "output": 482
+         }
+        },
+        "effort": null,
+        "permissionMode": null,
+        "entrypoint": "cli",
+        "tokens": {
+         "input": 958,
+         "output": 482,
+         "cacheRead": 19400,
+         "cacheWrite": 800
+        },
+        "cost": 0.021352,
+        "apiCalls": 1,
+        "tools": {
+         "Bash": 1
+        },
+        "prompts": 1,
+        "errors": 0,
+        "turns": 0,
+        "avgTurnMs": 0,
+        "lastTurnMs": 0,
+        "prs": [],
+        "first": 1781701500000,
+        "last": 1781701560000,
+        "mtime": 1781702880000,
+        "lastPrompt": "Upgrade the build image to the new LTS and rebuild",
+        "lastPromptAt": 1781701500000,
+        "contextTokens": 21640,
+        "lastStop": "tool_use",
+        "pendingTool": {
+         "name": "Bash",
+         "detail": "Rebuild the image",
+         "t": 1781701560000
+        },
+        "spark": [
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         482,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0
+        ],
+        "events": [
+         {
+          "t": 1781701500000,
+          "kind": "prompt",
+          "text": "Upgrade the build image to the new LTS and rebuild"
+         },
+         {
+          "t": 1781701560000,
+          "kind": "tool",
+          "name": "Bash",
+          "text": "Rebuild the image",
+          "id": "toolu_2"
+         }
+        ]
+       },
+       "code": null,
+       "subagents": {
+        "total": 0,
+        "active": 0,
+        "cost": 0,
+        "list": []
+       },
+       "cost": 0.021352
+      },
+      {
+       "pid": 41004,
+       "sessionId": "11111111-aaaa-4aaa-8aaa-000000000004",
+       "name": "mobile",
+       "status": "idle",
+       "rawStatus": "idle",
+       "statusSince": 1781701980000,
+       "startedAt": 1781695800000,
+       "cwd": "/Users/fixture/code/mobile",
+       "kind": "interactive",
+       "entrypoint": "cli",
+       "version": "2.9.0",
+       "proc": {
+        "cpu": 22.5,
+        "rssMB": 300
+       },
+       "statusline": null,
+       "transcript": {
+        "sessionId": "11111111-aaaa-4aaa-8aaa-000000000004",
+        "file": "$HOME/.claude/projects/-Users-fixture-code-mobile/11111111-aaaa-4aaa-8aaa-000000000004.jsonl",
+        "cwd": "/Users/fixture/code/mobile",
+        "branch": "fix/login",
+        "title": "Fix the login crash",
+        "model": "claude-opus-5-5",
+        "models": {
+         "claude-opus-5-5": {
+          "calls": 1,
+          "cost": 0.033476,
+          "output": 826
+         }
+        },
+        "effort": null,
+        "permissionMode": null,
+        "entrypoint": "cli",
+        "tokens": {
+         "input": 1274,
+         "output": 826,
+         "cacheRead": 21800,
+         "cacheWrite": 1500
+        },
+        "cost": 0.033476,
+        "apiCalls": 1,
+        "tools": {},
+        "prompts": 1,
+        "errors": 0,
+        "turns": 1,
+        "avgTurnMs": 540000,
+        "lastTurnMs": 540000,
+        "prs": [],
+        "first": 1781698800000,
+        "last": 1781699400000,
+        "mtime": 1781701980000,
+        "lastPrompt": "The app crashes on login with an empty password",
+        "lastPromptAt": 1781698800000,
+        "contextTokens": 25400,
+        "lastStop": "end_turn",
+        "pendingTool": null,
+        "spark": [
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0
+        ],
+        "events": [
+         {
+          "t": 1781698800000,
+          "kind": "prompt",
+          "text": "The app crashes on login with an empty password"
+         },
+         {
+          "t": 1781698860000,
+          "kind": "say",
+          "text": "Found it: the validator assumes a string."
+         },
+         {
+          "t": 1781699400000,
+          "kind": "turn",
+          "ms": 540000,
+          "n": 6
+         }
+        ]
+       },
+       "code": null,
+       "subagents": {
+        "total": 0,
+        "active": 0,
+        "cost": 0,
+        "list": []
+       },
+       "cost": 0.033476
+      },
+      {
+       "pid": 41005,
+       "sessionId": "11111111-aaaa-4aaa-8aaa-000000000005",
+       "name": "notes",
+       "status": "idle",
+       "rawStatus": "idle",
+       "statusSince": 1781701020000,
+       "startedAt": 1781695800000,
+       "cwd": "/Users/fixture/notes",
+       "kind": "interactive",
+       "entrypoint": "cli",
+       "version": "2.9.0",
+       "proc": {
+        "cpu": 30,
+        "rssMB": 340
+       },
+       "statusline": null,
+       "transcript": {
+        "sessionId": "11111111-aaaa-4aaa-8aaa-000000000005",
+        "file": "$HOME/.claude/projects/-Users-fixture-notes/11111111-aaaa-4aaa-8aaa-000000000005.jsonl",
+        "cwd": "/Users/fixture/notes",
+        "branch": null,
+        "title": null,
+        "model": "claude-opus-5-5",
+        "models": {
+         "claude-opus-5-5": {
+          "calls": 1,
+          "cost": 0.033476,
+          "output": 826
+         }
+        },
+        "effort": null,
+        "permissionMode": null,
+        "entrypoint": "cli",
+        "tokens": {
+         "input": 1274,
+         "output": 826,
+         "cacheRead": 21800,
+         "cacheWrite": 1500
+        },
+        "cost": 0.033476,
+        "apiCalls": 1,
+        "tools": {},
+        "prompts": 1,
+        "errors": 0,
+        "turns": 1,
+        "avgTurnMs": 60000,
+        "lastTurnMs": 60000,
+        "prs": [],
+        "first": 1781697600000,
+        "last": 1781697720000,
+        "mtime": 1781701020000,
+        "lastPrompt": "Summarise this week’s meeting notes",
+        "lastPromptAt": 1781697600000,
+        "contextTokens": 25400,
+        "lastStop": "end_turn",
+        "pendingTool": null,
+        "spark": [
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0,
+         0
+        ],
+        "events": [
+         {
+          "t": 1781697600000,
+          "kind": "prompt",
+          "text": "Summarise this week’s meeting notes"
+         },
+         {
+          "t": 1781697660000,
+          "kind": "say",
+          "text": "Here’s the summary."
+         },
+         {
+          "t": 1781697720000,
+          "kind": "turn",
+          "ms": 60000,
+          "n": 6
+         }
+        ]
+       },
+       "code": null,
+       "subagents": {
+        "total": 0,
+        "active": 0,
+        "cost": 0,
+        "list": []
+       },
+       "cost": 0.033476
+      }
+     ],
+     "recent": [
+      {
+       "sessionId": "22222222-bbbb-4bbb-8bbb-000000000001",
+       "title": "Bump dependencies",
+       "cwd": "/Users/fixture/code/api-server",
+       "branch": "main",
+       "model": "claude-opus-5-5",
+       "cost": 0.060004,
+       "prompts": 1,
+       "apiCalls": 2,
+       "toolCalls": 1,
+       "first": 1781685000000,
+       "last": 1781685660000,
+       "lastPrompt": "Bump all dependencies"
+      },
+      {
+       "sessionId": "22222222-bbbb-4bbb-8bbb-000000000002",
+       "title": "Fix broken links",
+       "cwd": "/Users/fixture/code/docs-site",
+       "branch": "main",
+       "model": "claude-opus-5-5",
+       "cost": 0.060004,
+       "prompts": 1,
+       "apiCalls": 2,
+       "toolCalls": 1,
+       "first": 1781673000000,
+       "last": 1781674260000,
+       "lastPrompt": "Fix the broken links"
+      }
+     ],
+     "feed": [
+      {
+       "t": 1781702520000,
+       "kind": "say",
+       "text": "Adding it after the install steps.",
+       "sessionId": "11111111-aaaa-4aaa-8aaa-000000000002",
+       "session": "docs-site"
+      },
+      {
+       "t": 1781702460000,
+       "kind": "prompt",
+       "text": "Add a section on the office",
+       "sessionId": "11111111-aaaa-4aaa-8aaa-000000000002",
+       "session": "docs-site"
+      },
+      {
+       "t": 1781702340000,
+       "kind": "tool",
+       "name": "Bash",
+       "text": "Run the test suite",
+       "id": "toolu_9",
+       "sessionId": "11111111-aaaa-4aaa-8aaa-000000000001",
+       "session": "api-server"
+      },
+      {
+       "t": 1781702280000,
+       "kind": "prompt",
+       "text": "Now run the tests",
+       "sessionId": "11111111-aaaa-4aaa-8aaa-000000000001",
+       "session": "api-server"
+      },
+      {
+       "t": 1781701800000,
+       "kind": "turn",
+       "ms": 1200000,
+       "n": 6,
+       "sessionId": "11111111-aaaa-4aaa-8aaa-000000000001",
+       "session": "api-server"
+      },
+      {
+       "t": 1781701560000,
+       "kind": "tool",
+       "name": "Bash",
+       "text": "Rebuild the image",
+       "id": "toolu_2",
+       "sessionId": "11111111-aaaa-4aaa-8aaa-000000000003",
+       "session": "Upgrade the build image"
+      },
+      {
+       "t": 1781701500000,
+       "kind": "prompt",
+       "text": "Upgrade the build image to the new LTS and rebuild",
+       "sessionId": "11111111-aaaa-4aaa-8aaa-000000000003",
+       "session": "Upgrade the build image"
+      },
+      {
+       "t": 1781701200000,
+       "kind": "tool",
+       "name": "Edit",
+       "text": "src/greet.js",
+       "id": "toolu_5",
+       "ms": 0,
+       "sessionId": "11111111-aaaa-4aaa-8aaa-000000000001",
+       "session": "api-server"
+      },
+      {
+       "t": 1781700720000,
+       "kind": "tool",
+       "name": "Read",
+       "text": "src/app.js",
+       "id": "toolu_3",
+       "ms": 0,
+       "sessionId": "11111111-aaaa-4aaa-8aaa-000000000001",
+       "session": "api-server"
+      },
+      {
+       "t": 1781700660000,
+       "kind": "say",
+       "text": "I’ll start by reading the request pipeline.",
+       "sessionId": "11111111-aaaa-4aaa-8aaa-000000000001",
+       "session": "api-server"
+      },
+      {
+       "t": 1781700600000,
+       "kind": "prompt",
+       "text": "Add per-user rate limiting to the public API, with tests",
+       "sessionId": "11111111-aaaa-4aaa-8aaa-000000000001",
+       "session": "api-server"
+      },
+      {
+       "t": 1781700000000,
+       "kind": "tool",
+       "name": "Write",
+       "text": "docs-site/guide.md",
+       "id": "toolu_3",
+       "ms": 0,
+       "sessionId": "11111111-aaaa-4aaa-8aaa-000000000002",
+       "session": "docs-site"
+      },
+      {
+       "t": 1781699760000,
+       "kind": "say",
+       "text": "Reading the current guide first.",
+       "sessionId": "11111111-aaaa-4aaa-8aaa-000000000002",
+       "session": "docs-site"
+      },
+      {
+       "t": 1781699700000,
+       "kind": "prompt",
+       "text": "Rewrite the getting started guide so it fits on one page",
+       "sessionId": "11111111-aaaa-4aaa-8aaa-000000000002",
+       "session": "docs-site"
+      },
+      {
+       "t": 1781699400000,
+       "kind": "turn",
+       "ms": 540000,
+       "n": 6,
+       "sessionId": "11111111-aaaa-4aaa-8aaa-000000000004",
+       "session": "Fix the login crash"
+      },
+      {
+       "t": 1781698860000,
+       "kind": "say",
+       "text": "Found it: the validator assumes a string.",
+       "sessionId": "11111111-aaaa-4aaa-8aaa-000000000004",
+       "session": "Fix the login crash"
+      },
+      {
+       "t": 1781698800000,
+       "kind": "prompt",
+       "text": "The app crashes on login with an empty password",
+       "sessionId": "11111111-aaaa-4aaa-8aaa-000000000004",
+       "session": "Fix the login crash"
+      },
+      {
+       "t": 1781697720000,
+       "kind": "turn",
+       "ms": 60000,
+       "n": 6,
+       "sessionId": "11111111-aaaa-4aaa-8aaa-000000000005",
+       "session": "notes"
+      },
+      {
+       "t": 1781697660000,
+       "kind": "say",
+       "text": "Here’s the summary.",
+       "sessionId": "11111111-aaaa-4aaa-8aaa-000000000005",
+       "session": "notes"
+      },
+      {
+       "t": 1781697600000,
+       "kind": "prompt",
+       "text": "Summarise this week’s meeting notes",
+       "sessionId": "11111111-aaaa-4aaa-8aaa-000000000005",
+       "session": "notes"
+      }
+     ]
+    }
+   },
+   {
+    "event": "tvs",
+    "data": {}
+   },
+   {
+    "event": "tvads",
+    "data": {}
+   },
+   {
+    "event": "office",
+    "data": {
+     "lights": "auto",
+     "brightness": 1,
+     "blinds": {
+      "side": 0,
+      "front": 0,
+      "north": 0,
+      "east": 0,
+      "west": 0,
+      "office": 0,
+      "meetSouth": 0,
+      "meetNorth": 0,
+      "meetSmall": 0
+     },
+     "door": 0
+    }
+   }
+  ]
+ },
+ "GET /": {
+  "status": 200,
+  "type": "text/html; charset=utf-8",
+  "cache": "no-store",
+  "bytes": true
+ },
+ "GET /index.html": {
+  "status": 200,
+  "type": "text/html; charset=utf-8",
+  "cache": "no-store",
+  "bytes": true
+ },
+ "GET /office.js": {
+  "status": 200,
+  "type": "text/javascript",
+  "cache": "no-store",
+  "bytes": true
+ },
+ "GET /chat.js": {
+  "status": 200,
+  "type": "text/javascript",
+  "cache": "no-store",
+  "bytes": true
+ },
+ "GET /vendor/three/build/three.module.js": {
+  "status": 200,
+  "type": "text/javascript",
+  "cache": "max-age=86400",
+  "bytes": "some"
+ },
+ "GET /nope.js": {
+  "status": 404,
+  "type": null,
+  "cache": null,
+  "bytes": 0
+ },
+ "GET /../server.js": {
+  "status": 404,
+  "type": null,
+  "cache": null,
+  "bytes": 0
+ },
+ "GET /%2e%2e/server.js": {
+  "status": 404,
+  "type": null,
+  "cache": null,
+  "bytes": 0
+ },
+ "GET /vendor/three/../../server.js": {
+  "status": 404,
+  "type": null,
+  "cache": null,
+  "bytes": 0
+ },
+ "GET /config.json": {
+  "status": 404,
+  "type": null,
+  "cache": null,
+  "bytes": 0
+ },
+ "PUT /api/office (ok)": {
+  "status": 200,
+  "body": {
+   "lights": "auto",
+   "brightness": 1,
+   "blinds": {
+    "side": 0,
+    "front": 0,
+    "north": 0,
+    "east": 0,
+    "west": 0,
+    "office": 0,
+    "meetSouth": 0,
+    "meetNorth": 0,
+    "meetSmall": 0
+   },
+   "door": 1
+  }
+ },
+ "GET /api/office (after)": {
+  "lights": "auto",
+  "brightness": 1,
+  "blinds": {
+   "side": 0,
+   "front": 0,
+   "north": 0,
+   "east": 0,
+   "west": 0,
+   "office": 0,
+   "meetSouth": 0,
+   "meetNorth": 0,
+   "meetSmall": 0
+  },
+  "door": 1
+ },
+ "PUT /api/office (put back)": {
+  "status": 200,
+  "body": {
+   "lights": "auto",
+   "brightness": 1,
+   "blinds": {
+    "side": 0,
+    "front": 0,
+    "north": 0,
+    "east": 0,
+    "west": 0,
+    "office": 0,
+    "meetSouth": 0,
+    "meetNorth": 0,
+    "meetSmall": 0
+   },
+   "door": 0
+  }
+ },
+ "PUT /api/office (bad JSON)": {
+  "status": 400,
+  "body": {
+   "error": "Expected property name or '}' in JSON at position 1 (line 1 column 2)"
+  }
+ },
+ "PUT /api/office (no Origin)": {
+  "status": 403,
+  "body": {
+   "error": "refused: missing or foreign Origin"
+  }
+ },
+ "PUT /api/office (foreign Origin)": {
+  "status": 403,
+  "body": {
+   "error": "refused: missing or foreign Origin"
+  }
+ },
+ "PUT /api/office (text/plain)": {
+  "status": 403,
+  "body": {
+   "error": "refused: Content-Type must be application/json"
+  }
+ },
+ "PUT /api/office (form)": {
+  "status": 403,
+  "body": {
+   "error": "refused: Content-Type must be application/json"
+  }
+ },
+ "PUT /api/office (HeadlessChrome)": {
+  "status": 403,
+  "body": {
+   "error": "refused: not from a TV or headless browser"
+  }
+ },
+ "PUT /api/office (TV browser)": {
+  "status": 403,
+  "body": {
+   "error": "refused: not from a TV or headless browser"
+  }
+ },
+ "PUT /api/office (foreign Host)": {
+  "status": 403,
+  "body": {
+   "error": "refused: unknown Host"
+  }
+ },
+ "PUT /api/tvs/lobby (foreign Origin)": {
+  "status": 403,
+  "body": {
+   "error": "refused: missing or foreign Origin"
+  }
+ },
+ "PUT /api/tvs/lobby (bad url)": {
+  "status": 400,
+  "body": {
+   "error": "only http(s) URLs"
+  }
+ },
+ "PUT /api/tvs/<bad id>": {
+  "status": 404,
+  "body": ""
+ },
+ "GET /api/john": {
+  "status": 405,
+  "body": ""
+ },
+ "POST /api/john (no Origin)": {
+  "status": 403,
+  "body": {
+   "error": "refused: missing or foreign Origin"
+  }
+ },
+ "POST /api/john (empty)": {
+  "status": 400,
+  "body": {
+   "error": "empty message"
+  }
+ },
+ "POST /api/john (too long)": {
+  "status": 400,
+  "body": {
+   "error": "too long (700 of 600 characters)"
+  }
+ },
+ "GET /api/session/:id/send": {
+  "status": 405,
+  "body": ""
+ },
+ "POST /api/session/:id/send (no Origin)": {
+  "status": 403,
+  "body": {
+   "error": "refused: missing or foreign Origin"
+  }
+ },
+ "POST /api/session/:id/send (empty)": {
+  "status": 400,
+  "body": {
+   "error": "empty message"
+  }
+ },
+ "POST /api/session/:id/send (too long)": {
+  "status": 400,
+  "body": {
+   "error": "too long (9000 of 8000 characters)"
+  }
+ },
+ "POST /api/repos": {
+  "status": 405,
+  "body": {
+   "error": "GET only"
+  }
+ },
+ "GET /api/repos (cross-site)": {
+  "status": 403,
+  "body": {
+   "error": "refused"
+  }
+ },
+ "GET /api/repos (same-site)": {
+  "status": 403,
+  "body": {
+   "error": "refused"
+  }
+ },
+ "GET /api/repos (TV browser)": {
+  "status": 403,
+  "body": {
+   "error": "refused"
+  }
+ },
+ "GET /api/repos (foreign Host)": {
+  "status": 403,
+  "body": {
+   "error": "refused"
+  }
+ },
+ "GET /api/repos/../x": {
+  "status": 404,
+  "body": ""
+ },
+ "GET /api/repos/o/../tree": {
+  "status": 404,
+  "body": ""
+ },
+ "GET /api/repos/o/n/blob (bad ref)": {
+  "status": 400,
+  "body": {
+   "error": "bad path or ref"
+  }
+ },
+ "GET /api/repos/o/n/blob (bad path)": {
+  "status": 400,
+  "body": {
+   "error": "bad path or ref"
+  }
+ },
+ "WS /tv (ok)": "upgraded",
+ "WS /tv (foreign Origin)": "refused",
+ "WS /tv (no Origin)": "refused",
+ "WS /tv (TV browser)": "refused",
+ "WS /tv (foreign Host)": "refused"
+}
