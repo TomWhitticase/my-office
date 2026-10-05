@@ -16,7 +16,7 @@ export function install(ctx) {
   // vents) behind a louvred screen; and the lift overrun your car opens out of, under a mast with a red aviation light.
   // Built at deck height 0 in roof.g, which sits at ROOF_Y and is only shown while you're up here.
   const ROOF_Y = ROOM.h + 0.5, EDGE = { x: 20.3, z: 15.3 }, HELI = { x: -9.5, z: 8.6, r: 5.6 };
-  const roof = { n: ROOF, label: 'ROOF', title: 'Roof terrace', y: ROOF_Y, sound: 'roof', g: new THREE.Group(), colliders: [], cars: [], fans: [] };
+  const roof = { n: ROOF, label: 'ROOF', title: 'Roof terrace', blurb: 'Roof terrace · Helipad', y: ROOF_Y, sound: 'roof', g: new THREE.Group(), colliders: [], cars: [], fans: [] };
   {
     const G = roof.g, c0 = colliders.length, s0 = seats.length, R = rng(5050);
     G.position.y = ROOF_Y; G.visible = false; world.add(G);

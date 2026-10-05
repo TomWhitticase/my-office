@@ -26,6 +26,7 @@
  * @property {number} n                   the floor number: the car panel lists them top first
  * @property {string} label               on the car panel
  * @property {string} title               on the hover card and the arrival toast
+ * @property {string} [blurb]             what's there, on the building directory by the lifts (defaults to the title)
  * @property {any} [scene]                its own THREE.Scene, drawn by renderFloor
  * @property {number} [y]                 instead of a scene: that far up in the office's scene
  * @property {{ exposure: number, hemi: number, sky: any, ground: any, env: number, bloom: number, grade: number,
