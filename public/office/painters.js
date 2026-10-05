@@ -139,9 +139,10 @@ export function tokens(line) {
 }
 export const countLines = (x) => (x ? x.split('\n').length : 0);
 
-// Draws the session's latest edit; `shown` chars of it are revealed (typing animation).
-export function drawCode(scr, s, color, shown, cursorOn) {
-  const { ctx, W, H } = scr, code = s.code;
+// Draws the session's latest edit into the top H pixels (the terminal pane has the rest); `shown` chars of it are
+// revealed (typing animation).
+export function drawCode(scr, s, color, shown, cursorOn, H = scr.H) {
+  const { ctx, W } = scr, code = s.code;
   ctx.fillStyle = '#1e2127'; ctx.fillRect(0, 0, W, H);
   ctx.fillStyle = '#16181d'; ctx.fillRect(0, 0, W, 44);
   if (!code) {
@@ -190,6 +191,65 @@ export function drawCode(scr, s, color, shown, cursorOn) {
     if (isCursor && cursorOn) { ctx.fillStyle = color; ctx.fillRect(Math.min(x, W - 12) + 1, y - 15, 2.5, 19); }
   }
   ctx.fillStyle = color; ctx.fillRect(gutter - 6, top - 16, 2, Math.min(rows, lines.length - first) * LH);
+}
+
+// ---------- the desk's terminal pane ----------
+// Below the code on the code monitor: the session's whole feed (server/transcripts.js feedTool), newest at the bottom.
+// Lines are plain text from transcripts: only ever fillText, wrapped by character count (the font is monospaced).
+export const TERM_TOP = 282;
+const TERM = {
+  user: ['❯ ', '#61afef', '#e8e8e8', 4], say: ['⏺ ', '#e8e8e8', '#cfd3da', 6], think: ['✻ ', '#7f848e', '#666c77', 3],
+  tool: ['⏺ ', '#98c379', '#c8ccd4', 4], out: ['⎿ ', '#4b5263', '#8b919c', 5], err: ['⎿ ', '#e06c75', '#e06c75', 4],
+  note: ['· ', '#c678dd', '#b98fd0', 2],
+};   // kind: [glyph, glyph colour, text colour, most rows it takes]
+const clean = (x) => String(x ?? '').replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '').replace(/\t/g, '  ').replace(/[\x00-\x09\x0b-\x1f\x7f]/g, '');
+const hhmm = (t) => { const d = new Date(t); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
+// A feed line as rows of [[text, colour], …], wrapped to `cols` and cut to its kind's most rows (cached on the line).
+// A subagent's lines sit behind a cyan bar, its name leading the first row.
+function termRows(l, cols) {
+  if (l.rows && l.cols === cols) return l.rows;
+  const [glyph, gc, tc, most] = TERM[l.k] || TERM.note;
+  const sub = l.a ? `${l.a.length > 24 ? l.a.slice(0, 23) + '…' : l.a}: ` : '', name = l.n ? l.n + ' ' : '';
+  const w = Math.max(10, cols - 8 - (l.a ? 2 : 0)), out = [];
+  for (const para of (sub + name + clean(l.x)).split('\n')) {
+    for (let i = 0; i < Math.max(1, para.length) && out.length <= most; i += w) out.push(para.slice(i, i + w));
+    if (out.length > most) break;
+  }
+  if (out.length > most) { out.length = most; out[most - 1] = out[most - 1].slice(0, w - 1) + '…'; }
+  l.cols = cols;
+  return l.rows = out.map((x, i) => {
+    const r = [[i ? '      ' : hhmm(l.t) + ' ', '#3e4451']];
+    if (l.a) r.push(['│ ', '#2f6f78']);
+    r.push(i ? ['  ', ''] : [glyph, gc]);
+    if (i) r.push([x, tc]);
+    else r.push([x.slice(0, sub.length), '#56b6c2'], [x.slice(sub.length, sub.length + name.length), '#e5c07b'], [x.slice(sub.length + name.length), tc]);
+    return r;
+  });
+}
+export function drawTerm(scr, s, color, lines, top) {
+  const { ctx, W, H } = scr, BAR = 24, LH = 15, P = 10;
+  ctx.fillStyle = '#0c0d10'; ctx.fillRect(0, top, W, H - top);
+  ctx.fillStyle = '#25282e'; ctx.fillRect(0, top, W, BAR);
+  ctx.fillStyle = '#000'; ctx.fillRect(0, top, W, 1);
+  ['#ff5f57', '#febc2e', '#28c840'].forEach((c, i) => { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(14 + i * 16, top + BAR / 2, 5, 0, Math.PI * 2); ctx.fill(); });
+  ctx.font = `600 13px ${FONT}`; ctx.fillStyle = '#9aa0a8'; ctx.textAlign = 'center';
+  ctx.fillText(fit(ctx, `${s.statusline?.name || s.name} — ${F.home(s.cwd || '')}`, W - 200), W / 2, top + 17);
+  ctx.textAlign = 'left';
+  if (s.status === 'working') { ctx.fillStyle = color; ctx.beginPath(); ctx.arc(W - 16, top + BAR / 2, 4, 0, Math.PI * 2); ctx.fill(); }
+  ctx.font = `400 13px ${MONO}`;
+  const cw = ctx.measureText('M').width, cols = Math.floor((W - 2 * P) / cw), y0 = top + BAR + 15, n = Math.floor((H - y0 + 4) / LH);
+  if (!lines.length) {
+    ctx.fillStyle = '#5c6370'; ctx.fillText('❯', P, y0);
+    ctx.fillStyle = '#3e4451'; ctx.fillRect(P + cw * 2, y0 - 11, cw, 14);
+    return;
+  }
+  const rows = [];
+  for (let i = lines.length - 1; i >= 0 && rows.length < n; i--) rows.unshift(...termRows(lines[i], cols));
+  rows.splice(0, rows.length - n);
+  rows.forEach((r, i) => {
+    let x = P;
+    for (const [text, c] of r) { if (c && text) { ctx.fillStyle = c; ctx.fillText(text, x, y0 + i * LH); } x += text.length * cw; }
+  });
 }
 
 export function drawOff(scr) {

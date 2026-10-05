@@ -26,7 +26,7 @@ For a change that shouldn't alter anything you can see (a refactor, a tidy-up), 
 ## Layout
 
 - `server.js`: the entry point: config, http routing and the `/events` SSE stream. The work is in `server/`:
-  - `transcripts.js` tails `~/.claude/projects/**/*.jsonl` (subagents too); `state.js` the session registry, status line snapshots and the state pushed every second.
+  - `transcripts.js` tails `~/.claude/projects/**/*.jsonl` (subagents too), and keeps each one's terminal feed (`/api/session/:id/feed`); `state.js` the session registry, status line snapshots and the state pushed every second.
   - `sessions-send.js` delivers chat messages to a session's terminal; `john.js` is John (`claude -p`); `machine.js` samples this machine for the server hall.
   - `tv-browser.js` runs the wall TVs: one headless Chrome (CDP over `--remote-debugging-pipe`, profile `~/.claude/my-office/tv-browser`), a tab per TV, screencast frames and input over the dependency-free WebSocket at `/tv`.
   - `repos.js` (your GitHub repos via `gh`, for the archive), `office-settings.js` (lights, blinds, door, the security cameras), `security.js` (same-origin / JSON / no-TV checks on every write), `util.js`.
@@ -35,7 +35,7 @@ For a change that shouldn't alter anything you can see (a refactor, a tidy-up), 
   - `main.js`: renderers, HUD, scene and camera; installs every part in order; the frame loop, resize, `window.__office` (the debug and test hooks; keep them working), show/hide.
   - `ctx.js`: the shared context and its registries (below). `hud.js`: the stylesheet and HUD markup. `util.js`: constants, `mat`/`box`/`cyl`, textures, `makeScreen`, the office's `colliders`. `painters.js`: the screens' canvas painters. `people.js`: `Person`, the idle spots and the people sync.
   - `world/`: the building and its rooms (sky, shell, city, furniture helpers, desks, breakroom, whiteboards, lounge, my office, kitchen, guitars, meeting rooms, fittings, clocks).
-  - `systems/`: lifts and the `FLOORS` table, the player and walking keys, TVs, chat and John, hover and click actions, minimap, post-processing, and the security cameras (`cctv.js`: the cameras on 48, 47 and the roof, and the feeds the desktop's Security app shows; a floor joins in with `floor.cctv = { root, tick?, stage? }`).
+  - `systems/`: lifts and the `FLOORS` table, the player and walking keys, TVs, chat and John, hover and click actions, minimap, post-processing, the terminal pane under the code on each desk's code monitor (`terminals.js`), and the security cameras (`cctv.js`: the cameras on 48, 47 and the roof, and the feeds the desktop's Security app shows; a floor joins in with `floor.cctv = { root, tick?, stage? }`).
   - `floors/`: the archive (B2), the gateway and inside a repo, the roof, the helicopter on the roof's pad (`window.__office.heli` drives it), the server hall (47).
   - The centre monitor in the owner's office is the live desktop in a CSS3DObject behind a hole punched in the WebGL frame (`world/my-office.js` installScreen, `systems/post.js` renderFrame).
 - `bin/setup.mjs` and `.claude/skills/setup`: installer and the `/setup` wizard. `bin/statusline-tap.sh`: the status line snapshot tap.

@@ -35,6 +35,7 @@ import { install as installRoof } from './floors/roof.js';
 import { install as installHelicopter } from './floors/helicopter.js';
 import { install as installServerHall } from './floors/server-hall.js';
 import { install as installCctv } from './systems/cctv.js';
+import { install as installTerminals } from './systems/terminals.js';
 import { install as installAvatar } from './systems/avatar.js';
 import { install as installChat } from './systems/chat.js';
 import { install as installHover } from './systems/hover.js';
@@ -177,6 +178,7 @@ export function mountOffice(container) {
 
   installSync(ctx);
   const { people } = ctx;
+  installTerminals(ctx);   // the terminal pane on each desk's code monitor
 
   installPlayer(ctx);
   const { sitIn, openLaptop, collide, tween, camPose, setCam, laptopFx, fillPose, seatedPose, player, keys, TELEPORTS } = ctx;
