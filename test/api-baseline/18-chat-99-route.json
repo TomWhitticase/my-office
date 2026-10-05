@@ -1,0 +1,10 @@
+{
+  "status": 200,
+  "type": "application/json",
+  "cache": "no-store",
+  "body": {
+    "seq": 0,
+    "messages": [],
+    "cantSend": "this session isn’t running"
+  }
+}

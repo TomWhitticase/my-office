@@ -1,0 +1,21 @@
+{
+  "status": 200,
+  "type": "application/json",
+  "cache": "no-store",
+  "body": {
+    "seq": 38,
+    "messages": [
+      {
+        "t": 1790617800000,
+        "role": "user",
+        "text": "Old one"
+      },
+      {
+        "t": 1790617860000,
+        "role": "assistant",
+        "text": "Hi"
+      }
+    ],
+    "cantSend": "can’t send to this session from here: it isn’t running in an Orca terminal or tmux"
+  }
+}

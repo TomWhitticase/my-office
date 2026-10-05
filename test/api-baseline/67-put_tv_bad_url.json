@@ -1,0 +1,8 @@
+{
+  "status": 400,
+  "type": "application/json",
+  "cache": null,
+  "body": {
+    "error": "only http(s) URLs"
+  }
+}

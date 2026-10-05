@@ -1,0 +1,8 @@
+{
+  "status": 400,
+  "type": "application/json",
+  "cache": "no-store",
+  "body": {
+    "error": "string"
+  }
+}

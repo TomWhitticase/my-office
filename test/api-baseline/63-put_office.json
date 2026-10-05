@@ -1,0 +1,21 @@
+{
+  "status": 200,
+  "type": "application/json",
+  "cache": null,
+  "body": {
+    "lights": "off",
+    "brightness": 2,
+    "blinds": {
+      "side": 0.5,
+      "front": 0,
+      "north": 1,
+      "east": 1,
+      "west": 0,
+      "office": 0,
+      "meetSouth": 0,
+      "meetNorth": 0,
+      "meetSmall": 0
+    },
+    "door": 1
+  }
+}

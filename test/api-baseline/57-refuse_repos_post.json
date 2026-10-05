@@ -1,0 +1,8 @@
+{
+  "status": 405,
+  "type": "application/json",
+  "cache": "no-store",
+  "body": {
+    "error": "GET only"
+  }
+}

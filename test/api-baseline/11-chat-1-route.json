@@ -1,0 +1,115 @@
+{
+  "status": 200,
+  "type": "application/json",
+  "cache": "no-store",
+  "body": {
+    "seq": 22,
+    "messages": [
+      {
+        "t": 1790845800000,
+        "role": "user",
+        "text": "Fix the login bug"
+      },
+      {
+        "t": 1790845860000,
+        "role": "assistant",
+        "text": "Looking into it."
+      },
+      {
+        "t": 1790845860000,
+        "role": "tool",
+        "name": "Bash",
+        "text": "List files"
+      },
+      {
+        "t": 1790845860000,
+        "role": "assistant",
+        "text": "(repeat block)"
+      },
+      {
+        "t": 1790845920000,
+        "role": "tool",
+        "name": "Edit",
+        "text": "alpha/app.js"
+      },
+      {
+        "t": 1790846040000,
+        "role": "tool",
+        "name": "Write",
+        "text": "alpha/new.js"
+      },
+      {
+        "t": 1790850600000,
+        "role": "command",
+        "text": "/compact"
+      },
+      {
+        "t": 1790850660000,
+        "role": "note",
+        "text": "Context compacted"
+      },
+      {
+        "t": 1790854200000,
+        "role": "user",
+        "text": "queued one",
+        "queued": false,
+        "ran": true
+      },
+      {
+        "t": 1790854500000,
+        "role": "user",
+        "text": "queued three",
+        "queued": false,
+        "ran": true
+      },
+      {
+        "t": 1790856000000,
+        "role": "tool",
+        "name": "MultiEdit",
+        "text": "alpha/m.js"
+      },
+      {
+        "t": 1790856000000,
+        "role": "tool",
+        "name": "WebFetch",
+        "text": "example.com"
+      },
+      {
+        "t": 1790856000000,
+        "role": "tool",
+        "name": "Agent",
+        "text": "Find usages"
+      },
+      {
+        "t": 1790856000000,
+        "role": "tool",
+        "name": "Skill",
+        "text": "setup"
+      },
+      {
+        "t": 1790856000000,
+        "role": "tool",
+        "name": "Foo",
+        "text": "bar"
+      },
+      {
+        "t": 1790856000000,
+        "role": "tool",
+        "name": "NotebookEdit",
+        "text": "n/b.ipynb"
+      },
+      {
+        "t": 1790857620000,
+        "role": "assistant",
+        "text": "Now searching."
+      },
+      {
+        "t": 1790857620000,
+        "role": "tool",
+        "name": "Grep",
+        "text": "login\\("
+      }
+    ],
+    "route": "orca"
+  }
+}

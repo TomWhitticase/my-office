@@ -1,0 +1,8 @@
+{
+  "status": 400,
+  "type": "application/json",
+  "cache": null,
+  "body": {
+    "error": "too long (601 of 600 characters)"
+  }
+}

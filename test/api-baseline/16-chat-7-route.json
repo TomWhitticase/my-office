@@ -1,0 +1,21 @@
+{
+  "status": 200,
+  "type": "application/json",
+  "cache": "no-store",
+  "body": {
+    "seq": 31,
+    "messages": [
+      {
+        "t": 1790854140000,
+        "role": "user",
+        "text": "Session 7"
+      },
+      {
+        "t": 1790854200000,
+        "role": "assistant",
+        "text": "ok"
+      }
+    ],
+    "cantSend": "its process changed since it registered"
+  }
+}

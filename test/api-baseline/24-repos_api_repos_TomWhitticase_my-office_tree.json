@@ -1,0 +1,9 @@
+{
+  "status": 202,
+  "type": "application/json",
+  "cache": "no-store",
+  "body": {
+    "done": "number",
+    "total": "number"
+  }
+}

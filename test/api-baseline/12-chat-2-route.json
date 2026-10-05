@@ -1,0 +1,27 @@
+{
+  "status": 200,
+  "type": "application/json",
+  "cache": "no-store",
+  "body": {
+    "seq": 25,
+    "messages": [
+      {
+        "t": 1790851800000,
+        "role": "user",
+        "text": "Tweak b.txt"
+      },
+      {
+        "t": 1790851860000,
+        "role": "tool",
+        "name": "Edit",
+        "text": "beta/b.txt"
+      },
+      {
+        "t": 1790852400000,
+        "role": "assistant",
+        "text": "Done."
+      }
+    ],
+    "route": "tmux"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "status": 200,
+  "type": "application/json",
+  "cache": "no-store",
+  "body": {
+    "lobby": {
+      "url": "https://example.com/x",
+      "refresh": 60,
+      "volume": 40,
+      "muted": true,
+      "adblock": false,
+      "at": 1790857800000
+    }
+  }
+}
