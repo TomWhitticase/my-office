@@ -6,14 +6,14 @@
 //   ~/.claude/projects/**/<session>.jsonl      transcripts (tokens, tools, prompts, subagents)
 //   ~/.claude/my-office/statusline/<sid>.json  latest status line payload (cost, context, limits), written by bin/statusline-tap.sh
 //   ~/.claude/powerline/usage/day-*.json       claude-powerline's daily cost cache (history)
+//
+// This file is the entry point: config, http routing and the /events stream. The work is in server/: transcripts, state (the
+// registry and the state pushed every second), sessions-send, tv-browser, repos, john, machine, office-settings, security, util.
 
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
-const os = require('os');
-const crypto = require('crypto');
-const { execFile, spawn } = require('child_process');
-const { CLAUDE, safeJSON, readJSON, clip, pidAlive, ts, hourKey, minuteKey, binOf, run, clients } = require('./server/util');
+const { safeJSON, clients } = require('./server/util');
 const { TV_UA_TAG, trustedHost, deny } = require('./server/security');
 const { office, putOffice } = require('./server/office-settings');
 const { listRepos, repoDetail, treeJob, repoBlob } = require('./server/repos');
