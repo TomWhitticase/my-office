@@ -20,11 +20,13 @@ export function install(ctx) {
     c.fillStyle = '#3987e5'; for (const x of [40, 64, 88]) { c.beginPath(); c.arc(x, 38, 8, 0, Math.PI * 2); c.fill(); }
     bubble.material.map = b.tex; bubble.scale.set(0.42, 0.315, 1); bubble.visible = false; bubble.layers.set(1); }
   let bubbleT = 0;
-  const talk = chatView({ log: chatLog, input: chatIn, send: chatBar.querySelector('button'), status: chatBar.querySelector('.st'), keys: ' · <kbd>Esc</kbd> back',
+  const talk = chatView({ log: chatLog, input: chatIn, send: chatBar.querySelector('button'), status: chatBar.querySelector('.st'),
+    keys: ' · <kbd>Esc</kbd> back',
     onUpdate: renderChatHead,
     onSent(id) {
       const p = people.get(id);
-      if (p) { p.root.add(bubble); bubble.position.y = 2.5; bubble.visible = true; clearTimeout(bubbleT); bubbleT = setTimeout(() => (bubble.visible = false), 4000); }
+      if (p) { p.root.add(bubble); bubble.position.y = 2.5; bubble.visible = true; clearTimeout(bubbleT);
+        bubbleT = setTimeout(() => (bubble.visible = false), 4000); }
     } });
   function openChat(id) {
     if (!CAN_CHAT) { dash.openDrawer(id); return; }
@@ -72,9 +74,12 @@ export function install(ctx) {
   johnEl.querySelector('small').textContent = 'Sysadmin · Server hall, floor 47';
   const johnLog = johnEl.querySelector('.of-chatlog'), johnIn = johnBar.querySelector('textarea'), johnSt = johnBar.querySelector('.st');
   johnIn.maxLength = 600; johnIn.placeholder = 'Ask John about the servers';
-  const johnChat = { open: false, busy: false, msgs: [{ role: 'john', text: 'Alright? Pull up a chair. What d’you want to know about the boxes?' }], note: null };
+  const johnChat = { open: false, busy: false, msgs: [{ role: 'john', text: 'Alright? Pull up a chair. What d’you want to know about the boxes?' }],
+    note: null };
   function renderJohn() {
-    johnLog.innerHTML = johnChat.msgs.map((m) => (m.role === 'user' ? `<div class="u">${escapeHtml(m.text)}</div>` : `<div class="${m.lunch || m.error ? 'n' : 'a'}">${escapeHtml(m.text)}</div>`)).join('')
+    johnLog.innerHTML = johnChat.msgs.map((m) =>
+      (m.role === 'user' ? `<div class="u">${escapeHtml(m.text)}</div>` :
+      `<div class="${m.lunch || m.error ? 'n' : 'a'}">${escapeHtml(m.text)}</div>`)).join('')
       + (johnChat.busy ? '<div class="n typing">John is typing</div>' : '');
     johnLog.scrollTop = johnLog.scrollHeight;
     johnSt.className = 'st' + (johnChat.note ? ' bad' : '');
@@ -129,6 +134,8 @@ export function install(ctx) {
     if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey && !e.target.closest?.('input, select, textarea') && !chatIn.disabled) chatIn.focus();
   }, true);
   Object.assign(ctx, { talk, johnChat });
-  ctx.action('john', { hover: () => `<b>John</b><div class="m">Sysadmin · ${srv.john.mood === 'sip' ? 'sipping a coffee' : srv.john.mood === 'lean' ? 'leaning back' : 'tapping away at a terminal'}</div><div class="k">${CAN_CHAT ? 'Click to talk to him' : 'He only talks to people on this computer'}</div>`,
+  ctx.action('john',
+    { hover: () =>
+    `<b>John</b><div class="m">Sysadmin · ${srv.john.mood === 'sip' ? 'sipping a coffee' : srv.john.mood === 'lean' ? 'leaning back' : 'tapping away at a terminal'}</div><div class="k">${CAN_CHAT ? 'Click to talk to him' : 'He only talks to people on this computer'}</div>`,
     click: () => openJohn() });
 }

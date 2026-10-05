@@ -24,7 +24,8 @@ export function install(ctx) {
   // ring stands in a slot cut through the plinth, touching nothing, its foot just off the floor and its portal level with the top.
   const GATE = { x: ARCH.x - 14, z: ARCH.z + 68, y: 2.82, R: 2.6, tube: 0.2, PL: 0.9, PW: 6.4, PD: 3.6, STEP: 0.35, SLOT: 0.3, CUT: 2.2 };
   const portalMat = (core, rim) => new THREE.ShaderMaterial({
-    uniforms: { uOpen: { value: 0 }, uTime: { value: 0 }, uHaze: { value: 0 }, uReady: { value: 0 }, uFlash: { value: 0 }, uCore: { value: new THREE.Color(...core) }, uRim: { value: new THREE.Color(...rim) } },
+    uniforms: { uOpen: { value: 0 }, uTime: { value: 0 }, uHaze: { value: 0 }, uReady: { value: 0 }, uFlash: { value: 0 },
+      uCore: { value: new THREE.Color(...core) }, uRim: { value: new THREE.Color(...rim) } },
     vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
     fragmentShader: `uniform float uOpen, uTime, uHaze, uReady, uFlash; uniform vec3 uCore, uRim; varying vec2 vUv;
       void main() {
@@ -43,7 +44,8 @@ export function install(ctx) {
     for (const r of [500, 412]) { c.lineWidth = 6; c.beginPath(); c.arc(0, 0, r, 0, Math.PI * 2); c.stroke(); }
     for (let i = 0; i < 128; i++) {
       const a = (i / 128) * Math.PI * 2, l = i % 8 ? 18 : 40;
-      c.lineWidth = i % 8 ? 3 : 6; c.beginPath(); c.moveTo(Math.cos(a) * 496, Math.sin(a) * 496); c.lineTo(Math.cos(a) * (496 - l), Math.sin(a) * (496 - l)); c.stroke();
+      c.lineWidth = i % 8 ? 3 : 6; c.beginPath(); c.moveTo(Math.cos(a) * 496, Math.sin(a) * 496); c.lineTo(Math.cos(a) * (496 - l), Math.sin(a) * (496 - l));
+      c.stroke();
     }
     c.font = `600 34px ${MONO}`; c.textAlign = 'center'; c.textBaseline = 'middle';
     for (let i = 0; i < 16; i++) { c.save(); c.rotate((i / 16) * Math.PI * 2); c.fillText(i.toString(16).toUpperCase(), 0, -436); c.restore(); }
@@ -55,7 +57,8 @@ export function install(ctx) {
     g.position.set(x, y, z);
     const ring = new THREE.Mesh(new THREE.TorusGeometry(R, tube, 24, 128), mat('#2a2622', { metalness: 0.85, roughness: 0.32 }));
     const lip = new THREE.Mesh(new THREE.TorusGeometry(R - tube - 0.02, 0.025, 8, 128), mat('#b08a4a', { metalness: 1, roughness: 0.3 }));
-    const dial = new THREE.Mesh(new THREE.RingGeometry(R - tube - 0.5, R - tube - 0.05, 128), new THREE.MeshStandardMaterial({ map: dialTex, color: '#c9a25c', metalness: 0.9, roughness: 0.35, alphaTest: 0.3, side: THREE.DoubleSide }));
+    const dial = new THREE.Mesh(new THREE.RingGeometry(R - tube - 0.5, R - tube - 0.05, 128),
+      new THREE.MeshStandardMaterial({ map: dialTex, color: '#c9a25c', metalness: 0.9, roughness: 0.35, alphaTest: 0.3, side: THREE.DoubleSide }));
     const portal = new THREE.Mesh(new THREE.CircleGeometry(R - tube - 0.48, 96), portalMat(core, rim));
     portal.layers.set(1);
     g.add(ring, lip, dial, portal); parent.add(g);
@@ -63,7 +66,8 @@ export function install(ctx) {
   }
 
   // The gateway in the archive, and its keypad on a lectern beside it.
-  const gate = arch.gate = { code: '', msg: 'ENTER COORDINATES', repo: null, open: 0, to: 0, ready: false, side: -1, hot: null, hotT: 0, bad: false, clear: false,
+  const gate = arch.gate = { code: '', msg: 'ENTER COORDINATES', repo: null, open: 0, to: 0, ready: false, side: -1, hot: null, hotT: 0, bad: false,
+    clear: false,
     ...makeGate(arch.scene, GATE.x, GATE.y, GATE.z, [0.3, 0.17, 0.06], [0.012, 0.009, 0.006]) };
   const GATE_P = new THREE.Vector3(GATE.x, GATE.y, GATE.z);
   {
@@ -72,11 +76,14 @@ export function install(ctx) {
     const stone = [...[-1, 1].map((s) => [PW, PL, PD / 2 - SLOT, 0, PL / 2, s * (PD / 2 + SLOT) / 2, '#2a2622']),   // either side of the slot
       ...[-1, 1].map((s) => [side, PL, SLOT * 2, s * (CUT + side / 2), PL / 2, 0, '#2a2622']),   // past the ring's ends
       [CUT * 2, 0.02, SLOT * 2, 0, 0.01, 0, '#0b0907']];   // the slot's floor, in shadow
-    for (let j = 0; j < n; j++) for (const s of [-1, 1]) stone.push([PW, PL - (j + 1) * 0.15, STEP, 0, (PL - (j + 1) * 0.15) / 2, s * (PD / 2 + (j + 0.5) * STEP), j % 2 ? '#2e2a26' : '#332e29']);
+    for (let j = 0; j < n;
+      j++) for (const s of [-1, 1]) stone.push([PW, PL - (j + 1) * 0.15, STEP, 0, (PL - (j + 1) * 0.15) / 2, s * (PD / 2 + (j + 0.5) * STEP),
+      j % 2 ? '#2e2a26' : '#332e29']);
     for (const s of [-1, 1]) stone.push([PW + 0.02, 0.02, 0.04, 0, PL + 0.01, s * (PD / 2 - 0.02), '#b08a4a']);   // brass nosing at the top step
     const plinth = mergedBoxes(stone, mat('#ffffff', { vertexColors: true, roughness: 0.7, metalness: 0.2 }));
     plinth.position.set(GATE.x, 0, GATE.z); arch.scene.add(plinth);
-    const psh = new THREE.Mesh(new THREE.PlaneGeometry(PW * 1.7, (PD + 2 * run) * 1.5), new THREE.MeshBasicMaterial({ map: arch.blob, color: '#000', transparent: true, opacity: 0.4, depthWrite: false }));
+    const psh = new THREE.Mesh(new THREE.PlaneGeometry(PW * 1.7, (PD + 2 * run) * 1.5),
+      new THREE.MeshBasicMaterial({ map: arch.blob, color: '#000', transparent: true, opacity: 0.4, depthWrite: false }));
     psh.rotation.x = -Math.PI / 2; psh.position.set(GATE.x, 0.002, GATE.z); psh.layers.set(1); arch.scene.add(psh);
     for (const s of [-1, 1]) {   // the ring's feet, and the plinth's sides (you go up by the steps)
       arch.colliders.push({ minX: GATE.x + s * 1.4, maxX: GATE.x + s * (CUT + 0.1), minZ: GATE.z - SLOT, maxZ: GATE.z + SLOT });
@@ -91,13 +98,15 @@ export function install(ctx) {
     // The lectern, on the floor to the right of the steps: the keypad on a sloped brass board, clear of everything.
     const ped = new THREE.Group(), PX = GATE.x + 2.6, PZ = GATE.z - PD / 2 - run - 1.2;
     ped.position.set(PX, 0, PZ); ped.rotation.y = Math.PI + 0.25;   // facing you as you come along the path
-    ped.add(mergedBoxes([[0.62, 0.08, 0.5, 0, 0.04, 0, '#1f1d1b'], [0.32, 1.1, 0.26, 0, 0.63, -0.03, '#2a2622']], mat('#ffffff', { vertexColors: true, metalness: 0.6, roughness: 0.4 })));
+    ped.add(mergedBoxes([[0.62, 0.08, 0.5, 0, 0.04, 0, '#1f1d1b'], [0.32, 1.1, 0.26, 0, 0.63, -0.03, '#2a2622']],
+      mat('#ffffff', { vertexColors: true, metalness: 0.6, roughness: 0.4 })));
     const pad = gate.pad = makeScreen(ped, 0.34, 0.51, 340, 510, 0, 1.35, 0.01);
     pad.mesh.rotation.x = -1.05;
     const board = box(ped, 0.4, 0.57, 0.04, '', 0, 1.35 - 0.87 * 0.022, 0.01 - 0.5 * 0.022, { material: mat('#b08a4a', { metalness: 0.9, roughness: 0.35 }) });
     board.rotation.x = -1.05;
     Object.assign(pad.mesh.userData, { action: 'gatekey', reach: 2.4, keyAt: (uv) => keyAt(uv) });
-    const sh = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.4), new THREE.MeshBasicMaterial({ map: arch.blob, color: '#000', transparent: true, opacity: 0.5, depthWrite: false }));
+    const sh = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.4),
+      new THREE.MeshBasicMaterial({ map: arch.blob, color: '#000', transparent: true, opacity: 0.5, depthWrite: false }));
     sh.rotation.x = -Math.PI / 2; sh.position.set(PX, 0.002, PZ); sh.layers.set(1);
     arch.scene.add(ped, sh);
     arch.colliders.push({ minX: PX - 0.3, maxX: PX + 0.3, minZ: PZ - 0.3, maxZ: PZ + 0.3 });
@@ -105,7 +114,8 @@ export function install(ctx) {
     arch.nFixed = arch.colliders.length;   // the cabinet, its drawer and the gateway (the lift's goes after, see arch.enter)
   }
   const KEYS = [...'0123456789ABCDEF', '⌫', 'GO', 'CLOSE'];
-  Object.assign(arch, { coordOf, gatePress: (k) => gatePress(k), tess: () => tess, readBook: (b) => readBook(b), closeBook: () => closeBook(false) });   // for window.__office.arch
+  // for window.__office.arch
+  Object.assign(arch, { coordOf, gatePress: (k) => gatePress(k), tess: () => tess, readBook: (b) => readBook(b), closeBook: () => closeBook(false) });
   function keyAt(uv) {
     const x = uv.x * 340, y = (1 - uv.y) * 510, r = Math.floor((y - 100) / 68), c = Math.floor((x - 10) / 80);
     if (y < 100 || c < 0 || c > 3 || r > 5) return null;
@@ -119,10 +129,12 @@ export function install(ctx) {
     c.fillText(fmtCoord((gate.code + '________').slice(0, 8)), W / 2, 52);
     c.font = `600 14px ${FONT}`; c.fillStyle = gate.bad ? '#ff8a6b' : '#c9a25c'; c.fillText(fit(c, gate.msg, W - 40), W / 2, 79);
     KEYS.forEach((k, i) => {
-      const big = i > 15, end = i > 17, x = 10 + (end ? 0 : big ? (i - 16) * 160 : (i % 4) * 80), y = 100 + (end ? 5 : big ? 4 : Math.floor(i / 4)) * 68, w = end ? 312 : big ? 152 : 72, hot = gate.hot === k;
+      const big = i > 15, end = i > 17, x = 10 + (end ? 0 : big ? (i - 16) * 160 : (i % 4) * 80), y = 100 + (end ? 5 : big ? 4 : Math.floor(i / 4)) * 68,
+        w = end ? 312 : big ? 152 : 72, hot = gate.hot === k;
       c.fillStyle = hot ? '#ffc46b' : end ? '#3a1d17' : '#2b2620'; c.beginPath(); c.roundRect(x, y, w, 60, 8); c.fill();
       c.strokeStyle = end ? '#8a3a2a' : '#6b5530'; c.lineWidth = 2; c.stroke();
-      c.fillStyle = hot ? '#16130f' : end ? '#ffb39a' : '#e8c88a'; c.font = `600 ${big ? 22 : 30}px ${MONO}`; c.fillText(k === 'GO' ? 'ENTER' : end ? 'CLOSE THE GATEWAY' : k, x + w / 2, y + 41);
+      c.fillStyle = hot ? '#16130f' : end ? '#ffb39a' : '#e8c88a'; c.font = `600 ${big ? 22 : 30}px ${MONO}`;
+      c.fillText(k === 'GO' ? 'ENTER' : end ? 'CLOSE THE GATEWAY' : k, x + w / 2, y + 41);
     });
     c.textAlign = 'left'; gate.pad.tex.needsUpdate = true;
   }
@@ -140,11 +152,13 @@ export function install(ctx) {
     if (k === '⌫') { gate.code = gate.code.slice(0, -1); ctx.sfx.cabinet('beep', at, 0.22); }
     else if (k !== 'GO') { if (gate.code.length < 8) { gate.code += k; ctx.sfx.cabinet('beep', at, 0.22); } else ctx.sfx.cabinet('buzz', at, 0.25); }
     else if (gate.code.length < 8) { Object.assign(gate, { msg: 'COORDINATES ARE 8 DIGITS', bad: true }); ctx.sfx.cabinet('buzz', at, 0.35); }
-    else if (!files.list) { Object.assign(gate, { msg: files.loading ? 'READING THE ARCHIVE…' : 'THE ARCHIVE IS UNREADABLE', bad: !files.loading }); loadRepos(); ctx.sfx.cabinet('buzz', at, 0.3); }
+    else if (!files.list) { Object.assign(gate, { msg: files.loading ? 'READING THE ARCHIVE…' : 'THE ARCHIVE IS UNREADABLE', bad: !files.loading });
+      loadRepos(); ctx.sfx.cabinet('buzz', at, 0.3); }
     else {
       const f = files.list.find((r) => coordOf(r) === gate.code);
       if (f) tune(f, at);
-      else { Object.assign(gate, { msg: 'NOTHING AT THOSE COORDINATES', bad: true, clear: true, to: 0, ready: false, repo: null }); ctx.sfx.cabinet('buzz', at, 0.4); }
+      else { Object.assign(gate, { msg: 'NOTHING AT THOSE COORDINATES', bad: true, clear: true, to: 0, ready: false, repo: null });
+        ctx.sfx.cabinet('buzz', at, 0.4); }
     }
     paintPad();
   }
@@ -157,7 +171,8 @@ export function install(ctx) {
       return true;
     });
     if (gate.repo !== f) return;
-    if (ok) { Object.assign(gate, { ready: true, flash: 1, prog: 1, msg: `OPEN · ${f.name.toUpperCase()} · WALK THROUGH` }); ctx.sfx.cabinet('accept', GATE_P, 0.5); ctx.sfx.cabinet('boom', GATE_P, 0.4); }
+    if (ok) { Object.assign(gate, { ready: true, flash: 1, prog: 1, msg: `OPEN · ${f.name.toUpperCase()} · WALK THROUGH` });
+      ctx.sfx.cabinet('accept', GATE_P, 0.5); ctx.sfx.cabinet('boom', GATE_P, 0.4); }
     else { Object.assign(gate, { to: 0, msg: 'CAN’T REACH IT · TRY AGAIN', bad: true, clear: true }); ctx.sfx.cabinet('buzz', at, 0.35); }
     paintPad();
   }
@@ -202,7 +217,8 @@ export function install(ctx) {
     ctx.player.yaw += angDiff(ctx.player.yaw, Math.atan2(-(tx - ctx.player.x), -(tz - ctx.player.z))) * k;
     ctx.player.pitch += (Math.atan2(ty - ey, Math.max(h, 0.5)) * 0.6 - ctx.player.pitch) * k;
   }
-  const WARP_IN = { ray: 'rgba(255,196,110,.9)', flash: '#fff1cf', bg: '#0b0704' }, WARP_OUT = { ray: 'rgba(255,255,255,.95)', flash: '#ffffff', bg: '#f4f1ea' };
+  const WARP_IN = { ray: 'rgba(255,196,110,.9)', flash: '#fff1cf', bg: '#0b0704' },
+    WARP_OUT = { ray: 'rgba(255,255,255,.95)', flash: '#ffffff', bg: '#f4f1ea' };
   function pullFx(s, look, at) {
     if (tess.warping) return;
     tess.pullS = s;
@@ -214,7 +230,8 @@ export function install(ctx) {
       Object.assign(raysB.style, { opacity: (s * 0.4).toFixed(3), transform: `scale(${(0.08 + 0.3 * s).toFixed(3)}) rotate(${(-r * 0.7).toFixed(1)}deg)` });
       flashEl.style.opacity = (s * s * 0.3).toFixed(3);
     } else if (fadeEl.classList.contains('on')) { fadeEl.classList.remove('on'); for (const e of [raysA, raysB, flashEl]) e.style.opacity = 0; }
-    if (!ctx.away?.fly) { const fov = FOV0 + 16 * s; if (Math.abs(camera.fov - fov) > 0.01) { camera.fov = fov; camera.updateProjectionMatrix(); } }   // (flying, flyPlayer adds it)
+    // (flying, flyPlayer adds it)
+    if (!ctx.away?.fly) { const fov = FOV0 + 16 * s; if (Math.abs(camera.fov - fov) > 0.01) { camera.fov = fov; camera.updateProjectionMatrix(); } }
     ctx.sfx.pull(s, at);
   }
 
@@ -247,8 +264,10 @@ export function install(ctx) {
     ctx.sfx.cabinet('whoosh', camera.position, 0.6); ctx.sfx.cabinet('spinup', camera.position, 0.35);
     const IN = { duration: 1100, easing: 'cubic-bezier(.55,0,.9,.4)', fill: 'forwards' };
     const from = (e, t) => ({ transform: e.style.transform || t, opacity: +(e.style.opacity || 0) });   // where the pull left it
-    raysA.animate([from(raysA, 'scale(.12) rotate(0deg)'), { transform: 'scale(.8) rotate(30deg)', opacity: 1, offset: 0.55 }, { transform: 'scale(3) rotate(80deg)', opacity: 1 }], IN);
-    raysB.animate([from(raysB, 'scale(.08) rotate(0deg)'), { transform: 'scale(.6) rotate(-20deg)', opacity: 0.8, offset: 0.6 }, { transform: 'scale(2.4) rotate(-55deg)', opacity: 1 }], IN);
+    raysA.animate([from(raysA, 'scale(.12) rotate(0deg)'), { transform: 'scale(.8) rotate(30deg)', opacity: 1, offset: 0.55 },
+      { transform: 'scale(3) rotate(80deg)', opacity: 1 }], IN);
+    raysB.animate([from(raysB, 'scale(.08) rotate(0deg)'), { transform: 'scale(.6) rotate(-20deg)', opacity: 0.8, offset: 0.6 },
+      { transform: 'scale(2.4) rotate(-55deg)', opacity: 1 }], IN);
     const f0 = +(flashEl.style.opacity || 0);
     flashEl.animate([{ opacity: f0 }, { opacity: f0, offset: 0.6 }, { opacity: 1 }], IN);
     ctx.sfx.pull(0);
@@ -271,49 +290,64 @@ export function install(ctx) {
   const exitTess = () => warp(WARP_OUT, () => {
     setFloor(arch);
     arch.out = 1;   // straight into the void's own light
-    Object.assign(ctx.player, { x: GATE.x, z: GATE.z - 1.2, eye: EYE, fy: GATE.PL, yaw: 0, pitch: -0.05, seated: false, seat: null });   // on the plinth, looking back down the path
+    // on the plinth, looking back down the path
+    Object.assign(ctx.player, { x: GATE.x, z: GATE.z - 1.2, eye: EYE, fy: GATE.PL, yaw: 0, pitch: -0.05, seated: false, seat: null });
     gate.side = -1; gate.armed = false;
   });
 
   // ----- inside a repo -----
   const EXIT_Z = 26;   // the way out, 26 m in front of the first bookcases (you arrive 9 m inside it, clear of its pull)
-  const TX = -3000, BW = 2.4, BH = 2.0, BD = 0.36, GX = 3.3, GY = 2.9, GZ = 5, PER = 56, SLOT = (BW - 0.12) / 14, SHELF = (BH - 0.1) / 4, WC = 8, WB = 4, WK = 3;
-  const EXT = { js: 'JavaScript', mjs: 'JavaScript', cjs: 'JavaScript', jsx: 'JavaScript', ts: 'TypeScript', tsx: 'TypeScript', py: 'Python', html: 'HTML', css: 'CSS', scss: 'SCSS',
-    java: 'Java', cs: 'C#', cpp: 'C++', cc: 'C++', h: 'C', c: 'C', go: 'Go', rs: 'Rust', sh: 'Shell', swift: 'Swift', kt: 'Kotlin', rb: 'Ruby', php: 'PHP', dart: 'Dart',
+  const TX = -3000, BW = 2.4, BH = 2.0, BD = 0.36, GX = 3.3, GY = 2.9, GZ = 5, PER = 56, SLOT = (BW - 0.12) / 14, SHELF = (BH - 0.1) / 4, WC = 8, WB = 4,
+    WK = 3;
+  const EXT = { js: 'JavaScript', mjs: 'JavaScript', cjs: 'JavaScript', jsx: 'JavaScript', ts: 'TypeScript', tsx: 'TypeScript', py: 'Python', html: 'HTML',
+    css: 'CSS', scss: 'SCSS',
+    java: 'Java', cs: 'C#', cpp: 'C++', cc: 'C++', h: 'C', c: 'C', go: 'Go', rs: 'Rust', sh: 'Shell', swift: 'Swift', kt: 'Kotlin', rb: 'Ruby', php: 'PHP',
+      dart: 'Dart',
     vue: 'Vue', svelte: 'Svelte', lua: 'Lua', ipynb: 'Jupyter Notebook', gd: 'GDScript', astro: 'Astro' };
-  const DOCS = { md: '#d8c6a0', txt: '#cdbf9f', json: '#8f9a6a', yml: '#9a7f6a', yaml: '#9a7f6a', lock: '#6d6a64', svg: '#c78a5a', png: '#7a8fa6', jpg: '#7a8fa6', gif: '#7a8fa6', ico: '#7a8fa6' };
+  const DOCS = { md: '#d8c6a0', txt: '#cdbf9f', json: '#8f9a6a', yml: '#9a7f6a', yaml: '#9a7f6a', lock: '#6d6a64', svg: '#c78a5a', png: '#7a8fa6',
+    jpg: '#7a8fa6', gif: '#7a8fa6', ico: '#7a8fa6' };
   const bookColor = (p) => { const e = (/\.([^./]+)$/.exec(p)?.[1] || '').toLowerCase(); return EXT[e] ? langColor(EXT[e]) : DOCS[e] || '#8a7a66'; };
   // A texture atlas per instanced mesh: each instance picks its cell with an aUv offset (as the folder tabs do).
   const atlasMat = (o) => {
     const cell = { value: new THREE.Vector2(1, 1) }, m = new THREE.MeshBasicMaterial(o);
     m.onBeforeCompile = (sh) => {
       sh.uniforms.cell = cell;
-      sh.vertexShader = 'attribute vec2 aUv;\nuniform vec2 cell;\n' + sh.vertexShader.replace('#include <uv_vertex>', '#include <uv_vertex>\n\tvMapUv = vMapUv * cell + aUv;');
+      sh.vertexShader = 'attribute vec2 aUv;\nuniform vec2 cell;\n' + sh.vertexShader.replace('#include <uv_vertex>',
+        '#include <uv_vertex>\n\tvMapUv = vMapUv * cell + aUv;');
     };
     m.cell = cell.value;
     return m;
   };
-  const tess = { n: 'T', label: 'INSIDE', title: 'Inside', sound: 'tess', on: false, carless: true, fly: true, colliders: [], hits: [], composer: null, vel: new THREE.Vector3(), t: null };
-  const caseG = mergedBoxes([[0.04, BH, BD, -BW / 2 + 0.02, 0, 0], [0.04, BH, BD, BW / 2 - 0.02, 0, 0], [BW, 0.05, BD, 0, BH / 2 - 0.025, 0], [BW, 0.05, BD, 0, -BH / 2 + 0.025, 0],
+  const tess = { n: 'T', label: 'INSIDE', title: 'Inside', sound: 'tess', on: false, carless: true, fly: true, colliders: [], hits: [], composer: null,
+    vel: new THREE.Vector3(), t: null };
+  const caseG = mergedBoxes([[0.04, BH, BD, -BW / 2 + 0.02, 0, 0], [0.04, BH, BD, BW / 2 - 0.02, 0, 0], [BW, 0.05, BD, 0, BH / 2 - 0.025, 0],
+    [BW, 0.05, BD, 0, -BH / 2 + 0.025, 0],
     ...[1, 2, 3].map((s) => [BW - 0.08, 0.02, BD, 0, BH / 2 - 0.05 - s * SHELF, 0])], mat('#fff')).geometry;
-  const caseBackG = new THREE.PlaneGeometry(BW - 0.06, BH - 0.06).translate(0, 0, -BD / 2 + 0.005), bookG = new THREE.BoxGeometry(1, 1, 1), unitG = new THREE.PlaneGeometry(1, 1);
+  const caseBackG = new THREE.PlaneGeometry(BW - 0.06, BH - 0.06).translate(0, 0, -BD / 2 + 0.005), bookG = new THREE.BoxGeometry(1, 1, 1),
+    unitG = new THREE.PlaneGeometry(1, 1);
   const plaqueG = new THREE.PlaneGeometry(1.5, 0.19);
   const caseM = mat('#2b1e14', { roughness: 0.6 }), bookM_ = new THREE.MeshStandardMaterial({ roughness: 0.75 });
-  const glowTex = (() => { const g = makeCanvas(128, 128), c = g.ctx, r = c.createRadialGradient(64, 64, 4, 64, 64, 92); r.addColorStop(0, '#ffffff'); r.addColorStop(1, '#3a3026'); c.fillStyle = r; c.fillRect(0, 0, 128, 128); g.tex.needsUpdate = true; return g.tex; })();
+  const glowTex = (() =>
+    { const g = makeCanvas(128, 128), c = g.ctx, r = c.createRadialGradient(64, 64, 4, 64, 64, 92); r.addColorStop(0, '#ffffff'); r.addColorStop(1, '#3a3026');
+    c.fillStyle = r; c.fillRect(0, 0, 128, 128); g.tex.needsUpdate = true; return g.tex; })();
   const caseBackM = new THREE.MeshBasicMaterial({ map: glowTex, color: new THREE.Color(1.5, 0.92, 0.42), side: THREE.DoubleSide });
-  const bookGlowM = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.8, 1.25, 0.55), transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false });
-  const threadM = new THREE.LineBasicMaterial({ color: new THREE.Color(1.4, 0.95, 0.42), transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false });
+  const bookGlowM = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.8, 1.25, 0.55), transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending,
+    depthWrite: false });
+  const threadM = new THREE.LineBasicMaterial({ color: new THREE.Color(1.4, 0.95, 0.42), transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending,
+    depthWrite: false });
   {
     const S = tess.scene = new THREE.Scene(), dark = new THREE.Color('#070403');
     S.background = dark; S.fog = new THREE.Fog(dark, 5, 44);
     S.environment = scene.environment; S.environmentIntensity = 0.12;
     const key = new THREE.DirectionalLight('#ffd7a0', 0.7); key.position.set(4, 6, 12);
     S.add(tess.hemi = new THREE.HemisphereLight('#ffd9a0', '#140b05', 0.35), key);
-    tess.look = { exposure: 1.1, hemi: 0.35, sky: new THREE.Color('#ffd9a0'), ground: new THREE.Color('#140b05'), env: 0.12, bloom: 2.2, grade: 1, lights: [[key, 0.7]], aoSkip1: true };
+    tess.look = { exposure: 1.1, hemi: 0.35, sky: new THREE.Color('#ffd9a0'), ground: new THREE.Color('#140b05'), env: 0.12, bloom: 2.2, grade: 1,
+      lights: [[key, 0.7]], aoSkip1: true };
     S.add(tess.root = new THREE.Group());
     tess.exit = makeGate(S, 0, 0, EXIT_Z, [2.2, 2.1, 2.0], [0.9, 0.82, 0.7]);   // the way back: white, the archive through it
     tess.exit.u.uOpen.value = tess.exit.u.uReady.value = 1;
-    tess.pulled = new THREE.Mesh(bookG, new THREE.MeshStandardMaterial({ roughness: 0.75 })); Object.assign(tess.pulled, { visible: false, matrixAutoUpdate: false }); S.add(tess.pulled);
+    tess.pulled = new THREE.Mesh(bookG, new THREE.MeshStandardMaterial({ roughness: 0.75 }));
+    Object.assign(tess.pulled, { visible: false, matrixAutoUpdate: false }); S.add(tess.pulled);
     // Dust in the light, wrapping round you so it never runs out.
     const N = 1400, pos = new Float32Array(N * 3), R = rng(7);
     for (let i = 0; i < N * 3; i++) pos[i] = R() * 30;
@@ -325,7 +359,8 @@ export function install(ctx) {
           vA = smoothstep(15.0, 4.0, length(p));
           vec4 mv = modelViewMatrix * vec4(p + uCam, 1.0); gl_PointSize = 26.0 / -mv.z; gl_Position = projectionMatrix * mv;
         }`,
-      fragmentShader: 'varying float vA; void main() { float d = length(gl_PointCoord - 0.5); gl_FragColor = vec4(1.6, 1.15, 0.6, vA * smoothstep(0.5, 0.0, d) * 0.7); }',
+      fragmentShader:
+        'varying float vA; void main() { float d = length(gl_PointCoord - 0.5); gl_FragColor = vec4(1.6, 1.15, 0.6, vA * smoothstep(0.5, 0.0, d) * 0.7); }',
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
     tess.dust.frustumCulled = false; tess.dust.layers.set(1); S.add(tess.dust);
   }
@@ -334,7 +369,8 @@ export function install(ctx) {
   async function loadTree(f, progress) {
     if (tess.t?.repo === f) return true;
     for (;;) {
-      const r = await fetch(`/api/repos/${encodeURIComponent(f.owner)}/${encodeURIComponent(f.name)}/tree`).then(async (x) => ({ s: x.status, j: await x.json() })).catch(() => null);
+      const r = await fetch(`/api/repos/${encodeURIComponent(f.owner)}/${encodeURIComponent(f.name)}/tree`).then(async (x) =>
+        ({ s: x.status, j: await x.json() })).catch(() => null);
       if (!r || r.s >= 400) return false;
       if (r.s === 200) { buildTess(f, r.j); return true; }
       if (!progress(r.j)) return false;
@@ -342,12 +378,16 @@ export function install(ctx) {
     }
   }
   function buildTess(f, d) {
-    for (const o of [...tess.root.children]) { tess.root.remove(o); o.dispose?.(); if (o.geometry !== caseG && o.geometry !== caseBackG && o.geometry !== bookG && o.geometry !== unitG && o.geometry !== plaqueG) o.geometry.dispose(); if (o.material.map && o.material.map !== glowTex) { o.material.map.dispose(); o.material.dispose(); } }
+    for (const o of [...tess.root.children]) { tess.root.remove(o); o.dispose?.();
+      if (o.geometry !== caseG && o.geometry !== caseBackG && o.geometry !== bookG && o.geometry !== unitG && o.geometry !== plaqueG) o.geometry.dispose();
+      if (o.material.map && o.material.map !== glowTex) { o.material.map.dispose(); o.material.dispose(); } }
     const commits = d.commits || [], K = Math.max(1, commits.length);
     // The tree at each commit, newest first: slice 0 is now, and each one after undoes the commit before it. Rather than a file
     // list per layer (there can be thousands), each file keeps the runs of layers it exists in: life[i] = [from, to, from, to...].
     const idx = new Map(), paths = [], size = [], life = [], open = new Map();
-    const add = (p, s) => { if (!idx.has(p)) { if (paths.length >= 5000) return -1; idx.set(p, paths.length); paths.push(p); size.push(s || 0); life.push([]); } return idx.get(p); };
+    const add = (p, s) =>
+      { if (!idx.has(p)) { if (paths.length >= 5000) return -1; idx.set(p, paths.length); paths.push(p); size.push(s || 0); life.push([]); } return idx.get(p);
+      };
     for (const [p, s] of d.files) { const i = add(p, s); if (i >= 0) open.set(i, 0); }
     const close = (p, k) => { const i = idx.get(p); if (i !== undefined && open.has(i)) { life[i].push(open.get(i), k); open.delete(i); } };
     const reopen = (p, s, k) => { const i = add(p, s); if (i >= 0 && !open.has(i)) open.set(i, k); };
@@ -396,16 +436,20 @@ export function install(ctx) {
     for (const x of dirs.values()) x.files.forEach((i, r) => {
       const c = Math.floor(r / PER), q = r % PER, sh = Math.floor(q / 14), o = caseAt(x, c), Rr = rng(hash(paths[i]));
       const t = clamp(0.028 + (0.11 * Math.log10(size[i] + 10)) / 6, 0.03, SLOT - 0.012), h = SHELF * (0.62 + 0.3 * Rr()), dep = 0.24 + 0.06 * Rr();
-      const base = o.y + BH / 2 - 0.05 - (sh + 1) * SHELF + 0.01, bx = o.x - BW / 2 + 0.06 + ((q % 14) + 0.5) * SLOT, bz = BD / 2 - dep / 2 - 0.015, lean = Rr() < 0.12 ? (Rr() - 0.5) * 0.2 : 0;
-      const m = new THREE.Matrix4().compose(new THREE.Vector3(bx, base + h / 2, bz), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, lean)), new THREE.Vector3(t, h, dep));
-      const lm = new THREE.Matrix4().compose(new THREE.Vector3(bx, base + h / 2, bz + dep / 2 + 0.001), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, lean + Math.PI / 2)), new THREE.Vector3(h * 0.9, t * 0.8, 1));
+      const base = o.y + BH / 2 - 0.05 - (sh + 1) * SHELF + 0.01, bx = o.x - BW / 2 + 0.06 + ((q % 14) + 0.5) * SLOT, bz = BD / 2 - dep / 2 - 0.015,
+        lean = Rr() < 0.12 ? (Rr() - 0.5) * 0.2 : 0;
+      const m = new THREE.Matrix4().compose(new THREE.Vector3(bx, base + h / 2, bz), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, lean)),
+        new THREE.Vector3(t, h, dep));
+      const lm = new THREE.Matrix4().compose(new THREE.Vector3(bx, base + h / 2, bz + dep / 2 + 0.001),
+        new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, lean + Math.PI / 2)), new THREE.Vector3(h * 0.9, t * 0.8, 1));
       at[i] = { m, lm, y: base + h / 2, h, color: new THREE.Color(bookColor(paths[i])).multiplyScalar(0.5 + 0.25 * Rr()) };
     });
     // Spine labels (file names) and plaques (folder names), one atlas each.
     const SC = { w: 192, h: 28, cols: 10 }, labelCap = Math.min(paths.length, SC.cols * Math.floor(8192 / SC.h));
     const spines = makeCanvas(SC.cols * SC.w, 2 ** Math.ceil(Math.log2(Math.max(64, Math.ceil(labelCap / SC.cols) * SC.h)))), sc = spines.ctx;
     sc.font = `600 18px ${FONT}`; sc.fillStyle = '#f3e3c0'; sc.textBaseline = 'middle';
-    for (let i = 0; i < labelCap; i++) sc.fillText(fit(sc, paths[i].slice(paths[i].lastIndexOf('/') + 1), SC.w - 12), (i % SC.cols) * SC.w + 6, Math.floor(i / SC.cols) * SC.h + SC.h / 2);
+    for (let i = 0; i < labelCap;
+      i++) sc.fillText(fit(sc, paths[i].slice(paths[i].lastIndexOf('/') + 1), SC.w - 12), (i % SC.cols) * SC.w + 6, Math.floor(i / SC.cols) * SC.h + SC.h / 2);
     spines.tex.needsUpdate = true;
     const labelUv = (i) => [(i % SC.cols) / SC.cols, 1 - ((Math.floor(i / SC.cols) + 1) * SC.h) / spines.H];
     const PC = { w: 512, h: 64, cols: 4 }, dl = [...dirs.values()].slice(0, PC.cols * 128);
@@ -413,14 +457,17 @@ export function install(ctx) {
     dl.forEach((x, j) => {
       const px = (j % PC.cols) * PC.w, py = Math.floor(j / PC.cols) * PC.h;
       x.cell = j; x.uv = [(j % PC.cols) / PC.cols, 1 - ((Math.floor(j / PC.cols) + 1) * PC.h) / plates.H];
-      pc.fillStyle = '#1a120a'; pc.fillRect(px, py, PC.w, PC.h); pc.strokeStyle = '#8a6a3a'; pc.lineWidth = 3; pc.strokeRect(px + 3, py + 3, PC.w - 6, PC.h - 6);
+      pc.fillStyle = '#1a120a'; pc.fillRect(px, py, PC.w, PC.h); pc.strokeStyle = '#8a6a3a'; pc.lineWidth = 3;
+      pc.strokeRect(px + 3, py + 3, PC.w - 6, PC.h - 6);
       pc.fillStyle = '#e8c27a'; pc.textAlign = 'center'; pc.textBaseline = 'middle'; pc.font = `600 30px ${MONO}`;
       pc.fillText(fit(pc, x.path ? `${x.name}/` : x.name, PC.w - 30), px + PC.w / 2, py + PC.h / 2 + 1);
     });
     plates.tex.needsUpdate = true;
     // Instanced meshes, refilled for the layers near you (see tessWindow).
     const KC = Math.min(K, 2 * WC + 1), KB = Math.min(K, 2 * WB + 1);
-    const inst = (g, m, n, layer) => { const x = new THREE.InstancedMesh(g, m, Math.max(1, n)); x.count = 0; x.frustumCulled = false; if (layer) x.layers.set(1); tess.root.add(x); return x; };
+    const inst = (g, m, n, layer) =>
+      { const x = new THREE.InstancedMesh(g, m, Math.max(1, n)); x.count = 0; x.frustumCulled = false; if (layer) x.layers.set(1); tess.root.add(x); return x;
+      };
     const alive = (i, k) => { const r = life[i]; for (let j = 0; j < r.length; j += 2) if (k >= r[j] && k <= r[j + 1]) return true; return false; };
     const T = tess.t = { repo: f, K, paths, size, life, alive, slices, dirs, cases, rows, at, labelCap, labelUv, cur: -1, held: null, capped: d.capped };
     T.frames = inst(caseG, caseM, cases.length * KC); T.backs = inst(caseBackG, caseBackM, cases.length * KC);
@@ -429,13 +476,15 @@ export function install(ctx) {
     T.plaqueUv = new THREE.InstancedBufferAttribute(new Float32Array(Math.max(1, dl.length * KC) * 2), 2); T.plaques.geometry.setAttribute('aUv', T.plaqueUv);
     T.books = inst(bookG, bookM_, paths.length * KB); T.books.castShadow = false;
     T.glow = inst(bookG, bookGlowM, paths.length * KB, true);
-    T.labels = inst(unitG.clone(), atlasMat({ map: spines.tex, transparent: true, alphaTest: 0.15, color: new THREE.Color(1.0, 0.92, 0.78), depthWrite: false }), labelCap * KB, true);
+    T.labels = inst(unitG.clone(),
+      atlasMat({ map: spines.tex, transparent: true, alphaTest: 0.15, color: new THREE.Color(1.0, 0.92, 0.78), depthWrite: false }), labelCap * KB, true);
     T.labels.material.cell.set(1 / SC.cols, SC.h / spines.H);
     T.labelUvA = new THREE.InstancedBufferAttribute(new Float32Array(Math.max(1, labelCap * KB) * 2), 2); T.labels.geometry.setAttribute('aUv', T.labelUvA);
     // Golden threads: four through each bookcase's corners, from out toward the gateway back through every layer into the dark;
     // and in the layers near you, one from every folder down to each subfolder, and beams along each row (see tessWindow).
     const L = [], seg = (x0, y0, z0, x1, y1, z1) => L.push(x0, y0, z0, x1, y1, z1), zEnd = -(K - 1) * GZ - 40;
-    for (const cs of cases) for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) seg(cs.p.x + (sx * BW) / 2, cs.p.y + (sy * BH) / 2, EXIT_Z - 6, cs.p.x + (sx * BW) / 2, cs.p.y + (sy * BH) / 2, zEnd);
+    for (const cs of cases) for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) seg(cs.p.x + (sx * BW) / 2, cs.p.y + (sy * BH) / 2, EXIT_Z - 6,
+      cs.p.x + (sx * BW) / 2, cs.p.y + (sy * BH) / 2, zEnd);
     const mid = (x) => caseAt(x, (x.cases - 1) / 2);
     let x0 = Infinity, x1 = -Infinity, deep = 0;
     for (const cs of cases) { x0 = Math.min(x0, cs.p.x); x1 = Math.max(x1, cs.p.x); deep = Math.max(deep, cs.d.depth); }
@@ -445,12 +494,15 @@ export function install(ctx) {
     for (const x of dirs.values()) for (const kid of x.kids) { const a = mid(x), b = mid(kid); layer.push(a.x, a.y - BH / 2, 0, b.x, b.y + BH / 2 + 0.3, 0); }
     for (const r of rows.keys()) for (const dy of [-BH / 2, BH / 2]) layer.push(x0 - 6, -r * GY + dy, -BD / 2, x1 + 6, -r * GY + dy, -BD / 2);
     T.layerL = layer;
-    T.links = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(layer.length * KC), 3)), threadM);
+    T.links = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(layer.length * KC), 3)),
+      threadM);
     T.links.layers.set(1); T.links.frustumCulled = false; tess.root.add(T.links);
     T.top = clamp((K * GZ) / 25, 60, 320);   // top speed: the whole history in about 25 s flat out
     // A card hanging over each layer near you: which commit it is.
     T.cards = Array.from({ length: Math.min(K, 2 * WK + 1) }, () => {
-      const cv = makeCanvas(640, 160), m = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 0.8), new THREE.MeshBasicMaterial({ map: cv.tex, transparent: true, depthWrite: false, color: new THREE.Color(1.2, 1.15, 1.1) }));
+      const cv = makeCanvas(640, 160),
+        m = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 0.8),
+        new THREE.MeshBasicMaterial({ map: cv.tex, transparent: true, depthWrite: false, color: new THREE.Color(1.2, 1.15, 1.1) }));
       m.layers.set(1); tess.root.add(m);
       return { cv, m, k: -1 };
     });
@@ -469,7 +521,8 @@ export function install(ctx) {
     let n = 0, np = 0, nb = 0, nl = 0, ng = 0;
     for (let k = Math.max(0, k0 - WC); k <= Math.min(T.K - 1, k0 + WC); k++) for (const cs of T.cases) {
       m.makeTranslation(cs.p.x, cs.p.y, -k * GZ); T.frames.setMatrixAt(n, m); T.backs.setMatrixAt(n, m); n++;
-      if (cs.c === 0 && cs.d.uv) { m.makeTranslation(cs.p.x, cs.p.y + BH / 2 + 0.17, -k * GZ + BD / 2); T.plaques.setMatrixAt(np, m); T.plaqueUv.setXY(np, ...cs.d.uv); np++; }
+      if (cs.c === 0 && cs.d.uv) { m.makeTranslation(cs.p.x, cs.p.y + BH / 2 + 0.17, -k * GZ + BD / 2); T.plaques.setMatrixAt(np, m);
+        T.plaqueUv.setXY(np, ...cs.d.uv); np++; }
     }
     for (let k = Math.max(0, k0 - WB); k <= Math.min(T.K - 1, k0 + WB); k++) {
       const z = -k * GZ, S = T.slices[k];
@@ -488,7 +541,8 @@ export function install(ctx) {
     if (!moved) return;
     const pos = T.links.geometry.attributes.position, A = pos.array, LL = T.layerL;
     let o = 0;
-    for (let k = Math.max(0, k0 - WC); k <= Math.min(T.K - 1, k0 + WC); k++, o += LL.length) for (let j = 0; j < LL.length; j += 3) { A[o + j] = LL[j]; A[o + j + 1] = LL[j + 1]; A[o + j + 2] = LL[j + 2] - k * GZ; }
+    for (let k = Math.max(0, k0 - WC); k <= Math.min(T.K - 1, k0 + WC); k++, o += LL.length) for (let j = 0; j < LL.length; j += 3) { A[o + j] = LL[j];
+      A[o + j + 1] = LL[j + 1]; A[o + j + 2] = LL[j + 2] - k * GZ; }
     T.links.geometry.setDrawRange(0, o / 3); pos.needsUpdate = true;
     const ks = []; for (let k = Math.max(0, k0 - WK); k <= Math.min(T.K - 1, k0 + WK); k++) ks.push(k);
     const free = T.cards.filter((c) => !ks.includes(c.k));
@@ -503,7 +557,11 @@ export function install(ctx) {
     x.fillStyle = 'rgba(20,12,5,.55)'; x.fillRect(0, 0, W, H); x.strokeStyle = 'rgba(232,194,122,.6)'; x.lineWidth = 2; x.strokeRect(1, 1, W - 2, H - 2);
     x.fillStyle = '#ffd58f'; x.font = `700 30px ${MONO}`; x.fillText(`${ago(k).toUpperCase()}  ·  ${(c.sha || '').slice(0, 7)}`, 22, 44);
     x.fillStyle = '#f3e3c0'; x.font = `500 26px ${FONT}`; x.fillText(fit(x, c.message || '—', W - 44), 22, 92);
-    x.fillStyle = '#a8946c'; x.font = `500 20px ${FONT}`; x.fillText(fit(x, [c.author, c.date && new Date(c.date).toLocaleString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })].filter(Boolean).join(' · '), W - 44), 22, 132);
+    x.fillStyle = '#a8946c'; x.font = `500 20px ${FONT}`;
+    x.fillText(fit(x,
+      [c.author, c.date &&
+      new Date(c.date).toLocaleString(undefined,
+      { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })].filter(Boolean).join(' · '), W - 44), 22, 132);
     card.cv.tex.needsUpdate = true;
     card.m.position.set(T.rootP.x, T.rootP.y + BH / 2 + 1.2, -k * GZ);
   }
@@ -615,7 +673,8 @@ export function install(ctx) {
     if (!tess.warping && Math.abs(camera.fov - fov) > 0.01) { camera.fov = damp(camera.fov, fov, 4, dt); camera.updateProjectionMatrix(); }
     ctx.player.x += tess.vel.x * dt; ctx.player.eye += tess.vel.y * dt; ctx.player.z += tess.vel.z * dt;
     tess.bound(ctx.player);
-    ctx.setCam({ x: ctx.player.x, y: ctx.player.eye + Math.sin(performance.now() / 1300) * 0.02, z: ctx.player.z, yaw: ctx.player.yaw, pitch: ctx.player.pitch });
+    ctx.setCam({ x: ctx.player.x, y: ctx.player.eye + Math.sin(performance.now() / 1300) * 0.02, z: ctx.player.z, yaw: ctx.player.yaw,
+      pitch: ctx.player.pitch });
   }
 
   // Reading a book: it slides off the shelf toward you and opens as a page (the .of-page overlay), as it was in that commit.
@@ -665,7 +724,8 @@ export function install(ctx) {
   let pageTurnAt = 0;
   pageEl.addEventListener('scroll', (e) => {
     const el = e.target, now = performance.now();
-    if (Math.abs(el.scrollTop - (el.turned || 0)) > 500 && now - pageTurnAt > 250) { el.turned = el.scrollTop; pageTurnAt = now; ctx.sfx.cabinet('page', camera.position, 0.12); }
+    if (Math.abs(el.scrollTop - (el.turned || 0)) > 500 && now - pageTurnAt > 250) { el.turned = el.scrollTop; pageTurnAt = now;
+      ctx.sfx.cabinet('page', camera.position, 0.12); }
   }, true);
   document.addEventListener('keydown', (e) => {
     if (!pageEl.classList.contains('on') || e.key !== 'Escape') return;
@@ -703,13 +763,16 @@ export function install(ctx) {
     else if (r.error) body = `<p class="n">Couldn’t read it: ${s(r.error)}</p>`;
     else if (r.text == null) body = `<p class="n">Nothing to read here: it’s ${s(r.why)}.</p>`;
     else if (/\.(md|markdown)$/i.test(p)) body = `<div class="md">${readmeHtml(r.text, T.repo.url, c.sha)}</div>`;
-    else body = `<pre class="code">${r.text.replace(/\n$/, '').split('\n').map((l) => `<span>${s(l) || ' '}</span>`).join('')}</pre>${r.cut ? '<p class="n">…and on (cut short here).</p>' : ''}`;
+    else body = `<pre class="code">${r.text.replace(/\n$/, '').split('\n').map((l) => `<span>${s(l) ||
+      ' '}</span>`).join('')}</pre>${r.cut ? '<p class="n">…and on (cut short here).</p>' : ''}`;
     const url = `${T.repo.url}/blob/${c.sha}/${p.split('/').map(encodeURIComponent).join('/')}`;
     return `<div class="pp"><div class="hd"><b>${s(p)}</b><small>${fmtSize(T.size[b.i])} · as it was ${b.k ? `${b.k} commit${b.k > 1 ? 's' : ''} ago` : 'now'} · ${s(c.sha.slice(0, 7))} “${s(c.message)}”${when ? ` · ${s(when)}` : ''}${T.slices[b.k].touched.has(b.i) ? ' · this commit changed it' : ''}</small></div>
       <div class="bd">${body}</div><div class="btns"><a href="${s(url)}" target="_blank" rel="noopener noreferrer">Open on GitHub ↗</a><button data-act="back">Put it back <kbd>Esc</kbd></button></div></div>`;
   }
   function tessHover(h) {
-    if (h.action === 'gatekey') return `<b>The gateway</b><div class="m">${escapeHtml(gate.msg)}</div><div class="k">${h.key ? `Click to ${h.key === 'CLOSE' ? 'close the gateway' : `press ${h.key === 'GO' ? 'ENTER' : h.key === '⌫' ? 'delete' : h.key}`}` : 'Enter a repo’s coordinates (they’re in its folder)'}</div>`;
+    if (h.action === 'gatekey') return `<b>The gateway</b><div class="m">${escapeHtml(gate.msg)}</div><div class="k">${h.key ? `Click to ${h.key === 'CLOSE' ?
+      'close the gateway' :
+      `press ${h.key === 'GO' ? 'ENTER' : h.key === '⌫' ? 'delete' : h.key}`}` : 'Enter a repo’s coordinates (they’re in its folder)'}</div>`;
     const T = tess.t, { k, i } = h.book, p = T.paths[i];
     return `<b>${escapeHtml(p.slice(p.lastIndexOf('/') + 1))}</b><div class="m">${escapeHtml(p)}</div><div class="m">${fmtSize(T.size[i])}${T.slices[k].touched.has(i) ? ' · changed in this commit' : ''}</div>
       <div class="k">Click to read it as it was ${k ? `${k} commit${k > 1 ? 's' : ''} ago` : 'now'}</div>`;

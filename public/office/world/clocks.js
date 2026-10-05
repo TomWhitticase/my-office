@@ -27,13 +27,16 @@ export function install(ctx) {
     const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = rotY; world.add(g);
     cyl(g, r + 0.02, r + 0.02, 0.05, '#2a2b2e', 0, 0, 0.025, { seg: 40 }).rotation.x = Math.PI / 2;
     const face = new THREE.Mesh(new THREE.CircleGeometry(r, 40), clockFaceM); face.position.z = 0.051; g.add(face);
-    const hand = (len, w, m, z) => { const p = new THREE.Group(); p.position.z = z; g.add(p); box(p, w, len, 0.005, '', 0, len * 0.4, 0, { material: m, shadow: false }); return p; };
+    const hand = (len, w, m, z) =>
+      { const p = new THREE.Group(); p.position.z = z; g.add(p); box(p, w, len, 0.005, '', 0, len * 0.4, 0, { material: m, shadow: false }); return p; };
     clocks.push({ h: hand(r * 0.55, r * 0.1, handM, 0.056), m: hand(r * 0.85, r * 0.065, handM, 0.061), s: hand(r * 0.92, r * 0.025, secM, 0.066) });
     cyl(g, r * 0.06, r * 0.06, 0.02, '#d0402b', 0, 0, 0.068, { seg: 12 }).rotation.x = Math.PI / 2;
   }
   function updateClocks(d) {
     const s = d.getSeconds() + d.getMilliseconds() / 1000, m = d.getMinutes() + s / 60, h = (d.getHours() % 12) + m / 60, T = -Math.PI * 2;
-    for (const c of clocks) { c.h.rotation.z = (h / 12) * T; c.m.rotation.z = (m / 60) * T; c.s.rotation.z = (s / 60) * T; c.s.visible = clockState.speed <= 120; }   // faster, the second hand just blurs
+    // faster, the second hand just blurs
+    for (const c of clocks) { c.h.rotation.z = (h / 12) * T; c.m.rotation.z = (m / 60) * T; c.s.rotation.z = (s / 60) * T;
+      c.s.visible = clockState.speed <= 120; }
   }
   wallClock(-3.3, 2.45, -14.86, 0);             // desk floor
   wallClock(3.74, 2.65, 8, -Math.PI / 2);       // pillar over the ping pong TV, facing the breakroom

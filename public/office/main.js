@@ -78,7 +78,8 @@ export function mountOffice(container) {
   const IS_MAC = /Mac/.test(navigator.platform), ALT = IS_MAC ? '⌥' : 'Alt+';
   hud.innerHTML = hudHTML(ALT, IS_MAC);
   container.appendChild(hud);
-  const targetEl = hud.querySelector('.of-target'), mapCanvas = hud.querySelector('.of-map'), mapCtx = mapCanvas.getContext('2d'), countEl = hud.querySelector('.of-count');
+  const targetEl = hud.querySelector('.of-target'), mapCanvas = hud.querySelector('.of-map'), mapCtx = mapCanvas.getContext('2d'),
+    countEl = hud.querySelector('.of-count');
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color('#bcd8ef');
@@ -162,7 +163,8 @@ export function mountOffice(container) {
   const { srv } = ctx;
 
   // ----- sounds (see sounds.js; M mutes) -----
-  const sfx = createSounds({ camera, rugs, glass: { minX: 6, maxX: 20, minZ: -15, maxZ: -3.5 }, lift: LIFT, coffee: { x: -16.5, y: 1.25, z: 14.5, onBrew: () => kitchen.brew(false) }, doorPos: { x: 7.7, z: -3.5 },
+  const sfx = createSounds({ camera, rugs, glass: { minX: 6, maxX: 20, minZ: -15, maxZ: -3.5 }, lift: LIFT,
+    coffee: { x: -16.5, y: 1.25, z: 14.5, onBrew: () => kitchen.brew(false) }, doorPos: { x: 7.7, z: -3.5 },
     roof: { minX: -EDGE.x, maxX: EDGE.x, minZ: -EDGE.z, maxZ: EDGE.z } });
 
   installSync(ctx);
@@ -232,14 +234,20 @@ export function mountOffice(container) {
     layoutCenterMonitor(w, h);
     composer.setSize(w, h);
     for (const F of FLOORS) F.composer?.setSize(w, h);
-    if (ctx.active) ctx.away?.scene ? renderFloor(ctx.away) : renderFrame();   // setSize clears the canvas; redraw now so the blank frame never reaches the screen
+    // setSize clears the canvas; redraw now so the blank frame never reaches the screen
+    if (ctx.active) ctx.away?.scene ? renderFloor(ctx.away) : renderFrame();
   }
   new ResizeObserver(resize).observe(container);
 
-  window.__office = { ctx, openChat, closeChat, talk, get mode() { return ctx.mode; }, teleport: (k) => TELEPORTS[k](), openTv: (id) => openTvPanel(tvs.find((t) => t.id === id)), useTv: (id) => useTv(tvs.find((t) => t.id === id)), leaveTv,
+  window.__office = { ctx, openChat, closeChat, talk, get mode() { return ctx.mode; }, teleport: (k) => TELEPORTS[k](),
+    openTv: (id) => openTvPanel(tvs.find((t) => t.id === id)), useTv: (id) => useTv(tvs.find((t) => t.id === id)), leaveTv,
     boards, useBoard: (id) => useBoard(boards.find((b) => b.id === id)), leaveBoard, wb,
-    tvPoint: (id, u, v) => { const t = tvs.find((x) => x.id === id), p = t.scr.mesh.localToWorld(new THREE.Vector3((u - 0.5) * t.w, (0.5 - v) * t.h, 0)).project(camera), r = renderer.domElement.getBoundingClientRect(); return { x: r.left + (p.x + 1) / 2 * r.width, y: r.top + (1 - p.y) / 2 * r.height }; },
-    tvs: () => tvs.map((t) => ({ id: t.id, live: t.live, frame: !!t.frame, url: t.page?.url, title: t.page?.title, dist: t.dist })), seats, sitIn, openLaptop, laptop, kitchen, player, keys, camera, people, blinds, door, doors, collide, colliders, desks, idleSpots, lifts, sfx, mine, arch, roof, srv, FLOORS, openJohn, johnChat, setFloor, get away() { return ctx.away; }, callLift,
+    tvPoint: (id, u, v) =>
+      { const t = tvs.find((x) => x.id === id), p = t.scr.mesh.localToWorld(new THREE.Vector3((u - 0.5) * t.w, (0.5 - v) * t.h, 0)).project(camera),
+      r = renderer.domElement.getBoundingClientRect(); return { x: r.left + (p.x + 1) / 2 * r.width, y: r.top + (1 - p.y) / 2 * r.height }; },
+    tvs: () => tvs.map((t) => ({ id: t.id, live: t.live, frame: !!t.frame, url: t.page?.url, title: t.page?.title, dist: t.dist })), seats, sitIn, openLaptop,
+      laptop, kitchen, player, keys, camera, people, blinds, door, doors, collide, colliders, desks, idleSpots, lifts, sfx, mine, arch, roof, srv, FLOORS,
+      openJohn, johnChat, setFloor, get away() { return ctx.away; }, callLift,
     goFloor: (n) => {   // debug: straight into your car at floor n, doors opening (headless tests can't sit through a ride)
       const L = mine.L || lifts.find(spare); if (!L) return false;
       Object.assign(mine, { L, call: false, goal: null }); L.player = true;

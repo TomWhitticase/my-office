@@ -73,12 +73,16 @@ export function install(ctx) {
   const clutter = {
     cup: new THREE.InstancedMesh(new THREE.CylinderGeometry(0.04, 0.03, 0.115, 12).translate(0, 0.0575, 0), mat('#ffffff', { roughness: 0.75 }), clutterN),
     lid: new THREE.InstancedMesh(new THREE.CylinderGeometry(0.043, 0.043, 0.012, 12).translate(0, 0.121, 0), mat('#ffffff', { roughness: 0.5 }), clutterN),
-    can: new THREE.InstancedMesh(new THREE.CylinderGeometry(0.033, 0.033, 0.122, 14).translate(0, 0.061, 0), mat('#ffffff', { roughness: 0.3, metalness: 0.6 }), clutterN),
-    top: new THREE.InstancedMesh(new THREE.CylinderGeometry(0.03, 0.033, 0.008, 14).translate(0, 0.126, 0), mat('#c9ccd1', { roughness: 0.3, metalness: 0.9 }), clutterN),
+    can: new THREE.InstancedMesh(new THREE.CylinderGeometry(0.033, 0.033, 0.122, 14).translate(0, 0.061, 0), mat('#ffffff', { roughness: 0.3, metalness: 0.6 }),
+      clutterN),
+    top: new THREE.InstancedMesh(new THREE.CylinderGeometry(0.03, 0.033, 0.008, 14).translate(0, 0.126, 0), mat('#c9ccd1', { roughness: 0.3, metalness: 0.9 }),
+      clutterN),
   };
   {
-    const CUP = ['#f2efe8', '#c9a57a', '#f2efe8', '#e9e4da'], LID = ['#2a2a2a', '#f4f4f4'], CAN = ['#7ed321', '#1f6fd1', '#e3e5e8', '#e0245e', '#151515', '#ffb000'];
-    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), one = new THREE.Vector3(1, 1, 1), c = new THREE.Color();
+    const CUP = ['#f2efe8', '#c9a57a', '#f2efe8', '#e9e4da'], LID = ['#2a2a2a', '#f4f4f4'],
+      CAN = ['#7ed321', '#1f6fd1', '#e3e5e8', '#e0245e', '#151515', '#ffb000'];
+    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), one = new THREE.Vector3(1, 1, 1),
+      c = new THREE.Color();
     // Free spots on the desk top (desk-local): beside the monitors and in the front corners clear of keyboard and mouse.
     const ZONES = [[-0.93, -0.62, -0.34, 0.34], [0.62, 0.93, -0.34, 0.12], [-0.6, -0.3, 0.24, 0.36], [0.5, 0.62, 0.24, 0.36]];
     desks.forEach((d, di) => {
@@ -91,7 +95,8 @@ export function install(ctx) {
         else {
           const [x0, x1, z0, z1] = ZONES[Math.floor(R() * R() * ZONES.length)];
           x = x0 + R() * (x1 - x0); z = z0 + R() * (z1 - z0);
-          if (placed.some((p) => Math.hypot(p.x - x, p.z - z) < 0.09) || Math.hypot(x + 0.82, z - 0.2) < 0.09 || Math.hypot(x - 0.86, z - 0.22) < 0.12) continue;
+          if (placed.some((p) => Math.hypot(p.x - x, p.z - z) < 0.09) || Math.hypot(x + 0.82, z - 0.2) < 0.09 ||
+            Math.hypot(x - 0.86, z - 0.22) < 0.12) continue;
           lying = kind === 'can' && R() < 0.25;
           placed.push({ kind, x, z, h: 1 });
         }
@@ -100,7 +105,8 @@ export function install(ctx) {
         m4.compose(v.set(w.x, lying ? y + 0.033 : y, w.z), q.setFromEuler(e), one);
         const k = di * DESK_MAX + i;
         d.clutter.push({ k, kind, m: m4.clone() });
-        if (kind === 'cup') { clutter.cup.setColorAt(k, c.set(CUP[Math.floor(R() * CUP.length)])); clutter.lid.setColorAt(k, c.set(LID[Math.floor(R() * LID.length)])); }
+        if (kind === 'cup') { clutter.cup.setColorAt(k, c.set(CUP[Math.floor(R() * CUP.length)]));
+          clutter.lid.setColorAt(k, c.set(LID[Math.floor(R() * LID.length)])); }
         else clutter.can.setColorAt(k, c.set(CAN[Math.floor(R() * CAN.length)]));
         i++;
       }

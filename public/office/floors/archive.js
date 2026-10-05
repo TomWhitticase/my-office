@@ -32,7 +32,8 @@ export function install(ctx) {
     blob.ctx.filter = 'blur(26px)'; blob.ctx.fillStyle = '#000'; blob.ctx.fillRect(64, 64, 128, 128); blob.tex.needsUpdate = true; arch.blob = blob.tex;
     const shadow = (parent, w, d, x, z, o) => {
       for (const [k, a] of [[1.15, o], [2.4, o * 0.35]]) {   // the dark core is the middle half of the texture
-        const m = new THREE.Mesh(new THREE.PlaneGeometry(w * 4 * k, d * 4 * k), new THREE.MeshBasicMaterial({ map: blob.tex, color: '#000', transparent: true, opacity: a, depthWrite: false }));
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(w * 4 * k, d * 4 * k),
+          new THREE.MeshBasicMaterial({ map: blob.tex, color: '#000', transparent: true, opacity: a, depthWrite: false }));
         m.rotation.x = -Math.PI / 2; m.position.set(x, 0.002, z); m.layers.set(1); parent.add(m);
       }
     };
@@ -40,35 +41,44 @@ export function install(ctx) {
     const word = makeCanvas(2048, 256), wc = word.ctx;
     wc.font = `200 150px ${FONT}`; wc.letterSpacing = '60px'; wc.fillStyle = '#ffffff'; wc.textAlign = 'center'; wc.textBaseline = 'middle';
     wc.fillText('THE ARCHIVE', 1024 + 30, 132); word.tex.needsUpdate = true;
-    const words = new THREE.Mesh(new THREE.PlaneGeometry(8, 1), new THREE.MeshBasicMaterial({ map: word.tex, color: new THREE.Color(0.55, 0.55, 0.55), transparent: true, depthWrite: false }));
+    const words = new THREE.Mesh(new THREE.PlaneGeometry(8, 1),
+      new THREE.MeshBasicMaterial({ map: word.tex, color: new THREE.Color(0.55, 0.55, 0.55), transparent: true, depthWrite: false }));
     words.rotation.order = 'YXZ'; words.rotation.set(-Math.PI / 2, Math.PI / 2, 0); words.position.set(ARCH.x + 3.2, 0.003, ARCH.z); words.layers.set(1);
     S.add(words);
 
     // The filing cabinet: powder-coated putty steel, a little scuffed, four drawers with pulls, label cards and a lock.
     const wear = makeCanvas(256, 512), R = rng(48), w = wear.ctx;
     w.fillStyle = '#9ea198'; w.fillRect(0, 0, 256, 512);
-    for (let i = 0; i < 2500; i++) { w.fillStyle = `rgba(${R() > 0.5 ? '255,255,255' : '40,40,36'},${R() * 0.05})`; w.fillRect(R() * 256, R() * 512, 1 + R() * 3, 1 + R() * 3); }
-    for (let i = 0; i < 22; i++) { w.strokeStyle = `rgba(${R() > 0.4 ? '210,212,205' : '70,70,64'},${0.12 + R() * 0.2})`; w.lineWidth = 0.6 + R(); const x = R() * 256, y = R() * 512; w.beginPath(); w.moveTo(x, y); w.lineTo(x + (R() - 0.5) * 40, y + (R() - 0.5) * 10); w.stroke(); }
-    const edge = w.createLinearGradient(0, 0, 256, 0); edge.addColorStop(0, 'rgba(60,60,55,.18)'); edge.addColorStop(0.06, 'rgba(0,0,0,0)'); edge.addColorStop(0.94, 'rgba(0,0,0,0)'); edge.addColorStop(1, 'rgba(60,60,55,.18)');
+    for (let i = 0; i < 2500; i++) { w.fillStyle = `rgba(${R() > 0.5 ? '255,255,255' : '40,40,36'},${R() * 0.05})`;
+      w.fillRect(R() * 256, R() * 512, 1 + R() * 3, 1 + R() * 3); }
+    for (let i = 0; i < 22; i++) { w.strokeStyle = `rgba(${R() > 0.4 ? '210,212,205' : '70,70,64'},${0.12 + R() * 0.2})`; w.lineWidth = 0.6 + R();
+      const x = R() * 256, y = R() * 512; w.beginPath(); w.moveTo(x, y); w.lineTo(x + (R() - 0.5) * 40, y + (R() - 0.5) * 10); w.stroke(); }
+    const edge = w.createLinearGradient(0, 0, 256, 0); edge.addColorStop(0, 'rgba(60,60,55,.18)'); edge.addColorStop(0.06, 'rgba(0,0,0,0)');
+    edge.addColorStop(0.94, 'rgba(0,0,0,0)'); edge.addColorStop(1, 'rgba(60,60,55,.18)');
     w.fillStyle = edge; w.fillRect(0, 0, 256, 512); wear.tex.needsUpdate = true;
-    const bodyM = new THREE.MeshStandardMaterial({ map: wear.tex, metalness: 0.35, roughness: 0.48 }), chromeM = mat('#d7dade', { metalness: 1, roughness: 0.18 });
+    const bodyM = new THREE.MeshStandardMaterial({ map: wear.tex, metalness: 0.35, roughness: 0.48 }),
+      chromeM = mat('#d7dade', { metalness: 1, roughness: 0.18 });
     const cab = arch.cabinet = new THREE.Group(), W = 0.47, H = 1.32, D = 0.62, base = 0.08, gap = 0.008, dh = (H - base - 0.012 - gap * 5) / 4;
     cab.position.set(ARCH.x, 0, ARCH.z); cab.rotation.y = Math.PI / 2;   // fronts face the lift
     cab.add(mergedBoxes([[0.012, H - base, D, -W / 2 + 0.006, base + (H - base) / 2, 0], [0.012, H - base, D, W / 2 - 0.006, base + (H - base) / 2, 0],
       [W, 0.012, D, 0, H - 0.006, 0], [W, H - base, 0.012, 0, base + (H - base) / 2, -D / 2 + 0.006]], bodyM));
-    cab.add(mergedBoxes([[W - 0.03, 0.075, D - 0.05, 0, 0.0375, -0.01, '#2d2f2c'], [W - 0.024, H - base - 0.012, 0.004, 0, base + (H - base) / 2, D / 2 - 0.024, '#1e1f1d']], mat('#ffffff', { vertexColors: true, roughness: 0.7 })));
+    cab.add(mergedBoxes([[W - 0.03, 0.075, D - 0.05, 0, 0.0375, -0.01, '#2d2f2c'],
+      [W - 0.024, H - base - 0.012, 0.004, 0, base + (H - base) / 2, D / 2 - 0.024, '#1e1f1d']], mat('#ffffff', { vertexColors: true, roughness: 0.7 })));
     ['A – F', 'G – L', 'M – R', 'S – Z'].reverse().forEach((t, i) => {
       const g = new THREE.Group(), fz = D / 2 - 0.011;
       g.position.set(0, base + gap + i * (dh + gap) + dh / 2, 0);
       g.add(mergedBoxes([[W - 0.024 - gap, dh, 0.02, 0, 0, fz]], bodyM));
-      g.add(mergedBoxes([[0.15, 0.016, 0.014, 0, -0.035, fz + 0.03], [0.012, 0.016, 0.03, -0.068, -0.035, fz + 0.016], [0.012, 0.016, 0.03, 0.068, -0.035, fz + 0.016],
+      g.add(mergedBoxes([[0.15, 0.016, 0.014, 0, -0.035, fz + 0.03], [0.012, 0.016, 0.03, -0.068, -0.035, fz + 0.016],
+        [0.012, 0.016, 0.03, 0.068, -0.035, fz + 0.016],
         [0.104, 0.054, 0.003, 0, 0.07, fz + 0.011]], chromeM));
       const card = makeCanvas(192, 96);
-      card.ctx.fillStyle = '#f1ead9'; card.ctx.fillRect(0, 0, 192, 96); card.ctx.fillStyle = '#2b2a28'; card.ctx.font = `600 40px "Courier New", ${MONO}`; card.ctx.textAlign = 'center'; card.ctx.fillText(t, 96, 62);
+      card.ctx.fillStyle = '#f1ead9'; card.ctx.fillRect(0, 0, 192, 96); card.ctx.fillStyle = '#2b2a28'; card.ctx.font = `600 40px "Courier New", ${MONO}`;
+      card.ctx.textAlign = 'center'; card.ctx.fillText(t, 96, 62);
       card.tex.needsUpdate = true;
       const lab = new THREE.Mesh(new THREE.PlaneGeometry(0.09, 0.044), new THREE.MeshStandardMaterial({ map: card.tex, roughness: 0.9 }));
       lab.position.set(0, 0.07, fz + 0.0128); g.add(lab);
-      if (i === 3) { const lock = cyl(g, 0.011, 0.011, 0.012, '', W / 2 - 0.06, dh / 2 - 0.035, fz + 0.014, { material: chromeM, seg: 20 }); lock.rotation.x = Math.PI / 2; }
+      if (i === 3) { const lock = cyl(g, 0.011, 0.011, 0.012, '', W / 2 - 0.06, dh / 2 - 0.035, fz + 0.014, { material: chromeM, seg: 20 });
+        lock.rotation.x = Math.PI / 2; }
       cab.add(g); arch.drawers.push({ g, label: t, open: 0 });
     });
     arch.drawers.reverse();   // top drawer first
@@ -86,7 +96,8 @@ export function install(ctx) {
     S.add(lift);
     arch.hits = [arch.cabHit, arch.callHit, arch.panel.mesh, cab, lift];
     // Brighter than the office, no bloom or grade (see renderFloor); the floor and its shadows stay out of the AO (layer 1).
-    arch.look = { exposure: 1.5, hemi: 1.5, sky: new THREE.Color('#ffffff'), ground: new THREE.Color('#dcdcdc'), env: 0.7, bloom: 0, grade: 0, lights: [[key, 0.75]], aoSkip1: true };
+    arch.look = { exposure: 1.5, hemi: 1.5, sky: new THREE.Color('#ffffff'), ground: new THREE.Color('#dcdcdc'), env: 0.7, bloom: 0, grade: 0,
+      lights: [[key, 0.75]], aoSkip1: true };
     arch.enter = (z) => {
       arch.lift.position.z = z;
       arch.colliders.length = arch.nFixed;   // the cabinet, its open drawer (see cabinetFx) and the gateway
@@ -108,7 +119,8 @@ export function install(ctx) {
     c.fillStyle = 'rgba(255,255,255,.55)';
     for (const b of arch.colliders) c.fillRect(sx(b.minX), sz(b.minZ), Math.max(3, (b.maxX - b.minX) * k), Math.max(3, (b.maxZ - b.minZ) * k));
     c.font = '600 20px system-ui'; c.fillText('THE ARCHIVE · B2', 16, 30);
-    c.font = '600 15px system-ui'; c.fillStyle = 'rgba(255,255,255,.55)'; c.fillText('Lift', sx(LIFT.x) - 6, sz(arch.lift.position.z) - 18); c.fillText('Cabinet', sx(ARCH.x) - 26, sz(ARCH.z) + 26); c.fillText('Gateway', sx(ctx.GATE.x) - 28, sz(ctx.GATE.z) + 34);
+    c.font = '600 15px system-ui'; c.fillStyle = 'rgba(255,255,255,.55)'; c.fillText('Lift', sx(LIFT.x) - 6, sz(arch.lift.position.z) - 18);
+    c.fillText('Cabinet', sx(ARCH.x) - 26, sz(ARCH.z) + 26); c.fillText('Gateway', sx(ctx.GATE.x) - 28, sz(ctx.GATE.z) + 34);
     c.fillRect(sx(ctx.GATE.x - ctx.GATE.PW / 2), sz(ctx.GATE.z - ctx.GATE.PD / 2 - 1.2), ctx.GATE.PW * k, (ctx.GATE.PD + 2.4) * k);
     const px = sx(camera.position.x), pz = sz(camera.position.z);
     c.save(); c.translate(px, pz); c.rotate(-camera.rotation.y);
@@ -119,15 +131,18 @@ export function install(ctx) {
   // Click a drawer and it slides out, and keeps on sliding: 4–14 m of steel drawer out of a 62 cm cabinet, with a hanging folder
   // per repo (filed by name into A–F, G–L, M–R, S–Z; anything else up front). The tray and folders are cut off at the cabinet's
   // dark backing, so nothing ever pokes out behind it. Click a folder to lift it out and read it (the .of-folder overlay).
-  const LANG = { JavaScript: '#f1e05a', TypeScript: '#3178c6', Python: '#3572a5', HTML: '#e34c26', CSS: '#563d7c', Java: '#b07219', 'C#': '#178600', 'C++': '#f34b7d',
-    C: '#555555', Go: '#00add8', Rust: '#dea584', Shell: '#89e051', Swift: '#f05138', Kotlin: '#a97bff', Ruby: '#701516', PHP: '#4f5d95', Dart: '#00b4ab', Vue: '#41b883',
+  const LANG = { JavaScript: '#f1e05a', TypeScript: '#3178c6', Python: '#3572a5', HTML: '#e34c26', CSS: '#563d7c', Java: '#b07219', 'C#': '#178600',
+    'C++': '#f34b7d',
+    C: '#555555', Go: '#00add8', Rust: '#dea584', Shell: '#89e051', Swift: '#f05138', Kotlin: '#a97bff', Ruby: '#701516', PHP: '#4f5d95', Dart: '#00b4ab',
+      Vue: '#41b883',
     Svelte: '#ff3e00', Lua: '#000080', 'Jupyter Notebook': '#da5b0b', GDScript: '#355570', Dockerfile: '#384d54', SCSS: '#c6538c', Astro: '#ff5a03' };
   const langColor = (l) => LANG[l] || (l ? `hsl(${hash(l) % 360},45%,48%)` : '#b9b4a6');
   const drawerOf = (name) => { const c = name[0].toUpperCase(); return !/[A-Z]/.test(c) ? 0 : c < 'G' ? 0 : c < 'M' ? 1 : c < 'S' ? 2 : 3; };
   const files = arch.files = { list: null, err: null, at: 0, loading: false, held: null, tabCell: { value: new THREE.Vector2(1, 1) } };
   const { W: CW, D: CD, dh: DH } = arch.dims, FZ = CD / 2 - 0.011, WI = CW - 0.06, CUT = CD / 2 - 0.03, RAIL = DH / 2 - 0.055, ROD = RAIL + 0.007;
   const TAB = { w: 0.17, h: 0.048, cols: 8, cw: 256, ch: 72 }, ZERO4 = new THREE.Matrix4().makeScale(0, 0, 0);
-  const trayM = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.35, roughness: 0.5 }), folderM = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85 });
+  const trayM = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.35, roughness: 0.5 }),
+    folderM = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85 });
   // One unit of drawer along -z, stretched to however much of it is out: floor, sides, the hanging-file rails and the slides.
   const trayG = mergedBoxes([[WI, 0.006, 1, 0, -DH / 2 + 0.023, -0.5, '#9ea198'], ...[-1, 1].flatMap((s) => [
     [0.006, RAIL + DH / 2 - 0.02, 1, s * WI / 2, (RAIL - DH / 2 + 0.02) / 2, -0.5, '#9ea198'],
@@ -140,35 +155,44 @@ export function install(ctx) {
   // The loose paper packed between the folders: a sheet standing on the drawer floor, its top corner dog-eared (mirrored at
   // at random), white so the instance colour makes it a sheet, a form or a thin file.
   const paperG = (() => {
-    const w = 0.29, h = 0.2, c = 0.028, x = w / 2, sh = new THREE.Shape([[-x, 0], [x, 0], [x, h - c], [x - c, h], [-x, h]].map(([a, b]) => new THREE.Vector2(a, b)));
+    const w = 0.29, h = 0.2, c = 0.028, x = w / 2,
+      sh = new THREE.Shape([[-x, 0], [x, 0], [x, h - c], [x - c, h], [-x, h]].map(([a, b]) => new THREE.Vector2(a, b)));
     const g = new THREE.ShapeGeometry(sh).toNonIndexed(), n = g.attributes.position.count;
     const flap = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute([x, h - c, 0, x - c, h, 0, x - c, h - c, 0.002], 3));
-    flap.setAttribute('normal', new THREE.Float32BufferAttribute([0, 0, 1, 0, 0, 1, 0, 0, 1], 3)).setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 0, 0, 0, 0], 2));
-    g.setAttribute('color', new THREE.Float32BufferAttribute(new Array(n * 3).fill(1), 3)); flap.setAttribute('color', new THREE.Float32BufferAttribute(new Array(9).fill(0.84), 3));
+    flap.setAttribute('normal', new THREE.Float32BufferAttribute([0, 0, 1, 0, 0, 1, 0, 0, 1], 3)).setAttribute('uv',
+      new THREE.Float32BufferAttribute([0, 0, 0, 0, 0, 0], 2));
+    g.setAttribute('color', new THREE.Float32BufferAttribute(new Array(n * 3).fill(1), 3));
+    flap.setAttribute('color', new THREE.Float32BufferAttribute(new Array(9).fill(0.84), 3));
     return mergeGeometries([g, flap]);
   })();
   const paperM = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, side: THREE.DoubleSide });
   const PAPER = ['#f5f3ec', '#f1eee4', '#ece8dc', '#f7f6f1', '#e9e4d4', '#f5f3ec', '#e3ecf2', '#f2e6e4', '#dcc590', '#cfb07b', '#f3ecc8'];
-  const tabAt = [-0.11, 0, 0.11].map((x) => new THREE.Matrix4().compose(new THREE.Vector3(x, 0.028, 0), new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.5, 0, 0)), new THREE.Vector3(1, 1, 1)));
+  const tabAt = [-0.11, 0,
+    0.11].map((x) =>
+    new THREE.Matrix4().compose(new THREE.Vector3(x, 0.028, 0), new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.5, 0, 0)), new THREE.Vector3(1, 1, 1)));
   const FLIP = new THREE.Matrix4().makeRotationY(Math.PI);   // the tab's other face, so it reads from either end of the drawer
   // Tabs share one atlas; each instance picks its cell with an offset attribute.
   const tabM = new THREE.MeshStandardMaterial({ roughness: 0.55, map: makeCanvas(4, 4).tex });
   tabM.onBeforeCompile = (sh) => {
     sh.uniforms.tabCell = files.tabCell;
-    sh.vertexShader = 'attribute vec2 tabUv;\nuniform vec2 tabCell;\n' + sh.vertexShader.replace('#include <uv_vertex>', '#include <uv_vertex>\n\tvMapUv = vMapUv * tabCell + tabUv;');
+    sh.vertexShader = 'attribute vec2 tabUv;\nuniform vec2 tabCell;\n' + sh.vertexShader.replace('#include <uv_vertex>',
+      '#include <uv_vertex>\n\tvMapUv = vMapUv * tabCell + tabUv;');
   };
   arch.drawers.forEach((d, i) => {
     Object.assign(d, { k: 0, to: 0, L: 4.5, sp: 0.3, items: [] });
     d.tray = new THREE.Mesh(trayG, trayM); d.tray.position.z = FZ - 0.01; d.tray.castShadow = d.tray.receiveShadow = true; d.g.add(d.tray);
     d.hit = hitBox(d.g, CW - 0.03, DH, 0.05, 0, 0, FZ, { action: 'cabinet', reach: 4, drawerAt: () => i });
     // A soft shadow on the floor under what's out, fainter the higher the drawer.
-    d.shade = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: arch.blob, color: '#000', transparent: true, opacity: 0.3 - d.g.position.y * 0.15, depthWrite: false }));
+    d.shade = new THREE.Mesh(new THREE.PlaneGeometry(1, 1),
+      new THREE.MeshBasicMaterial({ map: arch.blob, color: '#000', transparent: true, opacity: 0.3 - d.g.position.y * 0.15, depthWrite: false }));
     d.shade.rotation.x = -Math.PI / 2; d.shade.layers.set(1); d.shade.visible = false; arch.cabinet.add(d.shade);
   });
-  arch.cabHit.userData.drawerAt = (p) => arch.drawers.reduce((b, d, j) => (Math.abs(d.g.position.y - p.y) < Math.abs(arch.drawers[b].g.position.y - p.y) ? j : b), 0);
+  arch.cabHit.userData.drawerAt = (p) =>
+    arch.drawers.reduce((b, d, j) => (Math.abs(d.g.position.y - p.y) < Math.abs(arch.drawers[b].g.position.y - p.y) ? j : b), 0);
   arch.drawerBox = { minX: ARCH.x, maxX: ARCH.x, minZ: ARCH.z, maxZ: ARCH.z };
   arch.colliders.push(arch.drawerBox);
-  Object.assign(arch, { fx: (dt, t) => { cabinetFx(dt); ctx.gateFx(dt, t); }, leave: cabinetReset, toggleDrawer, pickUp, putBack, loadRepos });   // fx/leave: floor hooks (see setFloor)
+  // fx/leave: floor hooks (see setFloor)
+  Object.assign(arch, { fx: (dt, t) => { cabinetFx(dt); ctx.gateFx(dt, t); }, leave: cabinetReset, toggleDrawer, pickUp, putBack, loadRepos });
 
   function toggleDrawer(i) {
     const d = arch.drawers[i];
@@ -204,11 +228,14 @@ export function install(ctx) {
       out = Math.max(out, s);
       // Walk off and it slides home.
       if (d.to && !files.held) {
-        const b = arch.drawerBox, dx = Math.max(b.minX - ctx.player.x, 0, ctx.player.x - b.maxX), dz = Math.max(b.minZ - ctx.player.z, 0, ctx.player.z - b.maxZ);
+        const b = arch.drawerBox, dx = Math.max(b.minX - ctx.player.x, 0, ctx.player.x - b.maxX),
+          dz = Math.max(b.minZ - ctx.player.z, 0, ctx.player.z - b.maxZ);
         if (Math.hypot(dx, dz) > 5) d.to = 0;
       }
     }
-    Object.assign(arch.drawerBox, out > 0.02 ? { minX: ARCH.x + CD / 2, maxX: ARCH.x + FZ + 0.03 + out, minZ: ARCH.z - CW / 2, maxZ: ARCH.z + CW / 2 } : { minX: ARCH.x, maxX: ARCH.x, minZ: ARCH.z, maxZ: ARCH.z });
+    Object.assign(arch.drawerBox,
+      out > 0.02 ? { minX: ARCH.x + CD / 2, maxX: ARCH.x + FZ + 0.03 + out, minZ: ARCH.z - CW / 2, maxZ: ARCH.z + CW / 2 } :
+      { minX: ARCH.x, maxX: ARCH.x, minZ: ARCH.z, maxZ: ARCH.z });
     if (moving && ctx.mode === 'free') ctx.collide(ctx.player);   // a drawer sliding into you pushes you along
     heldFx(dt);
   }
@@ -223,18 +250,21 @@ export function install(ctx) {
     if (!files.held && (r.ok || !files.list)) refile();
   }
   // gh missing, signed out or failing: every drawer holds one folder saying so.
-  const errFolder = () => ({ error: true, name: files.err?.signin ? 'gh isn’t signed in' : 'GitHub unavailable', description: files.err?.error || '', language: '' });
+  const errFolder = () =>
+    ({ error: true, name: files.err?.signin ? 'gh isn’t signed in' : 'GitHub unavailable', description: files.err?.error || '', language: '' });
   function refile() {
     const all = files.list || [errFolder()];
     paintTabs(all);
     arch.drawers.forEach((d, i) => fileDrawer(d, files.list ? all.filter((f) => drawerOf(f.name) === i) : all));
   }
   function paintTabs(all) {
-    const { cols, cw, ch } = TAB, rows = Math.ceil(all.length / cols), H = Math.min(8192, 2 ** Math.ceil(Math.log2(Math.max(rows * ch, 64)))), cap = cols * Math.floor(H / ch);
+    const { cols, cw, ch } = TAB, rows = Math.ceil(all.length / cols), H = Math.min(8192, 2 ** Math.ceil(Math.log2(Math.max(rows * ch, 64)))),
+      cap = cols * Math.floor(H / ch);
     const a = files.atlas = makeCanvas(cols * cw, H), c = a.ctx;
     all.forEach((f, j) => {
       f.cell = Math.min(j, cap - 1);
-      const x = (f.cell % cols) * cw, y = Math.floor(f.cell / cols) * ch, stamp = f.error ? 'SEE INSIDE' : f.archived ? 'ARCHIVED' : f.private ? 'PRIVATE' : f.fork ? 'FORK' : '';
+      const x = (f.cell % cols) * cw, y = Math.floor(f.cell / cols) * ch,
+        stamp = f.error ? 'SEE INSIDE' : f.archived ? 'ARCHIVED' : f.private ? 'PRIVATE' : f.fork ? 'FORK' : '';
       c.fillStyle = '#c9d2d6'; c.fillRect(x, y, cw, ch);   // the clear plastic tab
       c.fillStyle = '#f7f3e8'; c.fillRect(x + 4, y + 4, cw - 8, ch - 8);   // its paper insert
       c.fillStyle = f.error ? '#c0392b' : langColor(f.language); c.fillRect(x + 4, y + 4, 14, ch - 8);
@@ -244,7 +274,8 @@ export function install(ctx) {
       if (stamp) {
         c.font = `700 14px "Courier New", ${MONO}`; const w = c.measureText(stamp).width + 10;
         c.save(); c.translate(x + cw - 12 - w / 2, y + 53); c.rotate(-0.06);
-        c.strokeStyle = c.fillStyle = '#b8352b'; c.lineWidth = 2; c.strokeRect(-w / 2, -10, w, 19); c.textAlign = 'center'; c.fillText(stamp, 0, 4); c.restore();
+        c.strokeStyle = c.fillStyle = '#b8352b'; c.lineWidth = 2; c.strokeRect(-w / 2, -10, w, 19); c.textAlign = 'center'; c.fillText(stamp, 0, 4);
+        c.restore();
       }
     });
     a.tex.needsUpdate = true;
@@ -256,8 +287,10 @@ export function install(ctx) {
     const n = items.length, R = rng(hash(d.label) + n);
     d.items = items; d.L = clamp(1.5 + n * 0.25, 4.5, 14); d.sp = Math.min(0.4, (d.L - 0.9) / Math.max(n, 1));
     const geo = tabG.clone();
-    d.bodies = new THREE.InstancedMesh(folderG, folderM, Math.max(n, 1)); d.tabs = new THREE.InstancedMesh(geo, tabM, Math.max(n, 1)); d.backs = new THREE.InstancedMesh(geo.clone(), tabM, Math.max(n, 1));
-    const uv = new Float32Array(Math.max(n, 1) * 2), m = new THREE.Matrix4(), t = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), c = new THREE.Color();
+    d.bodies = new THREE.InstancedMesh(folderG, folderM, Math.max(n, 1)); d.tabs = new THREE.InstancedMesh(geo, tabM, Math.max(n, 1));
+    d.backs = new THREE.InstancedMesh(geo.clone(), tabM, Math.max(n, 1));
+    const uv = new Float32Array(Math.max(n, 1) * 2), m = new THREE.Matrix4(), t = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(),
+      c = new THREE.Color();
     const { cols, cw, ch } = TAB, cv = files.tabCell.value.y;
     items.forEach((f, j) => {
       e.set(-0.03 + (R() - 0.5) * 0.16, (R() - 0.5) * 0.02, (R() - 0.5) * 0.03);
@@ -296,7 +329,8 @@ export function install(ctx) {
   function cabinetHover(h) {
     if (h.action === 'cabinet') {
       const d = arch.drawers[h.drawer], n = files.list ? d.items.length : 0;
-      return `<b>Filing cabinet · ${d.label}</b><div class="m">${files.list ? `${n} repo${n === 1 ? '' : 's'}` : files.loading ? 'Fetching your repos…' : files.err ? escapeHtml(errFolder().name) : ''}</div><div class="k">Click to ${d.to ? 'close' : 'open'} the drawer</div>`;
+      return `<b>Filing cabinet · ${d.label}</b><div class="m">${files.list ? `${n} repo${n === 1 ? '' :
+        's'}` : files.loading ? 'Fetching your repos…' : files.err ? escapeHtml(errFolder().name) : ''}</div><div class="k">Click to ${d.to ? 'close' : 'open'} the drawer</div>`;
     }
     const f = h.folder.d.items[h.folder.i];
     if (!f) return '';
@@ -350,7 +384,8 @@ export function install(ctx) {
   let turnAt = 0;   // a page turning every so often as you scroll through
   folderEl.addEventListener('scroll', (e) => {
     const el = e.target, y = el.scrollTop, now = performance.now();
-    if (Math.abs(y - (el.turned || 0)) > 420 && now - turnAt > 220) { el.turned = y; turnAt = now; if (files.held) ctx.sfx.cabinet('page', files.hand.position, 0.18); }
+    if (Math.abs(y - (el.turned || 0)) > 420 && now - turnAt > 220) { el.turned = y; turnAt = now;
+      if (files.held) ctx.sfx.cabinet('page', files.hand.position, 0.18); }
   }, true);
   folderEl.addEventListener('click', (e) => {
     if (e.target === folderEl || e.target.closest('[data-act=back]')) putBack(true);
@@ -364,7 +399,8 @@ export function install(ctx) {
     if (!f || files.held || ctx.mode !== 'free') return;
     if (document.pointerLockElement) document.exitPointerLock();
     ctx.mode = 'folder'; ctx.keys.clear();
-    const h = files.held = { d, i, f, k: 0, to: 1, m: [d.bodies, d.tabs, d.backs].map((x) => x.getMatrixAt(i, new THREE.Matrix4())), p: new THREE.Vector3(), q: new THREE.Quaternion() };
+    const h = files.held = { d, i, f, k: 0, to: 1, m: [d.bodies, d.tabs, d.backs].map((x) => x.getMatrixAt(i, new THREE.Matrix4())), p: new THREE.Vector3(),
+      q: new THREE.Quaternion() };
     for (const x of [d.bodies, d.tabs, d.backs]) { x.setMatrixAt(i, ZERO4); x.instanceMatrix.needsUpdate = true; }
     if (!files.hand) {   // the folder in your hands: the same body, its own copy of the tab
       const g = files.hand = new THREE.Group(), tab = files.handTab = makeCanvas(TAB.cw, TAB.ch);
@@ -374,13 +410,15 @@ export function install(ctx) {
     }
     d.bodies.getColorAt(i, files.handBody.material.color);
     const { cols, cw, ch } = TAB;
-    files.handTab.ctx.drawImage(files.atlas.canvas, (f.cell % cols) * cw, Math.floor(f.cell / cols) * ch, cw, ch, 0, 0, cw, ch); files.handTab.tex.needsUpdate = true;
+    files.handTab.ctx.drawImage(files.atlas.canvas, (f.cell % cols) * cw, Math.floor(f.cell / cols) * ch, cw, ch, 0, 0, cw, ch);
+    files.handTab.tex.needsUpdate = true;
     arch.scene.updateMatrixWorld();
     new THREE.Matrix4().multiplyMatrices(d.g.matrixWorld, h.m[0]).decompose(h.p, h.q, new THREE.Vector3());
     arch.scene.add(files.hand);
     ctx.sfx.cabinet('rustle', h.p, 0.5);
     showFolder(f, null);
-    if (!f.error) fetch(`/api/repos/${encodeURIComponent(f.owner)}/${encodeURIComponent(f.name)}`).then(async (x) => ({ ok: x.ok, j: await x.json() })).catch((e) => ({ ok: false, j: { error: e.message } }))
+    if (!f.error) fetch(`/api/repos/${encodeURIComponent(f.owner)}/${encodeURIComponent(f.name)}`).then(async (x) =>
+      ({ ok: x.ok, j: await x.json() })).catch((e) => ({ ok: false, j: { error: e.message } }))
       .then((r) => { if (files.held?.f === f) showFolder(f, r.ok ? r.j : { error: r.j.error || 'couldn’t read the repo' }); });
   }
   function putBack(relock) {
@@ -425,7 +463,10 @@ export function install(ctx) {
   // The folder's contents. Everything from GitHub is escaped; the README is a small markdown subset with no HTML.
   const COLOR_RE = /^#[0-9a-f]{3,8}$/i;
   function showFolder(f, x) {
-    const s = (v) => escapeHtml(v), when = (t) => (t ? `${new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })} · ${F.dur(Date.now() - Date.parse(t))} ago` : '—');
+    const s = (v) => escapeHtml(v),
+      when = (t) =>
+      (t ? `${new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })} · ${F.dur(Date.now() - Date.parse(t))} ago` :
+      '—');
     let left, right;
     if (f.error) {
       left = `<h1>${s(f.name)}</h1><div class="stamps"><span class="stamp">NOT FILED</span></div>
@@ -434,7 +475,8 @@ export function install(ctx) {
         <p>then ride the lift back down (or reopen a drawer). If gh isn’t installed: <a href="https://cli.github.com" target="_blank" rel="noopener noreferrer">cli.github.com</a>.</p>`;
       right = `<h3>What gh said</h3><p>${s(f.description || 'nothing')}</p>`;
     } else {
-      const st = [f.private ? '<span class="stamp">PRIVATE</span>' : '<span class="stamp ok">PUBLIC</span>', f.archived && '<span class="stamp">ARCHIVED</span>', f.fork && '<span class="stamp">FORK</span>'].filter(Boolean).join('');
+      const st = [f.private ? '<span class="stamp">PRIVATE</span>' : '<span class="stamp ok">PUBLIC</span>',
+        f.archived && '<span class="stamp">ARCHIVED</span>', f.fork && '<span class="stamp">FORK</span>'].filter(Boolean).join('');
       const langs = x?.languages?.filter((l) => l.size > 0) || [], total = langs.reduce((a, l) => a + l.size, 0);
       const col = (l) => (COLOR_RE.test(l.color || '') ? l.color : langColor(l.name));
       left = `<h1>${s(f.name)}</h1><div class="own">${s(f.owner)}/${s(f.name)}</div><div class="stamps">${st}</div>
@@ -445,15 +487,20 @@ export function install(ctx) {
         ${total ? `<h3>Languages</h3><div class="bar">${langs.map((l) => `<i style="width:${(l.size / total) * 100}%;background:${col(l)}"></i>`).join('')}</div>
           <div class="lg">${langs.slice(0, 8).map((l) => `<span><i style="background:${col(l)}"></i>${s(l.name)} ${((l.size / total) * 100).toFixed(1)}%</span>`).join('')}</div>` : ''}
         ${!x ? '<h3>Files</h3><p class="n">Reading the folder…</p>' : x.error ? `<h3>Files</h3><p class="n">Couldn’t read it: ${s(x.error)}</p>` : `
-          <h3>Files</h3>${x.files.length ? `<div class="files">${x.files.map((e) => `<div>${e.type === 'dir' ? '▸ ' : '&nbsp; '}${s(e.name)}${e.type === 'dir' ? '/' : ''}</div>`).join('')}</div>` : '<p class="n">Empty.</p>'}
-          <h3>Last commits</h3>${x.commits.length ? `<div class="cm">${x.commits.map((c) => `<code>${s(c.sha)}</code><div>${s(c.message)}<small>${s(c.author)} · ${s(when(c.date))}</small></div>`).join('')}</div>` : '<p class="n">None.</p>'}`}`;
-      right = !x ? '<p class="n">Reading the folder…</p>' : x.error ? '' : x.readme ? readmeHtml(x.readme.text, f.url, x.branch) : '<p class="n">No README in this one.</p>';
+          <h3>Files</h3>${x.files.length ?
+            `<div class="files">${x.files.map((e) => `<div>${e.type === 'dir' ? '▸ ' : '&nbsp; '}${s(e.name)}${e.type === 'dir' ? '/' :
+            ''}</div>`).join('')}</div>` : '<p class="n">Empty.</p>'}
+          <h3>Last commits</h3>${x.commits.length ?
+            `<div class="cm">${x.commits.map((c) => `<code>${s(c.sha)}</code><div>${s(c.message)}<small>${s(c.author)} · ${s(when(c.date))}</small></div>`).join('')}</div>` : '<p class="n">None.</p>'}`}`;
+      right = !x ? '<p class="n">Reading the folder…</p>' : x.error ? '' : x.readme ? readmeHtml(x.readme.text, f.url, x.branch) :
+        '<p class="n">No README in this one.</p>';
     }
     folderEl.innerHTML = `<div class="fo"><div class="tab">${s(f.name)}</div><div class="pg l">${left}</div><div class="pg r">${right}</div>
       <div class="btns">${f.url ? `<a href="${s(f.url)}" target="_blank" rel="noopener noreferrer">Open on GitHub ↗</a>` : ''}<button data-act="back">Put back <kbd>Esc</kbd></button></div></div>`;
   }
   function readmeHtml(text, url, branch) {
-    const href = (h) => (/^https?:\/\//i.test(h) ? h : h.startsWith('#') ? '' : `${escapeHtml(url)}/blob/${escapeHtml(branch || 'HEAD')}/${h.replace(/^\.?\//, '')}`);
+    const href = (h) =>
+      (/^https?:\/\//i.test(h) ? h : h.startsWith('#') ? '' : `${escapeHtml(url)}/blob/${escapeHtml(branch || 'HEAD')}/${h.replace(/^\.?\//, '')}`);
     const inline = (t) => escapeHtml(t).replace(/!\[([^\]]*)\]\([^)]*\)/g, (m, a) => (a ? `[${a}]` : ''))
       .replace(/\[([^\]]+)\]\(([^)\s]+)[^)]*\)/g, (m, t2, h) => (href(h) ? `<a href="${href(h)}" target="_blank" rel="noopener noreferrer">${t2}</a>` : t2))
       .split(/(`[^`]+`)/).map((p, j) => (j % 2 ? `<code>${p.slice(1, -1)}</code>` : p
@@ -466,7 +513,8 @@ export function install(ctx) {
       if (list) { out.push(`</${list}>`); list = null; }
     };
     for (const raw of String(text).replace(/\r/g, '').replace(/<!--[\s\S]*?-->/g, '').split('\n')) {
-      if (/^\s*(```|~~~)/.test(raw)) { if (code) { out.push(`<pre>${escapeHtml(code.join('\n'))}</pre>`); code = null; } else { flush(); code = []; } continue; }
+      if (/^\s*(```|~~~)/.test(raw)) { if (code) { out.push(`<pre>${escapeHtml(code.join('\n'))}</pre>`); code = null; } else { flush(); code = []; } continue;
+        }
       if (code) { code.push(raw); continue; }
       const l = raw.replace(/<\/?[a-z][^>]*>/gi, '');
       let m;
