@@ -1,7 +1,7 @@
 // People: the figure every session (and John) is drawn as, its poses, and walking along a path.
 
 import * as THREE from 'three';
-import { F, angDiff, box, clamp, cyl, damp, hash, makeCanvas, mat } from './util.js';
+import { AISLE, angDiff, box, clamp, cyl, damp, F, faceTo, hash, makeCanvas, mat, PP } from './util.js';
 import { titleOf } from '../chat.js';
 import { drawLabel } from './painters.js';
 
@@ -229,3 +229,36 @@ export class Person {
   }
 }
 
+export function installSpots(ctx) {
+  const { kitchen, MR } = ctx;
+  // ----- idle spots -----
+  const R = (...pts) => pts.map(([x, z]) => ({ x, z }));
+  const idleSpots = [];
+  const spot = (key, x, z, rotY, pose, route) => { const s = { key, kind: 'idle', pos: { x, z }, rotY, pose, route: [...route, { x, z }] }; idleSpots.push(s); return s; };
+  const sofaA = [-14.8, -14, -13.2].map((x, i) => spot(`sofaA${i}`, x, 5.25, 0, 'sofa', R([-11.6, AISLE], [-11.6, 6.15], [x, 6.15])));
+  const sofaB = [-14.8, -14, -13.2].map((x, i) => spot(`sofaB${i}`, x, 8.75, Math.PI, 'sofa', R([-11.6, AISLE], [-11.6, 7.85], [x, 7.85])));
+  // One at the coffee machine, one waiting and chatting; four stools at the island; one at the drinks fridge.
+  const coffee = [[-16.5, 13.72, 0], [-15.5, 13.2, faceTo({ x: -15.5, z: 13.2 }, { x: -16.5, z: 13.72 })]].map(([x, z, rotY], i) =>
+    spot(`coffee${i}`, x, z, rotY, 'coffee', R([-11.6, AISLE], [-11.6, 12.6], [x, 12.6])));
+  const stool = kitchen.stools.map(({ x, z }, i) => spot(`stool${i}`, x, z, 0, 'stool', R([-11.6, AISLE], [-11.6, 10], [x, 10])));
+  const fridge = spot('fridge', -18.55, 12.95, -Math.PI / 2, 'fridge', R([-11.6, AISLE], [-11.6, 12.6], [-18.55, 12.6]));
+  const pp = [spot('pp0', PP.x - 1.85, PP.z, Math.PI / 2, 'pingpong', R([-11.6, AISLE], [-11.6, PP.z], [PP.x - 1.85, PP.z])), spot('pp1', PP.x + 1.85, PP.z, -Math.PI / 2, 'pingpong', R([-4.75, AISLE], [-4.75, 11], [PP.x + 1.85, 11]))];
+  const chat = [
+    spot('chat0', -10.35, 4.9, Math.PI / 2, 'chat', R([-10.35, AISLE])),
+    spot('chat1', -8.85, 4.9, -Math.PI / 2, 'chat', R([-8.85, AISLE])),
+    spot('chat2', -9.6, 5.65, Math.PI, 'chat', R([-8.2, AISLE], [-8.2, 5.65])),
+  ];
+  const bean = [7.6, 9.6].map((z, i) => spot(`bean${i}`, -17.9, z, Math.PI / 2, 'beanbag', R([-11.6, AISLE], [-11.6, 10], [-16.9, 10], [-16.9, z])));
+  const meet = [8.8, 10, 11.2].map((x, i) => spot(`meet${i}`, x, 7.55, 0, 'chat', R([x, AISLE])));
+  // Meeting rooms: a seat each side of the table per `xs`, south side facing +z; filled in facing pairs.
+  const mrSeats = MR.map((r, ri) => r.xs.flatMap((x, i) => {
+    const via = R(...r.entry), s = r.tz - r.co + 0.06, n = r.tz + r.co - 0.06;
+    return [spot(`mr${ri}S${i}`, x, s, 0, 'meeting', [...via, { x, z: r.south }]),
+      spot(`mr${ri}N${i}`, x, n, Math.PI, 'meeting', [...via, ...R([r.around, r.north], [x, r.north])])];
+  }));
+  const [mrSouth, mrNorth, mrSmall] = mrSeats;
+  const IDLE_ORDER = [sofaA[1], coffee[0], pp[0], pp[1], stool[1], sofaA[0], chat[0], stool[2], chat[1], bean[0], coffee[1], sofaA[2], fridge, stool[0], bean[1], chat[2], stool[3],
+    mrSmall[0], mrSmall[1], sofaB[0], sofaB[1], sofaB[2], ...meet, ...mrSouth, ...mrNorth, ...mrSmall.slice(2)];
+  const LOBBY = { key: 'lobby', kind: 'idle', pos: { x: 15.6, z: -0.5 }, rotY: -Math.PI / 2, pose: 'chat', route: R([15.6, AISLE], [15.6, -0.5]) };
+  Object.assign(ctx, { idleSpots, LOBBY, IDLE_ORDER, pp });
+}
