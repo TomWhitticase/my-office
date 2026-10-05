@@ -267,6 +267,7 @@ export function install(ctx) {
 
     return {
       mat: cityMat, ground: groundMat, av: avMat, mtn: mtnMat, ridge: ridgeDeg, boxes, GROUND,
+      trees: [trunks, crowns],   // 1.4M triangles, never culled (one instanced mesh): the security cameras leave them out
       setEnv(tex) { for (const m of [cityMat, waterMat]) { if (!m.envMap) m.needsUpdate = true; m.envMap = tex; } },
     };
   }

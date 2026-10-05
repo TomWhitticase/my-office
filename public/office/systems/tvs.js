@@ -301,6 +301,6 @@ export function installUse(ctx) {
   Object.defineProperty(ctx, 'tvMove', { get: () => tvMove, set: (v) => { tvMove = v; }, enumerable: true });
   ctx.onFrame((dt, t, now) => {
     if (ctx.tvMove) { tvMouse(ctx.tvMove, 'mouseMoved'); ctx.tvMove = null; }
-    if (!ctx.away) ctx.updateTVs(now);
+    if (!ctx.away && ctx.active) ctx.updateTVs(now);   // not while it runs unseen for the cameras (cctv.js)
   }, 140);
 }

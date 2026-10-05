@@ -654,11 +654,19 @@ window.dash = {
 
 // ---------- views ----------
 // The office is home. Your computer's desktop (desktop.js) is on your monitor: clicking it flies you in ('desktop'),
-// Start > Shut down or Esc flies you back out. '#overview', '#admin' and '#messages' open the desktop on that app.
+// Start > Shut down or Esc flies you back out. '#overview', '#admin', '#messages' and '#security' open the desktop on that app.
 // The wall TVs (the server's headless Chrome) only ever get the plain overview.
 const IS_TV = /my-office-tv/.test(navigator.userAgent);
-const HASH_APP = { desktop: null, overview: 'dash', admin: 'admin', messages: 'msgs' };
-let office = null, switching = false;
+const HASH_APP = { desktop: null, overview: 'dash', admin: 'admin', messages: 'msgs', security: 'cctv' };
+let office = null, officeP = null, switching = false;
+// The 3D office, mounted once: on first going to it, or for the Security app's cameras (it runs, unseen, for them).
+function ensureOffice() {
+  return officeP ||= (async () => {
+    dash.config ||= await fetch('/api/config').then((r) => r.json()).catch(() => ({}));
+    return office = (await import('./office.js')).mountOffice($('view-office'));
+  })();
+}
+dash.ensureOffice = ensureOffice;
 async function setView(view, app) {
   const prev = document.body.dataset.view;
   if (IS_TV) view = 'overview';
@@ -668,8 +676,7 @@ async function setView(view, app) {
   try {
     if (view === 'office') {
       if (location.hash) history.replaceState(null, '', location.pathname);
-      dash.config ||= await fetch('/api/config').then((r) => r.json()).catch(() => ({}));
-      if (!office) office = (await import('./office.js')).mountOffice($('view-office'));
+      await ensureOffice();
       document.body.dataset.view = 'office';
       office.show();
     } else {

@@ -34,6 +34,7 @@ import { install as installGateway } from './floors/gateway.js';
 import { install as installRoof } from './floors/roof.js';
 import { install as installHelicopter } from './floors/helicopter.js';
 import { install as installServerHall } from './floors/server-hall.js';
+import { install as installCctv } from './systems/cctv.js';
 import { install as installChat } from './systems/chat.js';
 import { install as installHover } from './systems/hover.js';
 import { install as installMinimap } from './systems/minimap.js';
@@ -166,6 +167,8 @@ export function mountOffice(container) {
   installServerHall(ctx);
   const { srv } = ctx;
 
+  installCctv(ctx);
+
   // ----- sounds (see sounds.js; M mutes) -----
   const sfx = createSounds({ camera, rugs, glass: { minX: 6, maxX: 20, minZ: -15, maxZ: -3.5 }, lift: LIFT,
     coffee: { x: -16.5, y: 1.25, z: 14.5, onBrew: () => kitchen.brew(false) }, doorPos: { x: 7.7, z: -3.5 },
@@ -251,7 +254,7 @@ export function mountOffice(container) {
       r = renderer.domElement.getBoundingClientRect(); return { x: r.left + (p.x + 1) / 2 * r.width, y: r.top + (1 - p.y) / 2 * r.height }; },
     tvs: () => tvs.map((t) => ({ id: t.id, live: t.live, frame: !!t.frame, url: t.page?.url, title: t.page?.title, dist: t.dist })), seats, sitIn, openLaptop,
       laptop, kitchen, player, keys, camera, people, blinds, door, doors, collide, colliders, desks, idleSpots, lifts, sfx, mine, arch, roof, srv, FLOORS,
-      openJohn, johnChat, setFloor, get away() { return ctx.away; }, callLift, heli: ctx.heli,
+      openJohn, johnChat, setFloor, get away() { return ctx.away; }, callLift, heli: ctx.heli, cctv: ctx.cctv,
     goFloor: (n) => {   // debug: straight into your car at floor n, doors opening (headless tests can't sit through a ride)
       const L = mine.L || lifts.find(spare); if (!L) return false;
       Object.assign(mine, { L, call: false, goal: null }); L.player = true;
@@ -301,6 +304,7 @@ export function mountOffice(container) {
             cancelAnimationFrame(raf);
             tvQuiet();
             ctx.active = false;
+            ctx.cctv.resume();   // the Security app's feeds keep the office going
             sfx.setActive(false);
             ctx.mode = 'idle';
             resolve();

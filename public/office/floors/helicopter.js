@@ -504,5 +504,9 @@ function build(ctx) {
     place(0);
   };
 
+  // And on the helipad's camera, parked or flying.
+  const stage0 = roof.cctv.stage;
+  roof.cctv.stage = () => { const undo = stage0(), was = g.visible; g.visible = true; return () => { g.visible = was; undo(); }; };
+
   ctx.heli = { S, keys: K, board, getOut, goHome, park, get eye() { return eyePose(); } };
 }
