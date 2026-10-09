@@ -2283,11 +2283,6 @@
   "body": {
    "arch": "string",
    "at": "number",
-   "battery": {
-    "ac": "boolean",
-    "pct": "number",
-    "state": "string"
-   },
    "cores": [
     "number"
    ],
@@ -2306,11 +2301,13 @@
     "number"
    ],
    "mem": {
+    "freePct": "number",
+    "pressure": "string",
     "total": "number",
     "used": "number"
    },
-   "net": null,
    "os": "string",
+   "procs": "number",
    "sessions": [
     {
      "cpu": "number",
@@ -2329,7 +2326,34 @@
      "rssMB": "number"
     }
    ],
-   "uptime": "number"
+   "uptime": "number",
+   "battery": {
+    "ac": "boolean",
+    "adapterW": "number?",
+    "charging": "boolean",
+    "cycles": "number?",
+    "designMAh": "number?",
+    "external": "boolean",
+    "full": "boolean",
+    "health": "number?",
+    "maxMAh": "number?",
+    "minutes": "number?",
+    "pct": "number?",
+    "state": "string",
+    "tempC": "number?",
+    "watts": "number?"
+   },
+   "sections": [
+    "diskIO",
+    "files",
+    "ifaces",
+    "net",
+    "power",
+    "sensors",
+    "swap",
+    "thermal",
+    "wifi"
+   ]
   }
  },
  "GET /api/repos": {

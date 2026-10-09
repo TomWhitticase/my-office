@@ -4,10 +4,16 @@ import { T0, SESSION_IDS } from './fixtures.mjs';
 
 export const MACHINE = {
   at: T0, hostname: 'fixture-host', os: 'macOS 26.0', arch: 'arm64', cpuModel: 'Apple M1 Pro', uptime: 357358, load: [3.41, 2.43, 1.69],
-  cores: [57, 44, 33, 27, 18, 12, 9, 6, 4, 2], mem: { total: 17179869184, used: 9770813952 },
+  cores: [57, 44, 33, 27, 18, 12, 9, 6, 4, 2],
   disks: [{ dev: '/dev/disk3s1s1', size: 994662584320, used: 12570521600, avail: 452590292992, mount: '/' },
     { dev: '/dev/disk3s5', size: 994662584320, used: 511576903680, avail: 452590292992, mount: '/System/Volumes/Data' }],
-  battery: { pct: 80, state: 'AC attached', ac: true }, net: { rx: 123456789, tx: 23456789 },
+  battery: { pct: 80, state: 'AC attached', ac: true, tempC: 31.4, cycles: 271, health: 83, maxMAh: 7250, designMAh: 8694, charging: true, full: false,
+    external: true, watts: 12.6, adapterW: 96, minutes: 48 }, net: { rx: 123456789, tx: 23456789 },
+  mem: { total: 17179869184, used: 9770813952, pressure: 'normal', freePct: 41 }, swap: { total: 4294967296, used: 1610612736 }, power: 'AC 96 W',
+  thermal: { level: 'fair', pressure: 1, warning: null },
+  sensors: { source: 'macmon', cpuTempC: 61.5, gpuTempC: 48.2, cpuW: 7.4, gpuW: 1.2, aneW: 0, sysW: 18.9, gpuPct: 23, fans: [{ rpm: 2310, max: 5700 }, { rpm: 2290, max: 5700 }] },
+  ifaces: [{ name: 'en0', rx: 123456789, tx: 23456789 }], diskIO: { read: 3456789, write: 1234567 },
+  wifi: { signal: -61, noise: -90, channel: '100 (5GHz, 80MHz)', rate: 866, phy: '802.11ac' }, procs: 612, files: { open: 7123, max: 122880 },
   top: [{ pid: 501, cpu: 41.2, rssMB: 820, name: 'node' }, { pid: 502, cpu: 22.3, rssMB: 357, name: 'Google Chrome' }, { pid: 503, cpu: 8.8, rssMB: 63, name: 'claude' },
     { pid: 504, cpu: 4.7, rssMB: 25, name: 'WindowServer' }, { pid: 505, cpu: 1.2, rssMB: 443, name: 'Finder' }],
   sessions: SESSION_IDS.map((sessionId, i) => ({ sessionId, name: ['api-server', 'docs-site', 'infra', 'mobile', 'notes'][i], pid: 41001 + i,

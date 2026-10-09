@@ -5,11 +5,6 @@
   "body": {
     "arch": "string",
     "at": "number",
-    "battery": {
-      "ac": "boolean",
-      "pct": "number",
-      "state": "string"
-    },
     "cores": [
       "number"
     ],
@@ -28,11 +23,13 @@
       "number"
     ],
     "mem": {
+      "freePct": "number",
+      "pressure": "string",
       "total": "number",
       "used": "number"
     },
-    "net": null,
     "os": "string",
+    "procs": "number",
     "sessions": [
       {
         "cpu": "number",
@@ -51,6 +48,33 @@
         "rssMB": "number"
       }
     ],
-    "uptime": "number"
+    "uptime": "number",
+    "battery": [
+      "ac",
+      "adapterW",
+      "charging",
+      "cycles",
+      "designMAh",
+      "external",
+      "full",
+      "health",
+      "maxMAh",
+      "minutes",
+      "pct",
+      "state",
+      "tempC",
+      "watts"
+    ],
+    "sections": [
+      "diskIO",
+      "files",
+      "ifaces",
+      "net",
+      "power",
+      "sensors",
+      "swap",
+      "thermal",
+      "wifi"
+    ]
   }
 }

@@ -253,7 +253,12 @@ async function snapshots(home, pids) {
   for (const n of [1, 2, 3, 4, 5, 7, 10, 99]) add(`chat-${n}-route`, await get(`/api/session/${sid(n)}/chat?route=1`));
   add('tvs', await get('/api/tvs'));
   add('office', await get('/api/office'));
-  add('machine', await get('/api/machine'), shape);
+  // Its sensor sections come and go with the machine's state (see test/api.mjs): only that they're there, and the battery's keys.
+  add('machine', await get('/api/machine'), ({ battery, ...m }) => {
+    const sections = ['diskIO', 'files', 'ifaces', 'net', 'power', 'sensors', 'swap', 'thermal', 'wifi'].filter((k) => k in m);
+    for (const k of sections) delete m[k];
+    return { ...shape(m), battery: battery && Object.keys(battery).sort(), sections };
+  });
   for (const p of ['/api/repos', '/api/repos/TomWhitticase/my-office', '/api/repos/TomWhitticase/my-office/tree', '/api/repos/TomWhitticase/my-office/blob?ref=main&path=README.md',
     '/api/repos/TomWhitticase/my-office/blob?ref=0123456789abcdef0123456789abcdef01234567&path=a/../b', '/api/repos/../x', '/api/repos/./x'])
     add(`repos ${p}`, await get(p), shape);
