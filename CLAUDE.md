@@ -21,6 +21,8 @@ npx tsc -p test/tsconfig.json   # JSDoc types: the office's ctx, registries, FLO
 
 To try a change, run your own server from your checkout with an isolated HOME on a spare port (7831-7840), not the live one.
 
+The harness (`node test/run.mjs`, `npm test`, any suite) runs one at a time across all sessions, under a shared lock: `until mkdir /tmp/my-office-harness.lock 2>/dev/null; do sleep 20; done`, run it, then `rmdir /tmp/my-office-harness.lock` (a lock older than 30 min is stale: `find /tmp/my-office-harness.lock -mmin +30`, then rmdir it). While iterating, run only the shots you touched (`golden --only=<names>`); run the full suite once, just before you push. Close the headless browsers and test servers you aren't using.
+
 ## Live site
 
 The live office on http://127.0.0.1:7777 runs from a dedicated checkout, `/Users/admin/orca/workspaces/my-office/office-live`, kept on origin/main by `bin/live.sh` (launchd agent `com.my-office.live`). **Never edit that checkout or restart its server by hand**: push to main and it deploys within about 30 s. live.sh syntax-checks each new commit first (one that fails, or whose server doesn't come up, is skipped), runs `npm install` when package files change, and restarts the server only when `server.js`, `server/` or package files changed; `public/` is served with `no-store`, and open pages poll `/api/build` and reload themselves (unless you're typing, chatting, at a TV or whiteboard, flying…). What it did is in `office-live/.live.log`.
