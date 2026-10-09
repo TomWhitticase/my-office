@@ -172,6 +172,24 @@ export const POSES = [
     await stepUntil(o, () => !!document.querySelector('.cc-tile:not([hidden]) canvas[data-live]'), 200);
     await o.step(4); await o.idle();
   }],
+  ['restricted-keypad', async (o) => {   // back to the office, into a car, and B3 pressed: its keypad, half a code typed
+    await o.eval(() => { window.dash.setView('office'); });
+    await o.step(1, 400); await o.step(1, 2700);
+    await stepUntil(o, () => window.__office.mode === 'free');
+    await o.eval(() => window.__office.goFloor(48));
+    await stepUntil(o, () => window.__office.mine.L?.state === 'open', 80);
+    const z = await o.eval(() => window.__office.mine.L.z);
+    await stand(o, 19.2, z, { x: 18.4, y: 1.1, z: z + 0.7 });
+    await o.eval(() => { window.__office.pressFloor(-3); for (const k of '14') window.__office.ctx.restr.keypad.press(k); });
+    await o.step(4);
+  }],
+  ['restricted', async (o) => {   // straight down to B3 (goFloor skips the code), out of the car and into the rooms
+    await o.eval(() => { window.__office.ctx.restr.keypad.close(); window.__office.goFloor(-3); });
+    await stepUntil(o, () => window.__office.mine.L?.state === 'open', 80);
+    const z = await o.eval(() => window.__office.mine.L.z);
+    await stand(o, -10, z + 6, { x: -20, y: 1.6, z: z - 9 });
+    await o.step(60);   // out of the car's light into the strip lights'
+  }],
 ];
 
 // Compares two PNGs in the page: counts pixels where any channel differs by more than `tol`.

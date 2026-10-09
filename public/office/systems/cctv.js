@@ -36,6 +36,9 @@ const CAMS = [
   // The archive's entrance hall (floors/archive-entrance.js, about the car's z): high in the corner by the vault door,
   // looking back at the lift and the counter. The void itself has none.
   { id: 'archive-hall', n: -2, name: 'Entrance hall', kind: 'wall', fov: 70, p: [7.45, 3.55, 3.25], wall: [7.04, 3.55, 3.45], at: [16, 0.6, -1.2], pan: 50 },
+  // The restricted level (floors/restricted.js, about the car's z): there, but `dead`: never a picture, whatever the app says.
+  { id: 'restricted-lift', n: -3, name: 'Lift landing', kind: 'dome', ceil: 2.75, p: [15.2, 2.7, 0], at: [18.6, 0.8, 0], dead: true },
+  { id: 'restricted-corridor', n: -3, name: 'Corridor', kind: 'wall', p: [13.82, 2.45, -1.05], wall: [14.1, 2.45, -1.2], at: [4, 0.6, 1], pan: 50, dead: true },
 ];
 const LAYER = 3;   // the cameras' own bodies: the office's view sees them, the feeds don't (no lens in its own shot)
 const SLOT = 1;    // feeds refreshed per frame at most
@@ -123,7 +126,7 @@ function build(ctx) {
     for (const c of cams) {
       const s = setOf(c), pan = THREE.MathUtils.clamp(s.pan, -c.lim.pan, c.lim.pan), tilt = THREE.MathUtils.clamp(s.tilt, ...c.lim.tilt);
       const zoom = THREE.MathUtils.clamp(s.zoom, 1, c.lim.zoom), key = `${pan}|${tilt}|${zoom}`;
-      c.on = s.on !== false;
+      c.on = s.on !== false && !c.dead;
       if (key === c.aim) continue;
       c.aim = key;
       const yaw = c.yaw0 - pan * D, pitch = THREE.MathUtils.clamp(c.pitch0 + tilt * D, -1.5, 0.5);
@@ -324,7 +327,7 @@ function build(ctx) {
     ctx.runFrame(dt, (now - t0) / 1000, now);
   }
 
-  const list = cams.map(({ id, name, n: fl, lim }) => ({ id, name, floor: fl, where: floorOf(fl).title, lim }));
+  const list = cams.map(({ id, name, n: fl, lim, dead }) => ({ id, name, floor: fl, where: floorOf(fl).title, lim, dead: !!dead }));
   dash.cctv = { cams: list, want, stats };
   Object.assign(ctx, { cctv: { cams, want, resume, stats } });
 }

@@ -91,7 +91,7 @@ export function install(ctx) {
     // The directory: every other floor the lift serves, top first, from the FLOORS table (repainted as floors register).
     const directory = (floors) => {
       c.fillStyle = '#26282b'; c.fillRect(0, 222, 600, 178);
-      const rows = floors.filter((F) => F.n !== 48 && !F.carless), h = Math.min(34, 168 / Math.max(1, rows.length));
+      const rows = floors.filter((F) => F.n !== 48 && !F.carless && !F.unlisted), h = Math.min(34, 168 / Math.max(1, rows.length));
       rows.forEach((F, i) => {
         const y = 252 + i * h;
         c.fillStyle = '#f2efe8'; c.font = `600 22px ${FONT}`; c.fillText(floorName(F.n), 44, y);
@@ -304,12 +304,14 @@ export function installRiding(ctx) {
   function pressFloor(f) {
     const L = mine.L;
     if (!L || L.state === 'travel') return;
+    if (f !== Math.round(L.floor) && FLOORS.find((F) => F.n === f)?.gate?.() === false) return;   // behind a code: its keypad instead (restricted.js)
     mine.goal = f === Math.round(L.floor) ? null : f;
     if (mine.goal === null && L.state !== 'open') setLift(L, 'opening');
     for (const P of carPanels()) paintPanel(P, mine.goal);
   }
   function travelTo(L, f) {
-    Object.assign(mine, { from: L.floor, to: f, k: 0, dur: clamp(Math.abs(f - L.floor) / 11, 2.5, 5.5) });
+    const ride = FLOORS.find((F) => F.n === f)?.ride;   // a floor can take longer to reach (restricted.js)
+    Object.assign(mine, { from: L.floor, to: f, k: 0, dur: ride || clamp(Math.abs(f - L.floor) / 11, 2.5, 5.5) });
     L.goal = f; L.dir = Math.sign(f - L.floor); setLift(L, 'travel');
     if (inMyCar()) { ctx.setFloor(f === 48 ? null : FLOORS.find((F) => F.n === f)); ctx.sfx.hum(true); }
   }

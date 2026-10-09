@@ -5493,6 +5493,27 @@
     "fx",
     "ground"
    ]
+  },
+  {
+   "n": -3,
+   "label": "RESTRICTED",
+   "title": "Restricted Level",
+   "scene": true,
+   "y": null,
+   "carless": false,
+   "fly": false,
+   "sound": {
+    "kind": "restricted"
+   },
+   "colliders": 0,
+   "hits": 0,
+   "hooks": [
+    "enter",
+    "leave",
+    "bound",
+    "map",
+    "fx"
+   ]
   }
  ],
  "tvs": [
@@ -5557,13 +5578,13 @@
  ],
  "scenes": {
   "office": {
-   "objects": 2581,
+   "objects": 2583,
    "types": {
     "Scene": 1,
     "HemisphereLight": 1,
     "DirectionalLight": 2,
     "Object3D": 2,
-    "Mesh": 2245,
+    "Mesh": 2247,
     "Group": 413,
     "PointLight": 15,
     "Sprite": 9,
@@ -5584,11 +5605,12 @@
     "liftpanel": 3,
     "pint": 1,
     "heli": 2,
+    "restrictednote": 1,
     "lightpanel": 5,
     "rosie": 57
    },
-   "ordered": "13a57bc4",
-   "sorted": "2e86e368"
+   "ordered": "44b7c1e",
+   "sorted": "bd2cf4a8"
   },
   "servers": {
    "objects": 271,
@@ -5636,6 +5658,23 @@
    },
    "ordered": "52a57496",
    "sorted": "43f81f1c"
+  },
+  "restricted": {
+   "objects": 41,
+   "types": {
+    "Scene": 1,
+    "HemisphereLight": 1,
+    "Group": 6,
+    "PointLight": 6,
+    "Mesh": 25,
+    "PerspectiveCamera": 2
+   },
+   "actions": {
+    "liftcall": 1,
+    "liftpanel": 1
+   },
+   "ordered": "214941f9",
+   "sorted": "4765902d"
   }
  }
 }

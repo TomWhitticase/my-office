@@ -22,7 +22,7 @@ const APPS = {
 };
 const DEFAULT = { dash: { open: true, x: 0.09, y: 0.03, w: 0.72, h: 0.88 }, admin: { x: 0.2, y: 0.06, w: 0.6, h: 0.84 }, msgs: { x: 0.3, y: 0.09, w: 0.6, h: 0.78 },
   cctv: { x: 0.12, y: 0.04, w: 0.74, h: 0.86 } };
-const FLOOR_TABS = [['all', 'All'], [48, 'Office'], [47, 'Server Hall'], [50, 'Roof'], [-2, 'Archive']];
+const FLOOR_TABS = [['all', 'All'], [48, 'Office'], [47, 'Server Hall'], [50, 'Roof'], [-2, 'Archive'], [-3, 'Restricted']];
 const stamp = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${d.toTimeString().slice(0, 8)}`;
 const STATUS = { working: ['Working', 'w'], idle: ['Idle · waiting for you', 'i'], shell: ['Waiting on a shell task', 's'] };
 
@@ -426,6 +426,7 @@ export function mountDesktop() {
   const floorLabel = (c) => `${c.floor === 50 ? 'R' : c.floor < 0 ? `B${-c.floor}` : c.floor} · ${c.where.toUpperCase()}`;
   const inFloor = () => camList.filter((c) => st.cam.floor === 'all' || c.floor === st.cam.floor);
   const camSet = (id) => ({ on: true, pan: 0, tilt: 0, zoom: 1, ...dash.office.cameras?.[id] });
+  const dead = (id) => !!camList?.find((c) => c.id === id)?.dead;   // a camera whose feed never comes (the restricted level's)
   function buildCctv() {
     camList = dash.cctv.cams;
     ccGrid.innerHTML = camList.map((c) => `<div class="cc-tile" data-cam="${c.id}" role="button" tabindex="0" title="${escapeHtml(c.name)}: click to enlarge"><canvas width="384" height="216"></canvas>
@@ -443,8 +444,8 @@ export function mountDesktop() {
   // Off cameras: static and NO SIGNAL in place of the picture, the switch lit up to turn them back on.
   function syncPower() {
     if (!camList) return;
-    for (const [id, t] of tiles) { const on = camSet(id).on; t.classList.toggle('off', !on); t.querySelector('.pw').title = on ? 'Turn off' : 'Turn on'; }
-    const on = !oneId || camSet(oneId).on;
+    for (const [id, t] of tiles) { const on = camSet(id).on && !dead(id); t.classList.toggle('off', !on); t.querySelector('.pw').title = on ? 'Turn off' : 'Turn on'; }
+    const on = !oneId || (camSet(oneId).on && !dead(oneId));
     ccOne.classList.toggle('off', !on);
     ccOne.querySelector('[data-power]').title = on ? 'Turn off' : 'Turn on';
   }

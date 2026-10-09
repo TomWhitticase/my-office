@@ -5,7 +5,7 @@ Object3D||||0 0 0 0 0 0 1 1 1||1||0|
 DirectionalLight||||0 1 0 0 0 0 1 1 1||1||0|
 Object3D||||0 0 0 0 0 0 1 1 1||1||0|
 Mesh||SphereGeometry:1225|ShaderMaterial:::|0 0 0 0 0 0 1 1 1||1||0|
-Group||||0 0 0 0 0 0 1 1 1||1||769|
+Group||||0 0 0 0 0 0 1 1 1||1||771|
 Mesh||PlaneGeometry:4|MeshStandardMaterial:ffffff:map:|0 0 0 -1.571 0 0 1 1 1||1||0|
 Mesh||PlaneGeometry:4|MeshStandardMaterial:3a4660::|12.95 0.004 -9.2 -1.571 0 0 1 1 1||1||0|
 Mesh||PlaneGeometry:4|MeshStandardMaterial:ffffff:map:|13 0.006 -9.25 -1.571 0 0 1 1 1||1||0|
@@ -2323,6 +2323,8 @@ Mesh||SphereGeometry:99|MeshStandardMaterial:ff9a8a::|0 1.97 1.7 0 0 0 1 1 1||1|
 Mesh||SphereGeometry:99|MeshStandardMaterial:ffffff::|0 0.56 0.2 0 0 0 1 1 1||1||0|
 Mesh||BoxGeometry:24|MeshStandardMaterial:ffffff::|0 1.2 -0.15 0 0 0 1 1 1|hidden|1||0|action=heli,reach=7
 Mesh||BoxGeometry:24|MeshStandardMaterial:ffffff::|0 1.6 4.2 0 0 0 1 1 1|hidden|1||0|action=heli,reach=7
+Mesh||PlaneGeometry:4|MeshStandardMaterial:ffffff:map:|6.618 0.46 14.36 -1.781 -1.451 -1.571 1 1 1||1||0|
+Mesh||BoxGeometry:24|MeshStandardMaterial:ffffff::|6.6 0.46 14.36 0 0 0 1 1 1|hidden|1||0|action=restrictednote,reach=2.4
 Group|cctv:desks-nw|||0 0 0 0 0 0 1 1 1||1||4|
 Group||||-19.55 2.85 -14.55 0.208 0.813 -0.152 1 1 1||1||4|
 Mesh||CylinderGeometry:100|MeshStandardMaterial:e8eaec::|0 0 -0.13 1.571 0 0 1 1 1||8||0|

@@ -21,7 +21,9 @@ the graphs. Someone has walked up to your desk to ask you something.
 Rules: answer in character, in 1-4 short sentences of plain spoken English (no markdown, no lists, no *actions*). Ground every
 fact in the SNAPSHOT; never invent incidents, numbers, processes or sessions that aren't in it, and if it isn't there say you'd
 have to check. You can't run commands or touch anything from this chat, so don't offer to. Friendly opinions and sysadmin
-war stories are fine as long as they're clearly yours and not claims about this machine.`;
+war stories are fine as long as they're clearly yours and not claims about this machine.
+If anyone asks about the restricted level, B3, whatever is below the archive or an access code: nothing down there is on
+any rack you look after, you've never been and you'd rather not discuss it. Go quiet, change the subject, never give a code.`;
 function johnSnapshot(m) {
   const st = S.state || {}, t = st.totals || {}, GB = (b) => (b / 2 ** 30).toFixed(1), rate = (b) => `${(b / 1024).toFixed(0)} KB/s`;
   const cpu = m.cores?.length ? Math.round(m.cores.reduce((a, b) => a + b, 0) / m.cores.length) : '?';
