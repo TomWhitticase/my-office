@@ -100,6 +100,24 @@ export function makeHome(home) {
   }
   // A cached ad list, so the server doesn't go and fetch one.
   write(path.join(claude, 'my-office', 'adblock', 'hosts'), '0.0.0.0 ads.example.com\n0.0.0.0 tracker.example.net\n', T0 - MIN);
+  // The task board in my office: a few of each kind of card in each column (one overdue, one with a long story).
+  const card = (id, col, kind, color, title, body, more = {}) => ({ id, col, kind, color, title, body, prio: 0, due: '', labels: [], who: '', archived: false,
+    created: T0 - 3 * 1440 * MIN, updated: T0 - 60 * MIN, ...more });
+  write(path.join(claude, 'my-office', 'board.json'), { rev: 7, columns: [['backlog', 'Backlog'], ['todo', 'To do'], ['doing', 'Doing'], ['review', 'Review'], ['done', 'Done']]
+    .map(([id, name]) => ({ id, name })), cards: [
+    card('fix00001', 'backlog', 'index', 'white', 'Dark mode for the docs', 'People keep asking.\nCheck contrast on code blocks first.', { prio: 1, labels: ['docs'] }),
+    card('fix00002', 'backlog', 'sticky', 'pink', 'Call the bank', 'About the card limit', { who: 'TW' }),
+    card('fix00003', 'backlog', 'sticky', 'blue', 'Book dentist', ''),
+    card('fix00004', 'todo', 'index', 'white', 'Rate limits: per-user buckets', 'Token bucket per API key.\nBurst 20, refill 5/s.\nReturn Retry-After on 429.\nTests for the edge of the window.\nAsk ops about Redis.',
+      { prio: 3, due: '2026-06-16', labels: ['api', 'backend'], who: 'TW' }),
+    card('fix00005', 'todo', 'sticky', 'yellow', 'Renew domain!', 'expires end of June', { prio: 2, due: '2026-06-28' }),
+    card('fix00006', 'doing', 'index', 'yellow', 'Getting started guide', 'Fit it on one page. Screenshots of the office.', { prio: 2, labels: ['docs'], who: 'JD' }),
+    card('fix00007', 'doing', 'sticky', 'green', 'Upgrade build image', 'node LTS + rebuild', { labels: ['infra'] }),
+    card('fix00008', 'review', 'index', 'blue', 'Login crash on empty password', 'Validator assumed a string. Fixed + test.', { prio: 3, labels: ['mobile', 'bug'], who: 'AK' }),
+    card('fix00009', 'done', 'index', 'white', 'Bump dependencies', 'All green.', { labels: ['chore'] }),
+    card('fix00010', 'done', 'sticky', 'orange', 'Fix broken links', '12 of them', {}),
+    card('fix00011', 'done', 'index', 'white', 'Old idea', 'Archived long ago', { archived: true }),
+  ] });
   return { sessions: SESSIONS.map((s) => s.sid) };
 }
 export const SESSION_IDS = SESSIONS.map((s) => s.sid);

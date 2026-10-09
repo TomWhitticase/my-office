@@ -1,4 +1,4 @@
-// The guitar corner in your office, under the art: a cherry Les Paul, a dark blue Strat and a copper-taped HSS Strat on
+// The guitar corner in your office, under the task board: a cherry Les Paul, a dark blue Strat and a copper-taped HSS Strat on
 // stands, and a practice amp plugged into the copper one.
 
 import * as THREE from 'three';
@@ -9,7 +9,7 @@ import { box, cyl, lerp, makeCanvas, mat, mergedBoxes, rng, solid } from '../uti
 export function install(ctx) {
   const { world } = ctx;
 
-  // Guitar corner, under the art: a cherry Les Paul, a dark blue Strat (maroon tortoise guard, gold hardware, maple board) and an
+  // Guitar corner, under the task board: a cherry Les Paul, a dark blue Strat (maroon tortoise guard, gold hardware, maple board) and an
   // HSS Strat wrapped in copper tape (black guard, rosewood board), each on a stand, and a little practice amp plugged into the
   // copper one. Bodies are extruded outlines, fretboards one canvas each; small hardware is merged per guitar.
   {

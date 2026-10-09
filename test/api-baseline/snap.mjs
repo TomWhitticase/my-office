@@ -339,6 +339,11 @@ async function snapshots(home, pids) {
     { do: 'tv', id: 'lobby', url: 'http://192.168.1.1/admin' }, { do: 'tv', id: 'lobby', url: 'http://10.0.0.1/' }, { do: 'tv', id: 'lobby', url: 'http://[::1]/' },
     { do: 'tv', id: 'lobby', url: 'https://user:pw@example.com/' }, { do: 'tv', id: 'lobby', url: 'http://router/' }, { do: 'tv', id: 'lobby', search: '   ' },
     { do: 'tv', id: 'lobby' }, { do: 'tv', id: 'desks-west', volume: 20 }, { do: 'tv', id: 'lobby', refresh: 'often' }] }));
+  // Cards for the task board: a title, the rest clamped; a column by name (an unknown one: the first); nothing else kept.
+  add('rcp plan board', await echo({ say: 'Pinned it', actions: [
+    { do: 'addCard', title: '  Call   the bank ', details: 'About the\r\ncard limit', column: 'to do', priority: 'high', sticky: true, color: 'red', id: 'x' },
+    { do: 'addCard', title: 'Renew passport', column: 'Someday', priority: 'urgent', sticky: 'yes' }, { do: 'addCard', title: '   ' }, { do: 'addCard' },
+    { do: 'addCard', title: 'x'.repeat(300), details: 'y'.repeat(3000) }] }));
   add('rcp too many', await echo({ say: 'Busy day', actions: Array.from({ length: 30 }, () => ({ do: 'setLights', mode: 'auto' })) }));
   add('rcp not json', await rcp({ text: 'ECHO Just a plain sentence, no JSON here.' }));
   const more = [];   // a few a minute: the rest wait
