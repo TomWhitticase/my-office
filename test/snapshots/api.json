@@ -4197,6 +4197,49 @@
    "error": "bad path or ref"
   }
  },
+ "GET /api/repos/o/n/raw (no path)": {
+  "status": 400,
+  "body": {
+   "error": "bad path or ref"
+  }
+ },
+ "GET /api/repos/o/n/raw (not an image)": {
+  "status": 400,
+  "body": {
+   "error": "bad path or ref"
+  }
+ },
+ "GET /api/repos/o/n/raw (traversal)": {
+  "status": 400,
+  "body": {
+   "error": "bad path or ref"
+  }
+ },
+ "GET /api/repos/o/n/raw (bad ref)": {
+  "status": 400,
+  "body": {
+   "error": "bad path or ref"
+  }
+ },
+ "GET /api/repos/o/n/raw (TV browser)": {
+  "status": 403,
+  "body": {
+   "error": "refused"
+  }
+ },
+ "GET /api/repos/o/n/raw (cross-site)": {
+  "status": 403,
+  "body": {
+   "error": "refused"
+  }
+ },
+ "GET /api/repos/o/n/raw (signed out)": {
+  "status": 401,
+  "body": {
+   "error": "To get started with GitHub CLI, please run:  gh auth login",
+   "signin": true
+  }
+ },
  "WS /tv (ok)": "upgraded",
  "WS /tv (foreign Origin)": "refused",
  "WS /tv (no Origin)": "refused",

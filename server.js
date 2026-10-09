@@ -17,7 +17,7 @@ const http = require('http');
 const { safeJSON, clients } = require('./server/util');
 const { TV_UA_TAG, trustedHost, deny } = require('./server/security');
 const { office, putOffice } = require('./server/office-settings');
-const { listRepos, repoDetail, treeJob, repoBlob } = require('./server/repos');
+const { listRepos, repoDetail, treeJob, repoBlob, repoRaw } = require('./server/repos');
 const { MAX_EVENTS, transcripts, bySession, listTranscripts, sessionFeed } = require('./server/transcripts');
 const S = require('./server/state');   // live values: S.registry, S.procStats, S.state, S.stateJSON
 const { readRegistry, pollProcs, tick, transcriptSummary, subagentsOf } = S;
@@ -170,7 +170,7 @@ const server = http.createServer((req, res) => {
     return;
   }
   // Your GitHub repos, for THE ARCHIVE. Private ones included, so: our own Host, never a TV, and no cross-site fetches.
-  const repo = url.pathname.match(/^\/api\/repos(?:\/([\w.-]{1,100})\/([\w.-]{1,100})(?:\/(tree|blob))?)?$/);
+  const repo = url.pathname.match(/^\/api\/repos(?:\/([\w.-]{1,100})\/([\w.-]{1,100})(?:\/(tree|blob|raw))?)?$/);
   if (repo) {
     const ua = req.headers['user-agent'] || '', reply = (code, o) => { res.writeHead(code, { 'content-type': 'application/json', 'cache-control': 'no-store' }); res.end(JSON.stringify(o)); };
     if (req.method !== 'GET') return reply(405, { error: 'GET only' });
@@ -179,6 +179,18 @@ const server = http.createServer((req, res) => {
     const ref = url.searchParams.get('ref') || '', file = url.searchParams.get('path') || '';
     if (repo[3] === 'blob' && (!/^[0-9a-f]{40}$/i.test(ref) || !file || file.length > 1024 || file.split('/').some((x) => !x || x === '.' || x === '..'))) return reply(400, { error: 'bad path or ref' });
     if (repo[3] === 'tree') { const r = treeJob(repo[1], repo[2]); return reply(r.status, r.body); }
+    // A README's image (raw): only an image file's name, and only its bytes if they are one; served so that, opened on its
+    // own, an SVG can't run anything. ?ref= for one on another branch (a README's github.com/…/raw/<branch>/… link); (sandboxed, no scripts, never sniffed as something else).
+    if (repo[3] === 'raw') {
+      if (!file || file.length > 1024 || file.split('/').some((x) => !x || x === '.' || x === '..') || !/\.(png|jpe?g|gif|webp|svg)$/i.test(file)
+        || (ref && !/^[\w.\/-]{1,100}$/.test(ref)) || ref.split('/').includes('..')) return reply(400, { error: 'bad path or ref' });
+      repoRaw(repo[1], repo[2], file, ref).then(({ type, buf }) => {
+        res.writeHead(200, { 'content-type': type, 'content-length': buf.length, 'cache-control': 'private, max-age=600', 'x-content-type-options': 'nosniff',
+          'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; sandbox", 'cross-origin-resource-policy': 'same-origin' });
+        res.end(buf);
+      }, (e) => reply(e.status || (e.signin ? 401 : 502), { error: e.message, signin: !!e.signin }));
+      return;
+    }
     (repo[3] === 'blob' ? repoBlob(repo[1], repo[2], ref, file) : repo[1] ? repoDetail(repo[1], repo[2]) : listRepos()).then((o) => reply(200, o), (e) => reply(e.signin ? 401 : 502, { error: e.message, signin: !!e.signin }));
     return;
   }

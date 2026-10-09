@@ -695,6 +695,12 @@ export function install(ctx) {
   const pageEl = document.createElement('div');
   pageEl.className = 'of-page';
   hud.appendChild(pageEl);
+  pageEl.addEventListener('error', (e) => {   // a broken image: its alt text instead
+    const im = e.target;
+    if (im.tagName !== 'IMG') return;
+    const span = document.createElement('span'); span.className = 'ia'; span.textContent = im.alt ? `[${im.alt}]` : '';
+    im.replaceWith(span);
+  }, true);
   style.textContent += `
     .of-hud .of-fade { position: absolute; inset: 0; overflow: hidden; display: none; pointer-events: none; }
     .of-hud .of-fade.on { display: block !important; }
@@ -726,6 +732,7 @@ export function install(ctx) {
     .of-page .md { padding: 0 24px; font: 14px/1.6 system-ui, sans-serif; }
     .of-page .md h2, .of-page .md h3, .of-page .md h4, .of-page .md h5, .of-page .md h6, .of-page .md h7 { color: #ffd58f; font-size: 16px; margin: 16px 0 6px; } .of-page .md h2 { font-size: 21px; }
     .of-page .md pre { background: #0b0805; padding: 8px 10px; overflow-x: auto; font: 12px/1.45 ${MONO}; } .of-page .md code { background: #2a2014; padding: 0 3px; font-family: ${MONO}; }
+    .of-page .md img { max-width: 100%; height: auto; vertical-align: middle; } .of-page .md .ia { opacity: .6; font-style: italic; }
     .of-page .md p, .of-page .md ul, .of-page .md ol, .of-page .md blockquote { margin: 0 0 10px; overflow-wrap: anywhere; } .of-page .md .tr { white-space: pre; font: 12px ${MONO}; }
     .of-page a { color: #ffc46b; } .of-page .n { color: #a8946c; font-style: italic; padding: 0 18px; }
     .of-page .btns { display: flex; gap: 8px; justify-content: flex-end; padding: 10px 14px; border-top: 1px solid #3a2e1c; }
@@ -776,7 +783,7 @@ export function install(ctx) {
     if (!r) body = '<p class="n">Taking it off the shelf…</p>';
     else if (r.error) body = `<p class="n">Couldn’t read it: ${s(r.error)}</p>`;
     else if (r.text == null) body = `<p class="n">Nothing to read here: it’s ${s(r.why)}.</p>`;
-    else if (/\.(md|markdown)$/i.test(p)) body = `<div class="md">${readmeHtml(r.text, T.repo.url, c.sha)}</div>`;
+    else if (/\.(md|markdown)$/i.test(p)) body = `<div class="md">${readmeHtml(r.text, T.repo.url, c.sha, p.split('/').slice(0, -1).join('/'))}</div>`;   // (its images: the default branch's)
     else body = `<pre class="code">${r.text.replace(/\n$/, '').split('\n').map((l) => `<span>${s(l) ||
       ' '}</span>`).join('')}</pre>${r.cut ? '<p class="n">…and on (cut short here).</p>' : ''}`;
     const url = `${T.repo.url}/blob/${c.sha}/${p.split('/').map(encodeURIComponent).join('/')}`;
