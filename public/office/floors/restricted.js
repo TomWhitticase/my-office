@@ -7,16 +7,18 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { clamp, FONT, LIFT, makeCanvas, MARKER, rng } from '../util.js';
 import { MONO } from '../painters.js';
+import { makeSound } from './restricted-sound.js';
+import { installStory } from './restricted-story.js';
 
 const N = -3, CODE = '1408', SAVED = 'officeRestricted';   // localStorage: the code's been entered here before
 // The grid: cells of C metres, CH x CH to a chunk; walls on the cells' edges. Cell (i, j) is x GX + i C .. + C,
-// z GZ + j C .. + C in the floor's own space (the car at z = 0): the lift fills cell (-1, 0), an alcove open to the west,
-// and (-2, 0) is the landing in front of it. Past LIM cells out the rooms simply stop.
-const C = 3.2, CH = 4, CW = C * CH, H = 2.75, T = 0.16, LIM = 40;
+// z GZ + j C .. + C in the floor's own space (the car at z = 0): the lift fills cell (-1, 0), an alcove at the end of a
+// long corridor running west. Past LIM cells out the rooms simply stop.
+const C = 3.2, CH = 4, CW = C * CH, H = 2.75, T = 0.16, LIM = 56;
 const GX = LIFT.x + 2.6, GZ = -C / 2;
 const LOAD = 30, DROP = 42;   // metres from you to a chunk's edge: built inside LOAD, dropped past DROP
 const WP = 0.8;               // the wallpaper's repeat, metres
-const OPEN = 0, SOLID = 1, DOORWAY = 2, WIDE = 3, STUB = 4, AJAR = 5, CENTRED = 6;
+const OPEN = 0, SOLID = 1, DOORWAY = 2, WIDE = 3, AJAR = 5;
 const NLIGHTS = 6;
 
 // A hash of three integers to [0, 1): the whole layout comes from it.
@@ -26,25 +28,69 @@ function h3(a, b, c) {
   return (h >>> 0) / 4294967296;
 }
 const cellOk = (i, j) => Math.abs(i) <= LIM && Math.abs(j) <= LIM;
-// Halls (few walls, pillars), warrens (many) and the rest, in patches of 5 x 5 cells; now and then a patch of dead lights.
-const zone = (i, j) => h3(Math.floor(i / 5), Math.floor(j / 5), 11);
 const darkPatch = (i, j) => h3(Math.floor(i / 4), Math.floor(j / 4), 77) < 0.1;
+// Blocks of B x B cells (19 m), each one thing: a pillared hall, a big empty room (or two), a block crossed by a long
+// corridor (lined up with its neighbours', so they run on for blocks), or a few narrow strips with dead ends. Blocks
+// meet in a wall with a doorway or two in it, or none at all between two halls. The lift's block is a corridor, so you
+// step out into one. Block (bi, bj) is cells bi B .. + B - 1 and bj B - 2 .. + B - 3 (so the lift's row is its third).
+const B = 6, JOFF = 2;
+const blocks = new Map();
+function block(bi, bj) {
+  const k = `${bi},${bj}`;
+  let b = blocks.get(k);
+  if (b) return b;
+  const lift = bj === 0 && bi >= -3 && bi <= -1;   // the first 57 m west from the lift: one long corridor
+  const r = h3(bi, bj, 40), along = lift || h3(bi, bj, 41) < 0.6 ? 'x' : 'z';
+  const type = lift ? 'corr' : r < 0.16 ? 'hall' : r < 0.55 ? 'room' : r < 0.87 ? 'corr' : 'strips';
+  b = { type, along,
+    // a corridor's row (along x) is shared by every block in its row of blocks, its column (along z) likewise
+    line: along === 'x' ? (bj === 0 ? JOFF : 1 + Math.floor(h3(0, bj, 42) * 4)) : 1 + Math.floor(h3(bi, 0, 43) * 4),
+    split: type === 'room' && h3(bi, bj, 44) < 0.45 ? 2 + Math.floor(h3(bi, bj, 45) * 3) : 0 };
+  blocks.set(k, b);
+  return b;
+}
+const bOf = (i, j) => [Math.floor(i / B), Math.floor((j + JOFF) / B)];
 // The edge on the west (v) or south (h) side of cell (i, j).
 function edgeType(dir, i, j) {
   const [ai, aj] = dir === 'v' ? [i - 1, j] : [i, j - 1];
   const a = cellOk(ai, aj), b = cellOk(i, j);
   if (!a && !b) return OPEN;
   if (!a || !b) return SOLID;
-  if (dir === 'v' && j === 0 && i === -1) return OPEN;      // the alcove's mouth
   if (dir === 'v' && j === 0 && i === 0) return SOLID;      // behind the lift
-  if (dir === 'v' && j === 0 && i === -2) return CENTRED;   // the landing's far wall
   if (dir === 'h' && i === -1 && (j === 0 || j === 1)) return SOLID;   // the alcove's sides
-  const r = h3(i, j, dir === 'v' ? 1 : 2), z = zone(i, j);
-  const p = z < 0.2 ? [0.06, 0.02, 0.05, 0.06, 0] : z > 0.8 ? [0.4, 0.24, 0.03, 0.05, 0.02] : [0.22, 0.15, 0.07, 0.08, 0.015];
-  let acc = 0;
-  for (let k = 0; k < p.length; k++) if (r < (acc += p[k])) return [SOLID, DOORWAY, WIDE, STUB, AJAR][k];
-  return OPEN;
+  const [pi, pj] = bOf(ai, aj), [qi, qj] = bOf(i, j), P = block(pi, pj), Q = block(qi, qj);
+  const li = i - qi * B, lj = j + JOFF - qj * B;   // the + side cell, in its block
+  const door = (d) => (d && h3(i, j, 6) < 0.1 ? AJAR : d);
+  if (pi === qi && pj === qj) {   // inside a block
+    const along = dir === 'v' ? 'z' : 'x', at = dir === 'v' ? li : lj, pos = dir === 'v' ? lj : li, salt = dir === 'v' ? 46 : 47;
+    if (Q.type === 'hall') return OPEN;
+    if (Q.type === 'room') {
+      if (!Q.split || at !== Q.split || (Q.along === 'x') !== (dir === 'h')) return OPEN;
+      return pos === Math.floor(h3(qi, qj, 48) * B) ? door(DOORWAY) : SOLID;
+    }
+    if (Q.along !== along) return OPEN;
+    if (Q.type === 'corr') {
+      if (at !== Q.line && at !== Q.line + 1) return OPEN;
+      // a doorway or none on each side, never in the stretch by the lift (its sign)
+      const side = at === Q.line ? 0 : 1, d = Math.floor(h3(qi, qj, salt + side * 2) * B * 1.6);
+      return pos === d && !(qi === -1 && qj === 0 && pos >= 3) ? door(DOORWAY) : SOLID;
+    }
+    if (at !== 2 && at !== 4) return OPEN;   // strips: two walls, a doorway in each
+    return pos === Math.floor(h3(qi, qj, salt + at) * B) ? door(DOORWAY) : SOLID;
+  }
+  // between blocks: the corridors run through; halls open into each other; otherwise a wall with a doorway or two
+  const along = dir === 'v' ? 'x' : 'z', cross = dir === 'v' ? j : i;
+  for (const [Kb, ki, kj] of [[P, pi, pj], [Q, qi, qj]]) {
+    if (Kb.type !== 'corr' || Kb.along !== along) continue;
+    const base = along === 'x' ? kj * B - JOFF : ki * B;
+    if (cross - base === Kb.line) return OPEN;
+  }
+  if (P.type === 'hall' && Q.type === 'hall') return OPEN;
+  const pos = dir === 'v' ? lj : li, sa = dir === 'v' ? 50 : 54, hall = P.type === 'hall' || Q.type === 'hall';
+  if (pos === Math.floor(h3(qi, qj, sa) * B) || (h3(qi, qj, sa + 2) < 0.3 && pos === Math.floor(h3(qi, qj, sa + 1) * B))) return hall ? WIDE : door(DOORWAY);
+  return SOLID;
 }
+const isHall = (i, j) => block(...bOf(i, j)).type === 'hall';
 
 /** @param {import('../ctx.js').OfficeCtx} ctx */
 export function install(ctx) {
@@ -59,7 +105,7 @@ export function install(ctx) {
 function build(ctx) {
   const { scene, liftShaft, addFloor, CAR, hitBox, camera, mapCtx, hud, style, FLOORS, floorName } = ctx;
   const restr = { n: N, label: 'RESTRICTED', title: 'Restricted Level', unlisted: true, ride: 9, on: false, composer: null,
-    colliders: [], hits: [], chunks: new Map(), z0: 0, sound: { kind: 'restricted' } };
+    colliders: [], hits: [], chunks: new Map(), z0: 0, sound: { kind: 'restricted', steps: true } };   // steps: it plays your own (on the wet carpet)
   const S = restr.scene = new THREE.Scene(), root = restr.root = new THREE.Group();
   const murk = new THREE.Color('#1f1a0b');
   S.background = murk; S.fog = new THREE.Fog(murk, 3, 30);
@@ -101,13 +147,14 @@ function build(ctx) {
   for (let k = 0; k < 4; k++) { cc.fillStyle = `rgba(150,128,70,${R() * 0.12})`; cc.fillRect((k % 2) * 128, Math.floor(k / 2) * 128, 128, 128); }
   cc.fillStyle = '#9d9474'; for (const p of [0, 128]) { cc.fillRect(p, 0, 3, 256); cc.fillRect(0, p, 256, 3); }   // the grid
   ceil.tex.wrapS = ceil.tex.wrapT = THREE.RepeatWrapping; ceil.tex.needsUpdate = true;
-  const PLANE = 90;
+  const PLANE = 96;   // carpet and ceiling: big enough for the fog, and moved with you (a whole 4.8 m tile at a time, see fx)
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(PLANE, PLANE).rotateX(-Math.PI / 2),
     new THREE.MeshStandardMaterial({ map: carpet.tex, roughness: 1, color: '#d8ccb0' }));
   carpet.tex.repeat.set(PLANE / 2.4, PLANE / 2.4);
   const lid = new THREE.Mesh(new THREE.PlaneGeometry(PLANE, PLANE).rotateX(Math.PI / 2), new THREE.MeshStandardMaterial({ map: ceil.tex, roughness: 0.95 }));
   ceil.tex.repeat.set(PLANE / 1.2, PLANE / 1.2); lid.position.y = H;
   root.add(floor, lid);
+  restr.planes = [floor, lid];
   // Stains: one atlas, thirds for a wall's drips, a ring on a ceiling tile and a damp patch in the carpet.
   const st = makeCanvas(768, 256), sc = st.ctx;
   for (let k = 0; k < 26; k++) {   // drips from the top
@@ -147,7 +194,7 @@ function build(ctx) {
     c.fillStyle = 'rgba(150,128,54,.5)'; for (let k = 0; k < 600; k++) c.fillRect(R() * 512, R() * 256, 2, 2);   // the stencil's worn through
     sign.tex.needsUpdate = true;
     const m = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.5), new THREE.MeshStandardMaterial({ map: sign.tex, transparent: true, roughness: 0.9, opacity: 0.9 }));
-    m.position.set(GX - 2 * C + T / 2 + 0.003, 1.65, 1.02); m.rotation.y = Math.PI / 2; root.add(m);
+    m.position.set(GX - 1.5 * C, 1.65, GZ + C - T / 2 - 0.003); m.rotation.y = Math.PI; root.add(m);   // on the corridor's wall, by the lift
   }
 
   // ----- a chunk: its walls, ceiling lights, stains and the odd thing in a room -----
@@ -175,7 +222,12 @@ function build(ctx) {
     list.push(b.translate(x, y, z));
   }
   function buildChunk(ci, cj) {
-    const walls = [], decor = [], stains = [], signs = [], lit = [], flick = [], cols = [], panels = [], hits = [];
+    const walls = [], decor = [], stains = [], signs = [], lit = [], flick = [], cols = [], panels = [], hits = [], phones = [];
+    const stainsAt = (i, j, cx, cz) => {   // a ring on the ceiling, or a damp patch in the carpet
+      const r = h3(i, j, 10);
+      if (r > 0.04 && r < 0.1) decal(stains, 1, cx + (h3(i, j, 14) - 0.5) * 1.6, H - 0.004, cz + (h3(i, j, 15) - 0.5) * 1.6, 0.8 + r * 10, 0.8 + r * 10, 'down');
+      else if (r > 0.04 && r < 0.16) decal(stains, 2, cx + (h3(i, j, 16) - 0.5) * 1.4, 0.004, cz + (h3(i, j, 17) - 0.5) * 1.4, 1 + r * 9, 1 + r * 8, 'up');
+    };
     const X = (i) => GX + i * C, Z = (j) => GZ + j * C;
     const solidSlab = (x0, x1, z0, z1) => { slab(walls, x0, x1, z0, z1); cols.push({ minX: x0, maxX: x1, minZ: z0, maxZ: z1 }); };
     // An edge: `fixed` is its x (v) or z (h), it runs from a to b along the other axis.
@@ -197,9 +249,8 @@ function build(ctx) {
         }
         return;
       }
-      if (t === STUB) { const len = C * (0.35 + 0.3 * r); if (h3(i, j, 5) < 0.5) seg(a1, a + len); else seg(b - len, b1); return; }
       const dw = t === WIDE ? 2.0 : 1.0, dh = t === WIDE ? 2.35 : 2.1;
-      const d = t === CENTRED ? a + C / 2 : t === WIDE ? a + C / 2 + (r - 0.5) * 0.6 : a + 0.9 + r * (C - 1.8);
+      const d = t === WIDE ? a + C / 2 + (r - 0.5) * 0.6 : a + 0.9 + r * (C - 1.8);
       seg(a1, d - dw / 2); seg(d + dw / 2, b1); seg(d - dw / 2, d + dw / 2, dh, H);
       if (t === AJAR) {   // a door standing open, as if someone just went through
         const side = h3(i, j, 6) < 0.5 ? -1 : 1, th = 1.42, lw = dw - 0.04;
@@ -214,13 +265,16 @@ function build(ctx) {
     const i0 = ci * CH, j0 = cj * CH;
     for (let i = i0; i < i0 + CH; i++) for (let j = j0; j < j0 + CH; j++) {
       edge('v', i, j); edge('h', i, j);
-      // A post where walls meet (and in a hall, now and then a pillar where none do).
+      // A post where walls meet, and in a hall a square pillar every other corner (6.4 m apart).
       const any = [edgeType('v', i, j - 1), edgeType('v', i, j), edgeType('h', i - 1, j), edgeType('h', i, j)].some((t) => t !== OPEN);
       if (any) solidSlab(X(i) - T / 2, X(i) + T / 2, Z(j) - T / 2, Z(j) + T / 2);
-      else if (zone(i, j) < 0.2 && h3(i, j, 7) < 0.35 && cellOk(i, j)) solidSlab(X(i) - 0.25, X(i) + 0.25, Z(j) - 0.25, Z(j) + 0.25);
+      else if (!(i & 1) && !(j & 1) && cellOk(i, j) && isHall(i, j) && isHall(i - 1, j - 1) && isHall(i - 1, j) && isHall(i, j - 1)) {
+        solidSlab(X(i) - 0.32, X(i) + 0.32, Z(j) - 0.32, Z(j) + 0.32);
+      }
       if (!cellOk(i, j) || (i === -1 && j === 0)) continue;
-      // The light: one panel a room, a few dead, some flickering (the landing's always is).
+      // The light: a panel a cell (every other one in a hall), a few dead, some flickering (the one outside the lift always is).
       const cx = X(i) + C / 2, cz = Z(j) + C / 2, along = h3(i, j, 8) < 0.5, pr = h3(i, j, 9);
+      if (isHall(i, j) && (i + j) & 1) { stainsAt(i, j, cx, cz); continue; }
       const kind = i === -2 && j === 0 ? 1 : darkPatch(i, j) ? (pr < 0.85 ? 2 : 1) : pr < 0.06 ? 2 : pr < 0.15 ? 1 : 0;
       const [pw, pd] = along ? [1.2, 0.6] : [0.6, 1.2];
       part(decor, pw + 0.08, 0.02, pd + 0.08, 0, H - 0.01, 0, '#b9b19a', 0, cx, cz);
@@ -235,25 +289,26 @@ function build(ctx) {
         if (d === 'v') return { x: f + (k ? -off : off), z: cz, yaw: k ? -Math.PI / 2 : Math.PI / 2 };
         return { x: cx, z: f + (k === 1 ? off : -off), yaw: k === 1 ? 0 : Math.PI };
       };
-      if (r < 0.022 && wallSide) {   // a chair, facing the wall
+      if (r < 0.011 && wallSide) {   // a chair, facing the wall
         const { x, z, yaw } = onWall(0.7), y2 = yaw + Math.PI;
         part(decor, 0.46, 0.07, 0.46, 0, 0.47, 0, '#3a3a3d', y2, x, z); part(decor, 0.44, 0.5, 0.06, 0, 0.8, -0.22, '#3a3a3d', y2, x, z);
         part(decor, 0.05, 0.38, 0.05, 0, 0.25, 0, '#1c1c1e', y2, x, z);
         part(decor, 0.6, 0.04, 0.06, 0, 0.05, 0, '#1c1c1e', y2, x, z); part(decor, 0.06, 0.04, 0.6, 0, 0.05, 0, '#1c1c1e', y2, x, z);
         cols.push({ minX: x - 0.3, maxX: x + 0.3, minZ: z - 0.3, maxZ: z + 0.3 });
         hits.push(hitBox(root, 0.6, 1.1, 0.6, x, 0.55, z, { action: 'backrooms', reach: 3, info: '<b>A chair</b><div class="k">Facing the wall. Someone was sitting here.</div>' }));
-      } else if (r < 0.034) {   // an exit sign, hung from the ceiling, pointing nowhere in particular
+      } else if (r < 0.017) {   // an exit sign, hung from the ceiling, pointing nowhere in particular
         const yaw = Math.floor(h3(i, j, 12) * 4) * Math.PI / 2, x = cx + 0.8, z = cz;
         part(decor, 0.38, 0.16, 0.05, 0, H - 0.33, 0, '#e8e6dc', yaw, x, z);
         for (const s of [-1, 1]) part(decor, 0.012, 0.17, 0.012, s * 0.12, H - 0.165, 0, '#8f8b80', yaw, x, z);
         for (const s of [-1, 1]) signs.push(new THREE.PlaneGeometry(0.34, 0.13).rotateY(s < 0 ? Math.PI : 0).translate(0, H - 0.33, s * 0.0265).rotateY(yaw).translate(x, 0, z));
-      } else if (r < 0.045 && wallSide) {   // a payphone
+      } else if (r < 0.023 && wallSide) {   // a payphone
         const { x, z, yaw } = onWall(T / 2);
+        phones.push({ x, z });
         part(decor, 0.3, 0.55, 0.13, 0, 1.35, 0.065, '#7d8187', yaw, x, z); part(decor, 0.42, 0.04, 0.3, 0, 1.66, 0.15, '#6b6f75', yaw, x, z);
         part(decor, 0.18, 0.18, 0.012, 0.04, 1.28, 0.135, '#24262a', yaw, x, z); part(decor, 0.06, 0.016, 0.012, 0.05, 1.52, 0.135, '#c9ccd1', yaw, x, z);
         part(decor, 0.065, 0.25, 0.06, -0.11, 1.4, 0.17, '#1b1c1e', yaw, x, z); part(decor, 0.012, 0.3, 0.012, -0.11, 1.12, 0.17, '#111', yaw, x, z);
         hits.push(hitBox(root, 0.5, 0.8, 0.5, x, 1.35, z, { action: 'backrooms', reach: 3, info: '<b>A payphone</b><div class="k">No dial tone. The handset is warm.</div>' }));
-      } else if (r < 0.052) {   // a door in a frame in the middle of the room, going nowhere
+      } else if (r < 0.027) {   // a door in a frame in the middle of the room, going nowhere
         const yaw = h3(i, j, 13) < 0.5 ? 0 : Math.PI / 2;
         for (const s of [-1, 1]) part(decor, 0.08, 2.18, 0.14, s * 0.5, 1.09, 0, '#d9d2b8', yaw, cx, cz);
         part(decor, 1.08, 0.08, 0.14, 0, 2.18, 0, '#d9d2b8', yaw, cx, cz); part(decor, 0.92, 2.12, 0.045, 0, 1.06, 0, '#7a5a3a', yaw, cx, cz);
@@ -262,8 +317,7 @@ function build(ctx) {
         cols.push({ minX: cx - ex2, maxX: cx + ex2, minZ: cz - ez, maxZ: cz + ez });
         hits.push(hitBox(root, yaw ? 0.2 : 1.1, 2.2, yaw ? 1.1 : 0.2, cx, 1.1, cz,
           { action: 'backrooms', reach: 3, info: '<b>A door</b><div class="k">Locked. From both sides.</div>' }));
-      } else if (r < 0.13) decal(stains, 1, cx + (h3(i, j, 14) - 0.5) * 1.6, H - 0.004, cz + (h3(i, j, 15) - 0.5) * 1.6, 0.8 + r * 6, 0.8 + r * 6, 'down');
-      else if (r < 0.2) decal(stains, 2, cx + (h3(i, j, 16) - 0.5) * 1.4, 0.004, cz + (h3(i, j, 17) - 0.5) * 1.4, 1 + r * 7, 1 + r * 6, 'up');
+      } else stainsAt(i, j, cx, cz);
     }
     const grp = new THREE.Group(), add = (list, m) => { if (!list.length) return null; const mesh = new THREE.Mesh(mergeGeometries(list), m);
       for (const b of list) b.dispose(); grp.add(mesh); return mesh; };
@@ -273,7 +327,7 @@ function build(ctx) {
     const stainMesh = add(stains, stainM);
     if (stainMesh) stainMesh.renderOrder = 1;
     root.add(grp);
-    return { ci, cj, grp, cols, panels, hits: wallMesh ? [wallMesh, ...hits] : hits, flickM, seed: h3(ci, cj, 20) * 100, v: 1 };
+    return { ci, cj, grp, cols, panels, phones, hits: wallMesh ? [wallMesh, ...hits] : hits, flickM, seed: h3(ci, cj, 20) * 100, v: 1 };
   }
   function dropChunk(k) {
     const ch = restr.chunks.get(k);
@@ -315,6 +369,8 @@ function build(ctx) {
       for (const b of ch.cols) restr.colliders.push({ minX: b.minX, maxX: b.maxX, minZ: b.minZ + z0, maxZ: b.maxZ + z0 });
       restr.hits.push(...ch.hits);
     }
+    for (const b of story?.cols() || []) restr.colliders.push({ minX: b.minX, maxX: b.maxX, minZ: b.minZ + z0, maxZ: b.maxZ + z0 });
+    restr.hits.push(...story?.hits() || []);
     lightAt = null;
   }
   // The point lights go to the nearest working panels, picked again when you move a few metres.
@@ -337,6 +393,7 @@ function build(ctx) {
   const local = () => ({ x: camera.position.x, z: camera.position.z - restr.z0 });
   restr.enter = (z) => {
     restr.z0 = z; root.position.z = z;
+    story.enter();
     stream(LIFT.x - 3, 0, true); syncChunks();
     hud.classList.add('of-restricted');
   };
@@ -345,6 +402,7 @@ function build(ctx) {
     blink.style.opacity = '0';
     if (restr.carLight) restr.carLight.emissiveIntensity = 1.6;
     keypad.close();
+    story.leave();
     sound.stop();
   };
   restr.bound = (p) => {
@@ -355,6 +413,7 @@ function build(ctx) {
     const { x, z } = local();
     stream(x, z, false);
     placeLights(x, z);
+    for (const m of restr.planes) m.position.set(Math.round(x / 4.8) * 4.8, m.position.y, Math.round(z / 4.8) * 4.8);
     for (const ch of restr.chunks.values()) {
       const v = flicker(t, ch.seed);
       if (v !== ch.v && v < 1 && chunkDist(ch.ci, ch.cj, x, z) < 4) sound.buzz(ch, x, z);
@@ -373,7 +432,8 @@ function build(ctx) {
     } else if (restr.carLight && restr.carLight.emissiveIntensity !== 1.6) {
       restr.carLight.emissiveIntensity = 1.6; blink.style.opacity = '0';
     }
-    sound.fx(dt, t, x, z, riding);
+    story.fx(dt, t, x, z, riding);
+    sound.fx(dt, t, x, z, riding, near);
   };
   // The car panel on the way down: buttons that swap places and labels that don't say anything.
   function glitchPanel(scr, t) {
@@ -446,6 +506,10 @@ function build(ctx) {
   `;
   const blink = document.createElement('div'); blink.className = 'of-blink'; hud.appendChild(blink);
   let known = false;   // entered this session (if localStorage can't keep it)
+  const sound = makeSound(ctx, restr);
+  restr.grid = { C, CH, H, T, X: (i) => GX + i * C, Z: (j) => GZ + j * C, edgeType, SOLID, cellOk, h3 };
+  restr.sync = syncChunks;
+  const story = restr.story = installStory(ctx, restr, sound);
   const keypad = makeKeypad();
   ctx.onFrame(() => { if (keypad.el.classList.contains('on') && ctx.mode !== 'keypad') keypad.close(); }, 175);   // the view left under it
   function makeKeypad() {
@@ -507,110 +571,6 @@ function build(ctx) {
     keypad.open();
     return false;
   };
-
-  // ----- sounds: the tubes' hum, a buzz when one stutters, the odd far-off thump, steps that stop when you stop, the lift -----
-  const sound = makeSound();
-  function makeSound() {
-    let A = null, B = null, loops = [], thumpAt = 0, dingAt = 0, walkT = 0, follow = null, last = null;
-    const at = (src, g, x, y, z, ref = 2) => {
-      const pan = A.ctx.createPanner();
-      pan.panningModel = 'HRTF'; pan.distanceModel = 'inverse'; pan.refDistance = ref; pan.rolloffFactor = 1.1;
-      pan.positionX.value = x; pan.positionY.value = y; pan.positionZ.value = z;
-      src.connect(g).connect(pan).connect(A.bus);
-      return pan;
-    };
-    function buffer(sec, fn, peak = 0.9) {
-      const SR = A.ctx.sampleRate, n = Math.ceil(sec * SR), b = A.ctx.createBuffer(1, n, SR), d = b.getChannelData(0);
-      let m = 0;
-      for (let k = 0; k < n; k++) { d[k] = fn(k / SR); m = Math.max(m, Math.abs(d[k])); }
-      for (let k = 0; k < n; k++) d[k] *= (m ? peak / m : 0) * Math.min(1, (n - k) / (SR * 0.005));
-      return b;
-    }
-    function ready() {
-      const a = ctx.sfx.audio;
-      if (!a || a.ctx.state !== 'running') return false;
-      if (A !== a) { A = a; B = null; loops = []; }
-      if (!B) {
-        const TAU = Math.PI * 2, nz = () => Math.random() * 2 - 1;
-        let lp = 0;
-        B = {
-          // Mains hum off the ballasts: 120 Hz and its harmonics, a little rough (2 s, a whole number of cycles, so it loops clean).
-          hum: buffer(2, (t) => Math.sin(TAU * 120 * t) + 0.45 * Math.sin(TAU * 240 * t + 0.4) + 0.2 * Math.sign(Math.sin(TAU * 120 * t)) * 0.4
-            + 0.12 * Math.sin(TAU * 360 * t) + 0.04 * nz()),
-          buzz: buffer(0.3, (t) => (Math.sign(Math.sin(TAU * 120 * t)) * 0.5 + (Math.random() < 0.02 ? nz() * 3 : nz() * 0.3)) * Math.exp(-t / 0.12)),
-          thump: buffer(1.2, (t) => { lp += (nz() - lp) * 0.02; return (Math.sin(TAU * 42 * t) * 0.8 + lp * 4) * Math.exp(-t / 0.25); }),
-          motor: buffer(2, (t) => 0.6 * Math.sin(TAU * 55 * t) + 0.3 * Math.sin(TAU * 110 * t) + 0.05 * nz()),
-          beep: buffer(0.06, (t) => Math.sin(TAU * 1900 * t) * Math.min(1, t / 0.003)),
-          deny: buffer(0.55, (t) => Math.sign(Math.sin(TAU * 92 * t)) * (t < 0.22 || t > 0.3 ? 1 : 0) * 0.6 + Math.sin(TAU * 184 * t) * 0.3),
-          ok: buffer(0.32, (t) => Math.sin(TAU * (t < 0.12 ? 1320 : 1760) * t) * (t < 0.1 || t > 0.14 ? 1 : 0)),
-        };
-      }
-      return true;
-    }
-    function shot(buf, x, y, z, gain, rate = 1, muffle = 0) {
-      const src = A.ctx.createBufferSource(), g = A.ctx.createGain();
-      src.buffer = buf; src.playbackRate.value = rate; g.gain.value = gain;
-      if (x === null) src.connect(g).connect(A.master);
-      else if (muffle) { const lp = A.ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = muffle; src.connect(lp); at(lp, g, x, y, z); }
-      else at(src, g, x, y, z);
-      src.onended = () => src.disconnect();
-      src.start();
-    }
-    function loop(buf, gain, x, y, z) {
-      const src = A.ctx.createBufferSource(), g = A.ctx.createGain();
-      src.buffer = buf; src.loop = true; g.gain.value = 0;
-      if (x === null) src.connect(g).connect(A.master); else at(src, g, x, y, z, 3);
-      g.gain.setTargetAtTime(gain, A.ctx.currentTime, 1.2);
-      src.start(); loops.push({ src, g });
-    }
-    return {
-      beep() { if (ready()) shot(B.beep, null, 0, 0, 0.08); },
-      denied() { if (ready()) shot(B.deny, null, 0, 0, 0.22); },
-      granted() { if (ready()) shot(B.ok, null, 0, 0, 0.12); },
-      buzz(ch, x, z) {
-        if (!ready()) return;
-        const p = ch.panels.filter((q) => q.kind === 1).sort((a, b) => Math.hypot(a.x - x, a.z - z) - Math.hypot(b.x - x, b.z - z))[0];
-        if (p && Math.hypot(p.x - x, p.z - z) < 9) shot(B.buzz, p.x, H - 0.1, p.z + restr.z0, 0.05, 0.95 + Math.random() * 0.1);
-      },
-      fx(dt, t, x, z, riding) {
-        if (!ready()) return;
-        if (!loops.length) {
-          loop(B.hum, 0.012, null, 0, 0, 0);
-          loop(B.motor, 0.05, LIFT.x + 1, 1.2, restr.z0);   // the lift, idling: you can follow it back
-        }
-        if (riding) return;
-        const lx = LIFT.x - x, lz = -z, far = Math.hypot(lx, lz);
-        // Thumps, far off through the walls.
-        if (t > thumpAt) {
-          if (thumpAt) { const a = Math.random() * Math.PI * 2, d = 14 + Math.random() * 8; shot(B.thump, camera.position.x + Math.cos(a) * d, 0.5, camera.position.z + Math.sin(a) * d, 0.5, 0.8 + Math.random() * 0.3, 300); }
-          thumpAt = t + 25 + Math.random() * 45;
-        }
-        // The lift's chime, now and then, if you've wandered off but not too far.
-        if (far > 7 && far < 24 && t > dingAt) { if (dingAt) ctx.sfx.ding({ x: LIFT.x, z: restr.z0 }, true); dingAt = t + 30 + Math.random() * 20; }
-        // Someone else's steps, somewhere behind you, while you walk; they stop a step or two after you do.
-        const p = camera.position, moved = last ? Math.hypot(p.x - last.x, p.z - last.z) / Math.max(dt, 1e-3) : 0;
-        last = { x: p.x, z: p.z };
-        const walking = moved > 1.2 && moved < 12, steps = ctx.sfx.buffers?.step;
-        walkT = walking ? walkT + dt : 0;
-        if (!follow && walkT > 4 && Math.random() < dt / 20 && steps) follow = { next: t + 0.3, left: Infinity, until: t + 6 + Math.random() * 8 };
-        if (follow) {
-          if (!walking && follow.left === Infinity) follow.left = 1 + Math.floor(Math.random() * 2);
-          if (walking && follow.left !== Infinity) follow.left = Infinity;
-          if (t > follow.next) {
-            const yaw = ctx.player.yaw, d = 8 + Math.random() * 2;   // behind you
-            shot(steps[Math.floor(Math.random() * steps.length)], p.x + Math.sin(yaw) * d, 0.05, p.z + Math.cos(yaw) * d, 0.09, 0.85 + Math.random() * 0.1, 900);
-            follow.next = t + 0.47 + Math.random() * 0.05;
-            if (follow.left !== Infinity && --follow.left <= 0) follow = null;
-            else if (t > follow.until && follow.left === Infinity) follow.left = 1;
-          }
-        }
-      },
-      stop() {
-        for (const { src, g } of loops) { g.gain.setTargetAtTime(0, A.ctx.currentTime, 0.2); src.stop(A.ctx.currentTime + 1); }
-        loops = []; follow = null; walkT = 0; last = null;
-      },
-    };
-  }
 
   ctx.action('backrooms', { hover: (h) => h.info });
   Object.assign(restr, { keypad, stream, h3, CODE });
