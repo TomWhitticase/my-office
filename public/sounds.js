@@ -561,7 +561,7 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos, roof 
     lastCam.copy(L);
     if (free && moved > 1.5 && moved < 15) {
       stepAcc += dt;
-      if (away !== 'tess' && stepAcc > (moved > 6 ? 0.3 : 0.42)) { stepAcc = 0; const soft = !away && onRug(L.x, L.z); play(pick(soft ? B.soft : B.step), L.x, 0.05, L.z - 0.01, soft ? 0.03 : 0.045, rnd(0.95, 1.1)); }
+      if (away !== 'tess' && !room?.steps && stepAcc > (moved > 6 ? 0.3 : 0.42)) { stepAcc = 0; const soft = !away && onRug(L.x, L.z); play(pick(soft ? B.soft : B.step), L.x, 0.05, L.z - 0.01, soft ? 0.03 : 0.045, rnd(0.95, 1.1)); }
     } else stepAcc = 0.3;
     // Door and blinds: a sound whenever their target changes (clicks here or anywhere else).
     if (!away && lastDoor !== null && door.to !== lastDoor) play(B.swish, doorPos.x, 1.1, doorPos.z, 0.4, door.to ? 1 : 0.9);
@@ -602,7 +602,8 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos, roof 
     pour(p) { if (!away) play(B?.pour, p.x, p.y, p.z, 0.45, rnd(0.96, 1.04)); },   // the drinks cabinet's decanter
     dart(p) { if (!away && B) play(pick(B.dart), p.x, p.y, p.z, 0.35, rnd(0.95, 1.05)); },
     slide(at = lift, mine) { if (!away || mine) play(B?.slide, at.x, 1.2, at.z, 0.22, rnd(0.95, 1.05)); },
-    // kind: 'roof' up top, or a floor's own sound { hums: [[x, y, z, gain]], clicks, relays: [[x, y, z]] } (the server hall);
+    // kind: 'roof' up top, or a floor's own sound { hums: [[x, y, z, gain]], clicks, relays: [[x, y, z]] } (the server hall;
+    // steps: true, it plays your footsteps itself);
     // none is the archive's vast quiet.
     setAway(on, kind) { away = on && (kind || true); room = on && typeof kind === 'object' ? kind : null; voidK = 1; applyAway(); }, hum: liftHum,
     // The archive: how far out into the void you are (0 in the entrance hall, 1 out in it), set each frame while you're there.

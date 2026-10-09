@@ -38,7 +38,7 @@ const CAMS = [
   { id: 'archive-hall', n: -2, name: 'Entrance hall', kind: 'wall', fov: 70, p: [7.45, 3.55, 3.25], wall: [7.04, 3.55, 3.45], at: [16, 0.6, -1.2], pan: 50 },
   // The restricted level (floors/restricted.js, about the car's z): there, but `dead`: never a picture, whatever the app says.
   { id: 'restricted-lift', n: -3, name: 'Lift landing', kind: 'dome', ceil: 2.75, p: [15.2, 2.7, 0], at: [18.6, 0.8, 0], dead: true },
-  { id: 'restricted-corridor', n: -3, name: 'Corridor', kind: 'wall', p: [13.82, 2.45, -1.05], wall: [14.1, 2.45, -1.2], at: [4, 0.6, 1], pan: 50, dead: true },
+  { id: 'restricted-corridor', n: -3, name: 'Corridor', kind: 'wall', p: [11.4, 2.45, -1.2], wall: [11.4, 2.45, -1.5], at: [0, 0.6, 0], pan: 50, dead: true },
 ];
 const LAYER = 3;   // the cameras' own bodies: the office's view sees them, the feeds don't (no lens in its own shot)
 const SLOT = 1;    // feeds refreshed per frame at most

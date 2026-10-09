@@ -190,6 +190,17 @@ export const POSES = [
     await stand(o, -10, z + 6, { x: -20, y: 1.6, z: z - 9 });
     await o.step(60);   // out of the car's light into the strip lights'
   }],
+  ['restricted-desk', async (o) => {   // Hale's desk, put in front of you (it's found by walking, normally), the coffee still steaming
+    await o.eval(() => window.__office.ctx.restr.story.force('desk'));
+    const it = await o.eval(() => { const r = window.__office.ctx.restr, it = r.story.st.items.find((x) => x.beat.id === 'desk');
+      return { x: it.at.x, z: it.at.z + r.z0, ry: it.g.rotation.y }; });
+    await stand(o, it.x + Math.sin(it.ry) * 2.4 + Math.cos(it.ry) * 0.6, it.z + Math.cos(it.ry) * 2.4 - Math.sin(it.ry) * 0.6, { x: it.x, y: 0.8, z: it.z });
+    await o.step(20);
+  }],
+  ['restricted-note', async (o) => {   // and one of Hale's notes, picked up
+    await o.eval(() => window.__office.ctx.restr.story.read('tally'));
+    await o.step(4);
+  }],
 ];
 
 // Compares two PNGs in the page: counts pixels where any channel differs by more than `tol`.

@@ -5511,7 +5511,8 @@
    "carless": false,
    "fly": false,
    "sound": {
-    "kind": "restricted"
+    "kind": "restricted",
+    "steps": true
    },
    "colliders": 0,
    "hits": 0,
@@ -5682,8 +5683,8 @@
     "liftcall": 1,
     "liftpanel": 1
    },
-   "ordered": "214941f9",
-   "sorted": "4765902d"
+   "ordered": "5b521a76",
+   "sorted": "157491f6"
   }
  }
 }
