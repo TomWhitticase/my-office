@@ -1775,6 +1775,14 @@
    -1.571,
    1.5,
    50
+  ],
+  [
+   "Visitor’s chair",
+   -19.7,
+   13.4,
+   2.1,
+   1.2,
+   47
   ]
  ],
  "desks": [
@@ -5466,7 +5474,7 @@
     ]
    },
    "colliders": 0,
-   "hits": 87,
+   "hits": 98,
    "hooks": [
     "enter",
     "bound",
@@ -5613,24 +5621,25 @@
    "sorted": "bd2cf4a8"
   },
   "servers": {
-   "objects": 271,
+   "objects": 383,
    "types": {
     "Scene": 1,
     "HemisphereLight": 1,
     "DirectionalLight": 1,
-    "Group": 31,
+    "Group": 50,
     "Object3D": 1,
-    "Mesh": 233,
+    "Mesh": 326,
     "PerspectiveCamera": 3
    },
    "actions": {
-    "info": 28,
+    "info": 38,
+    "nocDoor": 11,
     "liftcall": 1,
     "liftpanel": 1,
     "john": 51
    },
-   "ordered": "b0234589",
-   "sorted": "2435ad31"
+   "ordered": "435999ad",
+   "sorted": "cadbb389"
   },
   "archive": {
    "objects": 212,

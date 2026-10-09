@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { escapeHtml } from '../../chat.js';
-import { box, clamp, cyl, dash, ease, F, fit, FONT, LIFT, makeCanvas, makeScreen, mat, mergedBoxes, rng, ROOM } from '../util.js';
+import { box, clamp, cyl, dash, ease, F, fit, FONT, LIFT, makeCanvas, makeScreen, mat, mergedBoxes, rng, ROOM, SEATED_EYE } from '../util.js';
 import { MONO } from '../painters.js';
 import { G, Person } from '../people.js';
 
@@ -32,7 +32,7 @@ export function install(ctx) {
   const RACKX = BLOCKS[0].x, AISLES = PODS.map((k) => k * POD), SLOTS = 54;
   const NOC = { x0: SV.x0, x1: -17, z0: 4, z1: SV.z1, h: 3 }, STAGE = { x0: SV.x0, x1: -14, z0: -17.5, z1: -2 };
   const srv = { n: 47, label: 'SERVERS', title: 'Server Hall', blurb: 'Server hall · John, sysadmin', on: false, composer: null, colliders: [], fixed: [], hits: [], slots: [], m: null,
-    hist: { cpu: [], mem: [], load: [], sess: [], net: [] }, polledAt: 0, tick: 0, paintAt: 0, nocAt: 0, doors: [], aisleDoors: [], john: null };
+    hist: { cpu: [], mem: [], load: [], sess: [], net: [], temp: [] }, polledAt: 0, tick: 0, paintAt: 0, nocAt: 0, doors: [], aisleDoors: [], john: null };
   // John: a Person with grey hair in a ponytail, glasses, a grey beard, a flannel shirt and a bit of a belly, at his desk
   // (J: the desk's x, z). His `mood` (type, sip, lean, read) is set in srv.fx; he turns his head to you while you talk.
   function makeJohn(parent, J) {
@@ -78,6 +78,30 @@ export function install(ctx) {
   }
   const lbl = (c, text, x, y, font, color, align = 'left') =>
     { c.font = font; c.fillStyle = color; c.textAlign = align; c.fillText(text, x, y); c.textAlign = 'left'; };
+  // This machine's temperatures, power and links as the hall shows them (srv.m: the latest /api/machine). `main` is the CPU die's
+  // when macmon is there to read it, else the battery's. Colours: die under 65 / 85 °C, battery under 35 / 40 °C.
+  const THERM_COL = { nominal: '#5dff9b', fair: '#ffd166', serious: '#ffb347', critical: '#ff6b5b' };
+  const temps = () => { const cpu = srv.m?.sensors?.cpuTempC ?? null, bat = srv.m?.battery?.tempC ?? null;
+    return { cpu, gpu: srv.m?.sensors?.gpuTempC ?? null, bat, main: cpu ?? bat }; };
+  const tempCol = (t, die) => (t == null ? '#8a93a0' : t < (die ? 65 : 35) ? '#5dff9b' : t < (die ? 85 : 40) ? '#ffb347' : '#ff6b5b');
+  const tempLine = () => { const T = temps(), th = srv.m?.thermal;
+    return [T.cpu != null && `CPU ${T.cpu} °C`, T.gpu != null && `GPU ${T.gpu} °C`, T.bat != null && `battery ${T.bat.toFixed(1)} °C`,
+      th && `thermal ${th.level}`].filter(Boolean).join(' · '); };
+  const battLine = () => { const b = srv.m?.battery;
+    return b?.tempC != null ? `<br>${b.tempC.toFixed(1)} °C · health ${b.health ?? '?'}% · ${b.cycles ?? '?'} cycles · ${b.watts || 0} W` +
+      `${b.adapterW ? ` · ${b.adapterW} W adapter` : ''}${b.minutes != null ? ` · ${hm(b.minutes)} ${b.charging ? 'to full' : 'left'}` : ''}` : ''; };
+  const sensLine = () => { const S = srv.m?.sensors;
+    if (!S?.source) return escapeHtml(S?.hint || 'No sensor feed');
+    return [S.cpuTempC != null && `CPU ${S.cpuTempC} °C`, S.gpuTempC != null && `GPU ${S.gpuTempC} °C`, S.cpuW != null && `CPU ${S.cpuW} W`,
+      S.gpuW != null && `GPU ${S.gpuW} W`, S.sysW != null && `system ${S.sysW} W`, S.gpuPct != null && `GPU ${S.gpuPct}% busy`,
+      ...(S.fans || []).map((f, i) => `fan ${i + 1} ${f.rpm} rpm`)].filter(Boolean).join(' · ') + ` <span style="opacity:.6">(${escapeHtml(S.source)})</span>`; };
+  const hm = (min) => (min >= 60 ? `${Math.floor(min / 60)}h ${String(min % 60).padStart(2, '0')}m` : `${min}m`);
+  const rateOf = (b) => (b > 2 ** 20 ? `${(b / 2 ** 20).toFixed(1)} MB/s` : `${(b / 1024).toFixed(0)} KB/s`);
+  const ifLine = () => { const m = srv.m;
+    return (m?.ifaces || []).map((v) => `<br>${escapeHtml(v.name)} ↓ ${rateOf(v.rx)} ↑ ${rateOf(v.tx)}`).join('') +
+      (m?.wifi ? `<br>Wi-Fi ${m.wifi.signal} dBm (noise ${m.wifi.noise}) · ch ${escapeHtml(m.wifi.channel)} · ${m.wifi.rate ?? '?'} Mbps` : ''); };
+  const thermoInfo = () => `<b>Thermostat</b><div class="m">Wired to the laptop, not the room. ${tempLine() || 'No reading yet'}${
+    srv.m?.sensors?.source ? '' : '<br>CPU/GPU: install macmon (brew install macmon) for die temperatures'}</div>`;
   {
     const SC = srv.scene = new THREE.Scene(), root = srv.root = new THREE.Group();
     SC.background = new THREE.Color('#0d1117');
@@ -330,9 +354,14 @@ export function install(ctx) {
       lbl(c, fit(c, m()?.cpuModel || '', 200), 14, 52, `400 13px ${FONT}`, '#8a93a0');
       lbl(c, `CPU ${Math.round(cs.reduce((a, b) => a + b, 0) / (cs.length || 1))}%`, 14, 92, `700 26px ${MONO}`, '#5dff9b');
       lbl(c, `${cs.length || NC} cores`, 14, 116, `400 13px ${FONT}`, '#8a93a0');
+      const T = temps(), th = m()?.thermal?.level;   // the temperature LCD
+      c.fillStyle = '#0b1a10'; c.fillRect(14, 136, 206, 108); c.strokeStyle = '#3a3e44'; c.lineWidth = 3; c.strokeRect(14, 136, 206, 108);
+      lbl(c, T.cpu != null ? 'CPU DIE' : 'BATTERY', 24, 158, `700 14px ${MONO}`, '#3fbf74');
+      lbl(c, T.main != null ? `${T.main.toFixed(1)}°C` : '--.-°C', 24, 200, `700 36px ${MONO}`, tempCol(T.main, T.cpu != null));
+      lbl(c, `THERMAL ${(th || '?').toUpperCase()}`, 24, 230, `600 14px ${MONO}`, THERM_COL[th] || '#8a93a0');
     }, (p) => { for (let i = 0; i < Math.min(16, NC); i++) for (let j = 0; j < 12;
       j++) p(240 + i * 16, 250 - j * 19, () => ((cores()[i] || 0) > (j + 0.5) * 100 / 12 ? lit(j, 12) : LED.off)); },
-    () => `${cores().length} cores · ${cores().map((v) => v + '%').join(' ')}`);
+    () => `${cores().length} cores · ${cores().map((v) => v + '%').join(' ')}<br>${tempLine()}`);
     const mem = () => (m()?.mem ? m().mem.used / m().mem.total : 0), GB = (b) => (b / 2 ** 30).toFixed(1);
     unit(0, 32, 3, 'Memory', (c) => {
       lbl(c, 'MEMORY', 14, 30, `700 18px ${MONO}`, '#e8eef6');
@@ -372,11 +401,17 @@ export function install(ctx) {
     unit(1, 3, 3, 'UPS', (c) => {
       lbl(c, 'UPS', 14, 30, `700 18px ${MONO}`, '#e8eef6');
       const b = batt();
-      lbl(c, b ? `${b.pct}% · ${b.ac ? 'ON MAINS' : 'ON BATTERY'}` : 'MAINS · NO BATTERY', 14, 60, `600 15px ${MONO}`, b && !b.ac ? '#ffb347' : '#5dff9b');
-      if (m()) lbl(c, `UP ${F.dur(m().uptime * 1000)}`, 14, 90, `500 14px ${MONO}`, '#8a93a0');
+      lbl(c, b ? `${b.pct}% · ${b.ac ? 'ON MAINS' : 'ON BATTERY'}` : 'MAINS · NO BATTERY', 70, 30, `600 15px ${MONO}`, b && !b.ac ? '#ffb347' : '#5dff9b');
+      if (b?.tempC != null) {
+        lbl(c, `${b.tempC.toFixed(1)}°C`, 14, 62, `700 17px ${MONO}`, tempCol(b.tempC));
+        lbl(c, `HEALTH ${b.health ?? '?'}% · ${b.cycles ?? '?'} CYC`, 104, 62, `600 13px ${MONO}`, b.health != null && b.health < 80 ? '#ffb347' : '#8ab4ff');
+        lbl(c, `${b.watts ? `${b.watts > 0 ? '+' : ''}${b.watts} W` : '0 W'}${b.minutes != null ? ` · ${hm(b.minutes)} ${b.charging ? 'TO FULL' : 'LEFT'}` : ''}`,
+          14, 88, `500 13px ${MONO}`, '#c9d4e3');
+      }
+      if (m()) lbl(c, `UP ${F.dur(m().uptime * 1000)}`, 14, 114, `500 13px ${MONO}`, '#8a93a0');
     }, (p) => { for (let i = 0; i < 20; i++) p(260 + i * 11, 40, () => ((batt()?.pct ?? 100) > (i + 0.5) * 5 ? lit(19 - i, 20) : LED.off));
       p(260, 90, () => (batt()?.ac === false ? LED.a : LED.g)); },
-    () => (batt() ? `Battery ${batt().pct}% · ${escapeHtml(batt().state)}` : 'On mains') + (m() ? ` · up ${F.dur(m().uptime * 1000)}` : ''));
+    () => (batt() ? `Battery ${batt().pct}% · ${escapeHtml(batt().state)}` : 'On mains') + (m() ? ` · up ${F.dur(m().uptime * 1000)}` : '') + battLine());
     const rate = (b) => (b > 2 ** 20 ? `${(b / 2 ** 20).toFixed(1)} MB/s` : `${(b / 1024).toFixed(0)} KB/s`),
       traffic = () => (m()?.net ? m().net.rx + m().net.tx : 0);
     for (const [u, k] of [[38, 0], [36, 1]]) unit(2, u, 1, `Switch ${k + 1}`, (c) => {
@@ -389,14 +424,30 @@ export function install(ctx) {
       lbl(c, 'UPLINK', 14, 30, `700 18px ${MONO}`, '#e8eef6');
       if (m()?.net) { lbl(c, `↓ ${rate(m().net.rx)}`, 14, 62, `600 15px ${MONO}`, '#8ab4ff');
         lbl(c, `↑ ${rate(m().net.tx)}`, 200, 62, `600 15px ${MONO}`, '#5dff9b'); }
+      const w = m()?.wifi;
+      if (w) lbl(c, `WI-FI ${w.signal} dBm`, 140, 30, `600 13px ${MONO}`, w.signal > -60 ? '#5dff9b' : w.signal > -72 ? '#ffb347' : '#ff6b5b');
     }, (p) => { p(470, 30, () => LED.g); p(486, 30, () => (Math.random() < 0.2 + Math.min(0.7, traffic() / 2 ** 20) ? LED.a : LED.off)); },
-      () => (m()?.net ? `↓ ${rate(m().net.rx)} · ↑ ${rate(m().net.tx)}` : ''));
+      () => (m()?.net ? `↓ ${rate(m().net.rx)} · ↑ ${rate(m().net.tx)}` : '') + ifLine());
+    const sens = () => m()?.sensors, random = Math.random;
+    Math.random = rng(4703);   // its hit box's uuids: not from the shared stream, so nothing built after it moves
+    try { unit(2, 28, 2, 'Sensors', (c) => {
+      const S = sens();
+      lbl(c, 'SENSORS', 14, 28, `700 16px ${MONO}`, '#e8eef6');
+      if (!S?.source) { lbl(c, 'NO SENSOR FEED', 120, 28, `700 14px ${MONO}`, '#ffb347'); lbl(c, 'install macmon for die temps, fans, power', 14, 60, `500 13px ${FONT}`, '#8a93a0');
+        return; }
+      lbl(c, `CPU ${S.cpuTempC ?? '-'}°  GPU ${S.gpuTempC ?? '-'}°`, 120, 28, `700 14px ${MONO}`, tempCol(S.cpuTempC, true));
+      lbl(c, [S.cpuW != null && `CPU ${S.cpuW}W`, S.gpuW != null && `GPU ${S.gpuW}W`, S.sysW != null && `SYS ${S.sysW}W`, S.gpuPct != null && `GPU ${S.gpuPct}%`]
+        .filter(Boolean).join('  '), 14, 60, `600 13px ${MONO}`, '#8ab4ff');
+      if (S.fans?.length) lbl(c, S.fans.map((f) => `FAN ${f.rpm}`).join(' '), 14, 80, `500 12px ${MONO}`, '#8a93a0');
+    }, (p) => { for (let i = 0; i < 10; i++) p(380 + i * 11, 70, () => { const t = sens()?.cpuTempC; return t != null && t > 30 + i * 7 ? lit(i, 10) : LED.off; }); },
+    () => sensLine()); } finally { Math.random = random; }
     quads(infraFaces, IA.m, 1024, 1024);
     {   // the rest of the machine racks: patch panels and blanking
       const used = new Map([[0, [[36, 6], [32, 3], [28, 3], [14, 12]]], [1, [...Array(6)].map((_, v) => [37 - v * 3, 2]).concat([[3, 3]])],
-        [2, [[38, 1], [36, 1], [31, 2]]]]);
+        [2, [[38, 1], [36, 1], [31, 2], [28, 2]]]]);
       for (const [r, list] of used) for (let u = 1; u <= 42;
         u++) if (!list.some(([a, n]) => u >= a && u < a + n)) face(RACKX(r), ROWS[1], u, r === 2 && u % 4 === 1 ? 'patch' : 'blank');
+        else if (r === 2 && u >= 28 && u < 30) { R(); R(); }   // where blanking was before the Sensors unit: keep the hall's seeded stream as it was
     }
     quads(faces, faceM, 512, 768);   // the live racks' switches, patch panels and blanking
 
@@ -674,6 +725,229 @@ export function install(ctx) {
       srv.fixed.push({ minX: dx - 0.38, maxX: dx + 0.4, minZ: dz - 0.85, maxZ: dz + 0.85 }, { minX: cx - 0.3, maxX: cx + 0.3, minZ: dz - 0.3, maxZ: dz + 0.3 });
     }
 
+    // John's office, lived in: a door to keep the warm in, a visitor's chair, a side desk, shelves of spares and cable
+    // spools, a whiteboard (the rack diagram and the on-call rota), coffee, a mini fridge, a heater, posters, his coat, a
+    // plant that's seen better days, and a thermostat that reads this laptop's temperatures. Built under its own seeded
+    // random (three's uuids draw from Math.random), so nothing built after it moves.
+    {
+      const random = Math.random;
+      Math.random = rng(4701);
+      try { furnishNoc(); } finally { Math.random = random; }
+    }
+    function furnishNoc() {
+      const N = NOC, Rj = rng(4702), parts = [], soft = [], dark = mat('#2b2f35', { metalness: 0.6, roughness: 0.4 });
+      const WX = SV.x0 - 0.06, BZ = SV.z1;   // the west wall's and the back wall's inner faces
+      // The door: a framed glass leaf in the opening by the floor end, hinged on its near post and swinging in. Stops and a
+      // threshold close the gaps; a closer shuts it a while after you've gone.
+      {
+        const z0 = N.z0 + 0.64, z1 = N.z0 + 1.76, W = z1 - z0, H = 2.2 - 0.012 + 0.01, x = N.x1;
+        root.add(mergedBoxes([[0.1, 0.012, W + 0.16, x, 0.006, (z0 + z1) / 2], [0.012, 2.19, 0.02, x - 0.034, 1.095, z0 + 0.01],
+          [0.012, 2.19, 0.02, x - 0.034, 1.095, z1 - 0.01], [0.012, 0.02, W, x - 0.034, 2.19, (z0 + z1) / 2]], dark));
+        const pivot = new THREE.Group(), leaf = new THREE.Group();
+        pivot.position.set(x, 0, z0); pivot.rotation.y = -Math.PI / 2; root.add(pivot); pivot.add(leaf);
+        const pane = new THREE.Mesh(new THREE.BoxGeometry(W - 0.1, H - 0.14, 0.012), glassM); pane.position.set(W / 2, 0.012 + H / 2 + 0.01, 0); pane.castShadow = false;
+        leaf.add(pane, mergedBoxes([[W, 0.1, 0.04, W / 2, 0.062, 0], [W, 0.05, 0.04, W / 2, 0.012 + H - 0.025, 0], [0.05, H, 0.04, 0.025, 0.012 + H / 2, 0],
+          [0.05, H, 0.04, W - 0.025, 0.012 + H / 2, 0]], dark));
+        for (const s of [-1, 1]) {
+          cyl(leaf, 0.014, 0.014, 0.6, '#b8bcc2', W - 0.12, 1.05, s * 0.07, { mat: { metalness: 0.9, roughness: 0.25 } });
+          for (const y of [0.8, 1.3]) box(leaf, 0.018, 0.018, 0.06, '#b8bcc2', W - 0.12, y, s * 0.04, { mat: { metalness: 0.9, roughness: 0.25 } });
+          const nt = sign(0.3, 0.2, 0, 0, 0, 0, 800, (c, w, h) => {
+            c.fillStyle = '#fffbe8'; c.fillRect(0, 0, w, h); c.strokeStyle = '#c0392b'; c.lineWidth = 6; c.strokeRect(6, 6, w - 12, h - 12);
+            lbl(c, 'PLEASE CLOSE', w / 2, 52, `800 34px ${FONT}`, '#b3261e', 'center'); lbl(c, 'THE DOOR', w / 2, 92, `800 34px ${FONT}`, '#b3261e', 'center');
+            lbl(c, 'it’s cold in here', w / 2, 128, `italic 500 24px ${FONT}`, '#333', 'center'); lbl(c, '— J.', w - 30, 150, `600 20px ${FONT}`, '#333', 'right');
+          });
+          root.remove(nt); leaf.add(nt); nt.position.set(W / 2, 1.5, s * 0.008); nt.rotation.y = s > 0 ? 0 : Math.PI;
+        }
+        const hit = new THREE.Mesh(new THREE.BoxGeometry(W, H, 0.08), new THREE.MeshBasicMaterial()); hit.visible = false; hit.position.set(W / 2, H / 2, 0); leaf.add(hit);
+        const d = srv.nocDoor = { name: 'John’s office door', x, z0, W, k: 0, to: 0, pivot, away: 0, box: {} };
+        leaf.traverse((o) => { if (o.isMesh) o.userData = { action: 'nocDoor', door: d, reach: 4 }; });
+        srv.doorHit = leaf;
+      }
+      // the visitor's chair, angled at John's desk ("pull up a chair")
+      {
+        const g = new THREE.Group(), J = srv.jdesk; g.position.set(J.x - 1.85, 0, J.z + 0.8); g.rotation.y = 2.1; root.add(g);
+        g.add(mergedBoxes([[0.46, 0.07, 0.46, 0, 0.45, 0, '#3d5a73'], [0.46, 0.42, 0.05, 0, 0.72, -0.22, '#3d5a73'], [0.03, 0.45, 0.03, -0.2, 0.22, -0.2, '#9aa0a8'],
+          [0.03, 0.45, 0.03, 0.2, 0.22, -0.2, '#9aa0a8'], [0.03, 0.45, 0.03, -0.2, 0.22, 0.2, '#9aa0a8'], [0.03, 0.45, 0.03, 0.2, 0.22, 0.2, '#9aa0a8']],
+          mat('#ffffff', { vertexColors: true, roughness: 0.8 })));
+        const st = srv.seat = ctx.addSeat(g, 'Visitor’s chair', 0, SEATED_EYE);
+        Object.assign(st, { floor: srv.n, lz: st.z });
+        g.traverse((o) => { if (o.isMesh) o.userData.seat = st; });
+      }
+      // a fan heater by John's feet, its element glowing
+      {
+        const hx = srv.jdesk.x - 0.9, hz = srv.jdesk.z + 1.05;
+        parts.push([0.3, 0.32, 0.18, hx, 0.17, hz, '#e9e4d8'], [0.32, 0.03, 0.2, hx, 0.015, hz, '#8a8478']);
+        const glow = sign(0.22, 0.16, hx, 0.19, hz - 0.091, Math.PI, 120, (c, w, h) => {
+          c.fillStyle = '#2a0d02'; c.fillRect(0, 0, w, h); c.fillStyle = '#ff7a1a'; for (let y = 2; y < h; y += 4) c.fillRect(2, y, w - 4, 2); }, { basic: true });
+        glow.material.color.setScalar(1.6);
+        srv.fixed.push({ minX: hx - 0.17, maxX: hx + 0.17, minZ: hz - 0.1, maxZ: hz + 0.1 });
+        srv.units.push({ hit: hitBox(root, 0.3, 0.34, 0.2, hx, 0.17, hz,
+          { action: 'info', reach: 3, info: () => '<b>Fan heater</b><div class="m">2 kW, on full, pointed at John’s ankles. The CRACs keep the hall at 18 °C.</div>' }) });
+      }
+      // the side desk against the glass: an old ThinkPad, a mechanical keyboard, a desk fan (off: it's cold), old manuals
+      {
+        const sx = N.x1 - 0.42, sz = 15.8;
+        parts.push([0.7, 0.035, 1.5, sx, 0.73, sz, '#6b5440']);
+        for (const [a, b] of [[-0.3, -0.7], [0.3, -0.7], [-0.3, 0.7], [0.3, 0.7]]) parts.push([0.035, 0.71, 0.035, sx + a, 0.355, sz + b, '#222']);
+        parts.push([0.24, 0.018, 0.32, sx - 0.05, 0.757, sz - 0.35, '#1b1b1b'], [0.012, 0.22, 0.32, sx + 0.07, 0.86, sz - 0.35, '#1b1b1b']);   // the ThinkPad
+        const tp = sign(0.29, 0.19, sx + 0.062, 0.865, sz - 0.35, -Math.PI / 2, 600, (c, w, h) => {
+          c.fillStyle = '#000'; c.fillRect(0, 0, w, h);
+          ['$ ssh john@b02-ups', 'Last login: Tue on ttys004', 'b02-ups> show battery', '  temp ok, cycles ok', 'b02-ups> _']
+            .forEach((tx, i) => lbl(c, tx, 8, 22 + i * 20, `500 14px ${MONO}`, '#d0d0d0'));
+        }, { basic: true });
+        tp.rotation.z = 0;
+        // the mechanical keyboard: a case and rows of chunky caps (an orange Esc)
+        const kx = sx - 0.2, kz = sz + 0.15;
+        parts.push([0.15, 0.03, 0.44, kx, 0.762, kz, '#2a2a2e']);
+        for (let r = 0; r < 5; r++) for (let i = 0; i < 14; i++) parts.push([0.022, 0.016, 0.024, kx - 0.054 + r * 0.027, 0.784 + r * 0.002, kz - 0.195 + i * 0.03,
+          r === 4 && i === 0 ? '#e0701a' : r === 0 && i > 3 && i < 11 ? '#d8d4c8' : (r + i) % 5 ? '#d8d4c8' : '#8f8a80']);
+        // the desk fan
+        const fan = new THREE.Group(); fan.position.set(sx + 0.18, 0.75, sz - 0.62); fan.rotation.y = -2.2; root.add(fan);
+        cyl(fan, 0.08, 0.09, 0.03, '#e6e1d6', 0, 0.015, 0); cyl(fan, 0.012, 0.012, 0.22, '#e6e1d6', 0, 0.13, 0);
+        const cage = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.006, 6, 28), mat('#c8c4bb', { metalness: 0.6 })); cage.position.set(0, 0.27, 0.03); fan.add(cage);
+        const blades = new THREE.Group(); blades.position.set(0, 0.27, 0.035); fan.add(blades);
+        for (let i = 0; i < 3; i++) { const b = box(blades, 0.05, 0.11, 0.006, '#7fa6c9', 0, 0.06, 0); b.position.set(Math.sin(i * 2.094) * 0.06, Math.cos(i * 2.094) * 0.06, 0);
+          b.rotation.z = -i * 2.094; }
+        cyl(fan, 0.03, 0.03, 0.04, '#e6e1d6', 0, 0.27, 0).rotation.x = Math.PI / 2;
+        // manuals: a stack on the desk and a taller one on the floor beside it
+        const books = (x, z, y0, n) => { let y = y0; for (let i = 0; i < n; i++) { const t = 0.03 + Rj() * 0.05;
+          soft.push([0.24 + Rj() * 0.06, t, 0.3 + Rj() * 0.06, x + (Rj() - 0.5) * 0.04, y + t / 2, z + (Rj() - 0.5) * 0.04,
+            ['#7a2a2a', '#1f4f7a', '#2f5d3a', '#c9b28a', '#3b3b44', '#8a5a1f'][Math.floor(Rj() * 6)]]); y += t; } };
+        books(sx + 0.1, sz + 0.52, 0.748, 4); books(N.x1 - 0.3, 14.65, 0, 9);
+        srv.fixed.push({ minX: sx - 0.36, maxX: N.x1, minZ: sz - 0.76, maxZ: sz + 0.76 }, { minX: N.x1 - 0.48, maxX: N.x1, minZ: 14.45, maxZ: 14.85 });
+        srv.units.push({ hit: hitBox(root, 0.3, 0.3, 0.4, sx + 0.1, 0.9, sz + 0.52,
+          { action: 'info', reach: 3, info: () => '<b>Old manuals</b><div class="m">Solaris 2.6, Cisco IOS 12, Sendmail (the bat book). He still reads them.</div>' }) });
+      }
+      // the back wall: spares shelving with labelled cable spools, the whiteboard, the coffee counter and a mini fridge
+      {
+        const x0 = -25.55, x1 = -23.65, z = BZ - 0.24;
+        for (const y of [0.1, 0.55, 1.0, 1.45, 1.9]) parts.push([x1 - x0, 0.02, 0.44, (x0 + x1) / 2, y, z, '#9aa0a8']);
+        for (const x of [x0, x1]) for (const dz of [-0.21, 0.21]) parts.push([0.025, 1.95, 0.025, x, 0.975, z + dz, '#7d838b']);
+        for (const y of [0.11, 0.56, 1.01, 1.46, 1.91]) for (let x = x0 + 0.1; x < x1 - 0.1;) {   // clutter: boxes, drives, RAM, coiled patch leads
+          const k = Rj(), w = k < 0.3 ? 0.1 : k < 0.6 ? 0.2 + Rj() * 0.1 : 0.14;
+          if (y > 0.5 && y < 1.2) break;   // the spools' shelves
+          if (k < 0.3) for (let i = 0; i < 3; i++) parts.push([0.1, 0.026, 0.15, x + w / 2, y + 0.014 + i * 0.027, z, '#2a2d32']);
+          else if (k < 0.6) { const h = 0.1 + Rj() * 0.15; soft.push([w, h, 0.3, x + w / 2, y + 0.01 + h / 2, z, Rj() < 0.5 ? '#b08a5a' : '#c9b28a']); }
+          else if (k < 0.8) soft.push([w, 0.02, 0.2, x + w / 2, y + 0.011, z, '#c98aa0']);
+          else { const t = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.012, 6, 16), mat(['#2a6fd6', '#e3c23a', '#d9534f'][Math.floor(Rj() * 3)])); t.rotation.x = Math.PI / 2;
+            t.position.set(x + 0.07, y + 0.013, z); root.add(t); }
+          x += w + 0.04;
+        }
+        const SP = makeCanvas(512, 256), sc = SP.ctx, spools = [['CAT6 · 305 m', '#2a6fd6'], ['CAT6A · 100 m', '#7a7f87'], ['OM4 LC-LC', '#3fb6a8'],
+          ['C13 power', '#1a1a1a'], ['CAT5e (old)', '#e3c23a'], ['OS2 9/125', '#e3c23a']];
+        spools.forEach(([t, col], i) => { const y = i * 42; sc.fillStyle = col; sc.fillRect(0, y, 512, 42); sc.fillStyle = '#f2efe6'; sc.fillRect(40, y + 6, 300, 30);
+          lbl(sc, t, 50, y + 29, `700 22px ${FONT}`, '#222'); });
+        SP.tex.needsUpdate = true;
+        spools.forEach((_, i) => {
+          const g = new THREE.Group(), r = 0.1 + (i % 3) * 0.015; g.position.set(x0 + 0.3 + (i % 3) * 0.6, (i < 3 ? 0.56 : 1.01) + 0.124, z); root.add(g);   // standing, labels out
+          const core = new THREE.Mesh(new THREE.CylinderGeometry(r - 0.02, r - 0.02, 0.2, 20, 1, true), new THREE.MeshStandardMaterial({ map: SP.tex.clone(), roughness: 0.7 }));
+          core.material.map.repeat.set(2, 1 / 6); core.material.map.offset.set(0, 1 - (i + 1) / 6); core.material.map.wrapS = THREE.RepeatWrapping; core.material.map.needsUpdate = true;
+          g.add(core);
+          for (const s of [-1, 1]) cyl(g, r, r, 0.012, '#c9b28a', 0, s * 0.105, 0, { seg: 20 });
+        });
+        { const g = new THREE.Group(); g.position.set(x1 + 0.45, 0.32, BZ - 0.36); g.rotation.z = Math.PI / 2; root.add(g);   // a cable drum on the floor
+          cyl(g, 0.24, 0.24, 0.42, '#1f5fbf', 0, 0, 0, { seg: 24 }); for (const s of [-1, 1]) cyl(g, 0.32, 0.32, 0.03, '#a07b4f', 0, s * 0.22, 0, { seg: 24 }); }
+        srv.fixed.push({ minX: x0 - 0.05, maxX: x1 + 0.8, minZ: BZ - 0.6, maxZ: BZ });
+        srv.units.push({ hit: hitBox(root, x1 - x0, 1.95, 0.44, (x0 + x1) / 2, 0.98, z,
+          { action: 'info', reach: 4, info: () => '<b>Spares</b><div class="m">Drives, DIMMs, SFPs, patch leads and every cable known to man, labelled. Mostly.</div>' }) });
+      }
+      {   // the whiteboard: the machine racks as he drew them, and the on-call rota
+        const x = -21.3, w = 2.2, h = 1.15;
+        parts.push([w + 0.06, h + 0.06, 0.03, x, 1.55, BZ - 0.015, '#c8ccd2'], [w * 0.6, 0.03, 0.07, x, 0.95, BZ - 0.05, '#c8ccd2']);
+        for (const [dx, col] of [[-0.2, '#1f5fbf'], [-0.1, '#b3261e'], [0.05, '#1b7f3a']]) parts.push([0.12, 0.018, 0.018, x + dx, 0.975, BZ - 0.05, col]);
+        sign(w, h, x, 1.55, BZ - 0.032, Math.PI, 500, (c, W, H) => {
+          c.fillStyle = '#f7f8f6'; c.fillRect(0, 0, W, H);
+          const pen = (col, wd = 4) => { c.strokeStyle = col; c.lineWidth = wd; c.lineCap = 'round'; };
+          lbl(c, 'HALL 47 · machine racks', 30, 56, `700 34px ${FONT}`, '#1f3f8a');
+          ['B01', 'B02', 'B03'].forEach((r, i) => {
+            const rx = 40 + i * 190; pen('#222'); c.strokeRect(rx, 90, 150, 380);
+            lbl(c, r, rx + 75, 500, `700 26px ${FONT}`, '#222', 'center');
+            const rows = [['CPU', 'MEM', 'LOAD', 'TOP'], ['DISK ×6', '', '', 'UPS'], ['SW1', 'SW2', 'UPLINK', 'SENSORS']][i];
+            rows.forEach((t, j) => { if (!t) return; pen('#555', 2); c.strokeRect(rx + 10, 105 + j * 90, 130, 70); lbl(c, t, rx + 75, 148 + j * 90, `600 20px ${FONT}`, '#333', 'center'); });
+          });
+          pen('#b3261e', 5); c.beginPath(); c.moveTo(300, 470); c.quadraticCurveTo(330, 530, 420, 520); c.stroke();
+          lbl(c, 'battery = the UPS!', 430, 528, `italic 600 22px ${FONT}`, '#b3261e');
+          pen('#1b7f3a', 4); c.beginPath(); c.moveTo(500, 180); c.lineTo(560, 120); c.stroke(); lbl(c, '→ uplink: Wi-Fi (!!)', 520, 108, `600 20px ${FONT}`, '#1b7f3a');
+          const ox = 640; lbl(c, 'ON-CALL', ox, 90, `800 34px ${FONT}`, '#222');
+          pen('#222', 2); c.strokeRect(ox, 110, 420, 330);
+          [['Mon', 'John'], ['Tue', 'John'], ['Wed', 'John'], ['Thu', 'Dave'], ['Fri', 'John'], ['Sat', 'John'], ['Sun', 'John']].forEach(([d, who], i) => {
+            const y = 150 + i * 42; lbl(c, d, ox + 20, y, `600 24px ${FONT}`, '#333'); lbl(c, who, ox + 130, y, `600 26px ${FONT}`, who === 'Dave' ? '#999' : '#1f3f8a');
+            if (who === 'Dave') { pen('#b3261e', 3); c.beginPath(); c.moveTo(ox + 125, y - 8); c.lineTo(ox + 210, y - 8); c.stroke();
+              lbl(c, 'John (Dave “on holiday”)', ox + 220, y, `italic 500 20px ${FONT}`, '#b3261e'); }
+          });
+          lbl(c, 'Close the door!!', ox + 40, 500, `800 30px ${FONT}`, '#1f5fbf');
+        });
+        srv.units.push({ hit: hitBox(root, w, h, 0.05, x, 1.55, BZ - 0.03,
+          { action: 'info', reach: 5, info: () => '<b>Whiteboard</b><div class="m">The machine racks as John sees them, and the on-call rota: John, every day (Dave crossed out).</div>' }) });
+      }
+      {   // the coffee counter, its machine, a kettle and mugs, and the mini fridge beside it
+        const cx = -19.15, z = BZ - 0.28;
+        parts.push([1.3, 0.88, 0.52, cx, 0.44, z, '#3a3d42'], [1.34, 0.03, 0.56, cx, 0.895, z, '#6b5440']);
+        for (const dx of [-0.32, 0.32]) parts.push([0.6, 0.8, 0.005, cx + dx, 0.45, z - 0.262, '#45494f'], [0.12, 0.012, 0.012, cx + dx + (dx < 0 ? 0.2 : -0.2), 0.8, z - 0.27, '#b8bcc2']);
+        parts.push([0.26, 0.36, 0.3, cx + 0.35, 1.09, z + 0.02, '#1d1f22'], [0.2, 0.05, 0.12, cx + 0.35, 1.2, z - 0.16, '#2a2c30'], [0.12, 0.012, 0.1, cx + 0.35, 0.93, z - 0.12, '#666']);
+        led(cx + 0.29, 1.22, z - 0.222, LED.r, null, Math.PI);
+        cyl(root, 0.075, 0.085, 0.2, '#c8ccd2', cx - 0.05, 1.01, z + 0.05, { mat: { metalness: 0.8, roughness: 0.25 } });   // kettle
+        box(root, 0.03, 0.12, 0.03, '#1d1f22', cx - 0.05, 1.05, z + 0.14);
+        const mugs = [['#2c4a73', 0], ['#e9e4d8', 0.11], ['#b3261e', 0.22], ['#2f5d3a', 0.33]];
+        for (const [col, dx] of mugs) { const m = cyl(root, 0.04, 0.036, 0.09, col, cx - 0.55 + dx, 0.955, z - 0.1);
+          const hd = new THREE.Mesh(new THREE.TorusGeometry(0.025, 0.007, 6, 12), m.material); hd.position.set(cx - 0.55 + dx + 0.045, 0.955, z - 0.1); root.add(hd); }
+        cyl(root, 0.05, 0.05, 0.13, '#8a5a1f', cx - 0.3, 0.975, z + 0.12);   // the jar of instant, for emergencies
+        const fx = cx + 1.0;   // the mini fridge
+        parts.push([0.5, 0.84, 0.5, fx, 0.42, z, '#e9e9e6'], [0.02, 0.3, 0.02, fx - 0.2, 0.62, z - 0.26, '#9aa0a8']);
+        sign(0.36, 0.3, fx + 0.03, 0.48, z - 0.252, Math.PI, 400, (c, W, H) => {
+          c.clearRect(0, 0, W, H); c.fillStyle = '#e9e9e6'; c.fillRect(0, 0, W, H);
+          const st = (x, y, w, h, bg, t, fg, r = 0) => { c.save(); c.translate(x, y); c.rotate(r); c.fillStyle = bg; c.fillRect(-w / 2, -h / 2, w, h); lbl(c, t, 0, 6, `800 15px ${FONT}`, fg, 'center'); c.restore(); };
+          st(40, 30, 70, 30, '#222', 'sudo', '#5dff9b', -0.2); st(100, 70, 110, 32, '#d97757', 'it works on', '#fff', 0.08); st(52, 96, 92, 26, '#1f5fbf', 'RAID ≠ backup', '#fff', 0.05);
+          lbl(c, 'MILK: JOHN’S', W / 2, 20, `700 14px ${FONT}`, '#b3261e', 'center');
+        });
+        srv.fixed.push({ minX: cx - 0.68, maxX: fx + 0.26, minZ: z - 0.28, maxZ: BZ });
+        srv.units.push({ hit: hitBox(root, 0.5, 0.86, 0.52, fx, 0.43, z,
+          { action: 'info', reach: 3, info: () => '<b>Mini fridge</b><div class="m">Milk (John’s), two energy drinks, a spare SFP, for some reason.</div>' }),
+        }, { hit: hitBox(root, 1.3, 0.5, 0.52, cx, 1.1, z,
+          { action: 'info', reach: 3, info: () => '<b>Coffee</b><div class="m">A bean-to-cup that’s been “descaling” since March, a kettle, and the instant for emergencies.</div>' }) });
+      }
+      {   // the thermostat by the coffee: this laptop's temperatures, as a dial
+        const tx = -19.95, ty = 1.55, tz = BZ - 0.02;
+        parts.push([0.27, 0.27, 0.02, tx, ty, tz + 0.005, '#e9e9e6']);
+        const T = srv.thermo = makeScreen(root, 0.24, 0.24, 256, 256, tx, ty, tz - 0.007); T.mesh.rotation.y = Math.PI;
+        Object.assign(T.mesh.userData, { action: 'info', reach: 4, info: () => thermoInfo() });
+        srv.units.push({ hit: T.mesh });
+      }
+      // the west wall: two band posters, and a coat and a flat cap on hooks
+      [[16.2, 'KERNEL PANIC', 'live · Reading 1996', '#1a1a1a', '#e3c23a'], [17.6, 'THE DIAL TONES', 'farewell tour · 1999', '#5b1f6e', '#f2c6de']].forEach(([z, band, sub, bg, fg]) =>
+        sign(0.6, 0.84, WX + 0.01, 1.6, z, Math.PI / 2, 400, (c, W, H) => {
+          c.fillStyle = bg; c.fillRect(0, 0, W, H);
+          c.strokeStyle = fg; c.lineWidth = 3; for (let i = 0; i < 9; i++) { c.beginPath(); c.arc(W / 2, H * 0.48, 20 + i * 12, 0, Math.PI * 2); c.globalAlpha = 0.25 + i * 0.06; c.stroke(); }
+          c.globalAlpha = 1; lbl(c, band, W / 2, 70, `900 ${band.length > 12 ? 30 : 34}px ${FONT}`, fg, 'center');
+          lbl(c, sub, W / 2, H - 40, `600 18px ${FONT}`, fg, 'center');
+        }));
+      {
+        const cz = 14.7;
+        for (const dz of [-0.2, 0.2]) cyl(root, 0.012, 0.012, 0.08, '#8d949c', WX + 0.04, 1.78, cz + dz, { mat: { metalness: 0.8 } }).rotation.z = Math.PI / 2;
+        soft.push([0.14, 0.82, 0.4, WX + 0.1, 1.38, cz - 0.2, '#3d4a2e'], [0.16, 0.2, 0.24, WX + 0.1, 1.72, cz - 0.2, '#3d4a2e'], [0.02, 0.6, 0.006, WX + 0.175, 1.36, cz - 0.2, '#2a3320']);
+        const cap = cyl(root, 0.11, 0.12, 0.06, '#6b5a44', WX + 0.12, 1.72, cz + 0.2, { seg: 16 }); cap.rotation.z = 1.2;
+        srv.units.push({ hit: hitBox(root, 0.2, 0.9, 0.7, WX + 0.1, 1.4, cz,
+          { action: 'info', reach: 3, info: () => '<b>John’s coat</b><div class="m">A waxed jacket and a flat cap. He wears both in here.</div>' }) });
+      }
+      {   // the plant in the corner by the door, which has seen better days
+        const px = N.x0 + 0.45, pz = N.z0 + 0.45;
+        cyl(root, 0.17, 0.13, 0.32, '#8a4b2a', px, 0.16, pz); cyl(root, 0.155, 0.155, 0.01, '#3a2a1c', px, 0.31, pz);
+        const stems = [];
+        for (let i = 0; i < 7; i++) {
+          const a = i * 0.9 + Rj(), len = 0.3 + Rj() * 0.35, droop = 0.6 + Rj() * 0.9, col = ['#6b6a2a', '#8a7a34', '#5a6a2a', '#9a7b3a'][i % 4];
+          const g = new THREE.Group(); g.position.set(px, 0.31, pz); g.rotation.y = a; root.add(g);
+          stems.push(box(g, 0.012, len, 0.012, '#5a5a2a', 0, len / 2, 0));
+          const leaf = box(g, 0.09, 0.012, 0.22, col, 0, len, 0.1); leaf.rotation.x = droop;
+        }
+        soft.push([0.09, 0.006, 0.18, px + 0.35, 0.003, pz + 0.2, '#9a7b3a'], [0.08, 0.006, 0.16, px + 0.5, 0.003, pz - 0.1, '#8a6a2a']);   // dropped leaves
+        srv.fixed.push({ minX: px - 0.2, maxX: px + 0.2, minZ: pz - 0.2, maxZ: pz + 0.2 });
+        srv.units.push({ hit: hitBox(root, 0.45, 0.9, 0.45, px, 0.45, pz,
+          { action: 'info', reach: 3, info: () => '<b>Office plant</b><div class="m">A peace lily, once. Watered with cold coffee, kept at 18 °C.</div>' }) });
+      }
+      root.add(mergedBoxes(parts, mat('#ffffff', { vertexColors: true, roughness: 0.6, metalness: 0.2 })),
+        mergedBoxes(soft, mat('#ffffff', { vertexColors: true, roughness: 0.95 })));
+    }
+
     // The vestibule: signage, the fire suppression panel and the access-controlled door into the hall.
     sign(1.6, 0.55, SV.x1 + 0.07, 2.55, 0, Math.PI / 2, 400, (c, W, H) => {
       c.fillStyle = '#1d2228'; c.fillRect(0, 0, W, H); c.fillStyle = '#d97757'; c.fillRect(24, 26, 8, H - 52);
@@ -759,7 +1033,7 @@ export function install(ctx) {
     srv.dyn = dyn;
     Object.assign(srv, liftShaft()); root.add(srv.lift);
     srv.john = makeJohn(root, srv.jdesk);
-    srv.hits = [srv.callHit, srv.panel.mesh, ...srv.slots.map((s) => s.hit), ...srv.units.map((u) => u.hit), srv.john.root, srv.body, srv.rear];
+    srv.hits = [srv.callHit, srv.panel.mesh, srv.doorHit, ...srv.slots.map((s) => s.hit), ...srv.units.map((u) => u.hit), srv.john.root, srv.body, srv.rear];
     srv.sound = { tone: 'fans',
       hums: [...PODS.flatMap((k) => BLOCKS.map((B) => [(B.x0 + B.x1) / 2, 1.4, k * POD, 0.55])), ...srv.cracs.map((c) => [c.x, 1.2, c.z, 0.5])],
       clicks: srv.racks.filter((_, i) => i % 3 === 0).map((r) => [r.x, 1, r.z]), relays: [...srv.cracs.map((c) => [c.x, 1.0, c.z]), [16.2, 1.5, SV.vz]] };
@@ -773,6 +1047,7 @@ export function install(ctx) {
     srv.static = srv.colliders.length;
     for (const k of ['hums', 'clicks', 'relays']) srv.sound[k] = srv.baseSound[k].map(([x, y, zz, g]) => [x, y, zz + z, g]);
     srv.polledAt = 0; srv.paintAt = srv.nocAt = 0;
+    srv.seat.z = srv.seat.lz + z;
   };
   srv.bound = (p) => {
     const z0 = srv.root.position.z, lz = p.z - z0;
@@ -788,6 +1063,7 @@ export function install(ctx) {
       push('load', m.load[0]);
       push('sess', ctx.state?.live.length || 0);
       push('net', m.net ? (m.net.rx + m.net.tx) / 1024 : 0);
+      push('temp', m.sensors?.cpuTempC ?? m.battery?.tempC ?? 0);
       const ts = new Date().toTimeString().slice(0, 8), log = srv.jlog ||= [];
       log.push(`${ts} ${m.hostname} kernel: load ${m.load[0].toFixed(2)} mem ${Math.round(h.mem.at(-1))}%`);
       for (const s of ctx.state?.live || []) if (s.status !== srv.jseen?.[s.sessionId]) { log.push(`${ts} claude[${s.pid}]: ${sessName(s)} -> ${s.status}`);
@@ -866,11 +1142,16 @@ export function install(ctx) {
     lbl(c, 'NOC', 28, 43, `800 30px ${FONT}`, '#d97757');
     lbl(c, m ? `${m.hostname} · ${m.os} · ${m.arch} · up ${F.dur(m.uptime * 1000)}` : 'waiting for /api/machine…', 100, 42, `500 22px ${FONT}`, '#c9d4e3');
     lbl(c, new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }), W - 28, 43, `600 26px ${MONO}`, '#e8eef6', 'right');
+    const pill = (xr, y, text, color) => {   // a status lozenge, right-aligned at xr
+      c.font = `800 13px ${FONT}`; const w = c.measureText(text).width + 20;
+      c.fillStyle = color; c.globalAlpha = 0.18; c.fillRect(xr - w, y, w, 24); c.globalAlpha = 1; c.strokeStyle = color; c.lineWidth = 2; c.strokeRect(xr - w, y, w, 24);
+      lbl(c, text, xr - w / 2, y + 17, `800 13px ${FONT}`, color, 'center');
+    };
     const tileT = (x, y, w, hh, title, big, sub, vals, color, max) => {
       c.fillStyle = '#0d131b'; c.fillRect(x, y, w, hh); c.strokeStyle = '#1b2633'; c.lineWidth = 2; c.strokeRect(x + 1, y + 1, w - 2, hh - 2);
       lbl(c, title, x + 18, y + 32, `700 16px ${FONT}`, '#7f8da0');
       lbl(c, big, x + 18, y + 78, `700 40px ${MONO}`, '#f2f5f9');
-      if (sub) lbl(c, fit(c, sub, w - 36), x + 18, y + 104, `500 15px ${FONT}`, '#7f8da0');
+      if (sub) { c.font = `500 15px ${FONT}`; lbl(c, fit(c, sub, w - 36), x + 18, y + 104, c.font, '#7f8da0'); }
       if (vals?.length > 1) {   // the last 6 minutes, against `max` (or its own peak)
         const gx = x + 18, gy = y + 120, gw = w - 36, gh = hh - 136, top = max ?? (Math.max(...vals) * 1.15 || 1);
         c.strokeStyle = '#1b2633'; c.lineWidth = 1;
@@ -882,36 +1163,69 @@ export function install(ctx) {
         c.lineTo(px(vals.length - 1), gy + gh); c.lineTo(px(0), gy + gh); c.closePath(); c.globalAlpha = 0.18; c.fillStyle = color; c.fill(); c.globalAlpha = 1;
       }
     };
+    // Four columns: CPU, memory, load, temperature over sessions, disks, network, power.
+    const X = [16, 332, 648, 964], TW = 300, Y0 = 80, Y1 = 396, TH0 = 300, TH1 = 308;
     const cs = m?.cores || [], cpu = h.cpu.at(-1) ?? 0;
     const col = (v) => (v < 60 ? '#5dff9b' : v < 85 ? '#ffb347' : '#ff6b5b');
-    tileT(24, 84, 400, 300, 'CPU', `${Math.round(cpu)}%`, `${cs.length} cores · ${m?.cpuModel || ''}`, h.cpu, col(cpu), 100);
-    {   // per-core bars under the CPU tile's number
-      const x = 230, y = 104, bw = Math.min(14, 170 / Math.max(1, cs.length));
+    tileT(X[0], Y0, TW, TH0, 'CPU', `${Math.round(cpu)}%`, `${cs.length} cores · ${m?.cpuModel || ''}`, h.cpu, col(cpu), 100);
+    {   // per-core bars beside the CPU tile's number
+      const x = X[0] + 140, y = Y0 + 44, bw = Math.max(3, Math.min(12, 140 / Math.max(1, cs.length) - 3));
       cs.forEach((v, i) =>
-        { c.fillStyle = '#16202b'; c.fillRect(x + i * (bw + 3), y, bw, 60); c.fillStyle = col(v); c.fillRect(x + i * (bw + 3), y + 60 - v * 0.6, bw, v * 0.6);
+        { c.fillStyle = '#16202b'; c.fillRect(x + i * (bw + 3), y, bw, 46); c.fillStyle = col(v); c.fillRect(x + i * (bw + 3), y + 46 - v * 0.46, bw, v * 0.46);
         });
     }
-    const memP = h.mem.at(-1) ?? 0;
-    tileT(440, 84, 400, 300, 'MEMORY', `${Math.round(memP)}%`, m?.mem ? `${(m.mem.used / 2 ** 30).toFixed(1)} of ${(m.mem.total / 2 ** 30).toFixed(1)} GB` : '',
-      h.mem, col(memP), 100);
-    tileT(856, 84, 400, 300, 'LOAD', m ? m.load[0].toFixed(2) : '–', m ? `5m ${m.load[1].toFixed(2)} · 15m ${m.load[2].toFixed(2)}` : '', h.load, '#8ab4ff');
+    const memP = h.mem.at(-1) ?? 0, pres = m?.mem?.pressure;
+    tileT(X[1], Y0, TW, TH0, 'MEMORY', `${Math.round(memP)}%`, m?.mem ? `${(m.mem.used / 2 ** 30).toFixed(1)} of ${(m.mem.total / 2 ** 30).toFixed(0)} GB${
+      m.swap ? ` · swap ${(m.swap.used / 2 ** 30).toFixed(1)} GB` : ''}` : '', h.mem, col(memP), 100);
+    if (pres) pill(X[1] + TW - 14, Y0 + 14, `PRESSURE ${pres.toUpperCase()}`, { normal: '#5dff9b', warn: '#ffb347', critical: '#ff6b5b' }[pres]);
+    tileT(X[2], Y0, TW, TH0, 'LOAD', m ? m.load[0].toFixed(2) : '–', m ? `5m ${m.load[1].toFixed(2)} · 15m ${m.load[2].toFixed(2)}${m.procs ? ` · ${m.procs} procs` : ''}` : '',
+      h.load, '#8ab4ff');
+    {   // temperature: the CPU die's with macmon, else the battery's, graphed; the thermal state in the corner
+      const T = temps(), die = T.cpu != null, th = m?.thermal?.level;
+      tileT(X[3], Y0, TW, TH0, die ? 'CPU TEMPERATURE' : 'BATTERY TEMPERATURE', T.main != null ? `${T.main.toFixed(1)}°` : '–',
+        die ? [T.gpu != null && `GPU ${T.gpu}°`, T.bat != null && `battery ${T.bat.toFixed(1)}°`].filter(Boolean).join(' · ') : m?.sensors?.hint ? 'CPU/GPU: install macmon' : '',
+        h.temp, tempCol(T.main, die), die ? 100 : 50);
+      if (th) pill(X[3] + TW - 14, Y0 + 14, th.toUpperCase(), THERM_COL[th] || '#8a93a0');
+    }
     const live = ctx.state?.live || [], working = live.filter((s) => s.status === 'working').length;
-    tileT(24, 400, 400, 296, 'CLAUDE SESSIONS', String(live.length), `${working} working · today ${F.usd(ctx.state?.totals?.todayCost || 0)} API-eq.`, h.sess,
-      '#d97757');
-    {   // disks
-      const x = 440, y = 400, w = 400;
-      c.fillStyle = '#0d131b'; c.fillRect(x, y, w, 296); c.strokeStyle = '#1b2633'; c.lineWidth = 2; c.strokeRect(x + 1, y + 1, w - 2, 294);
-      lbl(c, 'DISKS', x + 18, y + 32, `700 16px ${FONT}`, '#7f8da0');
+    tileT(X[0], Y1, TW, TH1, 'CLAUDE SESSIONS', String(live.length), `${working} working · today ${F.usd(ctx.state?.totals?.todayCost || 0)}`, h.sess, '#d97757');
+    const box = (x, y, w, hh, title) => {
+      c.fillStyle = '#0d131b'; c.fillRect(x, y, w, hh); c.strokeStyle = '#1b2633'; c.lineWidth = 2; c.strokeRect(x + 1, y + 1, w - 2, hh - 2);
+      lbl(c, title, x + 18, y + 32, `700 16px ${FONT}`, '#7f8da0');
+    };
+    {   // disks, and their I/O
+      const x = X[1], y = Y1, w = TW;
+      box(x, y, w, TH1, 'DISKS');
+      if (m?.diskIO) lbl(c, `R ${rateOf(m.diskIO.read)} · W ${rateOf(m.diskIO.write)}`, x + w - 18, y + 32, `500 14px ${MONO}`, '#8ab4ff', 'right');
       (m?.disks || []).slice(0, 5).forEach((d, i) => {
-        const p = d.used / d.size, yy = y + 64 + i * 46;
-        lbl(c, fit(c, d.mount, 230), x + 18, yy, `500 16px ${MONO}`, '#c9d4e3');
-        lbl(c, `${Math.round(p * 100)}% of ${(d.size / 2 ** 30).toFixed(0)} GB`, x + w - 18, yy, `500 15px ${MONO}`, '#7f8da0', 'right');
+        const p = d.used / d.size, yy = y + 70 + i * 46;
+        lbl(c, fit(c, d.mount, 150), x + 18, yy, `500 15px ${MONO}`, '#c9d4e3');
+        lbl(c, `${Math.round(p * 100)}% of ${(d.size / 2 ** 30).toFixed(0)} GB`, x + w - 18, yy, `500 14px ${MONO}`, '#7f8da0', 'right');
         c.fillStyle = '#16202b'; c.fillRect(x + 18, yy + 8, w - 36, 10); c.fillStyle = col(p * 100); c.fillRect(x + 18, yy + 8, (w - 36) * p, 10);
       });
     }
-    const net = m?.net, rate = (b) => (b > 2 ** 20 ? `${(b / 2 ** 20).toFixed(1)} MB/s` : `${(b / 1024).toFixed(0)} KB/s`);
-    tileT(856, 400, 400, 296, 'NETWORK', net ? rate(net.rx + net.tx) : '–',
-      net ? `↓ ${rate(net.rx)} · ↑ ${rate(net.tx)}${m.battery ? ` · battery ${m.battery.pct}%${m.battery.ac ? ' (AC)' : ''}` : ''}` : '', h.net, '#8ab4ff');
+    const net = m?.net, wifi = m?.wifi;
+    tileT(X[2], Y1, TW, TH1, 'NETWORK', net ? rateOf(net.rx + net.tx) : '–',
+      net ? `↓ ${rateOf(net.rx)} · ↑ ${rateOf(net.tx)}${wifi ? ` · Wi-Fi ${wifi.signal} dBm` : ''}` : '', h.net, '#8ab4ff');
+    {   // power: the battery as the hall's UPS, and what macmon says it's drawing
+      const x = X[3], y = Y1, w = TW, b = m?.battery, S = m?.sensors;
+      box(x, y, w, TH1, 'POWER');
+      lbl(c, m?.power ? m.power.toUpperCase() : '', x + w - 18, y + 32, `600 14px ${MONO}`, b && !b.ac ? '#ffb347' : '#5dff9b', 'right');
+      if (b) {
+        lbl(c, `${b.pct}%`, x + 18, y + 80, `700 40px ${MONO}`, '#f2f5f9');
+        c.strokeStyle = '#7f8da0'; c.lineWidth = 3; c.strokeRect(x + 150, y + 50, 120, 34); c.fillStyle = '#7f8da0'; c.fillRect(x + 270, y + 59, 6, 16);
+        c.fillStyle = b.pct > 20 ? '#5dff9b' : '#ff6b5b'; c.fillRect(x + 154, y + 54, 112 * b.pct / 100, 26);
+      }
+      const rows = b ? [b.watts ? `${b.watts < 0 ? 'drawing' : 'charging'} ${Math.abs(b.watts)} W${b.minutes != null ? ` · ${hm(b.minutes)} ${b.charging ? 'to full' : 'left'}` : ''}` : b.state,
+        b.health != null && `health ${b.health}% · ${b.cycles} cycles`, b.tempC != null && `battery ${b.tempC.toFixed(1)} °C`] : ['on mains · no battery'];
+      if (S?.source === 'macmon') rows.push(`CPU ${S.cpuW ?? '-'} W · GPU ${S.gpuW ?? '-'} W · sys ${S.sysW ?? '-'} W`,
+        S.fans?.length ? `fans ${S.fans.map((f) => f.rpm).join(' / ')} rpm${S.gpuPct != null ? ` · GPU ${S.gpuPct}%` : ''}` : S.gpuPct != null && `GPU ${S.gpuPct}% busy`);
+      else rows.push('die temps · fans · watts: n/a', 'brew install macmon');
+      c.font = `500 17px ${FONT}`;
+      rows.filter(Boolean).forEach((t, i) => lbl(c, fit(c, t, w - 36), x + 18, y + 124 + i * 34, `500 17px ${FONT}`, i >= rows.length - 2 && !S?.source ? '#5d6878' : '#c9d4e3'));
+    }
+    { const th = m?.thermal?.level, T = temps();
+      if (th) pill(W - 160, 20, `THERMAL ${th.toUpperCase()}${T.main != null ? ` · ${Math.round(T.main)}°C` : ''}`, THERM_COL[th] || '#8a93a0'); }
     srv.noc.tex.needsUpdate = true;
   }
   function paintKvm() {
@@ -947,6 +1261,40 @@ export function install(ctx) {
       if (Date.now() % 1000 < 500) { c.fillStyle = '#9fe8a8'; c.fillRect(10, 46 + Math.min(15, (srv.jlog || []).length) * 16 - 10, 8, 13); }
       b.tex.needsUpdate = true; }
   }
+  // John's office door: click to open or shut; it opens for John if he walks through, and its closer shuts it 12 s after
+  // there's nobody by it (it's cold in there). Its collider is the leaf, shut or open; shutting on you nudges you clear.
+  function nocDoorFx(dt, px, pz, z0) {
+    const d = srv.nocDoor, mid = { x: d.x - 0.3, z: d.z0 + d.W / 2 }, jp = srv.john.root.position;
+    const by = Math.hypot(px - mid.x, pz - mid.z) < 2, john = Math.hypot(jp.x - mid.x, jp.z - mid.z) < 1.3;
+    d.away = d.to && !by ? d.away + dt : 0;
+    if (d.away > 12) d.to = 0;
+    const want = john ? 1 : d.to, was = d.k;
+    if (d.k !== want) {
+      d.k = want > d.k ? Math.min(1, d.k + dt / 0.9) : Math.max(0, d.k - dt / 0.9);
+      d.pivot.rotation.y = -Math.PI / 2 - ease(d.k) * Math.PI / 2;
+      if (!was) ctx.sfx.cabinet('swish', { x: d.x, y: 1.1, z: mid.z + z0 }, 0.3);
+      if (!d.k) ctx.sfx.cabinet('latch', { x: d.x, y: 1.1, z: mid.z + z0 }, 0.35);
+    }
+    const open = d.k > 0.85;
+    srv.colliders.push(open ? { minX: d.x - d.W - 0.04, maxX: d.x + 0.04, minZ: z0 + d.z0 - 0.04, maxZ: z0 + d.z0 + 0.06 }
+      : { minX: d.x - 0.06, maxX: d.x + 0.06, minZ: z0 + d.z0 - 0.04, maxZ: z0 + d.z0 + d.W + 0.04 });
+    if (!open && was > d.k) ctx.collide(ctx.player);
+  }
+  // The thermostat in John's office: a dial reading this laptop (the CPU die with macmon, else the battery), ringed in the
+  // colour of macOS's thermal state.
+  function paintThermo() {
+    const { ctx: c, W, H } = srv.thermo, T = temps(), th = srv.m?.thermal?.level, die = T.cpu != null;
+    c.fillStyle = '#e9e9e6'; c.fillRect(0, 0, W, H);
+    c.fillStyle = '#15181c'; c.beginPath(); c.arc(W / 2, H / 2, 118, 0, Math.PI * 2); c.fill();
+    const k = T.main == null ? 0 : clamp((T.main - 20) / (die ? 80 : 30), 0, 1);
+    c.lineWidth = 12; c.lineCap = 'round'; c.strokeStyle = '#2a2f36'; c.beginPath(); c.arc(W / 2, H / 2, 100, Math.PI * 0.75, Math.PI * 2.25); c.stroke();
+    c.strokeStyle = THERM_COL[th] || '#8a93a0'; c.beginPath(); c.arc(W / 2, H / 2, 100, Math.PI * 0.75, Math.PI * (0.75 + 1.5 * k)); c.stroke();
+    lbl(c, die ? 'CPU' : 'LAPTOP', W / 2, 82, `700 20px ${FONT}`, '#8a93a0', 'center');
+    lbl(c, T.main != null ? `${Math.round(T.main)}°` : '--°', W / 2 + 8, 150, `300 70px ${FONT}`, tempCol(T.main, die), 'center');
+    lbl(c, die ? `batt ${T.bat != null ? Math.round(T.bat) + '°' : '-'}` : 'battery', W / 2, 184, `600 18px ${FONT}`, '#c9d4e3', 'center');
+    lbl(c, (th || '').toUpperCase(), W / 2, 214, `800 15px ${FONT}`, THERM_COL[th] || '#8a93a0', 'center');
+    srv.thermo.tex.needsUpdate = true;
+  }
   // Per frame while you're here: doors (only those near you move), John, LEDs (15 Hz, only racks within 15 m), faces (2 Hz),
   // the NOC (1 Hz), polling (every 3 s).
   const _mx = new THREE.Matrix4(), _look = new THREE.Vector3();
@@ -977,6 +1325,7 @@ export function install(ctx) {
       d.leaves[0].position.z = ease(d.k) * d.pocket;
       if (d.k < 0.7) srv.colliders.push({ minX: d.x - 0.1, maxX: d.x + 0.1, minZ: z0 - SV.dw, maxZ: z0 + SV.dw });
     }
+    nocDoorFx(dt, px, pz, z0);
     let moved = false;
     srv.aisleDoors.forEach((d, i) => {
       const near = (px - d.x) ** 2 + (pz - d.z) ** 2 < 3.6;
@@ -1002,7 +1351,7 @@ export function install(ctx) {
       for (const s of srv.slots) paintSlot(s, now);
       paintUnits(); srv.paintCracs();
       for (const A of srv.atlases) A.a.tex.needsUpdate = true;
-      paintKvm(); paintJohnScreens();
+      paintKvm(); paintJohnScreens(); paintThermo();
     }
     if (now - srv.nocAt > 1000) { srv.nocAt = now; paintNoc(now); }
   };
@@ -1053,4 +1402,6 @@ export function install(ctx) {
   };
   Object.assign(ctx, { srv });
   ctx.action('info', { hover: (h) => h.info() });
+  ctx.action('nocDoor', { hover: (h) => `<b>${h.door.name}</b><div class="k">Click to ${h.door.to ? 'close' : 'open'}</div>`,
+    click: (h) => { h.door.to = h.door.to ? 0 : 1; } });
 }

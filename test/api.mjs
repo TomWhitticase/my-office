@@ -61,8 +61,13 @@ export async function collect(server) {
   out['GET /api/session/<unknown>/feed'] = await get('/api/session/nope-0000/feed');
   out['POST /api/session/:id/feed'] = await req(port, 'POST', `/api/session/${SESSION_IDS[0]}/feed`, { headers: ok, body: {} });
   out['GET /api/session/:id/feed (cross-site)'] = await get(`/api/session/${SESSION_IDS[0]}/feed`, { headers: { 'sec-fetch-site': 'cross-site' } });
-  const m = await get('/api/machine');
-  out['GET /api/machine'] = { ...m, body: shape(m.body) };
+  // Sections that read the machine's own sensors come and go with its state (on battery or mains, Wi-Fi read yet, macmon
+  // installed, a first sample with no rates): only that they're there, and the battery's keys with its numbers maybe null.
+  const m = await get('/api/machine'), VOLATILE = ['diskIO', 'files', 'ifaces', 'net', 'power', 'sensors', 'swap', 'thermal', 'wifi'];
+  const nullable = (v) => (v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, v[k] === null || typeof v[k] === 'number' ? 'number?' : typeof v[k]])) : v);
+  const { battery, ...core } = m.body;
+  for (const k of VOLATILE) delete core[k];
+  out['GET /api/machine'] = { ...m, body: { ...shape(core), battery: nullable(battery), sections: VOLATILE.filter((k) => k in m.body) } };
   const repos = await get('/api/repos');   // gh isn't signed in under the fixture HOME
   out['GET /api/repos'] = { status: repos.status, type: repos.type, cache: repos.cache, signin: repos.body?.signin };
 
