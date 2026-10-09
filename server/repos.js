@@ -105,4 +105,27 @@ const repoBlob = (o, n, ref, file) => cached(`blob:${o}/${n}@${ref}:${file}`, as
   return { size: j.size, text: buf.toString('utf8', 0, BLOB_MAX), cut: buf.length > BLOB_MAX };
 });
 
-module.exports = { listRepos, repoDetail, treeJob, repoBlob };
+// One image from the default branch, for a README in the archive (private repos too): its bytes, through the contents
+// API's base64 (or the git blob, past 1 MB), up to RAW_MAX, and only if they really are an image (by their first bytes,
+// not the name). Not cached here (the browser keeps them a while); errors carry the HTTP status to send.
+const RAW_MAX = 5 << 20;
+const MAGIC = [
+  ['image/png', (b) => b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))],
+  ['image/jpeg', (b) => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff],
+  ['image/gif', (b) => /^GIF8[79]a/.test(b.toString('latin1', 0, 6))],
+  ['image/webp', (b) => b.toString('latin1', 0, 4) === 'RIFF' && b.toString('latin1', 8, 12) === 'WEBP'],
+  ['image/svg+xml', (b) => /^\uFEFF?\s*(<\?xml[^>]*>\s*)?(<!--[\s\S]*?-->\s*)*(<!DOCTYPE svg[^>]*>\s*)?<svg[\s>]/i.test(b.toString('utf8', 0, 4096))],
+];
+const status = (e, code) => Object.assign(e, { status: code });
+async function repoRaw(o, n, file, ref) {   // ref: a branch, tag or commit; the default branch if none
+  const path = file.split('/').map(encodeURIComponent).join('/');
+  const j = await gh(['api', `repos/${o}/${n}/contents/${path}${ref ? `?ref=${encodeURIComponent(ref)}` : ''}`]).catch((e) => { throw /HTTP 404/.test(e.message) ? status(new Error('not found'), 404) : e; });
+  if (Array.isArray(j) || j.type !== 'file') throw status(new Error('not a file'), 404);
+  if (j.size > RAW_MAX) throw status(new Error('too big'), 413);
+  const buf = Buffer.from(j.content || (await gh(['api', `repos/${o}/${n}/git/blobs/${j.sha}`])).content || '', 'base64');
+  const type = MAGIC.find(([, is]) => is(buf))?.[0];
+  if (!type) throw status(new Error('not an image'), 415);
+  return { type, buf };
+}
+
+module.exports = { listRepos, repoDetail, treeJob, repoBlob, repoRaw };

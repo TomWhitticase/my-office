@@ -138,6 +138,14 @@ export async function collect(server) {
   out['GET /api/repos/o/../tree'] = await put('/api/repos/o/../tree', undefined, {}, 'GET');
   out['GET /api/repos/o/n/blob (bad ref)'] = await put('/api/repos/o/n/blob?ref=main&path=a.js', undefined, {}, 'GET');
   out['GET /api/repos/o/n/blob (bad path)'] = await put(`/api/repos/o/n/blob?ref=${'a'.repeat(40)}&path=../x`, undefined, {}, 'GET');
+  // A README's image: an image file's name only, no way out of the repo, a plain ref; private repos, so the same checks.
+  out['GET /api/repos/o/n/raw (no path)'] = await put('/api/repos/o/n/raw', undefined, {}, 'GET');
+  out['GET /api/repos/o/n/raw (not an image)'] = await put('/api/repos/o/n/raw?path=README.md', undefined, {}, 'GET');
+  out['GET /api/repos/o/n/raw (traversal)'] = await put('/api/repos/o/n/raw?path=../../x.png', undefined, {}, 'GET');
+  out['GET /api/repos/o/n/raw (bad ref)'] = await put('/api/repos/o/n/raw?path=a.png&ref=../main', undefined, {}, 'GET');
+  out['GET /api/repos/o/n/raw (TV browser)'] = await put('/api/repos/o/n/raw?path=a.png', undefined, { 'user-agent': UA + ' my-office-tv' }, 'GET');
+  out['GET /api/repos/o/n/raw (cross-site)'] = await put('/api/repos/o/n/raw?path=a.png', undefined, { 'sec-fetch-site': 'cross-site' }, 'GET');
+  out['GET /api/repos/o/n/raw (signed out)'] = await put('/api/repos/o/n/raw?path=docs/a.png', undefined, {}, 'GET');
 
   // The TVs' socket: our own Origin on a trusted Host, and never from a TV.
   const ws = (headers) => req(port, 'GET', '/tv', { upgrade: true, headers: { connection: 'Upgrade', upgrade: 'websocket', 'sec-websocket-version': '13', 'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==', ...headers } })

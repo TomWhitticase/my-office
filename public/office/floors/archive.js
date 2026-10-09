@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { escapeHtml } from '../../chat.js';
-import { clamp, cyl, ease, F, fit, FONT, hash, LIFT, makeCanvas, mat, mergedBoxes, rng } from '../util.js';
+import { clamp, cyl, ease, F, fit, FONT, hash, LIFT, makeCanvas, mat, mergedBoxes, REDUCED, rng } from '../util.js';
 import { MONO } from '../painters.js';
 
 /** @param {import('../ctx.js').OfficeCtx} ctx */
@@ -356,10 +356,20 @@ export function install(ctx) {
     .of-folder .fo { position: relative; width: min(1180px, 94vw); height: min(760px, calc(100vh - 90px)); margin-top: 26px; display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); background: #cfa96b; border-radius: 4px 8px 8px 8px; padding: 14px 14px 58px; box-shadow: 0 30px 90px rgba(0,0,0,.4); perspective: 1800px; animation: of-fo-in .3s ease-out; }
     .of-folder .tab { position: absolute; left: 0; top: -30px; height: 30px; max-width: 60%; padding: 6px 22px 0 16px; background: #cfa96b; border-radius: 8px 14px 0 0; font: 700 14px "Courier New", monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .of-folder .pg { background: #fbf8ef; overflow-y: auto; overscroll-behavior: contain; padding: 24px 28px; box-shadow: 0 1px 3px rgba(0,0,0,.18); }
-    .of-folder .l { transform-origin: 100% 50%; animation: of-fo-open .7s cubic-bezier(.2,.7,.25,1) both; border-right: 1px solid #ded5c0; backface-visibility: hidden; }
-    .of-folder .r { font: 13.5px/1.6 "Courier New", Courier, monospace; background: repeating-linear-gradient(#fbf8ef 0 1100px, #e9e2d0 1100px 1104px); }
+    .of-folder .l { grid-column: 1; grid-row: 1; transform-origin: 100% 50%; animation: of-fo-page .8s cubic-bezier(.3,.6,.3,1) both; border-right: 1px solid #ded5c0; backface-visibility: hidden; }
+    .of-folder .cv { grid-column: 2; grid-row: 1; z-index: 2; pointer-events: none; transform-origin: 0 50%; backface-visibility: hidden; background: linear-gradient(100deg, #d6b277, #cfa96b 40%, #c49d5f); border-radius: 2px 6px 6px 2px; box-shadow: inset 6px 0 10px -6px rgba(0,0,0,.35), 0 2px 6px rgba(0,0,0,.25); display: flex; align-items: center; justify-content: center; font: 700 22px "Courier New", monospace; color: rgba(42,39,34,.55); animation: of-fo-cover .8s cubic-bezier(.3,.6,.3,1) both; }
+    .of-folder .fo.shut .l { animation: of-fo-page-shut .55s cubic-bezier(.6,0,.7,.4) both; }
+    .of-folder .fo.shut .cv { animation: of-fo-cover-shut .55s cubic-bezier(.6,0,.7,.4) both; }
+    .of-folder .fo.shut { animation: of-fo-out .2s ease-in .5s both; }
+    .of-folder .r { grid-column: 2; grid-row: 1; font: 13.5px/1.6 "Courier New", Courier, monospace; background: repeating-linear-gradient(#fbf8ef 0 1100px, #e9e2d0 1100px 1104px); }
     @keyframes of-fo-in { from { transform: translateY(30px) scale(.9); opacity: 0; } }
-    @keyframes of-fo-open { from { transform: rotateY(-95deg); } }
+    /* The front cover swings out towards you about the spine, left, revealing the first page; its inside (the left page)
+       comes down flat. Each is hidden from behind, so you see the cover until it's edge-on, then the page. Shutting is the same backwards. */
+    @keyframes of-fo-cover { from { transform: rotateY(0deg); } to { transform: rotateY(-180deg); } }
+    @keyframes of-fo-page { from { transform: rotateY(180deg); } to { transform: rotateY(0deg); } }
+    @keyframes of-fo-cover-shut { from { transform: rotateY(-180deg); } to { transform: rotateY(0deg); } }
+    @keyframes of-fo-page-shut { from { transform: rotateY(0deg); } to { transform: rotateY(180deg); } }
+    @keyframes of-fo-out { to { transform: translateY(30px) scale(.92); opacity: 0; } }
     .of-folder h1 { font: 700 26px/1.2 "Courier New", monospace; margin: 0 0 2px; overflow-wrap: anywhere; }
     .of-folder .own { color: #8a8170; font-size: 12px; }
     .of-folder .stamps { margin: 12px 0 4px; min-height: 24px; }
@@ -382,6 +392,8 @@ export function install(ctx) {
     .of-folder .r pre { background: #f1ecdf; padding: 8px 10px; overflow-x: auto; font: 12px/1.45 "Courier New", monospace; margin: 0 0 10px; }
     .of-folder .r code { background: #efe8d8; padding: 0 3px; } .of-folder .r .tr { white-space: pre; overflow-x: auto; font-size: 12px; }
     .of-folder a { color: #1f4f99; }
+    .of-folder .r img { max-width: 100%; height: auto; vertical-align: middle; margin: 2px 2px 2px 0; }
+    .of-folder .r .ia { color: #8a8170; font-style: italic; }
     .of-folder .n { color: #8a8170; font-style: italic; }
     .of-folder .btns { position: absolute; right: 14px; bottom: 12px; display: flex; gap: 8px; }
     .of-folder .btns > * { font: 600 13px system-ui, sans-serif; background: #2a2722; color: #f6f1e4; border: 0; border-radius: 7px; padding: 8px 14px; cursor: pointer; text-decoration: none; }
@@ -393,6 +405,12 @@ export function install(ctx) {
     const el = e.target, y = el.scrollTop, now = performance.now();
     if (Math.abs(y - (el.turned || 0)) > 420 && now - turnAt > 220) { el.turned = y; turnAt = now;
       if (files.held) ctx.sfx.cabinet('page', files.hand.position, 0.18); }
+  }, true);
+  folderEl.addEventListener('error', (e) => {
+    const im = e.target;
+    if (im.tagName !== 'IMG') return;
+    const span = document.createElement('span'); span.className = 'ia'; span.textContent = im.alt ? `[${im.alt}]` : '';
+    im.replaceWith(span);
   }, true);
   folderEl.addEventListener('click', (e) => {
     if (e.target === folderEl || e.target.closest('[data-act=back]')) putBack(true);
@@ -423,17 +441,22 @@ export function install(ctx) {
     new THREE.Matrix4().multiplyMatrices(d.g.matrixWorld, h.m[0]).decompose(h.p, h.q, new THREE.Vector3());
     arch.scene.add(files.hand);
     ctx.sfx.cabinet('rustle', h.p, 0.5);
-    showFolder(f, null);
+    folderEl.shown = null; showFolder(f, null);
     if (!f.error) fetch(`/api/repos/${encodeURIComponent(f.owner)}/${encodeURIComponent(f.name)}`).then(async (x) =>
       ({ ok: x.ok, j: await x.json() })).catch((e) => ({ ok: false, j: { error: e.message } }))
       .then((r) => { if (files.held?.f === f) showFolder(f, r.ok ? r.j : { error: r.j.error || 'couldn’t read the repo' }); });
   }
   function putBack(relock) {
     const h = files.held;
-    if (!h || !h.to) return;
-    h.to = 0;
-    folderEl.classList.remove('on');
+    if (!h || !h.to || h.shutting) return;
     if (relock) renderer.domElement.requestPointerLock();
+    const fo = folderEl.querySelector('.fo');
+    const done = () => { if (files.held !== h) return; h.shutting = false; h.to = 0; folderEl.classList.remove('on'); };
+    if (!fo || !folderEl.classList.contains('on') || REDUCED) { done(); return; }
+    h.shutting = true; fo.classList.add('shut');   // the cover closes (see of-fo-*-shut), then it goes back in the drawer
+    ctx.sfx.cabinet('page', files.hand.position, 0.2);
+    fo.addEventListener('animationend', (e) => { if (e.animationName === 'of-fo-out') done(); });
+    setTimeout(done, 3000);   // (if they never end, it goes back anyway)
   }
   const handP = new THREE.Vector3(), handQ = new THREE.Quaternion(), TILT = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.25, 0, 0));
   function heldFx(dt) {
@@ -502,16 +525,55 @@ export function install(ctx) {
       right = !x ? '<p class="n">Reading the folder…</p>' : x.error ? '' : x.readme ? readmeHtml(x.readme.text, f.url, x.branch) :
         '<p class="n">No README in this one.</p>';
     }
-    folderEl.innerHTML = `<div class="fo"><div class="tab">${s(f.name)}</div><div class="pg l">${left}</div><div class="pg r">${right}</div>
+    const fo = folderEl.querySelector('.fo');
+    if (fo && folderEl.shown === f) { fo.querySelector('.pg.l').innerHTML = left; fo.querySelector('.pg.r').innerHTML = right; return; }
+    folderEl.shown = f;
+    folderEl.innerHTML = `<div class="fo"><div class="tab">${s(f.name)}</div><div class="pg l">${left}</div><div class="pg r">${right}</div><div class="cv">${s(f.name)}</div>
       <div class="btns">${f.url ? `<a href="${s(f.url)}" target="_blank" rel="noopener noreferrer">Open on GitHub ↗</a>` : ''}<button data-act="back">Put back <kbd>Esc</kbd></button></div></div>`;
   }
-  function readmeHtml(text, url, branch) {
+  // README images, built here (never the README's own HTML): https sources load as they are (github.com file links as
+  // raw.githubusercontent.com, or this repo's own through the server); a relative path is this repo's file at its default
+  // branch, through /api/repos/:o/:n/raw (private repos too); anything else is just its alt text. `dir`: the markdown
+  // file's folder in the repo, for relative paths ('' for the README at the top).
+  const unesc = (t) => t.replace(/&(amp|lt|gt|quot|#39);/g, (m, k) => ({ amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'" }[k]));
+  function imageSrc(src, url, dir) {
+    const [, o, n] = /github\.com\/([^/]+)\/([^/?#]+)/.exec(url || '') || [], own = (path, ref) => (o ? `/api/repos/${encodeURIComponent(o)}/${encodeURIComponent(n)}/raw?path=${encodeURIComponent(path)}${ref ? `&ref=${encodeURIComponent(ref)}` : ''}` : '');
+    if (/^https:\/\//i.test(src)) {
+      let u; try { u = new URL(src); } catch { return ''; }
+      const gh = u.hostname === 'github.com' && /^\/([^/]+)\/([^/]+)\/(?:blob|raw)\/([^/]+)\/(.+)$/.exec(u.pathname);
+      if (!gh) return u.href;
+      if (o && gh[1].toLowerCase() === o.toLowerCase() && gh[2].toLowerCase() === n.toLowerCase()) return own(decodeURIComponent(gh[4]), decodeURIComponent(gh[3]));
+      return `https://raw.githubusercontent.com/${gh[1]}/${gh[2]}/${gh[3]}/${gh[4]}`;
+    }
+    if (/^([a-z][a-z0-9+.-]*:|\/\/|#)/i.test(src) || !src) return '';   // http:, data:, javascript:, protocol-relative, anchors: no
+    const parts = [];
+    for (const seg of `${src.startsWith('/') ? '' : dir || ''}/${src}`.split(/[?#]/)[0].split('/')) {
+      if (!seg || seg === '.') continue;
+      if (seg === '..') { if (!parts.length) return ''; parts.pop(); } else parts.push(seg);
+    }
+    let path; try { path = parts.map(decodeURIComponent).join('/'); } catch { return ''; }
+    return /\.(png|jpe?g|gif|webp|svg)$/i.test(path) ? own(path) : '';
+  }
+  function readmeHtml(text, url, branch, dir = '') {
     const href = (h) =>
       (/^https?:\/\//i.test(h) ? h : h.startsWith('#') ? '' : `${escapeHtml(url)}/blob/${escapeHtml(branch || 'HEAD')}/${h.replace(/^\.?\//, '')}`);
-    const inline = (t) => escapeHtml(t).replace(/!\[([^\]]*)\]\([^)]*\)/g, (m, a) => (a ? `[${a}]` : ''))
-      .replace(/\[([^\]]+)\]\(([^)\s]+)[^)]*\)/g, (m, t2, h) => (href(h) ? `<a href="${href(h)}" target="_blank" rel="noopener noreferrer">${t2}</a>` : t2))
-      .split(/(`[^`]+`)/).map((p, j) => (j % 2 ? `<code>${p.slice(1, -1)}</code>` : p
-      .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>').replace(/(^|[\s(])[*_]([^*_\s][^*_]*)[*_](?=[\s).,:;!?]|$)/g, '$1<i>$2</i>'))).join('');
+    // An image: escaped alt and src in, a tag out (kept as a token until the end, so the emphasis rules never touch it).
+    const tags = [], token = (html) => `\u0001${tags.push(html) - 1}\u0001`;
+    const img = (alt, src, width) => {
+      const s = imageSrc(unesc(src), url, dir);
+      if (!s) return alt ? token(`<span class="ia">[${alt}]</span>`) : '';
+      return token(`<img src="${escapeHtml(s)}" alt="${alt}"${width ? ` width="${width}"` : ''} loading="lazy" decoding="async" referrerpolicy="no-referrer">`);
+    };
+    const html = [];   // the README's own <img> tags, read for src, alt and width only
+    const attr = (t, k) => { const m = new RegExp(`\\b${k}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, 'i').exec(t); return m ? m[1] ?? m[2] ?? m[3] : ''; };
+    // Code spans first (nothing in them is an image, a link or emphasis), then images, links and emphasis in the rest.
+    const inline = (t) => escapeHtml(t).split(/(`[^`]+`)/).map((p, j) => (j % 2
+      ? `<code>${p.slice(1, -1).replace(/\u0002(\d+)\u0002/g, '')}</code>`
+      : p.replace(/\u0002(\d+)\u0002/g, (m, k) => { const h = html[k]; return img(escapeHtml(unesc(h.alt)), escapeHtml(h.src), h.width); })
+        .replace(/!\[([^\]]*)\]\(\s*([^)\s]+)(?:\s+&quot;[^]*?&quot;)?\s*\)/g, (m, a, src) => img(a, src))
+        .replace(/\[([^\]]+)\]\(([^)\s]+)[^)]*\)/g, (m, t2, h) => (href(h) ? `<a href="${href(h)}" target="_blank" rel="noopener noreferrer">${t2}</a>` : t2))
+        .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>').replace(/(^|[\s(])[*_]([^*_\s][^*_]*)[*_](?=[\s).,:;!?]|$)/g, '$1<i>$2</i>'))).join('')
+      .replace(/\u0001(\d+)\u0001/g, (m, k) => tags[k]);
     const out = [];
     let para = [], list = null, code = null;
     const flush = () => {
@@ -523,7 +585,9 @@ export function install(ctx) {
       if (/^\s*(```|~~~)/.test(raw)) { if (code) { out.push(`<pre>${escapeHtml(code.join('\n'))}</pre>`); code = null; } else { flush(); code = []; } continue;
         }
       if (code) { code.push(raw); continue; }
-      const l = raw.replace(/<\/?[a-z][^>]*>/gi, '');
+      const l = raw.replace(/<img\b[^>]*>/gi, (t) => { const w = attr(t, 'width');
+        return `\u0002${html.push({ src: attr(t, 'src'), alt: attr(t, 'alt'), width: /^\d{1,4}$/.test(w) ? w : '' }) - 1}\u0002`; })
+        .replace(/<\/?[a-z][^>]*>/gi, '');
       let m;
       if (!l.trim()) { if (!/^\s*<\/?[a-z]/i.test(raw)) flush(); }
       else if ((m = l.match(/^\s*(#{1,6})\s+(.*)/))) { flush(); const n = m[1].length + 1; out.push(`<h${n}>${inline(m[2].replace(/\s#+\s*$/, ''))}</h${n}>`); }
