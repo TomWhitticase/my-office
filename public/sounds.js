@@ -657,6 +657,8 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos, roof 
       heliV.lp.frequency.setTargetAtTime(inside ? 1600 : 8000, now, 0.2);
       if (p && heliV.pan.positionX) { heliV.pan.positionX.value = p.x; heliV.pan.positionY.value = p.y; heliV.pan.positionZ.value = p.z; }
     },
+    // For a floor that makes its own sounds (the restricted level): the context and the bus (panned voices) and master (all round you).
+    get audio() { return ctx && { ctx, bus, master }; },
     get ready() { return !!ctx && ctx.state; },
     get voices() { return voices; }, played, get buffers() { return B; },
   };

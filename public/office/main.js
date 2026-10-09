@@ -40,6 +40,7 @@ import { install as installRoof } from './floors/roof.js';
 import { install as installHelicopter } from './floors/helicopter.js';
 import { install as installRoofBar } from './floors/roof-bar.js';
 import { install as installServerHall } from './floors/server-hall.js';
+import { install as installRestricted } from './floors/restricted.js';
 import { install as installCctv } from './systems/cctv.js';
 import { install as installTerminals } from './systems/terminals.js';
 import { install as installAvatar } from './systems/avatar.js';
@@ -179,6 +180,7 @@ export function mountOffice(container) {
 
   installServerHall(ctx);
   const { srv } = ctx;
+  installRestricted(ctx);   // B3, behind a code; before the cameras (two of its are dead)
 
   installCctv(ctx);
 

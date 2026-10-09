@@ -57,6 +57,9 @@
  * @property {any} [bloom]
  * @property {any} [grade]
  * @property {any} [hemi]
+ * @property {boolean} [unlisted]          left off the building directory
+ * @property {() => boolean} [gate]       pressing its button: false keeps the car where it is (an access code, restricted.js)
+ * @property {number} [ride]              seconds the ride there takes, if not the usual
  */
 /**
  * A lift car (systems/lifts.js): where it is (floor, between floors while travelling), its doors (doorK 0 shut, 1 open),
