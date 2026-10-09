@@ -18,6 +18,7 @@ import { install as installBreakroom, installCozy } from './world/breakroom.js';
 import { install as installLounge, installVending } from './world/lounge.js';
 import { install as installDarts } from './world/darts.js';
 import { install as installMyOffice, installScreen, installDesk } from './world/my-office.js';
+import { install as installTaskBoard } from './world/task-board.js';
 import { install as installKitchen } from './world/kitchen.js';
 import { install as installGuitars } from './world/guitars.js';
 import { install as installDrinks } from './world/drinks-cabinet.js';
@@ -42,6 +43,7 @@ import { install as installRoofBar } from './floors/roof-bar.js';
 import { install as installServerHall } from './floors/server-hall.js';
 import { install as installRestricted } from './floors/restricted.js';
 import { install as installCctv } from './systems/cctv.js';
+import { installUse as installTaskBoardUse } from './systems/task-board.js';
 import { install as installTerminals } from './systems/terminals.js';
 import { install as installAvatar } from './systems/avatar.js';
 import { install as installChat } from './systems/chat.js';
@@ -134,6 +136,7 @@ export function mountOffice(container) {
   installKitchen(ctx);
   const { kitchen } = ctx;
   installDesk(ctx);
+  installTaskBoard(ctx);   // the cork task board on my office's north wall
   installGuitars(ctx);
   installDrinks(ctx);
 
@@ -200,6 +203,7 @@ export function mountOffice(container) {
   const { leaveTv, useTv } = ctx;
 
   installDrawing(ctx);
+  installTaskBoardUse(ctx);   // using the task board (wraps leaveBoard, so before it's read here)
   const { leaveBoard, useBoard, wb } = ctx;
 
   installChat(ctx);

@@ -595,6 +595,7 @@ function connect() {
     for (const [id, t] of Object.entries(dash.camHold || {})) if (t > now && dash.office.cameras?.[id]) (o.cameras ||= {})[id] = dash.office.cameras[id];
     dash.office = o; for (const cb of dash.officeListeners) cb(dash.office);
   });
+  es.addEventListener('board', (m) => { dash.board = JSON.parse(m.data); for (const cb of dash.boardListeners) cb(dash.board); });   // the task board in my office
   es.onerror = () => { conn.className = 'conn off'; conn.lastChild.textContent = 'reconnecting…'; };
 }
 // Bridge for the 3D office view (office.js), which reuses live state, colours and the drawer.
@@ -636,6 +637,7 @@ window.dash = {
   // Lights, blinds, door and the security cameras (server-side, /api/office). putOffice applies locally at once, then saves.
   office: { lights: 'auto', brightness: 1, blinds: { side: 0, front: 0, north: 0, east: 0, west: 0, office: 0, meetSouth: 0, meetNorth: 0, meetSmall: 0 }, door: 0,
     cameras: {} }, officeListeners: new Set(),
+  board: null, boardListeners: new Set(),   // the task board (server-side, /api/board): the office paints it and sends its changes
   putOffice(patch, save = true) {   // save false: this page only (the Security app saves a drag's aim a few times a second)
     const o = dash.office, cams = { ...o.cameras };
     for (const [id, c] of Object.entries(patch.cameras || {})) cams[id] = { on: true, pan: 0, tilt: 0, zoom: 1, ...cams[id], ...c };

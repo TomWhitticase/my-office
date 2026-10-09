@@ -9,7 +9,7 @@
 //
 // This file is the entry point: config, http routing and the /events stream. The work is in server/: transcripts, state (the
 // registry and the state pushed every second), sessions-send, tv-browser, repos, john, receptionist, machine, office-settings,
-// security, util.
+// board (the task board in my office), security, util.
 
 const fs = require('fs');
 const path = require('path');
@@ -17,6 +17,7 @@ const http = require('http');
 const { safeJSON, clients } = require('./server/util');
 const { TV_UA_TAG, trustedHost, deny } = require('./server/security');
 const { office, putOffice } = require('./server/office-settings');
+const taskBoard = require('./server/board');   // live value: taskBoard.board
 const { listRepos, repoDetail, treeJob, repoBlob, repoRaw } = require('./server/repos');
 const { MAX_EVENTS, transcripts, bySession, listTranscripts, sessionFeed } = require('./server/transcripts');
 const S = require('./server/state');   // live values: S.registry, S.procStats, S.state, S.stateJSON
@@ -74,6 +75,9 @@ const server = http.createServer((req, res) => {
   if (url.pathname === '/events') {
     res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });
     res.write(`retry: 2000\ndata: ${S.stateJSON}\n\nevent: tvs\ndata: ${JSON.stringify(TV.tvs)}\n\nevent: tvads\ndata: ${TV.adsSent || '{}'}\n\nevent: office\ndata: ${JSON.stringify(office)}\n\n`);
+    // The task board is your notes: only to our own Host (a page on another name that resolves here never gets it).
+    res.boardOk = trustedHost(req.headers.host || '');
+    if (res.boardOk) res.write(`event: board\ndata: ${JSON.stringify(taskBoard.board)}\n\n`);
     clients.add(res);
     req.on('close', () => clients.delete(res));
     return;
@@ -94,6 +98,24 @@ const server = http.createServer((req, res) => {
     req.on('end', () => {
       try { const saved = putOffice(JSON.parse(body || '{}')); res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify(saved)); }
       catch (e) { res.writeHead(400, { 'content-type': 'application/json' }); res.end(JSON.stringify({ error: e.message })); }
+    });
+    return;
+  }
+  // The task board in my office: read it (our own Host, never cross-site: it's your notes), or change it by ops.
+  if (url.pathname === '/api/board') {
+    const reply = (code, o) => { res.writeHead(code, { 'content-type': 'application/json', 'cache-control': 'no-store' }); res.end(JSON.stringify(o)); };
+    if (req.method === 'GET') {
+      if (!trustedHost(req.headers.host || '') || /^(cross-site|same-site)$/.test(req.headers['sec-fetch-site'] || '')) return reply(403, { error: 'refused' });
+      return reply(200, taskBoard.board);
+    }
+    if (req.method !== 'POST') return reply(405, { error: 'GET or POST' });
+    if (deny(req, res)) return;
+    let body = '', big = false;
+    req.on('data', (c) => { body += c; if (body.length > taskBoard.BOARD.LIM.req && !big) { big = true; reply(413, { error: 'too big' }); req.destroy(); } });
+    req.on('end', () => {
+      if (big) return;
+      try { reply(200, taskBoard.changeBoard(JSON.parse(body || '{}'))); }
+      catch (e) { reply(e.status || 400, { error: e.message, board: taskBoard.board }); }
     });
     return;
   }

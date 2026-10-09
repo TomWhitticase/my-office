@@ -10,7 +10,7 @@ export const CSS = `
     .of-dom { background: var(--page); overflow: hidden; pointer-events: none; }
     .of-hud { position: absolute; inset: 0; z-index: 2; pointer-events: none; font: 13px/1.4 system-ui, -apple-system, sans-serif; color: #fff; transition: opacity .4s; }
     .of-hud.hidden { opacity: 0; }
-    .of-bare > :not(.of-cross, .of-toast, .of-tvbar, .of-osd, .of-chat, .of-chatbar, .of-wbbar, .of-wbtext) { display: none !important; }   /* a TV in use keeps its bar, an open chat stays */
+    .of-bare > :not(.of-cross, .of-toast, .of-tvbar, .of-osd, .of-chat, .of-chatbar, .of-wbbar, .of-wbtext, .of-kbui) { display: none !important; }   /* a TV in use keeps its bar, an open chat stays */
     .of-toast { position: absolute; left: 50%; top: 18px; transform: translateX(-50%); background: rgba(15,16,19,.82); border: 1px solid rgba(255,255,255,.14); border-radius: 10px; padding: 6px 12px; color: #c3c2b7; font-size: 12px; opacity: 0; transition: opacity .3s; }
     .of-toast.on { opacity: 1; }
     .of-toast kbd { font: inherit; font-weight: 600; color: #fff; background: rgba(255,255,255,.12); border-radius: 4px; padding: 0 5px; }

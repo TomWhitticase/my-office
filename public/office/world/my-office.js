@@ -238,7 +238,7 @@ export function installDesk(ctx) {
   plant(18.9, -14.3, 1.2); plant(6.6, -14.3);
 
   bookshelf(8.6, -14.7, 0, 2.4, 2.2, 5);
-  art(17.4, 1.75, -14.92, 0, 1.6, 1.1);
+  art(10.52, 1.98, -14.92, 0, 0.84, 1.12);   // between the bookshelf and the TV: the task board has the wall right of it
   smallPlant(world, 16.6, 1.1, -3.0);
   pendant(13, -10.6, { drop: 0.85, light: 12, shade: '#d97757' });
   floorLamp(19.3, -10.8, 10);

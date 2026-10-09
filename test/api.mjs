@@ -71,12 +71,12 @@ export async function collect(server) {
   const repos = await get('/api/repos');   // gh isn't signed in under the fixture HOME
   out['GET /api/repos'] = { status: repos.status, type: repos.type, cache: repos.cache, signin: repos.body?.signin };
 
-  // The event stream's opening: the state, then the TVs, ad counts and office settings.
+  // The event stream's opening: the state, then the TVs, ad counts, office settings and the task board.
   const events = [];
   const stream = await new Promise((resolve) => {
     let buf = '';
     const r = http.get({ host: '127.0.0.1', port, path: '/events', headers: { 'user-agent': UA } }, (res) => {
-      res.on('data', (c) => { buf += c; if ((buf.match(/\n\n/g) || []).length >= 4) { res.destroy(); resolve({ status: res.statusCode, type: res.headers['content-type'], buf }); } });
+      res.on('data', (c) => { buf += c; if ((buf.match(/\n\n/g) || []).length >= 5) { res.destroy(); resolve({ status: res.statusCode, type: res.headers['content-type'], buf }); } });
     });
     r.on('error', () => resolve({ buf }));
   });
@@ -112,6 +112,56 @@ export async function collect(server) {
   out['PUT /api/office (HeadlessChrome)'] = await put('/api/office', { door: 1 }, { ...ok, 'user-agent': UA.replace('Chrome/', 'HeadlessChrome/') });
   out['PUT /api/office (TV browser)'] = await put('/api/office', { door: 1 }, { ...ok, 'user-agent': UA + ' my-office-tv' });
   out['PUT /api/office (foreign Host)'] = await put('/api/office', { door: 1 }, { ...ok, host: 'evil.example', origin: 'http://evil.example' });
+  // The task board: read only on our own Host and never cross-site (it's your notes); changed by ops, all or none, each
+  // checked and clamped, behind the same write checks. Only cards and columns made here are touched, and all of them are
+  // gone again at the end (the goldens after this paint the fixture board).
+  const ops = (body, headers = ok) => put('/api/board', body, headers, 'POST');
+  const brief = (r) => ({ status: r.status, body: r.body?.cards ? { rev: r.body.rev, columns: r.body.columns.map((k) => `${k.id}:${k.name}`),
+    cards: r.body.cards.filter((c) => c.id.startsWith('api')).map((c) => `${c.id}@${c.col}${c.archived ? ' (archived)' : ''}`) }
+    : r.body?.board ? { error: r.body.error, rev: r.body.board.rev } : r.body });
+  out['GET /api/board'] = await get('/api/board');
+  out['GET /api/board (cross-site)'] = await get('/api/board', { headers: { 'sec-fetch-site': 'cross-site' } });
+  out['GET /api/board (foreign Host)'] = await get('/api/board', { headers: { host: 'evil.example' } });
+  const added = await ops({ ops: [{ op: 'add', col: 'todo', at: 0, card: { id: 'api00001', title: ' Call\u0007 the   bank ', body: 'line 1\r\nline 2\u0000', kind: 'sticky', color: 'red', prio: 9,
+    due: '2026-02-31', labels: `a, b, a, ${'x'.repeat(40)}`, who: 'ab!cd', archived: 'yes', rev: 99 } }] });
+  out['POST /api/board (add, clamped)'] = { status: added.status, card: added.body.cards?.find((c) => c.id === 'api00001'), at: added.body.cards?.findIndex((c) => c.id === 'api00001') };
+  out['POST /api/board (add more)'] = brief(await ops({ ops: [{ op: 'add', card: { id: 'api00002', title: 'B' } }, { op: 'add', card: { id: 'api00003', title: 'C', kind: 'index', color: 'blue' }, col: 'done', at: 99 }] }));
+  out['POST /api/board (duplicate id)'] = brief(await ops({ ops: [{ op: 'add', card: { id: 'api00002' } }] }));
+  out['POST /api/board (bad id)'] = brief(await ops({ ops: [{ op: 'add', card: { id: '../x' } }] }));
+  out['POST /api/board (edit)'] = await ops({ ops: [{ op: 'edit', id: 'api00002', set: { title: 'B2', body: 'x'.repeat(10050), kind: 'nope', prio: 2, due: '2026-07-01', who: 'jd', id: 'hijack', col: 'done' } }] })
+    .then((r) => ({ status: r.status, card: r.body.cards?.filter((c) => c.id === 'api00002').map((c) => ({ ...c, body: c.body.length })) }));
+  out['POST /api/board (move)'] = brief(await ops({ ops: [{ op: 'move', id: 'api00002', col: 'review', at: 0 }, { op: 'move', id: 'api00003', col: 'review', at: 1 }] }));
+  out['POST /api/board (archive)'] = brief(await ops({ ops: [{ op: 'archive', id: 'api00003' }] }));
+  out['POST /api/board (a bad op: none applied)'] = brief(await ops({ ops: [{ op: 'delete', id: 'api00002' }, { op: 'move', id: 'api00001', col: 'nope' }] }));
+  out['POST /api/board (unknown card)'] = brief(await ops({ ops: [{ op: 'edit', id: 'nope0000', set: { title: 'x' } }] }));
+  out['POST /api/board (unknown op)'] = brief(await ops({ ops: [{ op: 'drop', table: 'cards' }] }));
+  out['POST /api/board (no ops)'] = brief(await ops({ ops: [] }));
+  out['POST /api/board (not ops)'] = brief(await ops({ cards: [] }));
+  out['POST /api/board (too many ops)'] = brief(await ops({ ops: Array.from({ length: 101 }, () => ({ op: 'archive', id: 'api00003' })) }));
+  out['POST /api/board (too big)'] = brief(await ops({ ops: [{ op: 'add', card: { body: 'x'.repeat(300000) } }] }));
+  out['POST /api/board (bad JSON)'] = brief(await ops('{nope'));
+  const cols = (await get('/api/board')).body.columns;
+  out['POST /api/board (columns: add, rename, reorder)'] = brief(await ops({ ops: [{ op: 'columns', columns: [...cols.slice(0, 3), { id: 'apicol01', name: '  QA\n ' }, ...cols.slice(3)] },
+    { op: 'move', id: 'api00002', col: 'apicol01' }] }));
+  out['POST /api/board (columns: one dropped, its cards to the first)'] = brief(await ops({ ops: [{ op: 'columns', columns: cols }] }));
+  out['POST /api/board (columns: none)'] = brief(await ops({ ops: [{ op: 'columns', columns: [] }] }));
+  out['POST /api/board (columns: too many)'] = brief(await ops({ ops: [{ op: 'columns', columns: Array.from({ length: 13 }, (_, i) => ({ id: `apicol${String(i).padStart(2, '0')}`, name: `c${i}` })) }] }));
+  out['POST /api/board (no Origin)'] = brief(await ops({ ops: [{ op: 'delete', id: 'api00001' }] }, { 'content-type': 'application/json' }));
+  out['POST /api/board (foreign Origin)'] = brief(await ops({ ops: [{ op: 'delete', id: 'api00001' }] }, { ...ok, origin: 'http://evil.example' }));
+  out['POST /api/board (text/plain)'] = brief(await ops({ ops: [{ op: 'delete', id: 'api00001' }] }, { ...ok, 'content-type': 'text/plain' }));
+  out['POST /api/board (HeadlessChrome)'] = brief(await ops({ ops: [{ op: 'delete', id: 'api00001' }] }, { ...ok, 'user-agent': UA.replace('Chrome/', 'HeadlessChrome/') }));
+  out['POST /api/board (TV browser)'] = brief(await ops({ ops: [{ op: 'delete', id: 'api00001' }] }, { ...ok, 'user-agent': UA + ' my-office-tv' }));
+  out['POST /api/board (foreign Host)'] = brief(await ops({ ops: [{ op: 'delete', id: 'api00001' }] }, { ...ok, host: 'evil.example', origin: 'http://evil.example' }));
+  out['PUT /api/board'] = await put('/api/board', { ops: [] }, ok);
+  // Full: 500 cards at most, however many are archived.
+  const n0 = (await get('/api/board')).body.cards.length, fill = [];
+  for (let i = 0; n0 + i < 500; i++) fill.push(`api${String(i + 100).padStart(5, '0')}`);
+  for (let i = 0; i < fill.length; i += 100) await ops({ ops: fill.slice(i, i + 100).map((id) => ({ op: 'add', card: { id, title: id } })) });
+  out['POST /api/board (full)'] = brief(await ops({ ops: [{ op: 'add', card: { id: 'api99999', title: 'one too many' } }] }));
+  const mine = (await get('/api/board')).body.cards.filter((c) => c.id.startsWith('api')).map((c) => c.id);
+  for (let i = 0; i < mine.length; i += 100) await ops({ ops: mine.slice(i, i + 100).map((id) => ({ op: 'delete', id })) });
+  out['GET /api/board (after)'] = await get('/api/board').then((r) => ({ ...r, body: { ...r.body, rev: typeof r.body.rev } }));
+
   out['PUT /api/tvs/lobby (foreign Origin)'] = await put('/api/tvs/lobby', { url: 'https://example.com' }, { ...ok, origin: 'http://evil.example' });
   out['PUT /api/tvs/lobby (bad url)'] = await put('/api/tvs/lobby', { url: 'javascript:alert(1)' }, ok);
   out['PUT /api/tvs/<bad id>'] = await put('/api/tvs/../x', { url: '' }, ok);

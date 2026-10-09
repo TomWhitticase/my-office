@@ -256,6 +256,7 @@ export function install(ctx) {
   }
   function tvStop(t) { return facing({ x: t.center.x + t.normal.x * 2.2, z: t.center.z + t.normal.z * 2.2 }, t.center); }
   const panelStop = () => facing({ x: PANEL.x - 0.55, z: PANEL.z }, PANEL);
+  const boardStop = () => { const b = ctx.taskBoard.mesh.position; return facing({ x: b.x, z: b.z + 0.95 }, b); };   // in front of the guitars
 
   // A plan's actions as stops, in order (a group of blinds or doors nearest first); sounds need no walking.
   function stopsFor(actions) {
@@ -274,6 +275,7 @@ export function install(ctx) {
           make: () => ({ ...doorStop(doorOf(id)), pose: 'door', place: DOOR_NAMES[id], a, id }) }))));
       } else if (a.do === 'setSounds') out.push({ a, here: true });
       else if (a.do === 'tv') { const t = tvs.find((x) => x.id === a.id); if (t) { const s = { ...tvStop(t), pose: 'remote', place: `the ${t.name} TV`, a, tv: t }; out.push(s); at = s; } }
+      else if (a.do === 'addCard' && ctx.taskBoard) { const s = { ...boardStop(), pose: 'press', place: 'your task board', a }; out.push(s); at = s; }
     }
     return out;
   }
@@ -323,6 +325,10 @@ export function install(ctx) {
       if (a.refresh !== undefined) said += a.refresh ? `, reloading every ${a.refresh} s` : ', no auto-reload';
       return said;
     }
+    if (a.do === 'addCard') {
+      const r = ctx.taskBoard.addCard({ title: a.title, body: a.details || '', prio: a.prio || 0, kind: a.sticky ? 'sticky' : 'index', color: a.sticky ? 'yellow' : 'white' }, a.column);
+      return r ? `“${a.title}” pinned up in ${r.col.name}` : 'Couldn’t get at your board just now';
+    }
     return '';
   }
   const cap = (s) => s[0].toUpperCase() + s.slice(1);
@@ -358,7 +364,7 @@ export function install(ctx) {
       if (!R.chat.open) toast(`<b>${NAME}</b>: all done!`);
     });
   }
-  const doingAt = (s) => ({ pull: `doing the ${BLIND_NAMES[s.key]}`, press: 'at the light panel', door: `at ${DOOR_NAMES[s.id]}`, remote: `working the ${s.tv?.name} TV` })[s.pose] || 'busy';
+  const doingAt = (s) => s.a?.do === 'addCard' ? 'pinning a card on your board' : ({ pull: `doing the ${BLIND_NAMES[s.key]}`, press: 'at the light panel', door: `at ${DOOR_NAMES[s.id]}`, remote: `working the ${s.tv?.name} TV` })[s.pose] || 'busy';
   function actTick(dt) {   // at a stop: the change goes in after a moment, and she moves on once it's done
     const s = R.stop;
     R.actT += dt;
@@ -448,7 +454,7 @@ export function install(ctx) {
       + (chat.busy ? `<div class="n typing">${NAME} is typing</div>` : '');
     log.scrollTop = log.scrollHeight;
     st.className = 'st' + (chat.note ? ' bad' : '');
-    st.innerHTML = chat.note ? escapeHtml(chat.note) : `Office admin only: lights, blinds, doors, sounds, TVs · <kbd>Enter</kbd> send · <kbd>Esc</kbd> back`;
+    st.innerHTML = chat.note ? escapeHtml(chat.note) : `Office admin only: lights, blinds, doors, sounds, TVs, cards on your board · <kbd>Enter</kbd> send · <kbd>Esc</kbd> back`;
     input.disabled = sendBtn.disabled = chat.busy;
     paintScreen();
   }

@@ -201,6 +201,18 @@ export const POSES = [
     await o.eval(() => window.__office.ctx.restr.story.read('tally'));
     await o.step(4);
   }],
+  ['task-board', async (o) => {   // back up to the office and over to the task board, in use: the fixture board, the layer over it
+    await o.eval(() => { window.__office.ctx.restr.story.reader.close(); window.__office.goFloor(48); });
+    await stepUntil(o, () => window.__office.mine.L?.state === 'open', 80);
+    await stand(o, 16.7, -11.5, { x: 16.7, y: 1.9, z: -14.9 });
+    await o.step(2);
+    await o.eval(() => window.__office.ctx.useTaskBoard());
+    await o.step(16);   // the 700 ms glide up to the board
+  }],
+  ['task-board-card', async (o) => {   // a card open: its editor beside the board, the card on the board as it's being edited
+    await o.eval(() => { const t = window.__office.ctx.taskBoard; t.openCard(t.tb.board.cards.find((c) => c.id === 'fix00004')); });
+    await o.step(3);
+  }],
 ];
 
 // Compares two PNGs in the page: counts pixels where any channel differs by more than `tol`.
