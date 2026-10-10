@@ -1,23 +1,24 @@
-// THE EDGE OF THE WORLD: after The Truman Show. Hold the helicopter on outward against the edge of the city until it gives
+// THE EDGE OF THE WORLD: the sky is a set. Hold the helicopter on outward against the edge of the city until it gives
 // up (helicopter.js, S.free), then keep going west, over the low pass in the mountains and out across open sea, and the
 // sky turns out to be a wall: a dome 5.2 km across, painted with the sky as seen from the middle of the city, so from
 // town (and most of the way out) it's the sky; only up close do its panels and seams show, and its clouds stop moving
 // with you. You can't fly through it (a hollow knock). Due west, a plain concrete stair rises out of the water along it
-// from a little pier to a door in the sky marked EXIT. Land on the pier, get out (F), climb up, open the door onto
-// darkness, and step through.
+// from a little pier to a door in the sky marked EXIT. Land on the pier, get out (F), climb up and open the door: behind
+// it is what's behind the sky (world-edge-backstage.js), and you walk straight in.
 // Nothing here is built until you're first let out past the city's edge, and nothing is shown or runs unless you're out
-// there. It's in the office's scene, like the roof (you're still on the roof floor while you fly).
+// there (or behind it). It's in the office's scene, like the roof (you're still on the roof floor while you fly).
 // Debug: ctx.heli.edge.place(d, h) puts the helicopter d m out from the wall by the stairs, h m up, facing it, flying;
-// .land() sets it down on the pier; .door(true) opens the door.
+// .land() sets it down on the pier; .door(true) opens the door; .backstage (once built) stages what's behind it.
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { damp, dash, makeCanvas, mat, mergedBoxes, rng, sstep } from '../util.js';
+import { damp, makeCanvas, mat, mergedBoxes, rng, sstep } from '../util.js';
 import { makeSound } from './world-edge-sound.js';
+import { installBackstage } from './world-edge-backstage.js';
 
 /** @param {import('../ctx.js').OfficeCtx} ctx */
 export function install(ctx) {
-  const { heli, city, roof, world, scene, camera, container, style, skyU, sun, hemi, hitBox } = ctx;
+  const { heli, city, roof, world, scene, camera, skyU, sun, hemi, hitBox } = ctx;
   const S = heli.S, ROOF_Y = roof.y;
   // The dome: centred on the city at sea level. Due west of the centre (x = -R, z = 0) is the door; locally there, u = z
   // runs along the wall and w = x + R is how far you are in from it.
@@ -57,8 +58,8 @@ export function install(ctx) {
     [STAIR.u0 - 0.3, LAND.u0 + 0.3, 0.45, STAIR.w - 0.35],
     [LAND.u0 - 0.1, LAND.u1 - 0.3, 0.45, 1.6 - 0.35],
   ];
-  const DOORWAY = [-DOOR.w / 2 + 0.22, DOOR.w / 2 - 0.22, -4, 0.6];
-  const E = { built: false, shown: false, open: 0, want: 0, dim: 1, said: false, ending: false, G: null, hinge: null };
+  const DOORWAY = [-DOOR.w / 2 + 0.22, DOOR.w / 2 - 0.22, -0.6, 0.6];   // (you're through, behind the sky, past w = 0.01)
+  const E = { built: false, shown: false, open: 0, want: 0, dim: 1, top: false, G: null, hinge: null, leaf: null, back: null };
   const walkable = (u, w) => RECTS.some(([a, b, c, d]) => u >= a && u <= b && w >= c && w <= d)
     || (E.open > 0.6 && u >= DOORWAY[0] && u <= DOORWAY[1] && w >= DOORWAY[2] && w <= DOORWAY[3]);
   const groundAt = (x, z) => {
@@ -108,7 +109,7 @@ export function install(ctx) {
         if (cut > 0.5 && abs(wu - hole.x) < hole.z && abs(wy - hole.y) < hole.w) discard;   // the doorway
         vec3 d = normalize(vP - mix(cameraPosition, eye0, near));`);
     swap('mix(hor, ground, pow(min(-h * 4.0, 1.0), 0.6))', 'mix(hor, fogC, smoothstep(0.0, 0.03, -h))');
-    swap('smoothstep(0.5, 0.78, fbm(uv))', 'smoothstep(0.5 + 0.14 * near, 0.78 + 0.1 * near, fbm(uv))');   // fewer, thinner clouds painted on
+    swap('smoothstep(1.0 - cover, 1.28 - cover, fbm(uv))', 'smoothstep(1.0 - cover + 0.14 * near, 1.28 - cover + 0.1 * near, fbm(uv))');   // fewer, thinner clouds painted on
     swap('gl_FragColor = vec4(col, 1.0);', `
         // Panels 6 m by 3 m, each a shade off the next, fine seams between them.
         vec2 pg = vec2(wu / 6.0, wy / 3.0), fw = max(fwidth(pg), vec2(1e-6)), off = abs(fract(pg + 0.5) - 0.5), lw = vec2(0.022 / 6.0, 0.022 / 3.0);
@@ -209,16 +210,13 @@ export function install(ctx) {
       tube(new THREE.Vector3(x(RW), at(u) + H * 0.5, u), new THREE.Vector3(x(RW), at(Math.min(u + TREAD * 5, LAND.u0 - 0.1)) + H * 0.5, Math.min(u + TREAD * 5, LAND.u0 - 0.1)), 0.012);
     const rails = new THREE.Mesh(mergeGeometries(rail), steel); rails.castShadow = true; G.add(rails);
 
-    // The doorway: darkness behind the wall (a black box, open at the front), and the door, painted with the wall's sky
-    // where it would be, hung on the stairs' side and opening away from you into the dark.
-    const blackM = new THREE.MeshBasicMaterial({ color: '#000', side: THREE.BackSide, fog: false }), noneM = new THREE.MeshBasicMaterial({ visible: false });
-    const dark = new THREE.Mesh(new THREE.BoxGeometry(8, DOOR.h + 0.6, DOOR.w + 0.6), [noneM, blackM, blackM, blackM, blackM, blackM]);
-    dark.position.set(-R - 4 + 0.001, LT + DOOR.h / 2 + 0.2, 0); dark.layers.set(1); G.add(dark);
+    // The door, painted with the wall's sky where it would be, hung on the stairs' side and opening away from you. Open,
+    // it's the copy behind the sky you see (world-edge-backstage.js): this one's only ever seen shut.
     const LW2 = DOOR.w - 0.02, LH = DOOR.h - 0.02, hinge = E.hinge = new THREE.Group();
     hinge.position.set(-R + 0.018, LT + 0.01 + LH / 2, -LW2 / 2); G.add(hinge);
     const edgeM = mat('#6f7378', { roughness: 0.7 });
     const leafM = paintMaterial(0, new THREE.Matrix4());
-    const leaf = new THREE.Mesh(new THREE.BoxGeometry(0.045, LH, LW2), [leafM, edgeM, edgeM, edgeM, edgeM, edgeM]);
+    const leaf = E.leaf = new THREE.Mesh(new THREE.BoxGeometry(0.045, LH, LW2), [leafM, edgeM, edgeM, edgeM, edgeM, edgeM]);
     leaf.position.set(-0.0225, 0, LW2 / 2); hinge.add(leaf);
     G.updateMatrixWorld(true);
     leafM.uniforms.paintM.value.copy(leaf.matrixWorld);   // the paint stays where it was when the door's shut
@@ -232,69 +230,21 @@ export function install(ctx) {
     knob.position.set(0.045, -LH / 2 + 1.0, LW2 / 2 - 0.08); leaf.add(knob);
     door = hitBox(leaf, 0.12, LH, LW2, 0.03, 0, 0, { action: 'edge-door', reach: 2.6 });
     roof.hits.push(door);
+    Object.assign(E, { leafM, edgeM, steel, signTex: sc.tex, LW2, LH });
+    // What's behind it, built now too (its own scene: nothing of it is drawn or runs until you look through the door).
+    E.back = installBackstage(ctx, edge);
+    heli.edge.backstage = E.back.debug;
   }
 
-  // ----- the door, the voice from the sky, and going through -----
+  // ----- the door: click to open it, again to shut it (from either side) -----
   ctx.action('edge-door', {
-    hover: () => (E.want || E.ending ? '' : '<b>EXIT</b><div class="k">Click to open</div>'),
-    click: () => { openDoor(); return true; },
+    hover: () => `<b>EXIT</b><div class="k">Click to ${E.want ? 'shut' : 'open'} it</div>`,
+    click: () => { openDoor(!E.want); return true; },
   });
-  function openDoor() {
-    if (E.want) return;
-    E.want = 1;
+  function openDoor(on = true) {
+    if (!!E.want === on) return;
+    E.want = on ? 1 : 0;
     sound.creak(new THREE.Vector3(-R, LT + 1, 0));
-  }
-  // The overlay: subtitles from the sky, and the black you walk into, with its card. Outside the HUD, so H doesn't hide it.
-  style.textContent += `
-    .of-edge { position: absolute; inset: 0; z-index: 6; pointer-events: none; }
-    .of-edge .sub { position: absolute; left: 0; right: 0; bottom: 13%; text-align: center; font: 500 22px/1.35 Georgia, 'Times New Roman', serif; color: #fff;
-      text-shadow: 0 0 3px #000, 0 1px 2px #000, 0 0 12px rgba(0,0,0,.6); opacity: 0; transition: opacity .7s ease; padding: 0 12%; }
-    .of-edge .black { position: absolute; inset: 0; background: #000; opacity: 0; transition: opacity 1.6s ease; }
-    .of-edge .card { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
-      font: 400 26px/1.4 Georgia, 'Times New Roman', serif; color: #ece8de; letter-spacing: .02em; text-align: center; padding: 0 10%; }
-    .of-edge .card span { opacity: 0; transition: opacity 1.8s ease; }
-    .of-edge .card span.on, .of-edge .sub.on { opacity: 1; }
-  `;
-  const over = document.createElement('div'); over.className = 'of-edge';
-  over.innerHTML = '<div class="black"></div><div class="sub"></div><div class="card"><span>In case I don’t see you…</span><span>good afternoon, good evening, and good night.</span></div>';
-  container.appendChild(over);
-  const subEl = over.querySelector('.sub'), blackEl = /** @type {HTMLElement} */ (over.querySelector('.black')), cardEls = over.querySelectorAll('.card span');
-  const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
-  let talking = null;
-  // At the top of the stairs, the first time each trip: the studio's lights go down a little, and he speaks (no voice).
-  async function speak() {
-    const name = String(dash.config?.owner || '').trim().split(/\s+/)[0];
-    const lines = [name ? `${name}.` : 'Hello.', 'You can speak. I can hear you.', 'There’s no more truth out there than in the world I created for you.',
-      'You belong here. With me.'];
-    const me = talking = {};
-    for (const l of lines) {
-      if (talking !== me) return;
-      subEl.textContent = l; subEl.classList.add('on');
-      await wait(Math.max(2600, l.length * 75));
-      subEl.classList.remove('on');
-      await wait(900);
-    }
-  }
-  function hush() { talking = null; subEl.classList.remove('on'); }
-  // Through the door: silence, black, the bow, and you wake at your desk with the helicopter back on its pad.
-  async function goThrough() {
-    if (E.ending) return;
-    E.ending = true; ctx.mode = 'warp'; hush();
-    sound.stop(1.2);
-    blackEl.style.transitionDuration = '1.6s'; blackEl.style.opacity = '1';
-    await wait(2600);
-    cardEls[0].classList.add('on'); await wait(2400);
-    cardEls[1].classList.add('on'); await wait(4800);
-    for (const s of cardEls) s.classList.remove('on');
-    await wait(2000);
-    ctx.resetLift();   // off the roof: the helicopter parks itself on the pad (helicopter.js roof.leave)
-    const s = ctx.seatedPose(), P = ctx.player;
-    Object.assign(P, { x: s.x, z: s.z, eye: s.y, yaw: s.yaw, pitch: s.pitch, seated: true, seat: null, fy: 0 });
-    ctx.setCam(s);
-    Object.assign(E, { open: 0, want: 0, said: false, ending: false }); E.hinge && (E.hinge.rotation.y = 0);
-    ctx.mode = 'free';
-    blackEl.style.transitionDuration = '3s'; blackEl.style.opacity = '0';
-    try { localStorage.officeEdge = String((+localStorage.officeEdge || 0) + 1); } catch {}
   }
 
   // ----- each frame -----
@@ -303,36 +253,38 @@ export function install(ctx) {
     if (on && !E.built) build();
     E.shown = on; E.G.visible = on; ctx.sky.visible = !on;   // the dome covers the whole sky (and costs as much)
     camera.far = on ? 12000 : 6000; camera.updateProjectionMatrix();   // the whole dome, from anywhere inside it
-    if (!on) { sound.stop(); hush(); E.dim = 1; U.dim.value = 1; }
+    if (!on) { sound.stop(); E.dim = 1; U.dim.value = 1; }
   }
   ctx.onFrame((dt, t) => {
-    const on = S.free && roof.on;
+    const back = E.back?.here(), on = S.free && (roof.on || back);   // back: behind the sky (or just through its exit)
     if (on !== E.shown && (on || E.built)) show(on);
     if (!on) return;
     camera.getWorldPosition(camW);
+    let hear = 1;
+    if (back) { const d = E.back.toOffice(camW); hear = E.open * sstep(12, 1, d) * 0.6; }   // through the open door, from behind
     const [u] = toU(camW.x, camW.z), toWall = R - camW.distanceTo(C);
     E.waves.offset.set(t * 0.004, t * 0.0027);
     U.near.value = sstep(1800, 250, toWall);
     // The door swings open over a couple of seconds, slowing; the doorway's walkable once it's well open.
     E.open = damp(E.open, E.want, 1.4, dt);
     E.hinge.rotation.y = -1.75 * sstep(0, 1, E.open);
+    E.leaf.visible = E.open < 0.002;   // open, it's the one behind the sky you see, through the doorway
+    E.hinge.updateMatrixWorld();
+    // At the top of the stairs, the lights go down a little (and stay down while you're up there, or behind).
     const P = ctx.player, onFoot = S.out && !S.aboard;
-    if (onFoot && !E.ending) {
-      const [pu, pw] = toU(P.x, P.z);
-      if (!E.said && pu > LAND.u0 - 0.6 && P.fy + ROOF_Y > LT - 0.5) { E.said = true; speak(); }
-      if (E.open > 0.6 && pw < -0.5) goThrough();
-    }
-    if (!onFoot && E.said) { E.said = false; hush(); }
-    // The lights go down while he talks, and stay down.
-    E.dim = damp(E.dim, E.said || E.ending ? 0.62 : 1, 0.5, dt); U.dim.value = E.dim;
-    sound.update(sstep(1500, 30, toWall), sstep(200, 5, camW.y - SEA) * (Math.abs(u) < 400 ? 1 : 0.5));
+    E.top = !!back || (onFoot && roof.on && toU(P.x, P.z)[0] > LAND.u0 - 0.6 && P.fy + ROOF_Y > LT - 0.5);
+    E.dim = damp(E.dim, E.top ? 0.62 : 1, 0.5, dt); U.dim.value = E.dim;
+    sound.update(sstep(1500, 30, toWall) * hear, sstep(200, 5, camW.y - SEA) * (Math.abs(u) < 400 ? 1 : 0.5));
   }, 52);
   // The sun and sky light dimmed with the wall (after the sky's set them, order 50).
   ctx.onFrame(() => { if (E.shown && E.dim < 0.999) { sun.intensity *= E.dim; hemi.intensity *= E.dim; } }, 53);
 
   // ----- debug and test hooks -----
-  heli.edge = {
-    E,
+  const edge = heli.edge = {
+    E, sound, paintMaterial, DOOR, U,
+    // The doorway's frame in the world: its sill's middle, +z the way in (west), +y up (see systems/portal.js).
+    frame: new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 1, 0), new THREE.Vector3(-1, 0, 0)).setPosition(-R + 0.009, LT, 0),
+    openDoor,
     // The helicopter d m in from the wall by the pier, h m up, facing the wall, hovering (you must be aboard).
     place(d = 300, h = 60) {
       Object.assign(S, { free: true, landed: false, engine: true, rpm: 1, auto: null, pitch: 0, roll: 0, yawRate: 0, yaw: Math.PI / 2 });
@@ -347,8 +299,7 @@ export function install(ctx) {
       heli.place(0);
       return true;
     },
-    door(open = true) { if (open) openDoor(); else E.want = 0; E.open = E.want; },
-    through: goThrough,
+    door(open = true) { openDoor(open); E.open = E.want; },
     R, SEA, PT, LT, PIER, STAIR, LAND,
   };
 }

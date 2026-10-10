@@ -171,7 +171,7 @@ export const POSES = [
     });
     await o.step(40);
   }],
-  ['edge-door', async (o) => {   // up on the landing, the door open on the dark, the lights down
+  ['edge-door', async (o) => {   // up on the landing, the door open onto the corridor behind the sky, the lights down
     await from('edge-stairs', o);
     await o.eval(() => {
       const O = window.__office, E = O.heli.edge, P = O.player;
@@ -179,6 +179,32 @@ export const POSES = [
       E.door(true);
     });
     await o.step(40);
+  }],
+  // Behind the sky (floors/world-edge-backstage.js, its own coordinates: the exit at the origin, B3 toward +z).
+  ['edge-gallery', async (o) => {   // the gallery: the mixing desk and the bank of live monitors
+    await from('edge-door', o);
+    await o.eval(() => window.__office.heli.edge.backstage.go(1.4, -6.6, -Math.PI / 2, -0.16));
+    await o.step(50);
+  }],
+  ['edge-table', async (o) => {   // the model of the world on its table, your building opened up into its floors
+    await from('edge-door', o);
+    await o.eval(() => { const b = window.__office.heli.edge.backstage; b.go(-2.2, -8.6, -2.42, -0.42); b.model.open(true); });
+    await o.step(60);
+  }],
+  ['edge-flat', async (o) => {   // in the flat's doorway: the two of them on the sofa, you on their TV
+    await from('edge-door', o);
+    await o.eval(() => window.__office.heli.edge.backstage.go(-11.4, -7.1, 0, -0.12));
+    await o.step(40);
+  }],
+  ['edge-exit', async (o) => {   // the fire door marked EXIT open from the gallery: B3 through it, in its own light
+    await from('edge-door', o);
+    await o.eval(() => { const b = window.__office.heli.edge.backstage; b.go(0, -2.8, Math.PI, 0); b.exit(true); });
+    await o.step(30);
+  }],
+  ['edge-exit-b3', async (o) => {   // and from B3's corridor: the gallery and its table through the open door
+    await from('edge-door', o);
+    await o.eval(() => { const b = window.__office.heli.edge.backstage; b.exit(true); b.b3(0, 2.6, 0, -0.05); });
+    await o.step(30);
   }],
   ['security-app', async (o) => {   // out of the helicopter to your desktop full screen, the Security app's feeds at dusk
     await from('heli-cockpit', o);
