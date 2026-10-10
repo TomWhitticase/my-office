@@ -242,7 +242,7 @@ function build(ctx) {
   const WALK_R = 65;
   const wet = (x, z) => Math.abs(x - city.riverX(z)) < city.RIVER_W || city.ponds.some(([px, pz, r]) => Math.hypot(x - px, z - pz) < r + 0.3);
   const inPark = (x, z) => city.parks.some(([px, pz]) => Math.abs(x - px) < 28 && Math.abs(z - pz) < 28);
-  const streetY = (x, z) => city.GROUND + (inPark(x, z) ? 0.4 : Math.abs(x - city.riverX(z)) < city.RIVER_W + 24 ? 0.3 : 0);
+  const streetY = (x, z) => city.GROUND + (inPark(x, z) ? 0.4 : -2 * clamp((city.RIVER_W + 3 - Math.abs(x - city.riverX(z))) / 3, 0, 1));   // the banks slope down to the water
   const inside = (b, x, z, m = 0) => Math.abs(x - b.x) < b.w / 2 - m && Math.abs(z - b.z) < b.d / 2 - m;
   function surface() {   // what the skids are on: a building (its box), 'street', or null (somewhere too small to stand)
     for (const b of nearBy(S.pos.x, S.pos.z)) if (!b.deck && Math.abs(S.pos.y - b.top) < 0.5 && inside(b, S.pos.x, S.pos.z, -0.6)) return b.w > 4 && b.d > 4 ? b : null;
