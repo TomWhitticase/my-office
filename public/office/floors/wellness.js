@@ -620,6 +620,8 @@ function build(ctx) {
     W.sound.stop();
   };
   F.bound = (p) => { p.x = clamp(p.x, ROOM.minX + 0.4, ROOM.maxX - 0.4); p.z = clamp(p.z, ROOM.minZ + 0.4, ROOM.maxZ - 0.4); };
+  F.save = () => (W.using ? false : null);   // on a machine, in the plunge or the pod: a reload stands you where you got on (resume.js)
+  F.restore = (s, p) => { if (W.swim && W.inPool(p.x, p.z)) W.swim.in = true; };   // swimming: the pool's sides are what you can't pass
   F.ground = (x, z) => W.ground(x, z);
   F.pace = (x, z) => W.pace(x, z);
   F.fx = (dt, t) => {

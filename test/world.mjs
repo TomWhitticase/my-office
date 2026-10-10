@@ -102,5 +102,30 @@ export async function runWorld(browser, base, { record = false, log = console.lo
     else log(`  ✓ ${k}`);
   }
   for (const [n, s] of Object.entries(out.scenes)) if (want.scenes?.[n] && want.scenes[n].ordered !== s.ordered) log(`  · ${n}: same objects, built in a different order (diff test/snapshots/world-${n}.txt test/out/world-${n}.txt)`);
-  return failed + (errors.length ? 1 : 0);
+  return failed + (errors.length ? 1 : 0) + await runResume(browser, base, log);
+}
+
+// A reload puts you back where you were (systems/resume.js): the office loaded with a pose saved on another floor comes up
+// there, not at your desk. Relativity in its second gravity, deep in B3's rooms, and the helicopter in flight.
+const RESUME = {
+  relativity: [{ f: -4, car: 0, cz: -0.5, x: -1, z: -15, eye: 1.65, yaw: 1.45, pitch: 0.3, s: { k: 1, x: 4, y: -15, z: -1 } },
+    () => { const w = window.__office, S = w.ctx.rel.walker.S; return w.away?.n === -4 && S.k === 1 && Math.hypot(S.x - 4, S.z + 1) < 0.05 && w.mode === 'free'; }],
+  restricted: [{ f: -3, car: 0, cz: -0.5, x: -40, z: 29.5, eye: 1.65, yaw: 0.5, pitch: 0 },
+    () => { const w = window.__office; return w.away?.n === -3 && Math.hypot(w.player.x + 40, w.player.z - 29.5) < 0.05 && w.mode === 'free'; }],
+  helicopter: [{ f: 50, car: 0, cz: -0.5, x: 19, z: -0.5, eye: 1.65, yaw: 0, pitch: 0, s: { x: 120, y: 90, z: -60, yaw: 0.7, landed: false, aboard: true, out: false, free: false } },
+    () => { const w = window.__office, S = w.heli.S; return w.away?.n === 50 && w.mode === 'heli' && S.aboard && !S.landed && S.rpm === 1 && Math.hypot(S.pos.x - 120, S.pos.y - 90, S.pos.z + 60) < 1; }],
+};
+async function runResume(browser, base, log) {
+  const { T0 } = await import('./lib/fixtures.mjs');
+  let failed = 0;
+  for (const [name, [pose, check]] of Object.entries(RESUME)) {
+    const errors = [], o = await openOffice(browser, base, { errors, storage: { officePose: JSON.stringify({ ...pose, at: T0 }) } });
+    let ok = false;
+    try {
+      for (let i = 0; i < 40 && !ok; i++) { await o.step(1, 100); ok = await o.eval(check); }
+    } finally { await o.ctx.close(); }
+    if (ok && !errors.length) log(`  ✓ reload: back in ${name}`);
+    else { failed++; log(`  ✗ reload: not back in ${name}${errors.length ? ` (${errors.join('; ')})` : ''}`); }
+  }
+  return failed;
 }

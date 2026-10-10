@@ -216,6 +216,7 @@ export function installPool(ctx, W) {
   const S = { in: false, wasIn: false, depth: 0, stroke: 0, under: false, dive: false, enteredAt: 0, tip: false };
   W.swim = S;
   const inPool = (x, z) => x > POOL.x0 && x < POOL.x1 && z > POOL.z0 && z < POOL.z1;
+  W.inPool = inPool;
   const onSteps = (x, z) => x > STEPS.x0 && z < STEPS.z1;
   const box = (x0, x1, z0, z1) => ({ minX: x0, maxX: x1, minZ: z0, maxZ: z1 });
   const deckCols = [box(POOL.x0, POOL.x1, STEPS.z1, POOL.z1), box(POOL.x0, STEPS.x0, POOL.z0, STEPS.z1), box(STEPS.x0, POOL.x1, POOL.z0 - 0.05, POOL.z0 + 0.06)];

@@ -630,6 +630,16 @@ export function install(ctx) {
     if (ctx.mode === 'read') ctx.mode = 'free';
     hud.classList.remove('of-tess');
   };
+  // A reload inside a repo (systems/resume.js): its history again (the server has it by now), then back where you were
+  // floating; your car waits at the archive. If it won't load, the archive's lift lobby.
+  tess.home = arch.n;
+  tess.save = () => (tess.t && !tess.warping ? { owner: tess.t.repo.owner, name: tess.t.repo.name } : false);
+  tess.prepare = (s) => {
+    const until = performance.now() + 20e3;
+    return s?.owner && s.name ? loadTree(files.list?.find((f) => f.owner === s.owner && f.name === s.name) || { owner: s.owner, name: s.name },
+      () => performance.now() < until) : Promise.resolve(false);
+  };
+  tess.restore = () => { tess.bound(ctx.player); tess.prevZ = ctx.player.z; return true; };   // (nothing to bump into: just inside the tree)
   tess.bound = (p) => {
     const b = tess.t.box;
     p.x = clamp(p.x, b.x0, b.x1); p.z = clamp(p.z, b.z0, EXIT_Z + 0.6); p.eye = clamp(p.eye ?? EYE, b.y0, b.y1);

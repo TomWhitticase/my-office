@@ -16,13 +16,14 @@ export async function launch({ software = false } = {}) {
   return chromium.launch({ executablePath: CHROME, args: [...gl, '--disable-gpu-vsync', '--font-render-hinting=none'] });
 }
 
-// Before any page script: a seeded Math.random (window.__seed(n) restarts it from n), settled preferences, and a count
-// of fetches still in flight (so a step can wait for whatever it set off to land before the next frame).
-function init() {
+// Before any page script: a seeded Math.random (window.__seed(n) restarts it from n), settled preferences (and any other
+// localStorage a test gives, `storage`), and a count of fetches still in flight (so a step can wait for whatever it set off
+// to land before the next frame).
+function init(storage) {
   let s = 20260617;
   Math.random = () => { s = (s + 0x6d2b79f5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   window.__seed = (n) => { s = n; };
-  Object.assign(localStorage, { officeSound: 'off', officeQuality: 'high', officeOverlays: 'on', officeTimeSpeed: 'live' });
+  Object.assign(localStorage, { officeSound: 'off', officeQuality: 'high', officeOverlays: 'on', officeTimeSpeed: 'live' }, storage);
   const real = window.fetch;
   window.__inflight = 0;
   window.fetch = async (...a) => {
@@ -32,11 +33,11 @@ function init() {
   };
 }
 
-export async function openOffice(browser, base, { errors = [] } = {}) {
+export async function openOffice(browser, base, { errors = [], storage = {} } = {}) {
   const ctx = await browser.newContext({ viewport: VIEW, deviceScaleFactor: 1, timezoneId: 'Europe/London', locale: 'en-GB', reducedMotion: 'no-preference', userAgent: UA });
   const page = await ctx.newPage();
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.addInitScript(init);
+  await page.addInitScript(init, storage);
   await mockRoutes(page, base);
   await page.clock.install({ time: T0 });
   await page.clock.pauseAt(T0 + 1000);

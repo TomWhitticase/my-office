@@ -9,7 +9,7 @@ import { angDiff, clamp, colliders, damp, dash, ease, EYE, lerp, LIFT, REDUCED, 
 export function install(ctx) {
   const { OWNER, renderer, laptop, camera, lapScr, center, screenWorld, hole, placeHole, carCollide, people, flyPlayer, sfx, openTvPanel, hud, mine, inMyCar,
     toast, setOverlays, setSpeed, SPEEDS, clockState } = ctx;
-  Object.assign(ctx, { sitIn, openLaptop, collide, tween, camPose, setCam, movePlayer, laptopFx, stepTween, fillPose, seatedPose, restorePose });
+  Object.assign(ctx, { sitIn, openLaptop, collide, tween, camPose, setCam, movePlayer, laptopFx, stepTween, fillPose, seatedPose });
   // ----- player -----
   const player = { x: OWNER.x, z: OWNER.z + 1.45, eye: SEATED_EYE, yaw: 0, pitch: 0, seated: true };
   const keys = new Set();
@@ -26,19 +26,6 @@ export function install(ctx) {
     const tv = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)), d = Math.max((lapScr.h / 2) / tv, (lapScr.w / 2) / (tv * camera.aspect));
     lapScreen();
     return { x: lapAt.x + lapN.x * d, y: lapAt.y + lapN.y * d, z: lapAt.z + lapN.z * d, yaw: Math.atan2(lapN.x, lapN.z), pitch: Math.asin(-lapN.y) };
-  }
-  // Where a reload should put you: the spot you last saved on the office floor (in the seat you were in, if it's free),
-  // or null for your desk. Stale poses (over a day old) and ones now inside something are dropped.
-  function restorePose() {
-    let p;
-    try { p = JSON.parse(localStorage.officePose || 'null'); } catch {}
-    if (!p || !(Date.now() - p.at < 864e5) || !Number.isFinite(p.x + p.z + p.yaw + p.pitch)) return null;
-    const st = p.seated && ctx.seats.find((q) => !q.floor && Math.hypot(q.x - p.x, q.z - p.z) < 0.3 && !seatTaken(q));
-    if (st) return { x: st.x, z: st.z, y: st.eye, yaw: st.rotY + Math.PI, pitch: -0.08, seat: st, seated: true };
-    const q = { x: p.x, z: p.z };
-    collide(q);
-    if (Math.hypot(q.x - p.x, q.z - p.z) > 0.05) return null;   // something stands there now
-    return { x: p.x, z: p.z, y: EYE, yaw: p.yaw, pitch: p.pitch, seat: null, seated: false };
   }
   function seatedPose() {
     if (laptop.shown) {
@@ -212,16 +199,6 @@ export function install(ctx) {
     }
   }, 80);
   ctx.onFrame((dt) => laptopFx(dt), 90);
-  // Where you are on the office floor, saved every second or so while you walk about, so a page reload puts you back
-  // there (see restorePose). Not while you're off the floor (the roof and the helicopter count) or at your own desk (the default anyway).
-  let savedAt = 0;
-  ctx.onFrame((dt, t, now) => {
-    if (ctx.mode !== 'free' || ctx.away || now - savedAt < 1000) return;
-    savedAt = now;
-    const atDesk = player.seated && !player.seat;
-    try { localStorage.officePose = atDesk ? '' : JSON.stringify({ x: +player.x.toFixed(2), z: +player.z.toFixed(2), yaw: +player.yaw.toFixed(3),
-      pitch: +player.pitch.toFixed(3), seated: !!player.seat, at: Date.now() }); } catch {}
-  }, 95);
   ctx.onFrame((dt, t, now) => stepTween(now), 100);
   // Your computer and your MacBook: click to use them.
   const machineHover = (h) => (h.action === 'computer' && !laptop.shown ? '<b>Your computer</b><div class="k">Click to sit down and use it</div>'
