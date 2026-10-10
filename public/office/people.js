@@ -267,7 +267,7 @@ export function installSpots(ctx) {
     spot('chat2', -9.6, 5.65, Math.PI, 'chat', R([-8.2, AISLE], [-8.2, 5.65])),
   ];
   const bean = [7.6, 9.6].map((z, i) => spot(`bean${i}`, -17.9, z, Math.PI / 2, 'beanbag', R([-11.6, AISLE], [-11.6, 10], [-16.9, 10], [-16.9, z])));
-  // The beanbags behind the oche: round the east of the pillar and the darts, and in behind the thrower.
+  // The lounge beanbags by the north window: round the east of the pillar, then along to each.
   const beanDarts = darts.BEANS.map((b, i) => { const x = b.x + Math.sin(b.rotY) * 0.45, z = b.z + Math.cos(b.rotY) * 0.45;
     return spot(`bean${i + 2}`, x, z, b.rotY, 'beanbag', R([7.6, AISLE], [7.6, 11.6], [x, 11.6])); });
   const meet = [8.8, 10, 11.2].map((x, i) => spot(`meet${i}`, x, 7.55, 0, 'chat', R([x, AISLE])));
