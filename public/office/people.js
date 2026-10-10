@@ -270,8 +270,7 @@ export function installSpots(ctx) {
   // The beanbags behind the oche: round the east of the pillar and the darts, and in behind the thrower.
   const beanDarts = darts.BEANS.map((b, i) => { const x = b.x + Math.sin(b.rotY) * 0.45, z = b.z + Math.cos(b.rotY) * 0.45;
     return spot(`bean${i + 2}`, x, z, b.rotY, 'beanbag', R([7.6, AISLE], [7.6, 11.6], [x, 11.6])); });
-  // Round the east end of the all-hands stage to the lounge table.
-  const meet = [8.8, 10, 11.2].map((x, i) => spot(`meet${i}`, x, 7.55, 0, 'chat', R([13.3, AISLE], [13.3, 7.55])));
+  const meet = [8.8, 10, 11.2].map((x, i) => spot(`meet${i}`, x, 7.55, 0, 'chat', R([x, AISLE])));
   // The all-hands: the beanbags at the front, then the rows from the front, the centre aisle out.
   const ah = allHands.spots.map((s, i) => spot(`ah${i}`, s.x, s.z, 0, s.pose, s.route));
   const ahOrder = [...ah.filter((s) => s.pose === 'beanbag'), ...ah.filter((s) => s.pose !== 'beanbag')];
