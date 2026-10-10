@@ -72,7 +72,7 @@ export function install(ctx) {
   johnEl.querySelector('[data-act=details]').remove();
   johnEl.querySelector('i').style.background = '#7a2e2a';
   johnEl.querySelector('b').textContent = 'John';
-  johnEl.querySelector('small').textContent = 'Sysadmin · Server hall, floor 47';
+  johnEl.querySelector('small').textContent = 'Sysadmin · Server hall, basement B1';
   const johnLog = johnEl.querySelector('.of-chatlog'), johnIn = johnBar.querySelector('textarea'), johnSt = johnBar.querySelector('.st');
   johnIn.maxLength = 600; johnIn.placeholder = 'Ask John about the servers';
   const johnChat = { open: false, busy: false, msgs: [{ role: 'john', text: 'Alright? Pull up a chair. What d’you want to know about the boxes?' }],

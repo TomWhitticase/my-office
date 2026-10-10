@@ -49,7 +49,7 @@ Choosing the shots (`POSES` in `goldens.mjs` has them all, with what each sets u
   `lobby`, `meeting-rooms`, `kitchen`, `lounge`, `my-office`, `ping-pong-tv`, `tv-panel`, `whiteboard`, `laptop`,
   `task-board`, `task-board-card` and `dusk` are on 48; open the PNGs in `test/golden/` to see which take in your spot.
   Lighting, the shell, the city or the sky reach all of them, plus `seated`, `lift-car`, `roof` and `heli-cockpit`.
-- **Another floor**: its own shots: `archive*` and `gateway`, `inside-a-repo` (B2); `server-hall` (47); `vacant-floor`
+- **Another floor**: its own shots: `archive*` and `gateway`, `inside-a-repo` (B2); `server-hall` (B1); `vacant-floor`
   (45); `roof` and `heli-cockpit` (50); `restricted*` (B3); and `security-app` / `security-archive` if one of its
   cameras sees it.
 - **The lifts**: `lift-car`, `lift-panel`, `restricted-keypad`, and one shot on each floor you can reach.

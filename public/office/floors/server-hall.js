@@ -1,4 +1,4 @@
-// SERVER HALL (47): racks of servers whose LEDs, screens and fans follow this machine (/api/machine) and the live
+// SERVER HALL (B1, the basement): racks of servers whose LEDs, screens and fans follow this machine (/api/machine) and the live
 // sessions, a staging bay, and the NOC where John the sysadmin sits; talk to him (systems/chat.js). Its own scene.
 
 import * as THREE from 'three';
@@ -11,7 +11,7 @@ import { G, Person } from '../people.js';
 /** @param {import('../ctx.js').OfficeCtx} ctx */
 export function install(ctx) {
   const { scene, liftShaft, addFloor, CAR, hitBox, camera, mapCtx } = ctx;
-  // ----- SERVER HALL (47) -----
+  // ----- SERVER HALL (B1) -----
   // This machine as a data-centre hall: a vestibule off the lift with an access-controlled door, then a 40 x 38 m raised-floor
   // hall, 5 m high: seven contained cold-aisle pods (14 rows, A-N) of 42U racks in two blocks either side of a cross aisle,
   // ladder racks and cable trays overhead, CRACs along both long walls, a staging/build area, and a glass-walled NOC office
@@ -31,7 +31,7 @@ export function install(ctx) {
   for (const B of BLOCKS) { B.x0 = B.x(B.n - 1) - RK.w / 2; B.x1 = B.x(0) + RK.w / 2; }
   const RACKX = BLOCKS[0].x, AISLES = PODS.map((k) => k * POD), SLOTS = 54;
   const NOC = { x0: SV.x0, x1: -17, z0: 4, z1: SV.z1, h: 3 }, STAGE = { x0: SV.x0, x1: -14, z0: -17.5, z1: -2 };
-  const srv = { n: 47, label: 'SERVERS', title: 'Server Hall', blurb: 'Server hall · John, sysadmin', on: false, composer: null, colliders: [], fixed: [], hits: [], slots: [], m: null,
+  const srv = { n: -1, label: 'SERVERS', title: 'Server Hall', blurb: 'Server hall · John, sysadmin', on: false, composer: null, colliders: [], fixed: [], hits: [], slots: [], m: null,
     hist: { cpu: [], mem: [], load: [], sess: [], net: [], temp: [] }, polledAt: 0, tick: 0, paintAt: 0, nocAt: 0, doors: [], aisleDoors: [], john: null };
   // John: a Person with grey hair in a ponytail, glasses, a grey beard, a flannel shirt and a bit of a belly, at his desk
   // (J: the desk's x, z). His `mood` (type, sip, lean, read) is set in srv.fx; he turns his head to you while you talk.
@@ -858,7 +858,7 @@ export function install(ctx) {
         sign(w, h, x, 1.55, BZ - 0.032, Math.PI, 500, (c, W, H) => {
           c.fillStyle = '#f7f8f6'; c.fillRect(0, 0, W, H);
           const pen = (col, wd = 4) => { c.strokeStyle = col; c.lineWidth = wd; c.lineCap = 'round'; };
-          lbl(c, 'HALL 47 · machine racks', 30, 56, `700 34px ${FONT}`, '#1f3f8a');
+          lbl(c, 'HALL B1 · machine racks', 30, 56, `700 34px ${FONT}`, '#1f3f8a');
           ['B01', 'B02', 'B03'].forEach((r, i) => {
             const rx = 40 + i * 190; pen('#222'); c.strokeRect(rx, 90, 150, 380);
             lbl(c, r, rx + 75, 500, `700 26px ${FONT}`, '#222', 'center');
@@ -951,7 +951,7 @@ export function install(ctx) {
     // The vestibule: signage, the fire suppression panel and the access-controlled door into the hall.
     sign(1.6, 0.55, SV.x1 + 0.07, 2.55, 0, Math.PI / 2, 400, (c, W, H) => {
       c.fillStyle = '#1d2228'; c.fillRect(0, 0, W, H); c.fillStyle = '#d97757'; c.fillRect(24, 26, 8, H - 52);
-      lbl(c, '47  SERVER HALL', 50, 92, `300 70px ${FONT}`, '#f2efe8');
+      lbl(c, 'B1  SERVER HALL', 50, 92, `300 70px ${FONT}`, '#f2efe8');
       lbl(c, 'AUTHORISED PERSONNEL ONLY · CARD ACCESS', 52, 150, `600 22px ${FONT}`, '#c3c2b7');
       lbl(c, 'Cold aisles A/B–M/N · NOC · Staging', 52, 190, `400 22px ${FONT}`, '#9a9890');
     });
@@ -1366,7 +1366,7 @@ export function install(ctx) {
     c.fillStyle = 'rgba(227,194,58,.25)'; c.fillRect(sx(STAGE.x0), sz(STAGE.z0 + z0), (STAGE.x1 - STAGE.x0) * k, (STAGE.z1 - STAGE.z0) * k);
     c.fillStyle = 'rgba(255,255,255,.5)';
     for (const b of srv.colliders) c.fillRect(sx(b.minX), sz(b.minZ), Math.max(1.5, (b.maxX - b.minX) * k), Math.max(1.5, (b.maxZ - b.minZ) * k));
-    c.font = '600 20px system-ui'; c.fillStyle = 'rgba(255,255,255,.9)'; c.fillText('SERVER HALL · 47', 16, 28);
+    c.font = '600 20px system-ui'; c.fillStyle = 'rgba(255,255,255,.9)'; c.fillText('SERVER HALL · B1', 16, 28);
     c.font = '600 12px system-ui'; c.fillStyle = 'rgba(255,255,255,.75)';
     c.fillText('Sessions · Machine', sx(6.4), sz(z0 - 2.4));
     c.fillText('NOC · John', sx(NOC.x0) + 4, sz(NOC.z0 + z0) + 14); c.fillText('Staging', sx(STAGE.x0) + 4, sz(STAGE.z0 + z0) + 14);

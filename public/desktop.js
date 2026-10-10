@@ -22,7 +22,7 @@ const APPS = {
 };
 const DEFAULT = { dash: { open: true, x: 0.09, y: 0.03, w: 0.72, h: 0.88 }, admin: { x: 0.2, y: 0.06, w: 0.6, h: 0.84 }, msgs: { x: 0.3, y: 0.09, w: 0.6, h: 0.78 },
   cctv: { x: 0.12, y: 0.04, w: 0.74, h: 0.86 } };
-const FLOOR_TABS = [['all', 'All'], [48, 'Office'], [47, 'Server Hall'], [50, 'Roof'], [-2, 'Archive'], [-3, 'Restricted']];
+const FLOOR_TABS = [['all', 'All'], [48, 'Office'], [-1, 'Server Hall'], [50, 'Roof'], [-2, 'Archive'], [-3, 'Restricted']];
 const stamp = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${d.toTimeString().slice(0, 8)}`;
 const STATUS = { working: ['Working', 'w'], idle: ['Idle · waiting for you', 'i'], shell: ['Waiting on a shell task', 's'] };
 
