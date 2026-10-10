@@ -267,6 +267,12 @@ export const POSES = [
     await o.eval(() => window.__office.ctx.actionOf('wellness-ladle').click({}));
     await o.step(40);
   }],
+  ['wellness-steam', async (o) => {   // just inside the steam room, the fog thick by the floor and under the starry ceiling
+    await arrive(o);
+    await ride(o, 46);
+    await stand(o, 13.2, -11.2, { x: 13.4, y: 1.0, z: -14.5 });
+    await o.step(60);
+  }],
   ['wellness-jacuzzi', async (o) => {   // the jacuzzi on its deck by the west glass, from the steps up to it
     await arrive(o);
     await ride(o, 46);
