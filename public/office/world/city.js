@@ -115,8 +115,30 @@ export function install(ctx) {
     }
     for (const t of [gt.tex, ge.tex]) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(86, 86); t.needsUpdate = true; }
     const groundMat = new THREE.MeshStandardMaterial({ map: gt.tex, emissiveMap: ge.tex, emissive: '#ffffff', roughness: 0.95 });
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(6020, 6020), groundMat);
-    ground.rotation.x = -Math.PI / 2; ground.position.set(35, GROUND, 35);
+    // The river runs in its own channel: the ground stops at the top of each bank, and grass slopes down to water sunk well
+    // below the street. Nothing lies in the water's plane: from 175 m+ up the depth buffer can't tell surfaces a few cm
+    // apart, and the water, its banks and the streets under them used to flicker through each other.
+    const BANK = 24, SINK = 2, WATER = -1.4, Z0 = -2975, Z1 = 3045, X0 = -2975, X1 = 3045;
+    const rows = (profile) => {   // a ribbon along the river, one row of vertices every 20 m; profile: [offset from riverX or [x], y]
+      const pos = [], idx = [], n = profile.length;
+      for (let z = Z0, i = 0; z <= Z1; z += 20, i++) {
+        const x = riverX(z);
+        for (const [o, y] of profile) pos.push(Array.isArray(o) ? o[0] : x + o, GROUND + y, z);
+        if (i) for (let j = 0; j < n - 1; j++) { const a = (i - 1) * n + j, c = i * n + j; idx.push(a, c, a + 1, a + 1, c, c + 1); }
+      }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      g.setIndex(idx);
+      return g;
+    };
+    // The ground either side of the channel, its texture laid exactly as the full plane's was.
+    const groundGeo = rows([[[X0], 0], [-RIVER_W - BANK, 0], [RIVER_W + BANK, 0], [[X1], 0]]), gp = groundGeo.attributes.position;
+    groundGeo.setIndex(groundGeo.index.array.filter((_, k) => Math.floor(k / 6) % 3 !== 1));   // drop the quads over the river
+    const uv = [];
+    for (let i = 0; i < gp.count; i++) uv.push((gp.getX(i) - X0) / (X1 - X0), (Z1 - gp.getZ(i)) / (Z1 - Z0));
+    groundGeo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    groundGeo.computeVertexNormals();
+    const ground = new THREE.Mesh(groundGeo, groundMat);
     world.add(ground);
 
     // Grass for parks and river banks, water for the river and ponds.
@@ -125,22 +147,17 @@ export function install(ctx) {
     parks.forEach(([x, z], i) => parkMesh.setMatrixAt(i, m4.makeTranslation(x, GROUND + 0.2, z)));
     world.add(parkMesh);
     const waterMat = new THREE.MeshStandardMaterial({ color: '#1b3444', roughness: 0.07, metalness: 0.85, envMapIntensity: 1.2 });
-    const strip = (offA, offB, y, material) => {
-      const pos = [], idx = [];
-      for (let z = -3000, i = 0; z <= 3000; z += 20, i++) {
-        const x = riverX(z);
-        pos.push(x + offA, y, z, x + offB, y, z);
-        if (i) idx.push(2 * i - 2, 2 * i - 1, 2 * i, 2 * i - 1, 2 * i + 1, 2 * i);
-      }
-      const g = new THREE.BufferGeometry();
-      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-      g.setIndex(idx); g.computeVertexNormals();
+    const strip = (profile, material) => {
+      const g = rows(profile); g.computeVertexNormals();
       const m = new THREE.Mesh(g, material); m.material.side = THREE.DoubleSide;
       world.add(m);
     };
-    strip(-RIVER_W, RIVER_W, GROUND + 0.35, waterMat);
-    strip(RIVER_W, RIVER_W + 24, GROUND + 0.3, grassMat);
-    strip(-RIVER_W - 24, -RIVER_W, GROUND + 0.3, grassMat);
+    strip([[-RIVER_W - 1, WATER], [RIVER_W + 1, WATER]], waterMat);   // its edges tuck under the banks
+    strip([[RIVER_W, -SINK], [RIVER_W + 3, 0], [RIVER_W + BANK, 0]], grassMat);
+    strip([[-RIVER_W - BANK, 0], [-RIVER_W - 3, 0], [-RIVER_W, -SINK]], grassMat);
+    // Parks lie on the streets and ponds in the parks, 0.15–0.4 m up: offset in depth so they win at any distance.
+    Object.assign(grassMat, { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });
+    Object.assign(waterMat, { polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 });
     const pondMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(1, 1, 0.2, 32), waterMat, ponds.length);
     const dummy = new THREE.Object3D();
     ponds.forEach(([x, z, r], i) =>
