@@ -2,8 +2,8 @@
 // city, sky and sun out of the windows are the real ones from there), laid out as a members' club. Reception and a
 // towel counter at the lifts; a lap pool along the north glass with an infinity edge right against it (the glass comes
 // down to the water there); the gym in the north-east corner, cardio facing the east windows; the spa in the south-east
-// (a cedar sauna with a window, a steam room, a cold plunge, rain showers, a quiet lounge); changing rooms; a juice bar on
-// the way through; a yoga studio and a lounge of daybeds on the west windows. Partitions are travertine, oak slats on
+// (a cedar sauna with a window, a steam room, a cold plunge, rain showers, a quiet lounge); two small changing rooms behind
+// doors off a passage from the way through, and the south windows past them; a juice bar on the way through; a yoga studio and a lounge of daybeds on the west windows. Partitions are travertine, oak slats on
 // felt, clear or fluted glass; the doors slide open as you come up to them.
 //
 // This file builds the shell, floors, partitions, doors, reception and lighting, and registers the floor; the pool
@@ -212,9 +212,12 @@ function build(ctx) {
     ['x', 3.5, -20, 20, 'glass', [[-1.2, 0.6], [13.6, 15.2]]],      // the pool hall and the gym, onto the way through
     ['z', 6, 3.5, 8, 'fluted', [[4.6, 6.2]]], ['z', 6, 8, 15, 'slat'],   // gym | pool hall
     ['z', -10.5, 0.8, 3.5, 'fluted'], ['z', -10.5, -3.5, -2.2, 'fluted'],   // the lounge, screened off
-    ['x', -3.5, -20, -8, 'glass', [[-12.6, -11.2]]], ['x', -3.5, -8, 4, 'stone', [[-1.4, 0.2]]], ['x', -3.5, 4, 18, 'stone', [[6.4, 8.0]]],
-    ['z', -8, -15, -3.5, 'stone'],                                      // yoga | changing
-    ['z', 4, -15, -3.5, 'stone', [[-7.4, -5.8]]],                       // changing | spa
+    ['x', -3.5, -20, -8, 'glass', [[-12.6, -11.2]]], ['x', -3.5, -8, 4, 'stone', [[-1.3, 0.3]]], ['x', -3.5, 4, 18, 'stone', [[6.4, 8.0]]],
+    ['z', -8, -15, -3.5, 'stone'],                                      // yoga | the south windows
+    ['z', 4, -15, -3.5, 'stone', [[-8.8, -7.2]]],                       // the south windows | spa
+    // The changing rooms either side of the passage in from the way through (x -1.4..0.4), their doors onto the hall.
+    ['x', -7, -4.6, 4, 'stone', [[-3.6, -2.6], [-1.4, 0.4], [1.6, 2.6]]], ['z', -4.6, -7, -3.5, 'stone'],
+    ['z', -1.4, -7, -3.5, 'stone'], ['z', 0.4, -7, -3.5, 'stone'],
     ['x', -10.6, 15.6, 19.9, 'glass', [[17.3, 18.1]]], ['z', 15.6, -14.9, -10.6, 'cedar'],   // the sauna
     ['x', -10.6, 10.8, 15.6, 'fog', [[12.8, 13.6]]], ['z', 10.8, -14.9, -10.6, 'tile'],    // the steam room (its glass fogs up)
     ['z', 6.4, -14.9, -11.2, 'fluted'],                                 // the showers' screen
@@ -295,6 +298,25 @@ function build(ctx) {
     return d;
   };
   W.doors = doors;
+  // Hinged doors you click to open or close (the office's 'door' action), solid while shut: a leaf hinged at (hx, hz),
+  // lying along angle r0 when shut and swinging `swing` (±1) a quarter turn open.
+  const hinged = [];
+  const doorBox = (d, open) => {
+    const r = d.r0 + (open ? d.swing * Math.PI / 2 : 0), tx = d.hx + Math.cos(r) * d.W, tz = d.hz - Math.sin(r) * d.W;
+    Object.assign(d.box, { minX: Math.min(d.hx, tx) - 0.04, maxX: Math.max(d.hx, tx) + 0.04, minZ: Math.min(d.hz, tz) - 0.04, maxZ: Math.max(d.hz, tz) + 0.04 });
+  };
+  W.hingedDoor = ({ name, hx, hz, r0 = 0, swing, w = 0.98, m = M.oak }) => {
+    const d = { name, k: 0, to: 0, r0, swing, W: w, hx, hz, pivot: new THREE.Group(), box: {} }, DH = 2.2;
+    d.pivot.position.set(hx, 0, hz); d.pivot.rotation.y = r0; G.add(d.pivot);
+    const k = kit();
+    k.box(m, w - 0.02, DH, 0.045, w / 2, DH / 2 + 0.01, 0);
+    for (const s of [-1, 1]) { k.box(M.brass, 0.025, 0.42, 0.025, w - 0.12, 1.05, s * 0.05); k.box(M.brass, 0.025, 0.025, 0.05, w - 0.12, 1.24, s * 0.035); }
+    k.flush(d.pivot);
+    W.hits.push(hitBox(d.pivot, w, DH, 0.12, w / 2, DH / 2, 0, { action: 'door', door: d, reach: 3.2 }));
+    doorBox(d, false); cols.push(d.box); hinged.push(d);
+    return d;
+  };
+  W.hinged = hinged;
   for (const [axis, fixed, a, b] of [['x', 3.5, 13.6, 15.2], ['z', 6, 4.6, 6.2], ['x', -3.5, -12.6, -11.2]]) W.slidingDoor(axis, fixed, a, b);
   function doorFx(dt) {
     const p = ctx.player;
@@ -303,6 +325,17 @@ function build(ctx) {
       d.k = clamp(d.k + (near ? dt : -dt) / 0.7, 0, 1);
       if ((was === 0 && d.k > 0) || (was === 1 && d.k < 1)) W.sound?.door(d.at);
       d.leaf.position.x = -ease(d.k) * (d.w - 0.08);
+    }
+    for (const d of hinged) {
+      if (d.k === d.to) continue;
+      const was = d.k;
+      d.k = d.to > d.k ? Math.min(1, d.k + dt / 0.9) : Math.max(0, d.k - dt / 0.9);
+      d.pivot.rotation.y = d.r0 + d.swing * ease(d.k) * Math.PI * 0.5;
+      doorBox(d, d.k > 0.85);
+      const mid = { x: d.hx + Math.cos(d.r0) * d.W / 2, z: d.hz - Math.sin(d.r0) * d.W / 2 };
+      if (was === 0) W.sound?.latch(mid.x, 1.1, mid.z, true);
+      if (d.k === 0) W.sound?.latch(mid.x, 1.1, mid.z, false);
+      if (d.k < 0.85 && d.to === 0) ctx.collide(p);
     }
   }
 
@@ -528,7 +561,7 @@ function build(ctx) {
     c.fillStyle = 'rgba(255,255,255,.22)';
     for (const b of W.colliders()) c.fillRect(sx(b.minX), sz(b.minZ), Math.max(2, sx(b.maxX) - sx(b.minX)), Math.max(2, sz(b.maxZ) - sz(b.minZ)));
     c.font = '600 16px system-ui'; c.fillStyle = 'rgba(255,255,255,.6)';
-    for (const [t, x, z] of [['Pool', -9, 12.6], ['Gym', 11, 7], ['Sauna', 16.3, -13], ['Steam', 11.7, -13], ['Spa', 8, -8], ['Changing', -4.5, -10],
+    for (const [t, x, z] of [['Pool', -9, 12.6], ['Gym', 11, 7], ['Sauna', 16.3, -13], ['Steam', 11.7, -13], ['Spa', 8, -8], ['Changing', -4.4, -5.2],
       ['Yoga', -16, -9], ['Lounge', -18.5, 0.6], ['Juice bar', -6.5, 0.6], ['Reception', 12.2, 0.6]]) c.fillText(t, sx(x), sz(z));
     c.font = '600 15px system-ui'; c.fillText('Lifts', sx(LIFT.x) - 44, sz(-2.6));
     const px = sx(camera.position.x), pz = sz(camera.position.z);

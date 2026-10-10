@@ -1990,48 +1990,32 @@
   ],
   [
    "Bench",
-   -4,
-   -10.6,
+   -3.5,
+   -5.3,
    0,
    1.12,
    46
   ],
   [
    "Bench",
-   -3,
-   -10.6,
+   -2.5,
+   -5.3,
    0,
    1.12,
    46
   ],
   [
    "Bench",
-   -2,
-   -10.6,
+   1.7,
+   -5.3,
    0,
    1.12,
    46
   ],
   [
    "Bench",
-   -4,
-   -7.4,
-   0,
-   1.12,
-   46
-  ],
-  [
-   "Bench",
-   -3,
-   -7.4,
-   0,
-   1.12,
-   46
-  ],
-  [
-   "Bench",
-   -2,
-   -7.4,
+   2.7,
+   -5.3,
    0,
    1.12,
    46
@@ -4958,8 +4942,8 @@
     "kind": "wellness",
     "steps": true
    },
-   "colliders": 87,
-   "hits": 32,
+   "colliders": 95,
+   "hits": 34,
    "hooks": [
     "enter",
     "leave",
@@ -6127,14 +6111,14 @@
  ],
  "scenes": {
   "office": {
-   "objects": 3085,
+   "objects": 3096,
    "types": {
     "Scene": 1,
     "HemisphereLight": 1,
     "DirectionalLight": 2,
     "Object3D": 2,
-    "Mesh": 2676,
-    "Group": 485,
+    "Mesh": 2685,
+    "Group": 487,
     "PointLight": 16,
     "Sprite": 9,
     "LineSegments": 1,
@@ -6144,7 +6128,7 @@
     "blinds": 48,
     "board": 6,
     "laptop": 7,
-    "door": 80,
+    "door": 82,
     "coffee": 1,
     "taskboard": 1,
     "decanter": 1,
@@ -6169,8 +6153,8 @@
     "lightpanel": 5,
     "rosie": 57
    },
-   "ordered": "4b889df0",
-   "sorted": "cb5e2028"
+   "ordered": "f9e3f679",
+   "sorted": "9010425f"
   },
   "servers": {
    "objects": 383,
