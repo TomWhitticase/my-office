@@ -2,7 +2,7 @@
 // on the city (benches to sit on, a stove of stones: click the ladle for löyly, a hiss, a cloud of steam, the dial
 // climbing, the air shimmering while you're in), a tiled steam room under a starry ceiling (the glass fogs the longer
 // you're in, steam rolling round you), a cold plunge (click to get in), rain showers (click one to run it) and a quiet
-// lounge on the window. West of them, the changing rooms (oak lockers: click one to open it) and their vanity; on the way
+// lounge on the window. West of them, two small changing rooms behind doors (oak lockers: click one to open it); on the way
 // through, a juice bar (click the blender); on the west windows, a yoga studio behind glass and a lounge of daybeds.
 
 import * as THREE from 'three';
@@ -27,6 +27,14 @@ export function installSpa(ctx, W) {
   const tiled = (w, h, d, x, y, z, s = 1) => { const g = new THREE.BoxGeometry(w, h, d); g.translate(x, y, z); k.geo(mosaicM, W.uvWorld(g, s, 'wall')); };
   const cedarBox = (w, h, d, x, y, z) => { const g = new THREE.BoxGeometry(w, h, d); g.translate(x, y, z); k.geo(M.cedar, W.uvWorld(g, 1, 'wall')); };
   const inZone = (p, x0, x1, z0, z1) => p.x > x0 && p.x < x1 && p.z > z0 && p.z < z1;
+  // A small brass plaque by a door, facing `ry`.
+  W.plaque = (text, x, y, z, ry) => {
+    const t = makeCanvas(256, 64), c = t.ctx;
+    c.fillStyle = '#b8935a'; c.fillRect(0, 0, 256, 64); c.fillStyle = '#2a2016'; c.font = `500 26px ${FONT}`; c.textAlign = 'center'; c.fillText(text.split('').join(' '), 128, 42);
+    t.tex.needsUpdate = true;
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(0.36, 0.09), new THREE.MeshStandardMaterial({ map: t.tex, metalness: 0.6, roughness: 0.35 }));
+    m.position.set(x, y, z); m.rotation.y = ry; G.add(m);
+  };
 
   // ----- steam: soft billboards, one instanced mesh for every puff and wisp on the floor -----
   const NS = 96, steamGeo = new THREE.PlaneGeometry(1, 1), iData = new THREE.InstancedBufferAttribute(new Float32Array(NS * 4), 4);
@@ -259,17 +267,31 @@ export function installSpa(ctx, W) {
   W.planter(19.3, -4.4, 1.1); W.planter(10.4, -4.2, 0.9);
 
   // ----- the changing rooms -----
-  // Oak lockers along the south and west walls (click one to open it), oak benches between, and a travertine vanity with
-  // backlit mirrors on the north wall.
-  const lockers = [], LW = 0.46, LH = 1.95;
-  {
-    for (let i = 0; i < 24; i++) lockers.push({ x: -7.5 + LW / 2 + i * LW, z: -14.55, ry: 0 });           // south bank, doors facing north
-    for (let i = 0; i < 14; i++) lockers.push({ x: -7.55, z: -14.0 + LW / 2 + i * LW, ry: Math.PI / 2 });   // west bank, doors facing east
-    // Carcasses: a dark box behind each run, a plinth and a lit cornice.
-    k.box(M.dark, 24 * LW, LH, 0.55, -7.5 + 12 * LW, LH / 2 + 0.1, -14.6); k.box(M.dark, 0.55, LH, 14 * LW, -7.6, LH / 2 + 0.1, -14.0 + 7 * LW);
-    k.box(M.black, 24 * LW, 0.1, 0.5, -7.5 + 12 * LW, 0.05, -14.58); k.box(M.black, 0.5, 0.1, 14 * LW, -7.58, 0.05, -14.0 + 7 * LW);
-    k.box(M.cove, 24 * LW, 0.03, 0.04, -7.5 + 12 * LW, LH + 0.12, -14.3); k.box(M.cove, 0.04, 0.03, 14 * LW, -7.3, LH + 0.12, -14.0 + 7 * LW);
-    solid(-7.5 + 12 * LW, -14.6, 24 * LW, 0.6); solid(-7.6, -14.0 + 7 * LW, 0.6, 14 * LW);
+  // Two small rooms either side of the passage in from the way through, each behind an oak door you click: oak lockers
+  // along the back wall (click one to open it), an oak bench, a backlit mirror over a shelf on the side wall.
+  const lockers = [], LW = 0.46, LH = 1.95, CZ0 = -6.94, CZ1 = -3.56;
+  const lockerHits = [];
+  for (const { x0, x1, door, side } of [{ x0: -4.54, x1: -1.46, door: -3.6, side: -1 }, { x0: 0.46, x1: 3.94, door: 1.6, side: 1 }]) {
+    const n = Math.floor((x1 - x0 - 0.1) / LW), cx = (x0 + x1) / 2, bx0 = cx - n * LW / 2, lz = CZ1 - 0.325;
+    for (let i = 0; i < n; i++) lockers.push({ x: bx0 + LW / 2 + i * LW, z: lz, ry: Math.PI });   // doors facing south
+    // Carcass, plinth and a lit cornice.
+    k.box(M.dark, n * LW, LH, 0.55, cx, LH / 2 + 0.1, CZ1 - 0.275); k.box(M.black, n * LW, 0.1, 0.5, cx, 0.05, CZ1 - 0.27);
+    k.box(M.cove, n * LW, 0.03, 0.04, cx, LH + 0.12, CZ1 - 0.53);
+    solid(cx, CZ1 - 0.3, n * LW, 0.6);
+    lockerHits.push(ctx.hitBox(G, n * LW, LH, 0.2, cx, LH / 2 + 0.1, CZ1 - 0.625, { action: 'wellness-locker', reach: 2.6 }));
+    // The bench down the middle.
+    const g = new THREE.Group(); g.position.set(cx, 0, -5.3); G.add(g);
+    const bk = kit(); bk.box(M.oak, 2.0, 0.06, 0.42, 0, 0.45, 0); for (const s of [-1, 1]) bk.box(M.black, 0.05, 0.42, 0.36, s * 0.85, 0.21, 0); bk.flush(g);
+    for (const lx of [-0.5, 0.5]) { const st = W.seat(g, 'Bench', lx, 1.12); W.markSeat(g, st); }
+    solid(cx, -5.3, 2.0, 0.45);
+    // Mirror and shelf on the side wall away from the passage, a hook rail with a robe.
+    const wx = side < 0 ? x0 + 0.01 : x1 - 0.01, sx = -side;
+    k.box(M.mirror, 0.02, 1.0, 0.9, wx + sx * 0.02, 1.65, -5.4); k.box(M.cove, 0.01, 1.04, 0.94, wx + sx * 0.005, 1.65, -5.4);
+    k.box(M.stone, 0.3, 0.04, 1.0, wx + sx * 0.15, 0.95, -5.4); k.cyl(M.linen, 0.035, 0.03, 0.12, wx + sx * 0.15, 1.03, -5.15, 12);
+    k.box(M.brass, 0.03, 0.03, 0.8, wx + sx * 0.06, 1.75, -6.3);
+    k.box(M.towel, 0.12, 0.9, 0.34, wx + sx * 0.1, 1.3, -6.3);
+    W.hingedDoor({ name: 'Changing room door', hx: door, hz: -7, swing: -1 });
+    W.plaque('CHANGING', door - 0.32, 1.5, -7.07, Math.PI);
   }
   // The doors: one instanced oak leaf (and one of brass pulls), each hinged on its left edge.
   const leafG = new THREE.BoxGeometry(LW - 0.012, LH - 0.02, 0.025).translate((LW - 0.012) / 2, 0, 0.0125);
@@ -278,37 +300,20 @@ export function installSpa(ctx, W) {
   leaves.castShadow = false; pulls.castShadow = false; G.add(leaves, pulls);
   const q = new THREE.Quaternion(), sc = new THREE.Vector3(1, 1, 1), pos = new THREE.Vector3(), Yax = new THREE.Vector3(0, 1, 0);
   function placeLocker(i) {
-    const L = lockers[i], ry = L.ry, hx = L.x - Math.cos(ry) * LW / 2, hz = L.z + Math.sin(ry) * LW / 2;   // the hinge, on the leaf's left edge
-    const off = 0.225, fx = ry ? off : 0, fz = ry ? 0 : off;   // out to the carcass's face
-    pos.set(hx + fx, LH / 2 + 0.1, hz + fz); q.setFromAxisAngle(Yax, ry - (L.k || 0) * 1.75);
+    const L = lockers[i], c = Math.cos(L.ry), s = Math.sin(L.ry), off = 0.225;   // the hinge, on the leaf's left edge, out at the carcass's face
+    pos.set(L.x - c * LW / 2 + s * off, LH / 2 + 0.1, L.z + s * LW / 2 + c * off); q.setFromAxisAngle(Yax, L.ry - (L.k || 0) * 1.75);
     m4.compose(pos, q, sc); leaves.setMatrixAt(i, m4); pulls.setMatrixAt(i, m4);
     leaves.instanceMatrix.needsUpdate = pulls.instanceMatrix.needsUpdate = true;
   }
   lockers.forEach((L, i) => { L.k = 0; L.to = 0; placeLocker(i); });
   {
-    const hit = ctx.hitBox(G, 24 * LW, LH, 0.2, -7.5 + 12 * LW, LH / 2 + 0.1, -14.25, { action: 'wellness-locker', reach: 2.6 });
-    const hit2 = ctx.hitBox(G, 0.2, LH, 14 * LW, -7.25, LH / 2 + 0.1, -14.0 + 7 * LW, { action: 'wellness-locker', reach: 2.6 });
     const nearest = (p) => { let best = 0, bd = Infinity; lockers.forEach((L, i) => { const d = Math.hypot(L.x - p.x, L.z - p.z); if (d < bd) { bd = d; best = i; } }); return best; };
-    hit.userData.drawerAt = hit2.userData.drawerAt = nearest;
-    W.hits.push(hit, hit2);
+    for (const h of lockerHits) { h.userData.drawerAt = nearest; W.hits.push(h); }
   }
   ctx.action('wellness-locker', {
     hover: (h) => `<b>Locker ${h.drawer + 1}</b><div class="k">Click to ${lockers[h.drawer].to ? 'close' : 'open'} it</div>`,
     click: (h) => { const L = lockers[h.drawer]; L.to = L.to ? 0 : 1; sound.latch(L.x, 1.1, L.z, !!L.to); },
   });
-  for (const [x, z] of [[-3.0, -10.6], [-3.0, -7.4]]) {
-    const g = new THREE.Group(); g.position.set(x, 0, z); G.add(g);
-    const bk = kit(); bk.box(M.oak, 3.2, 0.06, 0.42, 0, 0.45, 0); for (const s of [-1, 1]) bk.box(M.black, 0.05, 0.42, 0.36, s * 1.4, 0.21, 0); bk.flush(g);
-    for (const lx of [-1, 0, 1]) { const st = W.seat(g, 'Bench', lx, 1.12); W.markSeat(g, st); }
-    solid(x, z, 3.2, 0.45);
-  }
-  {   // the vanity
-    const z = -3.85;
-    k.box(M.stone, 5.2, 0.12, 0.55, -4.8, 0.86, z); k.box(M.oak, 5.0, 0.5, 0.5, -4.8, 0.55, z);
-    for (const x of [-6.6, -4.8, -3.0]) { k.cyl(M.linen, 0.2, 0.15, 0.1, x, 0.95, z, 24); k.box(M.brass, 0.03, 0.22, 0.03, x, 1.03, z - 0.18); k.box(M.brass, 0.03, 0.03, 0.14, x, 1.13, z - 0.12);
-      k.box(M.mirror, 1.2, 1.0, 0.02, x, 1.75, -3.6); k.box(M.cove, 1.24, 1.04, 0.01, x, 1.75, -3.585); }
-    solid(-4.8, z, 5.2, 0.6);
-  }
 
   // ----- the juice bar -----
   // On the way through: an oak bar with a fluted travertine front and four stools, a back counter of fruit, juicers and
