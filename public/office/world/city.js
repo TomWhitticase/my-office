@@ -133,7 +133,7 @@ export function install(ctx) {
     };
     // The ground either side of the channel, its texture laid exactly as the full plane's was.
     const groundGeo = rows([[[X0], 0], [-RIVER_W - BANK, 0], [RIVER_W + BANK, 0], [[X1], 0]]), gp = groundGeo.attributes.position;
-    groundGeo.setIndex(groundGeo.index.array.filter((_, k) => Math.floor(k / 6) % 3 !== 1));   // drop the quads over the river
+    groundGeo.setIndex(Array.from(groundGeo.index.array).filter((_, k) => Math.floor(k / 6) % 3 !== 1));   // drop the quads over the river
     const uv = [];
     for (let i = 0; i < gp.count; i++) uv.push((gp.getX(i) - X0) / (X1 - X0), (Z1 - gp.getZ(i)) / (Z1 - Z0));
     groundGeo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
