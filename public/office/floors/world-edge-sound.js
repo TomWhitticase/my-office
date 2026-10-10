@@ -1,11 +1,13 @@
 // The edge of the world's sounds (floors/world-edge.js): out by the sky wall, wind and the sea, louder the nearer you are;
-// the backdrop's hollow knock when the helicopter bumps it; the door's creak; then nothing at all. All synthesised here,
-// through the office's own audio (sounds.js `audio`), so its volume and M apply. Positions are in the world.
+// the backdrop's hollow knock when the helicopter bumps it; the door's creak. Behind it (world-edge-backstage.js): the
+// hum of the strip lights and the equipment, the flat's TV through its doorway (a murmur and a muffled laugh track), the
+// fire door's push bar and its thud shut. All synthesised here, through the office's own audio (sounds.js `audio`), so
+// its volume and M apply. Positions are in whichever space you're in.
 
 const TAU = Math.PI * 2;
 
 export function makeSound(ctx) {
-  let A = null, B = null, out = null, loops = null;
+  let A = null, B = null, out = null, loops = null, back = null;
   const rnd = (a, b) => a + Math.random() * (b - a), nz = () => Math.random() * 2 - 1;
 
   function biq(type, f, q) {   // RBJ biquad, per sample
@@ -46,6 +48,30 @@ export function makeSound(ctx) {
         return make(1.6, (t) => Math.exp(-t / 0.45) * (Math.sin(TAU * 74 * t) + 0.6 * Math.sin(TAU * 117 * t + 0.4) + 0.35 * Math.sin(TAU * 183 * t + 1.1))
           + th(nz()) * Math.exp(-t / 0.02) * 3 + Math.exp(-t / 0.9) * 0.25 * Math.sin(TAU * 52 * t));
       })(),
+      // behind the sky: mains hum off the strip lights, and the racks' fans
+      hum: (() => {
+        const f = biq('lp', 900, 0.6);
+        return make(8, (t) => 0.5 * Math.sin(TAU * 100 * t) + 0.22 * Math.sin(TAU * 200 * t + 0.3) + 0.08 * Math.sin(TAU * 300 * t) + f(nz()) * 0.9, 0.6);
+      })(),
+      // their TV through the wall: voices (syllables of filtered noise), and every few seconds an audience laughing, muffled
+      tv: (() => {
+        const v1 = biq('bp', 500, 1.4), v2 = biq('bp', 1100, 2), lpf = biq('lp', 900, 0.7), lf2 = biq('lp', 700, 0.7);
+        const laughs = [1.5, 6.2, 9.8, 14.1].map((at) => ({ at, d: 1.6 + Math.random() * 1.4, v: Array.from({ length: 14 }, () => [rnd(3.6, 6.2), rnd(0, 6.3), rnd(0.4, 1), rnd(-0.2, 0.3)]) }));
+        return make(16, (t) => {
+          let talk = 0, laugh = 0;
+          const syl = Math.max(0, Math.sin(TAU * 3.7 * t + 2 * Math.sin(TAU * 0.6 * t))), gap = Math.sin(TAU * 0.23 * t) > -0.4 ? 1 : 0.15;
+          talk = (v1(nz()) + 0.5 * v2(nz())) * syl * gap;
+          for (const L of laughs) {
+            const u = t - L.at; if (u < 0 || u > L.d) continue;
+            const env = Math.sin(Math.PI * u / L.d) ** 0.7;
+            for (const [rate, ph, a, off] of L.v) { const w = u - off; if (w > 0) laugh += a * Math.max(0, Math.sin(TAU * rate * w + ph)) ** 3; }
+            laugh *= env;
+          }
+          return lpf(talk * (1 - Math.min(1, laugh * 0.2))) * 1.2 + lf2(nz() * laugh * 0.5);
+        }, 0.8);
+      })(),
+      bar: (() => { const th = biq('bp', 1400, 3); return make(0.5, (t) => th(nz()) * Math.exp(-t / 0.012) * 2 + Math.exp(-t / 0.05) * Math.sin(TAU * 180 * t) * 0.6 + (t > 0.12 ? th(nz()) * Math.exp(-(t - 0.12) / 0.01) : 0)); })(),
+      clunk: (() => { const lo = biq('lp', 220, 0.8), hi = biq('bp', 2200, 4); return make(1.2, (t) => Math.exp(-t / 0.18) * (Math.sin(TAU * 62 * t) + 0.5 * Math.sin(TAU * 97 * t)) + lo(nz()) * Math.exp(-t / 0.03) * 3 + hi(nz()) * (t > 0.05 ? Math.exp(-(t - 0.05) / 0.015) * 0.4 : 0)); })(),
       // the door: a long dry hinge, slowing as it swings
       creak: (() => {
         const bp = biq('bp', 620, 6), bp2 = biq('bp', 1250, 9); let ph = 0;
@@ -94,6 +120,22 @@ export function makeSound(ctx) {
       level(loops.sea, 0.45 * near * low);
     },
     knock(p, v) { if (ready()) shot(B.knock, p, Math.min(1, 0.35 + v / 10), rnd(0.92, 1.05)); },
+    bar(p) { if (ready()) shot(B.bar, p, 0.5); },
+    clunk(p) { if (ready()) shot(B.clunk, p, 0.7); },
+    // Each frame behind the sky (on 1, off 0): the hum, and their TV from where it is (tvAt, a Vector3 in here).
+    backstage(on, tvAt) {
+      if (!ready()) return;
+      if (!back && !on) return;
+      if (!back) {
+        const hum = loop(B.hum), src = A.ctx.createBufferSource(), g = A.ctx.createGain(), pan = A.ctx.createPanner();
+        src.buffer = B.tv; src.loop = true; g.gain.value = 0;
+        pan.panningModel = 'HRTF'; pan.distanceModel = 'inverse'; pan.refDistance = 1.5; pan.rolloffFactor = 1.4;
+        src.connect(g).connect(pan).connect(A.bus); src.start();
+        back = { hum, tv: { src, g }, pan };
+      }
+      level(back.hum, on * 0.1, 0.6); level(back.tv, on * 0.5, 0.6);
+      if (tvAt) { back.pan.positionX.value = tvAt.x; back.pan.positionY.value = tvAt.y; back.pan.positionZ.value = tvAt.z; }
+    },
     creak(p) { if (ready()) shot(B.creak, p, 0.5, rnd(0.95, 1.02)); },
     // Out of earshot, or through the door: the loops fade to nothing (over `s` seconds).
     stop(s = 0.4) {
