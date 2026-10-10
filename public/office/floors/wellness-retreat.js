@@ -54,11 +54,18 @@ export function installRetreat(ctx, W) {
   const tileM = causticMaterial({ map: W.poolTile, roughness: 0.3 }, TU);
   {
     const B = J.water - 0.42, F = J.water - 0.82, ri = J.r - 0.32;   // the bench's seat, the floor, the bench's front
-    // The wall, turned inside out (seen from within); the deck's floor isn't under the tub, so you see down into it.
-    const wall = new THREE.CylinderGeometry(J.r, J.r, DECK.top - F, 48, 1, true); wall.scale(-1, 1, 1); wall.translate(J.x, (DECK.top + F) / 2, J.z);
+    // The wall and the bench's front, turned inside out (seen from within: faces and normals in); the deck's floor isn't
+    // under the tub, so you see down into it.
+    const inward = (g) => {
+      const ix = g.index.array, n = g.attributes.normal;
+      for (let i = 0; i < ix.length; i += 3) [ix[i + 1], ix[i + 2]] = [ix[i + 2], ix[i + 1]];
+      for (let i = 0; i < n.count; i++) n.setXYZ(i, -n.getX(i), -n.getY(i), -n.getZ(i));
+      return g;
+    };
+    const wall = inward(new THREE.CylinderGeometry(J.r, J.r, DECK.top - F, 48, 1, true)); wall.translate(J.x, (DECK.top + F) / 2, J.z);
     k.geo(tileM, uvWorld(wall, 1.6, 'wall'));
     const seat = new THREE.RingGeometry(ri, J.r, 48); seat.rotateX(-Math.PI / 2); seat.translate(J.x, B, J.z); k.geo(tileM, seat);
-    const front = new THREE.CylinderGeometry(ri, ri, B - F, 48, 1, true); front.translate(J.x, (B + F) / 2, J.z); k.geo(tileM, front);
+    const front = inward(new THREE.CylinderGeometry(ri, ri, B - F, 48, 1, true)); front.translate(J.x, (B + F) / 2, J.z); k.geo(tileM, front);
     const floor = new THREE.CircleGeometry(ri, 48); floor.rotateX(-Math.PI / 2); floor.translate(J.x, F, J.z); k.geo(tileM, floor);
     const lip = new THREE.RingGeometry(J.r, J.rim, 48); lip.rotateX(-Math.PI / 2); lip.translate(J.x, DECK.top + 0.025, J.z); k.geo(M.stoneWall, lip);
     const edge = new THREE.CylinderGeometry(J.rim, J.rim, 0.025, 48, 1, true); edge.translate(J.x, DECK.top + 0.0125, J.z); k.geo(M.stoneWall, edge);
@@ -88,7 +95,8 @@ export function installRetreat(ctx, W) {
         float churn = noise(q * 5.0 - dir * time * 1.4 + time * 0.3);
         float jets = 0.0;
         for (int i = 0; i < 6; i++) { float a = float(i) * 1.0472 + 0.3; vec2 j = vec2(cos(a), sin(a)) * 1.05; jets += exp(-dot(q - j, q - j) * 5.0); }
-        float f = smoothstep(0.35, 0.8, boil * 1.5 + churn * 0.35 + jets * 0.6 * (0.6 + 0.4 * sin(time * 8.0 + r * 11.0)));
+        // Fine froth, thickest over the jets and thinning between them, rather than blobs across the whole surface.
+        float f = smoothstep(0.45, 0.85, boil * 1.3 + churn * 0.15 + jets * 0.75 * (0.6 + 0.4 * sin(time * 8.0 + r * 11.0))) * (0.35 + 0.65 * min(jets * 1.6, 1.0));
         float speck = step(0.9, noise(q * 55.0 + vec2(time * 3.0, -time * 2.0))) * 0.5;
         gl_FragColor = vec4(vec3(0.94, 0.98, 0.98), (f * 0.45 + speck) * k * (1.0 - smoothstep(J_R - 0.08, J_R, r)));
       }`.replaceAll('J_R', J.r.toFixed(2)),
@@ -193,7 +201,33 @@ function installFloat(ctx, W) {
   const rimM = new THREE.MeshStandardMaterial({ color: '#cfd6dc', emissive: '#58a8ff', emissiveIntensity: 0.6, roughness: 0.4 });
   pod.add(new THREE.Mesh(new THREE.TorusGeometry(1, 0.018, 6, 64).scale(P.l, P.w, 1).rotateX(Math.PI / 2).translate(0, P.h, 0), rimM));
   const hinge = new THREE.Group(); hinge.position.set(0, P.h, -P.w); pod.add(hinge);   // along the back edge
-  const lid = new THREE.Mesh(half(true).scale(P.l * 1.01, P.h * 0.75, P.w * 1.01).translate(0, 0, P.w), shellM); lid.castShadow = true; hinge.add(lid);
+  // The lid: the glossy shell outside, a matte liner inside (seen as it lifts), a hinge at the back and a gas strut each side.
+  const outM = shellM.clone(); outM.side = THREE.FrontSide;
+  const lid = new THREE.Mesh(half(true).scale(P.l * 1.01, P.h * 0.75, P.w * 1.01).translate(0, 0, P.w), outM); lid.castShadow = true; hinge.add(lid);
+  // The liner turned inside out (front faces, normals in) rather than BackSide: the AO pass draws front faces only, and
+  // would take its depth from the wall behind, striping it.
+  const linerM = new THREE.MeshStandardMaterial({ color: '#dfe4e8', roughness: 0.85 });
+  const lg = half(true).scale(P.l * 0.995, P.h * 0.74, P.w * 0.995).translate(0, 0, P.w), li = lg.index.array, ln = lg.attributes.normal;
+  for (let i = 0; i < li.length; i += 3) [li[i + 1], li[i + 2]] = [li[i + 2], li[i + 1]];
+  for (let i = 0; i < ln.count; i++) ln.setXYZ(i, -ln.getX(i), -ln.getY(i), -ln.getZ(i));
+  hinge.add(new THREE.Mesh(lg, linerM));
+  hinge.add(new THREE.Mesh(new THREE.TorusGeometry(1, 0.022, 6, 64).scale(P.l * 1.01, P.w * 1.01, 1).rotateX(Math.PI / 2).translate(0, 0, P.w), shellM));   // its rim
+  const steelM = mat('#9aa1a8', { metalness: 0.9, roughness: 0.3 });
+  pod.add(new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.06, 0.08).translate(0, P.h, -P.w - 0.02), steelM));
+  const struts = [-1, 1].map((sx) => {
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 1, 8).translate(0, 0.5, 0), steelM); pod.add(m);
+    // From the hull's rim at the side (just inside it) to the lid's, the same point when it's shut.
+    return { m, foot: new THREE.Vector3(sx * P.l * 0.8, P.h - 0.12, -P.w * 0.55), top: new THREE.Vector3(sx * P.l * 0.78, -0.02, P.w * 0.42) };
+  });
+  const sv = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
+  const strutFx = () => {
+    hinge.updateMatrix();
+    for (const s of struts) {
+      sv.copy(s.top).applyMatrix4(hinge.matrix).sub(s.foot);
+      s.m.position.copy(s.foot); s.m.scale.set(1, sv.length(), 1); s.m.quaternion.setFromUnitVectors(UP, sv.normalize());
+    }
+  };
+  strutFx();
   // Stars on the lid's underside, for while it's shut over you.
   {
     const pts = [];
@@ -252,6 +286,7 @@ function installFloat(ctx, W) {
     if (S.lid !== S.lidTo) {
       S.lid = S.lidTo > S.lid ? Math.min(1, S.lid + dt / 1.6) : Math.max(0, S.lid - dt / 2.2);
       hinge.rotation.x = -1.15 * (S.lid * S.lid * (3 - 2 * S.lid));
+      strutFx();
     }
     // The lights fade to black once the lid's down over you, and back when you're out.
     const want = S.inside && S.lid < 0.05 ? 1 : 0;
@@ -259,5 +294,5 @@ function installFloat(ctx, W) {
     if (S.dark > 0.003) W.wantVeil = [`radial-gradient(ellipse at 50% 50%, rgba(0,0,0,${(0.9 + 0.1 * S.dark).toFixed(2)}), #000)`, 0.985 * S.dark];
     sound.float(S.dark);
   });
-  W.leaves.push(() => { S.inside = false; S.dark = 0; S.lid = S.lidTo = 0; hinge.rotation.x = 0; sound.float(0); });
+  W.leaves.push(() => { S.inside = false; S.dark = 0; S.lid = S.lidTo = 0; hinge.rotation.x = 0; strutFx(); sound.float(0); });
 }

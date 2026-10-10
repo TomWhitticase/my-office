@@ -81,7 +81,7 @@ function build(ctx) {
       add(m, [40.2 + 2 * o + t, h, t, 0, y, 15 + o]); add(m, [40.2 + 2 * o + t, h, t, 0, y, -15 - o]);
       add(m, [t, h, 30.2 + 2 * o - t, 20 + o, y, 0]); add(m, [t, h, 30.2 + 2 * o - t, -20 - o, y, 0]);
     };
-    // 45's ceiling and beams, their own mesh: hidden while you're on 46, whose pool's basin reaches down into them (wellness.js).
+    // 45's ceiling, beams and panels, their own meshes: hidden while you're on 46, whose pool's basin reaches down into them (wellness.js).
     const lid = new Map(), beamM = mat('#9c6b43', { roughness: 0.75 });   // shellWalls' beams
     for (const n of EMPTY) {
       const y0 = (n - 48) * STOREY;
@@ -92,7 +92,12 @@ function build(ctx) {
       add(bareM, [40, 0.02, 30, 0, y0 + 0.01, 0]);
       for (const [x, z] of cols) add(colM, [0.5, ROOM.h, 0.5, x, y0 + ROOM.h / 2, z]);
       add(coreM, [CORE.x1 - LIFT.x, ROOM.h, CORE.z1 - CORE.z0, (LIFT.x + CORE.x1) / 2, y0 + ROOM.h / 2, (CORE.z0 + CORE.z1) / 2]);
-      for (const [w, h, d, x, y, z] of panels) add(panelM, [w, h, d, x, y + y0, z]);
+      // 45's panels with its ceiling: the pool's basin reaches down past them too.
+      for (const [w, h, d, x, y, z] of panels) {
+        if (n !== 45) { add(panelM, [w, h, d, x, y + y0, z]); continue; }
+        if (!lid.has(panelM)) lid.set(panelM, []);
+        lid.get(panelM).push([w, h, d, x, y + y0, z]);
+      }
     }
     const y47 = -STOREY;
     ring(louvreM, y47 + H / 2, H, 0.2, 0);
@@ -104,7 +109,7 @@ function build(ctx) {
       out.add(mesh);
     }
     ctx.underPool = new THREE.Group(); out.add(ctx.underPool);
-    for (const [m, list] of lid) ctx.underPool.add(mergedBoxes(list, m));
+    for (const [m, list] of lid) { const mesh = mergedBoxes(list, m); if (m === panelM) mesh.castShadow = false; ctx.underPool.add(mesh); }
   }
 
   // Floor boxes with their lids off: the tile lifted beside each, the box's sockets, and a loose coil of cable or two.
