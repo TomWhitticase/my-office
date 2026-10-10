@@ -2131,6 +2131,70 @@
    -1.571,
    0.95,
    46
+  ],
+  [
+   "Quiet room lounger",
+   -6.95,
+   -10.5,
+   1.571,
+   0.95,
+   46
+  ],
+  [
+   "Quiet room lounger",
+   -6.95,
+   -8.95,
+   1.571,
+   0.95,
+   46
+  ],
+  [
+   "Quiet room lounger",
+   -6.95,
+   -7.4,
+   1.571,
+   0.95,
+   46
+  ],
+  [
+   "Quiet room lounger",
+   -6.95,
+   -5.85,
+   1.571,
+   0.95,
+   46
+  ],
+  [
+   "Quiet room lounger",
+   -6.95,
+   -4.3,
+   1.571,
+   0.95,
+   46
+  ],
+  [
+   "Infrared bench",
+   -4,
+   -10.83,
+   0,
+   1.12,
+   46
+  ],
+  [
+   "Infrared bench",
+   -3.1,
+   -10.83,
+   0,
+   1.12,
+   46
+  ],
+  [
+   "Infrared bench",
+   -2.2,
+   -10.83,
+   0,
+   1.12,
+   46
   ]
  ],
  "desks": [
@@ -4934,8 +4998,8 @@
     "kind": "wellness",
     "steps": true
    },
-   "colliders": 109,
-   "hits": 41,
+   "colliders": 132,
+   "hits": 45,
    "hooks": [
     "enter",
     "leave",
@@ -6127,14 +6191,14 @@
  ],
  "scenes": {
   "office": {
-   "objects": 3233,
+   "objects": 3315,
    "types": {
     "Scene": 1,
     "HemisphereLight": 1,
     "DirectionalLight": 2,
     "Object3D": 2,
-    "Mesh": 2789,
-    "Group": 515,
+    "Mesh": 2860,
+    "Group": 526,
     "PointLight": 16,
     "Sprite": 9,
     "LineSegments": 1,
@@ -6170,11 +6234,12 @@
     "wellness-blender": 1,
     "wellness-jacuzzi": 1,
     "wellness-float": 1,
+    "wellness-xshower": 4,
     "lightpanel": 5,
     "rosie": 57
    },
-   "ordered": "806e7e59",
-   "sorted": "7b9918ab"
+   "ordered": "280dd688",
+   "sorted": "522f3b18"
   },
   "servers": {
    "objects": 383,

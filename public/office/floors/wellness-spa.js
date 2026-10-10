@@ -362,6 +362,7 @@ export function installSpa(ctx, W) {
           float streak = smoothstep(0.75, 1.0, fract(q.y + h * 7.0)) * step(0.35, fract(q.x));
           gl_FragColor = vec4(vec3(0.85, 0.93, 1.0), streak * 0.5 * on * smoothstep(0.0, 0.3, vL.y + 1.1));
         }` });
+    W.rainM = rainM;   // the hall's experience showers' too
     for (const z of SH.zs) {
       k.box(M.black, 0.42, 0.03, 0.42, SH.x, 3.25, z); k.box(M.chrome, 0.38, 0.01, 0.38, SH.x, 3.23, z);
       const m = rainM.clone(); m.uniforms.time = W.U.time;

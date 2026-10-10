@@ -3,13 +3,13 @@
 // towel counter at the lifts; a lap pool along the north glass with an infinity edge right against it (the glass comes
 // down to the water there); the gym in the north-east corner, cardio facing the east windows; the spa in the south-east
 // (a cedar sauna with a window, a steam room, a cold plunge, rain showers, a quiet lounge); two small changing rooms behind
-// doors off a passage from the way through, and past them a jacuzzi on a raised deck along the west glass in the south-west
-// corner; a juice bar on the way through; a yoga studio and a lounge of daybeds on the west windows. Partitions are travertine, oak slats on
+// doors off a passage from the way through, and past them a hall with a float room, a quiet room, an infrared cabin and
+// experience showers, and a jacuzzi on a raised deck along the west glass in the south-west corner; a juice bar on the way through; a yoga studio and a lounge of daybeds on the west windows. Partitions are travertine, oak slats on
 // felt, clear or fluted glass; the doors slide open as you come up to them.
 //
 // This file builds the shell, floors, partitions, doors, reception and lighting, and registers the floor; the pool
-// (wellness-pool.js), the gym (wellness-gym.js), the spa and its rooms (wellness-spa.js) and the jacuzzi
-// and float room (wellness-retreat.js) build into the same floor
+// (wellness-pool.js), the gym (wellness-gym.js), the spa and its rooms (wellness-spa.js), the jacuzzi
+// and float room (wellness-retreat.js) and the rest of the hall past the changing rooms (wellness-hall.js) build into the same floor
 // kit, `W`, and its sounds are wellness-sound.js. X is always shown (from outside: the helicopter, the roof, the
 // cameras, the pool glowing through the glass at night); G, everything inside, only while you're here.
 
@@ -20,6 +20,7 @@ import { installPool } from './wellness-pool.js';
 import { installGym } from './wellness-gym.js';
 import { installSpa } from './wellness-spa.js';
 import { installRetreat } from './wellness-retreat.js';
+import { installHall } from './wellness-hall.js';
 import { makeSound } from './wellness-sound.js';
 
 const STOREY = ROOM.h + 0.5;   // floor to floor, as the roof sits over the office
@@ -229,6 +230,11 @@ function build(ctx) {
     ['x', -10.6, 15.6, 19.9, 'glass', [[17.3, 18.1]]], ['z', 15.6, -14.9, -10.6, 'cedar'],   // the sauna
     ['x', -10.6, 10.8, 15.6, 'fog', [[12.8, 13.6]]], ['z', 10.8, -14.9, -10.6, 'tile'],    // the steam room (its glass fogs up)
     ['z', 6.4, -14.9, -11.2, 'fluted'],                                 // the showers' screen
+    // The hall past the changing rooms (wellness-hall.js): a quiet room on its west side (round into the corner by the
+    // changing rooms), an infrared cabin behind glass beside it, and experience showers in bays along the south glass.
+    ['x', -11.2, -8, -1.6, 'stone'], ['z', -4.6, -11.2, -7, 'stone', [[-8.4, -7.2]]],
+    ['x', -8.6, -4.6, -1.6, 'glass', [[-2.9, -2.0]]], ['z', -1.6, -11.2, -8.6, 'stone'],
+    ['z', -6, -14.9, -13.1, 'pale'], ['z', -4, -14.9, -13.1, 'pale'], ['z', -2, -14.9, -13.1, 'pale'],
   ];
   W.WALLS = WALLS;
   const glassRuns = [];
@@ -237,6 +243,8 @@ function build(ctx) {
     const faceM = { stone: M.stoneWall, slat: M.oakSlat, cedar: M.cedar, tile: null, plaster: M.plaster };
     W.tileWallM = new THREE.MeshStandardMaterial({ color: '#3d4a4c', roughness: 0.35 });   // replaced by the spa's mosaic
     faceM.tile = W.tileWallM;
+    // The hall's experience showers' pale sand mosaic, 5 cm (its own stream, so nothing after it here shifts).
+    faceM.pale = W.paleTileM = new THREE.MeshStandardMaterial({ map: mosaic(rng(4655), ['#ebe6dc', '#e0d9cc', '#d6d9d6', '#e6dfd1', '#d9d2c4'], 20, '#b9b0a2'), roughness: 0.3 });
     for (const [axis, fixed, from, to, kind, gaps = []] of WALLS) {
       const at = (a, b, y0, y1, m, t = T) => {   // a box along the run from a to b, y0 to y1
         const len = b - a, mid = (a + b) / 2, h = y1 - y0, y = (y0 + y1) / 2;
@@ -363,6 +371,7 @@ function build(ctx) {
   W.slidingDoor('x', 3.5, -1.2, 0.6, { split: true, off: 0.07 });
   W.slidingDoor('x', -3.5, -1.3, 0.3, { split: true, lining: T + 0.06 }); W.slidingDoor('x', -7, -1.4, 0.4, { split: true, lining: T + 0.06 });
   W.slidingDoor('x', -3.5, 6.4, 8.0, { lining: T + 0.06 });
+  W.slidingDoor('z', -4.6, -8.4, -7.2, { m: M.fluted, lining: T + 0.06 }); W.slidingDoor('x', -8.6, -2.9, -2.0, { off: 0.07 });   // the quiet room, the infrared
   function doorFx(dt) {
     const p = ctx.player;
     for (const d of doors) {
@@ -560,6 +569,7 @@ function build(ctx) {
   installGym(ctx, W);
   installSpa(ctx, W);
   installRetreat(ctx, W);
+  installHall(ctx, W);
 
   // ----- the lift core -----
   const core = liftCore(G, lifts.map((L) => L.z));
@@ -676,7 +686,7 @@ function build(ctx) {
     c.fillStyle = 'rgba(255,255,255,.22)';
     for (const b of W.colliders()) c.fillRect(sx(b.minX), sz(b.minZ), Math.max(2, sx(b.maxX) - sx(b.minX)), Math.max(2, sz(b.maxZ) - sz(b.minZ)));
     c.font = '600 16px system-ui'; c.fillStyle = 'rgba(255,255,255,.6)';
-    for (const [t, x, z] of [['Pool', -9, 12.6], ['Gym', 11, 7], ['Sauna', 16.3, -13], ['Steam', 11.7, -13], ['Spa', 8, -8], ['Changing', -4.4, -5.2], ['Jacuzzi', -19, -13.6], ['Float', 1.0, -13.4],
+    for (const [t, x, z] of [['Pool', -9, 12.6], ['Gym', 11, 7], ['Sauna', 16.3, -13], ['Steam', 11.7, -13], ['Spa', 8, -8], ['Changing', -4.4, -5.2], ['Jacuzzi', -19, -13.6], ['Float', 1.0, -13.4], ['Quiet', -7.6, -8.6], ['Infrared', -4.4, -9.6], ['Showers', -6.6, -14.0],
       ['Yoga', -16, -6.8], ['Lounge', -18.5, 0.6], ['Juice bar', -6.5, 0.6], ['Reception', 12.2, 0.6]]) c.fillText(t, sx(x), sz(z));
     c.font = '600 15px system-ui'; c.fillText('Lifts', sx(LIFT.x) - 44, sz(-2.6));
     const px = sx(camera.position.x), pz = sz(camera.position.z);
