@@ -1,5 +1,6 @@
 // Starts a server under test: this checkout's server.js, a fresh fixture HOME, a frozen clock, its own port.
 import fs from 'node:fs';
+import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
@@ -8,7 +9,11 @@ import { T0, PIDS, makeHome } from './fixtures.mjs';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
+// A port nothing is listening on, for --port=0.
+const freePort = () => new Promise((ok, no) => { const s = net.createServer().once('error', no).listen(0, '127.0.0.1', () => { const { port } = s.address(); s.close(() => ok(port)); }); });
+
 export async function startServer({ port = 7781, log = false } = {}) {
+  if (!port) port = await freePort();
   // Real path: on macOS os.tmpdir() is /var/folders/…, a symlink to /private/var/…, and the paths the server reports must
   // match the HOME the snapshots scrub.
   const home = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'my-office-test-')));

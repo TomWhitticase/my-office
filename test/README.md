@@ -1,11 +1,12 @@
 # The refactor harness
 
-Proves a change to the office's code changed nothing you can see or reach. Three suites, all against a fixed set of
+Proves a change to the office's code changed nothing you can see or reach. A smoke test and three suites, all against a fixed set of
 fixture sessions in a throwaway `HOME`, a frozen clock, and this checkout's own `server.js` on its own port (the live
 server on 7777 is never touched):
 
 | Suite | What it checks | Baseline |
 |---|---|---|
+| `smoke` | the office loads in headless Chrome (real clock) and reaches your chair with no page or console error (a missing favicon aside); about 10 s, no lock needed | none |
 | `api` | every `/api` route's response, the `/events` stream's opening, static serving (incl. path traversal), and the same-origin / JSON-only / no-TV / no-headless refusals on every write, the repo routes and the `/tv` socket | `snapshots/api.json` |
 | `world` | the office's collider map and colliders, seats, desks, idle spots, who sits where, every walking route checked against the colliders, the floor table, TVs, boards, doors, blinds, lifts, the click actions in each scene, and a line per object in every scene (type, geometry, material, transform, flags) | `snapshots/world.json`, `snapshots/world-<scene>.txt` |
 | `golden` | a screenshot per pose (`POSES` in `goldens.mjs`), each from a freshly loaded office: your desktop, your chair, each area, a TV and its panel, a whiteboard, the MacBook, inside a lift car, the archive, an open drawer, the gateway, inside a repo, the server hall, the roof, dusk, the helicopter's cockpit, the Security app's camera feeds, the archive's hall and vault, the restricted level | `golden/<name>.png` |
@@ -14,8 +15,9 @@ server on 7777 is never touched):
 
 ```bash
 npm install                       # three, and playwright-core (dev only)
-node test/run.mjs                 # all three suites; exit code 0 only if everything matches
+node test/run.mjs                 # everything; exit code 0 only if everything matches
 node test/run.mjs api world       # just those
+node test/run.mjs smoke --port=0  # the smoke test, on a free port (no lock needed)
 node test/run.mjs golden --only=archive,roof   # just these shots (each loads the office afresh)
 node test/run.mjs --port=7901     # another port (default 7781)
 node test/run.mjs --software      # SwiftShader instead of the GPU
@@ -33,9 +35,10 @@ Every run takes the shared lock first (see CLAUDE.md): `until mkdir /tmp/my-offi
 
 ## Before you push
 
-`api` and `world`, plus the golden shots your change can affect (all of it under the lock):
+The smoke test (no lock), then `api` and `world` and the golden shots your change can affect (under the lock):
 
 ```bash
+node test/run.mjs smoke --port=0
 node test/run.mjs api world
 node test/run.mjs golden --only=<shots>
 ```
@@ -62,7 +65,7 @@ failure back to the commit that caused it.
 ## The periodic full check
 
 `bin/full-check.sh` (`npm run full-check`) takes the lock, checks out origin/main in a temporary worktree, runs every
-suite there on port 7909 (`--port=` to change), and appends a report to `~/.claude/my-office/full-check.log`: `PASS`, or
+suite there (smoke included) on port 7909 (`--port=` to change), and appends a report to `~/.claude/my-office/full-check.log`: `PASS`, or
 the failing suites and shots with their diff numbers and the commits since the last passing run. Exit code non-zero on
 failure. It touches the lock every minute while it holds it, so nobody takes it for stale.
 
