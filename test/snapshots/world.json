@@ -5633,14 +5633,14 @@
  ],
  "scenes": {
   "office": {
-   "objects": 2643,
+   "objects": 2658,
    "types": {
     "Scene": 1,
     "HemisphereLight": 1,
     "DirectionalLight": 2,
     "Object3D": 2,
-    "Mesh": 2303,
-    "Group": 417,
+    "Mesh": 2317,
+    "Group": 418,
     "PointLight": 15,
     "Sprite": 9,
     "LineSegments": 1,
@@ -5665,8 +5665,8 @@
     "lightpanel": 5,
     "rosie": 57
    },
-   "ordered": "a7f0771a",
-   "sorted": "cd436c48"
+   "ordered": "22591c2b",
+   "sorted": "6363eb29"
   },
   "servers": {
    "objects": 383,
