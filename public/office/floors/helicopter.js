@@ -255,6 +255,11 @@ function build(ctx) {
   const inPark = (x, z) => city.parks.some(([px, pz]) => Math.abs(x - px) < 28 && Math.abs(z - pz) < 28);
   const streetY = (x, z) => city.GROUND + (inPark(x, z) ? 0.4 : -2 * clamp((city.RIVER_W + 3 - Math.abs(x - city.riverX(z))) / 3, 0, 1));   // the banks slope down to the water
   const inside = (b, x, z, m = 0) => Math.abs(x - b.x) < b.w / 2 - m && Math.abs(z - b.z) < b.d / 2 - m;
+  function below() {   // the top of whatever's under you: a roof, the hills or sea out past the city, else the street
+    let y = STREET;
+    for (const b of nearBy(S.pos.x, S.pos.z)) if (b.top > y && b.top < S.pos.y + 0.5 && inside(b, S.pos.x, S.pos.z, 0)) y = b.top;
+    return S.free && ctx.heli.far ? Math.max(y, ctx.heli.far.ground(S.pos.x, S.pos.z)) : y;
+  }
   function surface() {   // what the skids are on: a building (its box), 'street', or null (somewhere too small to stand)
     for (const b of nearBy(S.pos.x, S.pos.z)) if (!b.deck && Math.abs(S.pos.y - b.top) < 0.5 && inside(b, S.pos.x, S.pos.z, -0.6)) return b.w > 4 && b.d > 4 ? b : null;
     return S.pos.y < STREET + 0.5 ? 'street' : null;
@@ -398,10 +403,11 @@ function build(ctx) {
       const thrust = -S.pitch * 70 * lift;
       S.vel.addScaledVector(fwd, thrust * dt);
       let vf = S.vel.dot(fwd), vs = S.vel.dot(right);
-      vf *= Math.exp(-(I.f ? 0.28 : 0.6) * dt); vs *= Math.exp(-1.6 * dt);
+      vf *= Math.exp(-(I.f ? 0.195 : 0.6) * dt); vs *= Math.exp(-1.6 * dt);   // flat out about 72 m/s (140 kt), reached slowly
       vf = Math.max(vf, -12);
       S.vel.x = fwd.x * vf + right.x * vs; S.vel.z = fwd.z * vf + right.z * vs;
-      const vyT = I.c > 0 ? 8 : I.c < 0 ? -7 : 0;
+      // Up 11.5 m/s, down 10; within 20 m of what's below, down eases back to 7 so a landing is as fine as ever.
+      const vyT = I.c > 0 ? 11.5 : I.c < 0 ? -lerp(7, 10, sstep(20, 50, S.pos.y - below())) : 0;
       S.vel.y = damp(S.vel.y, lerp(-9, vyT, lift), 1.8, dt);
       S.roll = damp(S.roll, clamp(S.yawRate * (0.25 + Math.abs(vf) / 40) * 0.6, -0.45, 0.45), 3, dt);
     }
@@ -534,7 +540,7 @@ function build(ctx) {
       c.fillStyle = '#f2efe8'; c.font = `600 11px ${FONT}`; c.fillText(text, 0, 30);
       c.restore();
     };
-    gauge(48, 'KNOTS', kts / 120, `${Math.round(kts)}`, [[0, 0.75, '#3d9a50'], [0.9, 1, '#c0392b']]);
+    gauge(48, 'KNOTS', kts / 160, `${Math.round(kts)}`, [[0, 0.75, '#3d9a50'], [0.9, 1, '#c0392b']]);
     // The artificial horizon: sky over ground, turned with the roll and moved with the pitch.
     c.save(); c.translate(144, 48); c.beginPath(); c.arc(0, 0, 40, 0, Math.PI * 2); c.clip();
     c.rotate(-S.roll); const py = S.pitch * 120;
