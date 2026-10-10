@@ -345,6 +345,12 @@ export const POSES = [
     await stand(o, 2.6, -11.5, { x: 1.9, y: 0.3, z: -13.4 });
     await o.step(80);
   }],
+  ['wellness-hall', async (o) => {   // the hall past the changing rooms: the quiet room's fluted door, the infrared cabin, the showers
+    await arrive(o);
+    await ride(o, 46);
+    await stand(o, 3.0, -7.6, { x: -6, y: 1.0, z: -12.6 });
+    await o.step(40);
+  }],
   ['security-wellness', async (o) => {   // from the office, the Security app's Wellness tab: the floor's four cameras, staged unseen
     await arrive(o);
     await o.eval(() => { window.dash.setView('desktop', 'cctv'); });
