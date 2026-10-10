@@ -2,6 +2,8 @@
 // Click it to climb into the pilot's seat; the rotor spools up and you fly it round the city with arcade controls (W/S
 // pitch, A/D yaw, Space/Shift or E/Q up and down, the mouse to look round the cockpit), land on the pad (it settles onto the
 // H) or on any roof or street, and F to get out wherever you've landed (not in the river). R flies you home on its own.
+// The edge of the city turns you back, unless you hold on outward into it: then you're out past it (S.free), where the world
+// beyond (floors/world-edge.js, through ctx.heli.far) says what's underfoot and how far you can go.
 // It's in the office's scene beside the roof terrace (shown with it), in world coordinates; you stay on the roof floor
 // while you fly, and while you walk about wherever you got out (S.out), so the office below carries on and the TVs stay paused.
 
@@ -155,15 +157,23 @@ function build(ctx) {
     for (let i = cell(x) - 1; i <= cell(x) + 1; i++) for (let j = cell(z) - 1; j <= cell(z) + 1; j++) for (const b of grid.get(i * 1000 + j) || []) out.add(b);
     return out;
   };
+  // Something else to land on or bump into (world-edge.js's platform). b.walk, if set, is where you can walk once you've got
+  // out on it: { ground(x, z), bound(p, out), cols, label } (see goOut).
+  function addSolid(b) {
+    solids.push(b);
+    for (let i = cell(b.x - b.w / 2); i <= cell(b.x + b.w / 2); i++) for (let j = cell(b.z - b.d / 2); j <= cell(b.z + b.d / 2); j++) {
+      const k = i * 1000 + j; if (!grid.has(k)) grid.set(k, []); grid.get(k).push(b);
+    }
+  }
 
   // ----- state -----
   // pos: the point under the mast at skid level (world). rpm 0..1. cam: 'out' walking about, 'tween' climbing in or out,
   // 'in' in the seat. auto: flying itself home (R).
   const S = { pos: new THREE.Vector3(PARK.x, DECK, PARK.z), vel: new THREE.Vector3(), yaw: PARK.yaw, pitch: 0, roll: 0, yawRate: 0, rpm: 0,
     engine: false, landed: true, flown: false, aboard: false, cam: 'out', auto: null, lookYaw: 0, lookPitch: -0.08, blade: 0.6, tailA: 0, bump: 0, quiet: 0,
-    snap: 0, warned: { edge: false, ceiling: false }, input: { f: 0, t: 0, c: 0 } };
+    snap: 0, warned: { edge: 0, ceiling: false }, input: { f: 0, t: 0, c: 0 }, free: false, insist: 0 };
   const K = new Set();   // flight keys held
-  const fwd = new THREE.Vector3(), right = new THREE.Vector3(), tmp = new THREE.Vector3(), eye = new THREE.Vector3(), q = new THREE.Quaternion();
+  const fwd = new THREE.Vector3(), right = new THREE.Vector3(), tmp = new THREE.Vector3(), eye = new THREE.Vector3(), q = new THREE.Quaternion(), prev = new THREE.Vector3();
   const lookE = new THREE.Euler(0, 0, 0, 'YXZ'), lookQ = new THREE.Quaternion();
   const near = () => Math.hypot(ctx.player.x - S.pos.x, ctx.player.z - S.pos.z);
   const onDeck = () => Math.abs(S.pos.x) < EDGE.x - 1.5 && Math.abs(S.pos.z) < EDGE.z - 1.5 && S.pos.y < DECK + 0.3;
@@ -185,7 +195,7 @@ function build(ctx) {
     });
   }
   function park() {   // back on the pad, cold
-    Object.assign(S, { yaw: PARK.yaw, pitch: 0, roll: 0, yawRate: 0, rpm: 0, engine: false, landed: true, auto: null, snap: 0 });
+    Object.assign(S, { yaw: PARK.yaw, pitch: 0, roll: 0, yawRate: 0, rpm: 0, engine: false, landed: true, auto: null, snap: 0, free: false, insist: 0 });
     S.pos.set(PARK.x, DECK, PARK.z); S.vel.set(0, 0, 0);
   }
   place(0);
@@ -230,7 +240,7 @@ function build(ctx) {
     ctx.tween(ctx.camPose(), { x: p.x, y: EYE + y, z: p.z, yaw: p.yaw, pitch: p.pitch }, 1100, () => {
       S.aboard = false; S.cam = 'out'; hud.classList.remove('of-flying');
       if (ctx.mode === 'heli') ctx.mode = 'free';
-      if (S.out) toast(`${S.out.street ? 'Out in the street' : 'Out on the roof'} · click the helicopter or <kbd>F</kbd> by it to climb back in`);
+      if (S.out) toast(`${S.out.label} · click the helicopter or <kbd>F</kbd> by it to climb back in`);
     });
     return true;
   }
@@ -240,7 +250,8 @@ function build(ctx) {
   // you can't walk through: the helicopter, anything taller near you, and in the street the trees. The roof floor's
   // colliders, bound, ground and map follow it while it's set; the lift isn't there (liftGone).
   const WALK_R = 65;
-  const wet = (x, z) => Math.abs(x - city.riverX(z)) < city.RIVER_W || city.ponds.some(([px, pz, r]) => Math.hypot(x - px, z - pz) < r + 0.3);
+  const wet = (x, z) => Math.abs(x - city.riverX(z)) < city.RIVER_W || city.ponds.some(([px, pz, r]) => Math.hypot(x - px, z - pz) < r + 0.3)
+    || (S.free && !!ctx.heli.far?.wet(x, z));
   const inPark = (x, z) => city.parks.some(([px, pz]) => Math.abs(x - px) < 28 && Math.abs(z - pz) < 28);
   const streetY = (x, z) => city.GROUND + (inPark(x, z) ? 0.4 : -2 * clamp((city.RIVER_W + 3 - Math.abs(x - city.riverX(z))) / 3, 0, 1));   // the banks slope down to the water
   const inside = (b, x, z, m = 0) => Math.abs(x - b.x) < b.w / 2 - m && Math.abs(z - b.z) < b.d / 2 - m;
@@ -259,18 +270,19 @@ function build(ctx) {
   }
   let trunks = null;   // the street trees' trunks, [x, z], read once from the city's instanced trees
   function goOut(on) {
-    const street = on === 'street', y = street ? STREET : on.top, c = { x: S.pos.x, z: S.pos.z };
-    const cols = [...keepOut];
+    const street = on === 'street', W = !street && on.walk, y = street ? STREET : on.top, c = { x: S.pos.x, z: S.pos.z };
+    const cols = [...keepOut, ...(W ? W.cols : [])];
     for (const b of nearBy(c.x, c.z)) if (b !== on && b.top > y + 0.5) cols.push({ minX: b.x - b.w / 2, maxX: b.x + b.w / 2, minZ: b.z - b.d / 2, maxZ: b.z + b.d / 2 });
     if (street) {
       if (!trunks) { const a = city.trees[0].instanceMatrix.array; trunks = []; for (let i = 0; i < a.length; i += 16) trunks.push([a[i + 12], a[i + 14]]); }
       for (const [x, z] of trunks) if (Math.abs(x - c.x) < WALK_R + 5 && Math.abs(z - c.z) < WALK_R + 5) cols.push({ minX: x - 0.3, maxX: x + 0.3, minZ: z - 0.3, maxZ: z + 0.3 });
     }
-    S.out = { on, street, c, cols, last: { ...c }, edge: false,
-      ground: street ? streetY : () => on.top,
+    S.out = { on, street, c, cols, last: { ...c }, edge: false, label: W ? W.label : street ? 'Out in the street' : 'Out on the roof',
+      ground: W ? W.ground : street ? streetY : () => on.top,
       bound(p) {
         const o = S.out;
         let hit = false;
+        if (W) return W.bound(p, o);
         if (!street) {   // the roof's edge, half a metre in
           const x = clamp(p.x, on.x - on.w / 2 + 0.5, on.x + on.w / 2 - 0.5), z = clamp(p.z, on.z - on.d / 2 + 0.5, on.z + on.d / 2 - 0.5);
           hit = x !== p.x || z !== p.z; p.x = x; p.z = z;
@@ -286,7 +298,7 @@ function build(ctx) {
         }
       } };
     roof.liftGone = true;
-    ctx.sfx?.setAway(true, street ? { hums: [] } : roof.sound);   // the roof's wind up high; down in the street, just your steps
+    ctx.sfx?.setAway(true, street || W ? { hums: [] } : roof.sound);   // the roof's wind up high; down in the street, just your steps
     ctx.sfx?.softGround?.((x, z) => street && (inPark(x, z) || Math.abs(x - city.riverX(z)) < city.RIVER_W + 24));
     place(0);
   }
@@ -311,6 +323,7 @@ function build(ctx) {
     for (let i = 0; i <= n; i++) {
       const x = lerp(S.pos.x, PARK.x, i / n), z = lerp(S.pos.z, PARK.z, i / n);
       for (const b of nearBy(x, z)) if (Math.abs(x - b.x) < b.w / 2 + 12 && Math.abs(z - b.z) < b.d / 2 + 12) top = Math.max(top, b.top + 30);
+      if (S.free && ctx.heli.far) top = Math.max(top, ctx.heli.far.ground(x, z) + 60);   // over the hills on the way back in
     }
     S.auto = { phase: 'climb', alt: Math.max(top, Math.min(S.pos.y, CEILING - 10)) };
     S.engine = true;
@@ -392,17 +405,24 @@ function build(ctx) {
       S.vel.y = damp(S.vel.y, lerp(-9, vyT, lift), 1.8, dt);
       S.roll = damp(S.roll, clamp(S.yawRate * (0.25 + Math.abs(vf) / 40) * 0.6, -0.45, 0.45), 3, dt);
     }
-    // The edge of the city: a firm push back toward the middle, and a ceiling.
-    const r = Math.hypot(S.pos.x, S.pos.z);
-    if (r > EDGE_R) {
-      const k = (r - EDGE_R) * 0.08 * dt;
+    // The edge of the city: a firm push back toward the middle, and a ceiling. It turns you round, unless you're holding on
+    // straight out into it; do that long enough and it gives up (S.free) until you're back over the city.
+    const r = Math.hypot(S.pos.x, S.pos.z), far = ctx.heli.far;
+    if (S.free) { if (r < EDGE_R - 100) S.free = false; }
+    else if (r > EDGE_R) {
+      const k = (r - EDGE_R) * 0.08 * dt, out = !A && S.cam === 'in' && I.f > 0 && (fwd.x * S.pos.x + fwd.z * S.pos.z) / r > 0.7;
       S.vel.x -= S.pos.x / r * k * 10; S.vel.z -= S.pos.z / r * k * 10;
-      if (!A && S.cam === 'in') S.yaw += angDiff(S.yaw, Math.atan2(S.pos.x, S.pos.z)) * Math.min(1, dt * 0.8);
-      if (!S.warned.edge) { S.warned.edge = true; toast('Edge of the city · turning back'); }
-    } else if (r < EDGE_R - 100) S.warned.edge = false;
+      if (!A && S.cam === 'in' && !out) S.yaw += angDiff(S.yaw, Math.atan2(S.pos.x, S.pos.z)) * Math.min(1, dt * 0.8);
+      S.insist = out ? S.insist + dt : Math.max(0, S.insist - dt * 2);
+      if (!S.warned.edge) { S.warned.edge = 1; toast('Edge of the city · turning back'); }
+      else if (S.insist > 2.5 && S.warned.edge < 2) { S.warned.edge = 2; toast('There’s nothing out there'); }
+      if (far && S.insist > 6) { S.free = true; S.insist = 0; }
+    } else if (r < EDGE_R - 100) { S.warned.edge = 0; S.insist = 0; }
+    prev.copy(S.pos);
     S.pos.addScaledVector(S.vel, dt);
     const r2 = Math.hypot(S.pos.x, S.pos.z);
-    if (r2 > EDGE_R + 120) S.pos.multiplyScalar((EDGE_R + 120) / r2).setY(S.pos.y);
+    if (S.free) { const v = far?.wall(S.pos, S.vel) || 0; if (v > 0.5) S.bump = Math.min(0.5, v / 12); }   // the edge of the world
+    else if (r2 > EDGE_R + 120) S.pos.multiplyScalar((EDGE_R + 120) / r2).setY(S.pos.y);
     if (S.pos.y > CEILING) { S.pos.y = CEILING; S.vel.y = Math.min(S.vel.y, 0); if (!S.warned.ceiling) { S.warned.ceiling = true; toast('That’s as high as it goes'); } }
     else if (S.pos.y < CEILING - 50) S.warned.ceiling = false;
     if (!S.landed) collide(prevY, dt, I);
@@ -419,6 +439,13 @@ function build(ctx) {
       if (px <= 0 || pz <= 0) continue;
       if (px < pz) { S.pos.x += Math.sign(dx) * px; if (S.vel.x * dx < 0) { hit = Math.max(hit, Math.abs(S.vel.x)); S.vel.x *= -0.25; } }
       else { S.pos.z += Math.sign(dz) * pz; if (S.vel.z * dz < 0) { hit = Math.max(hit, Math.abs(S.vel.z)); S.vel.z *= -0.25; } }
+    }
+    if (S.free && ctx.heli.far) {   // out past the city: the hills and the sea; fly into a hillside and it pushes you back off it
+      const hill = ctx.heli.far.ground(S.pos.x, S.pos.z);
+      if (hill > prevY + 0.5) {
+        hit = Math.max(hit, Math.hypot(S.vel.x, S.vel.z));
+        S.pos.x = prev.x; S.pos.z = prev.z; S.vel.x *= -0.25; S.vel.z *= -0.25;
+      } else ground = Math.max(ground, hill);
     }
     if (hit > 1.5) bump(hit);
     if (S.pos.y > ground) return;
@@ -604,5 +631,6 @@ function build(ctx) {
   const stage0 = roof.cctv.stage;
   roof.cctv.stage = () => { const undo = stage0(), was = g.visible; g.visible = true; return () => { g.visible = was; undo(); }; };
 
-  ctx.heli = { S, body, keys: K, board, getOut, goHome, park, surface, get eye() { return eyePose(); } };
+  // far: the world past the city's edge, set by floors/world-edge.js: { ground(x, z), wet(x, z), wall(pos, vel) → how hard you hit it }.
+  ctx.heli = { S, body, keys: K, board, getOut, goHome, park, surface, addSolid, place, far: null, get eye() { return eyePose(); } };
 }

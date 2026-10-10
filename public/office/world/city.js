@@ -234,6 +234,15 @@ export function install(ctx) {
         #endif`);
     };
     world.add(new THREE.Mesh(mg, mtnMat));
+    // The mountains' height at (x, z), the mesh's own (between its vertices), or -Infinity off them: for the helicopter out
+    // past the city (floors/world-edge.js).
+    const mtnY = (x, z) => {
+      const t = (Math.hypot(x, z) - R0) / (R1 - R0);
+      if (!(t > 0 && t < 1)) return -Infinity;
+      const fi = ((Math.atan2(z, x) / (Math.PI * 2)) + 1) % 1 * SEG, fj = t * ROWS, i = Math.floor(fi), j = Math.floor(fj), u = fi - i, v = fj - j;
+      const y = (i, j) => mpos[(j * (SEG + 1) + i) * 3 + 1];
+      return lerp(lerp(y(i, j), y(i + 1, j), u), lerp(y(i, j + 1), y(i + 1, j + 1), u), v);
+    };
 
     // Low cloud drifting between the rooftops: stacked fbm slices, so each cloud has some depth and where a tower pokes
     // through it fades over a few slices instead of a hard line. Unlit: tinted from the sky colours, glowing over the
@@ -285,6 +294,7 @@ export function install(ctx) {
     return {
       mat: cityMat, ground: groundMat, av: avMat, mtn: mtnMat, ridge: ridgeDeg, boxes, GROUND,
       riverX, RIVER_W, parks, ponds,   // where the water and grass are, for walking about down there (helicopter.js)
+      mtnY,
       trees: [trunks, crowns],   // 1.4M triangles, never culled (one instanced mesh): the security cameras leave them out
       setEnv(tex) { for (const m of [cityMat, waterMat]) { if (!m.envMap) m.needsUpdate = true; m.envMap = tex; } },
     };
