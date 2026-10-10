@@ -27,13 +27,13 @@ export function install(ctx) {
     top: { value: new THREE.Color() }, horizon: { value: new THREE.Color() }, horizonSun: { value: new THREE.Color() }, ground: { value: new THREE.Color() },
     cloudLit: { value: new THREE.Color() }, cloudDark: { value: new THREE.Color() },
     sunCol: { value: new THREE.Color() }, sunDir: { value: new THREE.Vector3(0, 1, 0) }, moonDir: { value: new THREE.Vector3(0, -1, 0) },
-    night: { value: 0 }, time: { value: 0 },
+    night: { value: 0 }, time: { value: 0 }, cover: { value: 0.5 },   // cover: how much of the sky is cloud (0.5 as it always was)
   };
   const sky = new THREE.Mesh(new THREE.SphereGeometry(100, 48, 24), new THREE.ShaderMaterial({
     uniforms: skyU, side: THREE.BackSide, depthWrite: false,
     vertexShader: `varying vec3 vDir;
       void main() { vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); gl_Position.z = gl_Position.w; }`,
-    fragmentShader: `uniform vec3 top, horizon, horizonSun, ground, cloudLit, cloudDark, sunCol, sunDir, moonDir; uniform float night, time; varying vec3 vDir;
+    fragmentShader: `uniform vec3 top, horizon, horizonSun, ground, cloudLit, cloudDark, sunCol, sunDir, moonDir; uniform float night, time, cover; varying vec3 vDir;
       float hash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
       float h2(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
       float n2(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -64,7 +64,7 @@ export function install(ctx) {
         // Clouds: a drifting fbm layer, lit from the sun side (orange-pink undersides at sunset).
         if (h > 0.01) {
           vec2 uv = d.xz / (h + 0.06) * 0.9 + vec2(time * 0.006, time * 0.003);
-          float c = smoothstep(0.5, 0.78, fbm(uv)) * smoothstep(0.01, 0.16, h);
+          float c = smoothstep(1.0 - cover, 1.28 - cover, fbm(uv)) * smoothstep(0.01, 0.16, h);
           float lit = pow(sd, 3.0);
           vec3 cc = mix(cloudDark, cloudLit, 0.35 + 0.65 * (toward * 0.6 + lit * 0.4));
           cc += sunCol * pow(sd, 12.0) * 0.8;

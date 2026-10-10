@@ -556,7 +556,7 @@ function build(ctx) {
   paintPanel(0); paintAt = -1e9;
 
   ctx.onFrame((dt, t, now) => {   // the sun's shadows follow you while you're away from the roof
-    const away = g.visible && (!S.landed || !onDeck()), at = S.out && !S.aboard ? tmp.set(ctx.player.x, S.out.ground(ctx.player.x, ctx.player.z), ctx.player.z) : S.pos;
+    const away = g.visible && (!S.landed || !onDeck()), at = S.out && !S.aboard && roof.on ? tmp.set(ctx.player.x, S.out.ground(ctx.player.x, ctx.player.z), ctx.player.z) : S.pos;
     if (away) { sun.target.position.copy(at); sun.position.copy(sunDir).multiplyScalar(90).add(at); }
     else sun.target.position.set(0, 0, 0);
     sun.target.updateMatrixWorld();
@@ -625,13 +625,17 @@ function build(ctx) {
   const enter0 = roof.enter, leave0 = roof.leave;
   roof.enter = (z) => { enter0(z); g.visible = true; };
   roof.leave = () => {
-    leave0(); g.visible = false;
+    leave0();
+    if (!ctx.heli.stay) stow();   // (through the door at the edge of the world, it waits on the pier: world-edge-backstage.js)
+  };
+  function stow() {
+    g.visible = false;
     if (S.aboard) { S.aboard = false; S.cam = 'out'; K.clear(); hud.classList.remove('of-flying'); if (ctx.mode === 'heli') ctx.mode = 'free'; }
     if (S.out) backIn();
     if (!S.landed || !onDeck()) park();
     S.engine = false; S.rpm = 0; ctx.sfx?.heli(0);
     place(0);
-  };
+  }
 
   // A reload on the roof (systems/resume.js) brings it back as it was. Flying, you're aboard at the same place, heading and
   // height, hovering with the rotor up to speed; landed with you in it, in it, cold; out somewhere (a roof, the street, the
@@ -664,5 +668,6 @@ function build(ctx) {
   roof.cctv.stage = () => { const undo = stage0(), was = g.visible; g.visible = true; return () => { g.visible = was; undo(); }; };
 
   // far: the world past the city's edge, set by floors/world-edge.js: { ground(x, z), wet(x, z), wall(pos, vel) → how hard you hit it }.
-  ctx.heli = { S, body, keys: K, board, getOut, goHome, park, surface, addSolid, place, far: null, get eye() { return eyePose(); } };
+  // stay: set while you go off the roof floor and leave it where it is (see roof.leave); stow() puts it away then.
+  ctx.heli = { S, body, keys: K, board, getOut, goHome, park, surface, addSolid, place, stow, far: null, stay: false, get eye() { return eyePose(); } };
 }
