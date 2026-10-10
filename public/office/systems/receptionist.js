@@ -233,7 +233,7 @@ export function install(ctx) {
 
   // ----- where each job is done -----
   const v3 = new THREE.Vector3(), n3 = new THREE.Vector3();
-  const meetDoor = { meetSouth: [14, 3], meetNorth: [14, 8], meetSmall: [-1.3, 11.2], meetHuddle: [-5.5, 11.8] };
+  const meetDoor = { meetSouth: [14, 3], meetNorth: [14, 8], meetSmall: [-1.3, 11.2], meetHuddle: [-5.3, 11.2] };
   const doorOf = (id) => id === 'office' ? door
     : doors.filter((d) => d.name === 'Meeting room door').sort((a, b) => Math.hypot(a.hx - meetDoor[id][0], a.hz - meetDoor[id][1]) - Math.hypot(b.hx - meetDoor[id][0], b.hz - meetDoor[id][1]))[0];
   const facing = (s, at) => ({ ...s, rotY: Math.atan2(at.x - s.x, at.z - s.z) });

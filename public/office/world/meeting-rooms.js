@@ -1,5 +1,6 @@
 // The meeting rooms: glass rooms like your office with doorways instead of doors, two along the east windows either side
-// of a solid partition, one by the north windows and a huddle room beside it (between it and the ping pong table), each
+// of a solid partition, one by the north windows and a narrower huddle room the same depth beside it (the other side of a
+// solid partition, between it and the ping pong table), each
 // with a table, chairs, a whiteboard and a pendant. MR lists them with their seats (idle sessions meet in them).
 
 import * as THREE from 'three';
@@ -24,9 +25,9 @@ export function install(ctx) {
       entry: [[13.4, AISLE], [13.4, 8.55], [14.6, 8.55]], south: 8.55, north: 11.85, around: 14.6 },
     { tx: 0.8, tz: 13.3, len: 1.8, dep: 0.9, co: 0.75, xs: [0.35, 1.25],
       entry: [[-0.75, AISLE], [-0.75, 11.9]], south: 11.9, north: 14.55, around: -0.75 },
-    // The huddle room, west of the small one: in from the walkway to the ping pong table's east end (x -4.75).
-    { tx: -3.7, tz: 13.45, len: 1.4, dep: 0.8, co: 0.7, xs: [-4.1, -3.3],
-      entry: [[-4.75, AISLE], [-4.75, 12.3]], south: 12.3, north: 14.6, around: -4.75 },
+    // The huddle room, west of the small one and the same depth: in from the walkway to the ping pong table's east end (x -4.75).
+    { tx: -3.6, tz: 13.3, len: 1.4, dep: 0.8, co: 0.7, xs: [-4, -3.2],
+      entry: [[-4.75, AISLE], [-4.75, 11.9]], south: 11.9, north: 14.55, around: -4.75 },
   ];
   {
     const panes = [], frames = [], frost = [];
@@ -54,16 +55,15 @@ export function install(ctx) {
     const { meetSouth, meetNorth, meetSmall, meetHuddle } = blinds;
     mrWall('x', 2.5, 14, 20, null, meetSouth, 1); mrWall('z', 14, 2.5, 7.5, [3.0, 4.1], meetSouth, 1); mrWall('z', 14, 7.5, 12.5, [8.0, 9.1], meetNorth, 1);
     mrWall('x', 12.5, 14, 20, null, meetNorth, -1);
-    mrWall('z', -1.8, 11.2, 15, null, meetSmall, 1); mrWall('z', 3.4, 11.2, 15, null, meetSmall, -1); mrWall('x', 11.2, -1.8, 3.4, [-1.3, -0.2], meetSmall, 1);
+    mrWall('z', 3.4, 11.2, 15, null, meetSmall, -1); mrWall('x', 11.2, -1.8, 3.4, [-1.3, -0.2], meetSmall, 1);
     // Doors in the doorways, swinging into the rooms. People walking in or out open them on the way through.
     glassDoor({ name: 'Meeting room door', hx: 14, hz: 3.02, r0: -Math.PI / 2, swing: 1, W: 1.06, H: 2.16, auto: true });
     glassDoor({ name: 'Meeting room door', hx: 14, hz: 8.02, r0: -Math.PI / 2, swing: 1, W: 1.06, H: 2.16, auto: true });
     glassDoor({ name: 'Meeting room door', hx: -1.28, hz: 11.2, r0: 0, swing: -1, W: 1.06, H: 2.16, auto: true });
-    // The huddle room: its doorway at the west end of its front, where the walkway from the aisle meets it.
+    // The huddle room: its doorway is in its front where the walkway from the aisle meets it.
     seeded(2307, () => {
-      mrWall('z', -5.6, 11.8, 15, null, meetHuddle, 1); mrWall('z', -2.3, 11.8, 15, null, meetHuddle, -1);
-      mrWall('x', 11.8, -5.6, -2.3, [-5.5, -4.44], meetHuddle, 1);
-      glassDoor({ name: 'Meeting room door', hx: -5.48, hz: 11.8, r0: 0, swing: -1, W: 1.06, H: 2.16, auto: true });
+      mrWall('z', -5.6, 11.2, 15, null, meetHuddle, 1); mrWall('x', 11.2, -5.6, -1.8, [-5.28, -4.22], meetHuddle, 1);
+      glassDoor({ name: 'Meeting room door', hx: -5.26, hz: 11.2, r0: 0, swing: -1, W: 1.06, H: 2.16, auto: true });
     });
     const glassMesh = mergedBoxes(panes, glassM); glassMesh.castShadow = false;
     // Frost bands share one material; their UVs are stretched per wall so the dot pattern keeps its spacing.
@@ -75,10 +75,13 @@ export function install(ctx) {
     })), frostM);
     world.add(glassMesh, frostMesh, mergedBoxes(frames, frameM));
     glassMesh.userData = frostMesh.userData = { action: 'blinds', glass: true, reach: 3.5,
-      blindAt: (p) => p.x < -2.05 ? meetHuddle : p.x < 8 ? meetSmall : p.z < 7.5 ? meetSouth : meetNorth };
+      blindAt: (p) => p.x < -1.85 ? meetHuddle : p.x < 8 ? meetSmall : p.z < 7.5 ? meetSouth : meetNorth };
     // Solid partition between the two east rooms: a wall screen on one side, a whiteboard on the other.
     box(world, 6, ROOM.h, 0.12, '', 17, ROOM.h / 2, 7.5, { material: wallM });
     solid(17, 7.5, 6, 0.12);
+    // And between the small room and the huddle room.
+    box(world, 0.12, ROOM.h, 3.8, '', -1.8, ROOM.h / 2, 13.1, { material: wallM });
+    solid(-1.8, 13.1, 0.12, 3.8);
   }
   const furnish = (r) => {
     box(world, r.len, 0.05, r.dep, '', r.tx, 0.74, r.tz, { material: deskTopM });
@@ -134,7 +137,7 @@ export function install(ctx) {
       ['standup notes', '- review open PRs', '- fix flaky test'].forEach((t, i) => c.fillText(t, 40, 110 + i * 92));
       c.strokeStyle = '#c0392b'; c.beginPath(); c.moveTo(40, 128); c.lineTo(330, 128); c.stroke();
     });
-    seeded(2309, () => rolling(-5.3, 13.75, Math.PI / 2, 'meet-huddle', (c) => {
+    seeded(2309, () => rolling(-5.3, 13.3, Math.PI / 2, 'meet-huddle', (c) => {
       c.fillStyle = '#2e8b57'; c.font = `400 38px "Marker Felt", "Comic Sans MS", ${FONT}`;
       ['pair on it', '1. repro', '2. bisect', '3. fix + test'].forEach((t, i) => c.fillText(t, 40, 90 + i * 84));
       c.strokeStyle = '#1f6fd1'; c.beginPath(); c.arc(500, 250, 80, 0, Math.PI * 2); c.stroke();
