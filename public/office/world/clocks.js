@@ -41,6 +41,6 @@ export function install(ctx) {
   }
   wallClock(-3.3, 2.45, -14.86, 0);             // desk floor
   wallClock(3.74, 2.65, 8, -Math.PI / 2);       // pillar over the ping pong TV, facing the breakroom
-  wallClock(10.55, 2.35, -14.9, 0, 0.18);       // my office
+  wallClock(10.52, 2.75, -14.9, 0, 0.18);       // my office, over the painting, level with the neon
   wallClock(17.2, 2.8, 7.44, Math.PI, 0.17);    // south east meeting room, over the whiteboard
 }
