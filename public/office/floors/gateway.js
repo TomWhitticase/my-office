@@ -311,7 +311,7 @@ export function install(ctx) {
 
   // ----- inside a repo -----
   const EXIT_Z = 26;   // the way out, 26 m in front of the first bookcases (you arrive 9 m inside it, clear of its pull)
-  const TX = -3000, BW = 2.4, BH = 2.0, BD = 0.36, GX = 3.3, GY = 2.9, GZ = 5, PER = 56, SLOT = (BW - 0.12) / 14, SHELF = (BH - 0.1) / 4, WC = 8, WB = 4,
+  const TX = -3000, BW = 2.4, BH = 2.0, BD = 0.36, GX = 3.3, GY = 2.9, GZ = 5, PER = 56, SLOT = (BW - 0.12) / 14, SHELF = (BH - 0.1) / 4, WC = 8, WB = 4, WF = 40,
     WK = 3;
   const EXT = { js: 'JavaScript', mjs: 'JavaScript', cjs: 'JavaScript', jsx: 'JavaScript', ts: 'TypeScript', tsx: 'TypeScript', py: 'Python', html: 'HTML',
     css: 'CSS', scss: 'SCSS',
@@ -345,13 +345,21 @@ export function install(ctx) {
     { const g = makeCanvas(128, 128), c = g.ctx, r = c.createRadialGradient(64, 64, 4, 64, 64, 92); r.addColorStop(0, '#ffffff'); r.addColorStop(1, '#3a3026');
     c.fillStyle = r; c.fillRect(0, 0, 128, 128); g.tex.needsUpdate = true; return g.tex; })();
   const caseBackM = new THREE.MeshBasicMaterial({ map: glowTex, color: new THREE.Color(1.5, 0.92, 0.42), side: THREE.DoubleSide });
+  // A far bookcase: a glowing panel the size of its frame, in its books' colours (the instance colour), lit from the middle out.
+  // Made the first time you go inside a repo, under its own seeded random (three's uuids would shift the office's stream).
+  let farG, farM;
+  const farParts = () => {
+    if (!farG) { const random = Math.random; Math.random = rng(7070);
+      try { farG = new THREE.PlaneGeometry(BW, BH); farM = new THREE.MeshBasicMaterial({ map: glowTex, side: THREE.DoubleSide }); } finally { Math.random = random; } }
+    return [farG, farM];
+  };
   const bookGlowM = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.8, 1.25, 0.55), transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending,
     depthWrite: false });
   const threadM = new THREE.LineBasicMaterial({ color: new THREE.Color(1.4, 0.95, 0.42), transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending,
     depthWrite: false });
   {
     const S = tess.scene = new THREE.Scene(), dark = new THREE.Color('#070403');
-    S.background = dark; S.fog = new THREE.Fog(dark, 5, 44);
+    S.background = dark; S.fog = new THREE.Fog(dark, 8, 200);   // 40 layers deep (WF): far ones are just their glow (see tessWindow)
     S.environment = scene.environment; S.environmentIntensity = 0.12;
     const key = new THREE.DirectionalLight('#ffd7a0', 0.7); key.position.set(4, 6, 12);
     S.add(tess.hemi = new THREE.HemisphereLight('#ffd9a0', '#140b05', 0.35), key);
@@ -446,7 +454,7 @@ export function install(ctx) {
       rows.get(x.depth).push(cs);
     }
     // Each file's book and spine label, in its layer's space (a layer is the same thing GZ further back).
-    const at = new Array(paths.length);
+    const at = new Array(paths.length), caseOf = new Map(cases.map((cs) => [`${cs.d.path}|${cs.c}`, cs]));
     for (const x of dirs.values()) x.files.forEach((i, r) => {
       const c = Math.floor(r / PER), q = r % PER, sh = Math.floor(q / 14), o = caseAt(x, c), Rr = rng(hash(paths[i]));
       const t = clamp(0.028 + (0.11 * Math.log10(size[i] + 10)) / 6, 0.03, SLOT - 0.012), h = SHELF * (0.62 + 0.3 * Rr()), dep = 0.24 + 0.06 * Rr();
@@ -457,7 +465,11 @@ export function install(ctx) {
       const lm = new THREE.Matrix4().compose(new THREE.Vector3(bx, base + h / 2, bz + dep / 2 + 0.001),
         new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, lean + Math.PI / 2)), new THREE.Vector3(h * 0.9, t * 0.8, 1));
       at[i] = { m, lm, y: base + h / 2, h, color: new THREE.Color(bookColor(paths[i])).multiplyScalar(0.5 + 0.25 * Rr()) };
+      const cs = caseOf.get(`${x.path}|${c}`); (cs.glow ||= new THREE.Color(0, 0, 0)).add(at[i].color); cs.n = (cs.n || 0) + 1;
     });
+    // From afar a bookcase is its books' colours, glowing softly: their average, warmed (dim enough that the far layers, piling
+    // up towards the vanishing point, don't bloom into a band).
+    for (const cs of cases) cs.glow = cs.n ? cs.glow.multiplyScalar(0.55 / cs.n).lerp(new THREE.Color(0.62, 0.42, 0.2), 0.45) : new THREE.Color(0.3, 0.2, 0.1);
     // Spine labels (file names) and plaques (folder names), one atlas each.
     const SC = { w: 192, h: 28, cols: 10 }, labelCap = Math.min(paths.length, SC.cols * Math.floor(8192 / SC.h));
     const spines = makeCanvas(SC.cols * SC.w, 2 ** Math.ceil(Math.log2(Math.max(64, Math.ceil(labelCap / SC.cols) * SC.h)))), sc = spines.ctx;
@@ -478,13 +490,15 @@ export function install(ctx) {
     });
     plates.tex.needsUpdate = true;
     // Instanced meshes, refilled for the layers near you (see tessWindow).
-    const KC = Math.min(K, 2 * WC + 1), KB = Math.min(K, 2 * WB + 1);
+    const KC = Math.min(K, 2 * WC + 1), KB = Math.min(K, 2 * WB + 1), KF = Math.min(K, 2 * WF + 1);
     const inst = (g, m, n, layer) =>
       { const x = new THREE.InstancedMesh(g, m, Math.max(1, n)); x.count = 0; x.frustumCulled = false; if (layer) x.layers.set(1); tess.root.add(x); return x;
       };
     const alive = (i, k) => { const r = life[i]; for (let j = 0; j < r.length; j += 2) if (k >= r[j] && k <= r[j + 1]) return true; return false; };
     const T = tess.t = { repo: f, K, paths, size, life, alive, slices, dirs, cases, rows, at, labelCap, labelUv, cur: -1, held: null, capped: d.capped };
-    T.frames = inst(caseG, caseM, cases.length * KC); T.backs = inst(caseBackG, caseBackM, cases.length * KC);
+    T.frames = inst(caseG, caseM, cases.length * KC);
+    T.backs = inst(caseBackG, caseBackM, cases.length * KC);
+    T.far = inst(...farParts(), cases.length * KF, true);   // the layers past WC: a panel per bookcase (see tessWindow)
     T.plaques = inst(plaqueG.clone(), atlasMat({ map: plates.tex, color: new THREE.Color(1.15, 1.1, 1.05) }), dl.length * KC);
     T.plaques.material.cell.set(1 / PC.cols, PC.h / plates.H);
     T.plaqueUv = new THREE.InstancedBufferAttribute(new Float32Array(Math.max(1, dl.length * KC) * 2), 2); T.plaques.geometry.setAttribute('aUv', T.plaqueUv);
@@ -548,6 +562,12 @@ export function install(ctx) {
         if (i < T.labelCap) { m.copy(b.lm); m.elements[14] += z; T.labels.setMatrixAt(nl, m); T.labelUvA.setXY(nl, ...T.labelUv(i)); nl++; }
       }
     }
+    let nf = 0;
+    for (let k = Math.max(0, k0 - WF); k <= Math.min(T.K - 1, k0 + WF); k++) {
+      if (Math.abs(k - k0) <= WC) continue;
+      for (const cs of T.cases) { m.makeTranslation(cs.p.x, cs.p.y, -k * GZ); T.far.setMatrixAt(nf, m); T.far.setColorAt(nf, cs.glow); nf++; }
+    }
+    T.far.count = nf; T.far.instanceMatrix.needsUpdate = true; if (T.far.instanceColor) T.far.instanceColor.needsUpdate = true;
     T.frames.count = T.backs.count = n; T.plaques.count = np; T.books.count = nb; T.labels.count = nl; T.glow.count = ng;
     for (const x of [T.frames, T.backs, T.plaques, T.books, T.labels, T.glow]) x.instanceMatrix.needsUpdate = true;
     if (T.books.instanceColor) T.books.instanceColor.needsUpdate = true;
