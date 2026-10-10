@@ -58,7 +58,7 @@
  * @property {any} [grade]
  * @property {any} [hemi]
  * @property {boolean} [unlisted]          left off the building directory
- * @property {() => boolean} [gate]       pressing its button: false keeps the car where it is (an access code, restricted.js)
+ * @property {() => boolean} [access]     pressing its button: false keeps the car where it is (an access code, restricted.js)
  * @property {number} [ride]              seconds the ride there takes, if not the usual
  */
 /**

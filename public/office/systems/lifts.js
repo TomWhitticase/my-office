@@ -325,7 +325,7 @@ export function installRiding(ctx) {
   function pressFloor(f) {
     const L = mine.L;
     if (!L || L.state === 'travel') return;
-    if (f !== Math.round(L.floor) && FLOORS.find((F) => F.n === f)?.gate?.() === false) return;   // behind a code: its keypad instead (restricted.js)
+    if (f !== Math.round(L.floor) && FLOORS.find((F) => F.n === f)?.access?.() === false) return;   // behind a code: its keypad instead (restricted.js)
     mine.goal = f === Math.round(L.floor) ? null : f;
     if (mine.goal === null && L.state !== 'open') setLift(L, 'opening');
     for (const P of carPanels()) paintPanel(P, mine.goal);

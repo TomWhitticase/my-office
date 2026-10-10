@@ -10,7 +10,7 @@ import { MONO } from '../painters.js';
 import { makeSound } from './restricted-sound.js';
 import { installStory } from './restricted-story.js';
 
-const N = -3, CODE = '1408', SAVED = 'officeRestricted';   // localStorage: the code's been entered here before
+const N = -3, CODE = '1408';   // asked for every time: never remembered
 // The grid: cells of C metres, CH x CH to a chunk; walls on the cells' edges. Cell (i, j) is x GX + i C .. + C,
 // z GZ + j C .. + C in the floor's own space (the car at z = 0): the lift fills cell (-1, 0), an alcove at the end of a
 // long corridor running west. Past LIM cells out the rooms simply stop.
@@ -505,7 +505,8 @@ function build(ctx) {
     @keyframes of-kp-no { 20%, 60% { transform: translateX(-7px); } 40%, 80% { transform: translateX(7px); } }
   `;
   const blink = document.createElement('div'); blink.className = 'of-blink'; hud.appendChild(blink);
-  let known = false;   // entered this session (if localStorage can't keep it)
+  let pass = false;   // the one ride the right code buys: used up by the press it makes (see restr.access)
+  try { localStorage.removeItem('officeRestricted'); } catch {}   // it used to be remembered there
   const sound = makeSound(ctx, restr);
   restr.grid = { C, CH, H, T, X: (i) => GX + i * C, Z: (j) => GZ + j * C, edgeType, SOLID, cellOk, h3 };
   restr.sync = syncChunks;
@@ -534,8 +535,7 @@ function build(ctx) {
       busy = true;
       if (entry === CODE) {
         msg.textContent = 'ACCESS GRANTED'; el.classList.add('ok'); sound.granted();
-        known = true; try { localStorage[SAVED] = '1'; } catch {}
-        timer = setTimeout(() => { close(); ctx.pressFloor(N); }, 900);
+        timer = setTimeout(() => { close(); pass = true; ctx.pressFloor(N); pass = false; }, 900);
       } else {
         msg.textContent = 'ACCESS DENIED'; el.classList.add('deny'); sound.denied();
         timer = setTimeout(() => { el.classList.remove('deny'); msg.textContent = 'ENTER ACCESS CODE'; entry = ''; busy = false; show(); }, 1300);
@@ -565,9 +565,9 @@ function build(ctx) {
     }, true);
     return { el, open, close, press, get entry() { return entry; } };
   }
-  // Its button on the car panel: the keypad, until the code's been entered once on this browser.
-  restr.gate = () => {
-    try { if (known || localStorage[SAVED] === '1') return true; } catch {}
+  // Its button on the car panel: the keypad, every time (the right code then presses it again, with the pass).
+  restr.access = () => {
+    if (pass) { pass = false; return true; }
     keypad.open();
     return false;
   };
@@ -578,11 +578,12 @@ function build(ctx) {
   addFloor(restr);
 }
 
-// The code, on a sticky note half peeled off the side of the vending machine in the lounge (world/lounge.js installVending),
-// down by your knee where nobody looks.
+// The code, on two sticky notes: one half peeled off the side of the vending machine in the lounge (world/lounge.js
+// installVending), down by your knee where nobody looks; one on the back of the centre monitor on your own desk
+// (world/my-office.js installScreen), where you'd only see it walking round the desk. Hale left them (restricted-story.js).
 /** @param {import('../ctx.js').OfficeCtx} ctx */
 function installNote(ctx) {
-  const { world } = ctx;
+  const { world, center } = ctx;
   const n = makeCanvas(128, 128), c = n.ctx;
   c.fillStyle = '#f3dd6c'; c.fillRect(0, 0, 128, 128);
   c.fillStyle = 'rgba(160,130,40,.25)'; c.fillRect(0, 0, 128, 14);
@@ -590,12 +591,22 @@ function installNote(ctx) {
   c.font = `700 36px ${MARKER}`; c.fillText(CODE, 18, 88);
   c.font = `400 13px ${MARKER}`; c.fillText('don’t stay long', 18, 114);
   n.tex.needsUpdate = true;
-  const note = new THREE.Mesh(new THREE.PlaneGeometry(0.076, 0.076), new THREE.MeshStandardMaterial({ map: n.tex, roughness: 0.9, side: THREE.DoubleSide }));
-  note.position.set(6.618, 0.46, 14.36); note.rotation.set(0, -Math.PI / 2, 0.21); note.rotateX(-0.12);   // curling off at the bottom
-  note.castShadow = false; note.receiveShadow = true;
-  world.add(note);
-  const hit = ctx.hitBox(world, 0.06, 0.13, 0.13, 6.6, 0.46, 14.36,
-    { action: 'restrictednote', reach: 2.4 });
-  ctx.action('restrictednote', { hover: () => `<b>A sticky note</b><div class="k">Half peeled off the side of the vending machine, in biro: “B3 · ${CODE}”. Under it, smaller: “don’t stay long”.</div>` });
-  ctx.hoverTargets(() => [hit], 60);
+  const noteM = new THREE.MeshStandardMaterial({ map: n.tex, roughness: 0.9, side: THREE.DoubleSide });
+  const where = {
+    vending: 'Half peeled off the side of the vending machine',
+    monitor: 'Stuck to the back of your monitor, where you’d never see it from your chair',
+  };
+  const hits = [];
+  const note = (x, y, z, ry, rz, curl, at) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(0.076, 0.076), noteM);
+    m.position.set(x, y, z); m.rotation.set(0, ry, rz); m.rotateX(curl);   // curling off at the bottom
+    m.castShadow = false; m.receiveShadow = true;
+    world.add(m);
+    hits.push(ctx.hitBox(world, Math.abs(Math.sin(ry)) > 0.5 ? 0.06 : 0.13, 0.13, Math.abs(Math.sin(ry)) > 0.5 ? 0.13 : 0.06, x, y, z,
+      { action: 'restrictednote', reach: 2.4, info: where[at] }));
+  };
+  note(6.618, 0.46, 14.36, -Math.PI / 2, 0.21, -0.12, 'vending');
+  note(center.x + 0.36, 1.04, center.z - 0.0225, Math.PI, -0.08, 0.06, 'monitor');   // the bezel's back is 0.02 behind the group
+  ctx.action('restrictednote', { hover: (h) => `<b>A sticky note</b><div class="k">${h.info}, in biro: “B3 · ${CODE}”. Under it, smaller: “don’t stay long”.</div>` });
+  ctx.hoverTargets(() => hits, 60);
 }
