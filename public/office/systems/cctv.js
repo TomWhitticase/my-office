@@ -1,6 +1,6 @@
 // Security cameras round the building and the feeds for the Security app on your desktop (desktop.js). Each camera is
 // a small dome on a ceiling or a bullet on a bracket, with an LED that's red while its feed is being watched and green
-// otherwise. The archive has one, in its entrance hall; the void and the gateway have none.
+// otherwise. The archive has one, in its entrance hall; the wellness floor four; the void and the gateway have none.
 //
 // Feeds are drawn only while the app shows them: desktop.js calls dash.cctv.want([{ id, canvas }]) with the canvases on
 // screen (none when the window's closed, minimised or covered), and they're refreshed round-robin, one a frame at a few
@@ -20,6 +20,7 @@ import { dash, mat, ME_LAYER, rng } from '../util.js';
 // roof's deck). The office's ceiling beams run along z every 4 m (x = 2 mod 4) down to 3.02 m: cameras hang below them.
 // `pan` is how far it turns either way from there (degrees: wall cameras less, so they don't stare into the wall; domes
 // and masts all the way round); tilt is TILT, zoom 1-ZOOM, both for all. The Security app aims them (office.cameras).
+// 'flush' is a smaller dome, its trim set into the ceiling (or a beam) rather than hung under it.
 const CAMS = [
   { id: 'desks-nw', n: 48, name: 'Desk floor · North-west', kind: 'wall', p: [-19.55, 2.85, -14.55], wall: [-19.95, 2.85, -14.95], at: [-6, 0.2, -2], pan: 40 },
   { id: 'desks-se', n: 48, name: 'Desk floor · South-east', kind: 'dome', ceil: 3.02, p: [2, 2.95, 1.4], at: [-10, 0.4, -11] },
@@ -39,11 +40,17 @@ const CAMS = [
   // The restricted level (floors/restricted.js, about the car's z): there, but `dead`: never a picture, whatever the app says.
   { id: 'restricted-lift', n: -3, name: 'Lift landing', kind: 'dome', ceil: 2.75, p: [15.2, 2.7, 0], at: [18.6, 0.8, 0], dead: true },
   { id: 'restricted-corridor', n: -3, name: 'Corridor', kind: 'wall', p: [11.4, 2.45, -1.2], wall: [11.4, 2.45, -1.5], at: [0, 0.6, 0], pan: 50, dead: true },
+  // The wellness floor (floors/wellness.js, the shell's beams as 48's): small domes flush in the beams' undersides, over
+  // the public parts only (never the changing rooms, the sauna, the steam room or the float room).
+  { id: 'wellness-reception', n: 46, name: 'Reception & lifts', kind: 'flush', ceil: 3.02, p: [10, 2.98, 1.6], at: [17, 0.8, -1.2] },
+  { id: 'wellness-pool', n: 46, name: 'Pool hall', kind: 'flush', ceil: 3.02, p: [2, 2.98, 4.0], at: [-12, 0, 12] },
+  { id: 'wellness-gym', n: 46, name: 'Gym', kind: 'flush', ceil: 3.02, p: [18, 2.98, 14.2], at: [9, 0.3, 6] },
+  { id: 'wellness-hall', n: 46, name: 'Way through', kind: 'flush', ceil: 3.02, p: [6, 2.98, 0.6], at: [-10, 0.5, -0.4] },
 ];
 const LAYER = 3;   // the cameras' own bodies: the office's view sees them, the feeds don't (no lens in its own shot)
 const SLOT = 1;    // feeds refreshed per frame at most
 const FPS = { grid: 4, one: 12 };   // full screen; on the monitor, while the office is drawn too, a quarter of that
-const TILT = [-40, 25], ZOOM = 3, PAN = { dome: 170, wall: 70, pole: 120 };
+const TILT = [-40, 25], ZOOM = 3, PAN = { dome: 170, flush: 170, wall: 70, pole: 120 };
 const FAR = 30;    // indoors: the city through the windows is the office's dearest part to draw, and blown out on CCTV anyway
 
 /** @param {import('../ctx.js').OfficeCtx} ctx */
@@ -81,7 +88,7 @@ function build(ctx) {
     // The housing: +z of `head` points down the lens. It turns about `pivot` (a bullet about its mount, `reach` behind the
     // lens; a dome about its lens), from the aim it was built with (yaw0, pitch0) by the app's pan and tilt.
     const head = new THREE.Group(), d0 = v.copy(at).sub(p).normalize();
-    const yaw0 = Math.atan2(d0.x, d0.z), pitch0 = Math.asin(d0.y), reach = c.kind === 'dome' ? 0 : 0.22;
+    const yaw0 = Math.atan2(d0.x, d0.z), pitch0 = Math.asin(d0.y), reach = c.kind === 'dome' || c.kind === 'flush' ? 0 : 0.22;
     head.position.copy(p); head.quaternion.setFromRotationMatrix(m4.lookAt(at, p, UP));
     g.add(head);
     if (c.kind === 'dome') {
@@ -89,6 +96,12 @@ function build(ctx) {
       part(g, new THREE.SphereGeometry(0.075, 20, 10, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), glassM, p.x, base.position.y - 0.017, p.z);
       part(g, new THREE.SphereGeometry(0.008, 8, 6), ledM, p.x + 0.085, base.position.y - 0.019, p.z);
       part(head, new THREE.CylinderGeometry(0.022, 0.022, 0.04, 12), greyM, 0, 0, -0.01).rotation.x = Math.PI / 2;
+    } else if (c.kind === 'flush') {   // a thin trim ring in the ceiling, the smoked bubble just below it
+      const y = (c.ceil ?? 3.3) - 0.004;
+      part(g, new THREE.CylinderGeometry(0.068, 0.068, 0.008, 24), whiteM, p.x, y, p.z);
+      part(g, new THREE.SphereGeometry(0.048, 18, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), glassM, p.x, y - 0.004, p.z);
+      part(g, new THREE.SphereGeometry(0.005, 8, 6), ledM, p.x + 0.058, y - 0.004, p.z);
+      part(head, new THREE.CylinderGeometry(0.015, 0.015, 0.03, 12), greyM, 0, 0, -0.008).rotation.x = Math.PI / 2;
     } else {
       // Bullet: a white body with a sun shield, the lens's dark glass at the front, the LED under it.
       const body = part(head, new THREE.CylinderGeometry(0.045, 0.045, 0.22, 16), whiteM, 0, 0, -0.13);
@@ -109,7 +122,7 @@ function build(ctx) {
       }
     }
     // The feed's camera: wide, 16:9, a little in front of the glass.
-    const eye = new THREE.PerspectiveCamera(c.fov ?? (c.kind === 'dome' ? 58 : 52), 16 / 9, 0.05, c.n === 50 ? 3000 : FAR);
+    const eye = new THREE.PerspectiveCamera(c.fov ?? (c.kind === 'dome' || c.kind === 'flush' ? 58 : 52), 16 / 9, 0.05, c.n === 50 ? 3000 : FAR);
     eye.position.copy(at).sub(p).setLength(0.08).add(p);
     eye.quaternion.setFromRotationMatrix(m4.lookAt(eye.position, at, UP));
     eye.layers.enable(1); eye.layers.enable(ME_LAYER);   // the transparent things (see post.js), and you; not LAYER

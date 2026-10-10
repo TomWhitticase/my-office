@@ -152,7 +152,7 @@ export const POSES = [
     await from('heli-cockpit', o);
     await o.eval(() => { window.dash.setView('desktop', 'cctv'); });   // not awaited: the fly-in needs frames
     await stepUntil(o, () => document.body.dataset.view === 'desktop', 200);
-    await stepUntil(o, () => document.querySelectorAll('.cc-tile canvas[data-live]').length === 13, 200);
+    await stepUntil(o, () => document.querySelectorAll('.cc-tile canvas[data-live]').length === 17, 200);
     await o.step(4); await o.idle();
   }],
   ['archive-hall', async (o) => {   // down to the archive's entrance hall at dusk, the vault shut
@@ -279,6 +279,14 @@ export const POSES = [
     await o.eval(() => { const O = window.__office; O.ctx.wellness.hinged.find((d) => d.name === 'Float room door').to = 1; O.ctx.actionOf('wellness-float').click({}, {}); });
     await stand(o, 2.6, -11.5, { x: 1.9, y: 0.3, z: -13.4 });
     await o.step(80);
+  }],
+  ['security-wellness', async (o) => {   // from the office, the Security app's Wellness tab: the floor's four cameras, staged unseen
+    await arrive(o);
+    await o.eval(() => { window.dash.setView('desktop', 'cctv'); });
+    await stepUntil(o, () => document.body.dataset.view === 'desktop', 200);
+    await o.eval(() => document.querySelector('.cc-bar button[data-floor="46"]').click());
+    await stepUntil(o, () => document.querySelectorAll('.cc-tile:not([hidden]) canvas[data-live]').length === 4, 200);
+    await o.step(4); await o.idle();
   }],
 ];
 

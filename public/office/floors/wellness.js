@@ -550,6 +550,32 @@ function build(ctx) {
     W.sound.fx(dt, t);
   };
   F.map = () => drawMap();
+  // On the security cameras (systems/cctv.js; the reception, the pool, the gym and the way through, never the changing
+  // rooms, the sauna, the steam room or the float room): while you're elsewhere a feed's shot shows the floor, lit as
+  // you'd see it here, without the office overhead.
+  let overN = -1;
+  F.cctv = {
+    root: G,
+    stage() {
+      if (F.on) return () => {};
+      if (world.children.length !== overN) { overN = world.children.length; findOverhead(); }
+      const hid = overhead.filter((o) => o.visible), lit = lamps.map((l) => l.light?.intensity), hemi = [ctx.hemi.intensity, ctx.hemi.color.clone()];
+      for (const o of hid) o.visible = false;
+      const under = ctx.underPool?.visible;
+      G.visible = true; borrow();
+      if (ctx.underPool) ctx.underPool.visible = false;
+      for (const l of lamps) if (l.light) l.light.intensity = 0;
+      for (const b of borrowed) b.light.intensity = b.base * W.lampK;
+      ctx.hemi.intensity += 0.35 * W.lampK; ctx.hemi.color.lerp(WARM, 0.3 * W.lampK);
+      return () => {
+        lamps.forEach((l, i) => { if (l.light) l.light.intensity = lit[i]; });
+        ctx.hemi.intensity = hemi[0]; ctx.hemi.color.copy(hemi[1]);
+        giveBack(); G.visible = false;
+        if (ctx.underPool) ctx.underPool.visible = under;
+        for (const o of hid) o.visible = true;
+      };
+    },
+  };
   addFloor(F);
 
   // Every frame, here or not: the lamps' level (for the coves, the fills and the pool's lights, seen from outside too)
