@@ -1,5 +1,5 @@
-// The all-hands: the open floor between the main aisle and the lounge table. Rows of chairs either side of a centre aisle
-// and beanbags at the front, facing a low stage with a lectern and a big screen showing the office's live numbers.
+// The all-hands: the open floor between the ping pong table and the pillar with its TV. Rows of chairs either side of two
+// aisles and beanbags at the front, facing a low stage with a lectern and a big screen showing the office's live numbers.
 // Idle sessions gather in it (allHands.spots, see people.js).
 
 import * as THREE from 'three';
@@ -19,10 +19,12 @@ export function install(ctx) {
 /** @param {import('../ctx.js').OfficeCtx} ctx */
 function build(ctx) {
   const { world, rug, addSeat, legM } = ctx;
-  // Everything's laid out from the centre aisle (CX), the audience facing +z, the stage and screen at the south end.
-  // East of the stage stays clear: it's the way round to the lounge table and the east meeting rooms' corridor (x 13.3-13.4); west of the rows is the way up to the darts (x 7.6).
-  const CX = 10.5, ROWS = [3.6, 2.7, 1.8], SIDE = [0.66, 1.22, 1.78, 2.34], STAGE = { z0: 5.4, z1: 6.85, w: 4.4, h: 0.24 }, SZ = 6.98;
-  rug(CX - 2.7, CX + 2.7, 1.3, 5.3, '#cdbb9c', '#3f4a6b');
+  // Laid out from the stage's centre line (CX), the audience facing +z, the stage and screen at the north end, short of
+  // the small meeting room. The two aisles (CX ± 2) are walkways already: up to the ping pong table's east end
+  // (x -4.75) and to the small meeting room's door (x -0.75), so the stage sits between them and they stay clear.
+  const CX = -2.75, AISLES = [CX - 2, CX + 2], ROWS = [5.2, 4.3, 3.4], SIDE = [0.3, 0.86, 2.65, 3.21],
+    STAGE = { z0: 7.0, z1: 8.45, w: 3.3, h: 0.24 }, SZ = 8.58;
+  rug(CX - 3.7, CX + 3.7, 2.9, 6.9, '#cdbb9c', '#3f4a6b');
 
   // Chairs: stacking chairs, upholstered seat and back on a black frame, all of them two merged meshes. Each has an
   // invisible box to click and sit (hover's seat targets).
@@ -42,18 +44,18 @@ function build(ctx) {
   world.add(mergedBoxes(UP, mat('#ffffff', { vertexColors: true, roughness: 0.9 })), mergedBoxes(FR, legM));
 
   // Beanbags at the front, between the first row and the stage.
-  const BAG = ['#d9a441', '#c0573e', '#6b8e4e', '#b5654a'], bagGeo = new THREE.SphereGeometry(0.42, 18, 14);
-  [-1.7, -0.6, 0.6, 1.7].forEach((dx, i) => {
+  const BAG = ['#d9a441', '#c0573e', '#6b8e4e', '#b5654a'], bagGeo = new THREE.SphereGeometry(0.38, 18, 14);
+  [-1.35, -0.45, 0.45, 1.35].forEach((dx, i) => {
     const b = new THREE.Mesh(bagGeo, mat(BAG[i], { roughness: 1 }));
-    b.scale.set(1, 0.6, 1); b.position.set(CX + dx, 0.24, 4.6); b.castShadow = true; b.receiveShadow = true; world.add(b);
+    b.scale.set(1, 0.6, 1); b.position.set(CX + dx, 0.22, 6.2); b.castShadow = true; b.receiveShadow = true; world.add(b);
     b.userData.seat = addSeat(b, 'Beanbag', 0, 0.85);
-    spots.push({ x: CX + dx, z: 4.6, row: -1, pose: 'beanbag' });
+    spots.push({ x: CX + dx, z: 6.2, row: -1, pose: 'beanbag' });
   });
 
   // The stage: a low carpeted riser with an oak nosing, a lectern on it, column speakers either side and the screen's
   // stand at the back: one merged mesh.
-  const S = STAGE, sz = (S.z0 + S.z1) / 2, sd = S.z1 - S.z0, lx = CX + 1.4, lz = 5.95, y = S.h;
-  const SW = 3.6, SH = SW * 9 / 16, SY = 1.98;
+  const S = STAGE, sz = (S.z0 + S.z1) / 2, sd = S.z1 - S.z0, lx = CX + 0.95, lz = 7.55, y = S.h;
+  const SW = 3.0, SH = SW * 9 / 16, SY = 1.95;
   const STG = [[S.w, S.h - 0.02, sd, CX, (S.h - 0.02) / 2, sz, '#24262a'], [S.w - 0.04, 0.02, sd - 0.04, CX, S.h - 0.01, sz, '#3a3d44'],
     [S.w, 0.05, 0.05, CX, S.h - 0.025, S.z0 - 0.005, '#a87447'],
     // lectern: body, oak top, the orange panel facing the rows, plinth, speaker's notes, a mic on a stalk
@@ -63,9 +65,9 @@ function build(ctx) {
     // the screen's bezel, its posts and feet
     [SW + 0.12, SH + 0.12, 0.08, CX, SY, SZ + 0.05, '#111214']];
   for (const s of [-1, 1]) {
-    STG.push([0.24, 1.3, 0.24, CX + s * 1.98, y + 0.65, 6.55, '#17181b']);
-    for (let k = 0; k < 4; k++) STG.push([0.15, 0.15, 0.01, CX + s * 1.98, y + 0.3 + k * 0.26, 6.425, '#2c2e33']);
-    STG.push([0.08, SY - SH / 2, 0.08, CX + s * 1.6, (SY - SH / 2) / 2, SZ + 0.14, '#2f3236'], [0.08, 0.04, 0.5, CX + s * 1.6, 0.02, SZ + 0.1, '#2f3236']);
+    STG.push([0.24, 1.3, 0.24, CX + s * 1.48, y + 0.65, 8.15, '#17181b']);
+    for (let k = 0; k < 4; k++) STG.push([0.15, 0.15, 0.01, CX + s * 1.48, y + 0.3 + k * 0.26, 8.025, '#2c2e33']);
+    STG.push([0.08, SY - SH / 2, 0.08, CX + s * 1.35, (SY - SH / 2) / 2, SZ + 0.14, '#2f3236'], [0.08, 0.04, 0.5, CX + s * 1.35, 0.02, SZ + 0.1, '#2f3236']);
   }
   world.add(mergedBoxes(STG, mat('#ffffff', { vertexColors: true, roughness: 0.7 })));
   solid(CX, sz, S.w, sd);
@@ -116,14 +118,14 @@ function build(ctx) {
     paint(St);
   }, 125);
   ctx.minimap((c, sx, sz) => {   // the area, under everything solid
-    c.fillStyle = 'rgba(63,74,107,.35)'; c.fillRect(sx(CX - 2.7), sz(1.3), sx(CX + 2.7) - sx(CX - 2.7), sz(SZ + 0.3) - sz(1.3));
-    c.font = '600 20px system-ui'; c.fillStyle = 'rgba(255,255,255,.55)'; c.fillText('All hands', sx(CX - 2.4), sz(2.0));
+    c.fillStyle = 'rgba(63,74,107,.35)'; c.fillRect(sx(CX - 3.7), sz(2.9), sx(CX + 3.7) - sx(CX - 3.7), sz(SZ + 0.3) - sz(2.9));
+    c.font = '600 20px system-ui'; c.fillStyle = 'rgba(255,255,255,.55)'; c.fillText('All hands', sx(CX - 1.6), sz(2.6));
   }, 5);
 
-  // Idle sessions walk in down the centre aisle and along the row (or to the front for a beanbag), then sit.
+  // Idle sessions walk up the nearer aisle and along in front of their row (or the front row, for a beanbag), then sit.
   for (const s of spots) {
-    const lane = s.row < 0 ? 4.1 : s.z + 0.45;
-    s.route = [{ x: CX, z: AISLE }, { x: CX, z: lane }, { x: s.x, z: lane }];
+    const lane = s.row < 0 ? 5.7 : s.z + 0.45, ax = AISLES[s.x < CX ? 0 : 1];
+    s.route = [{ x: ax, z: AISLE }, { x: ax, z: lane }, { x: s.x, z: lane }];
   }
   Object.assign(ctx, { allHands: { spots, screen: scr, CX } });
 }
