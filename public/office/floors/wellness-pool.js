@@ -60,6 +60,7 @@ export function installPool(ctx, W) {
     t.tex.wrapS = t.tex.wrapT = THREE.RepeatWrapping; t.tex.needsUpdate = true;
     return t.tex;   // 1.6 m
   })();
+  W.poolTile = poolTile;
   const tileM = causticMaterial({ map: poolTile, roughness: 0.25 }, U);
   const lineM = causticMaterial({ color: '#16242e', roughness: 0.3 }, U);
   W.causticMaterial = (p) => causticMaterial(p, U);
@@ -228,7 +229,7 @@ export function installPool(ctx, W) {
     const eye = d < 1 ? EYE - (EYE - SWIM_EYE) * d * d * (3 - 2 * d) : S.dive ? DIVE_EYE : SWIM_EYE;
     return eye - EYE;
   };
-  W.pace = (x, z) => { const d = depthAt(x, z); return d ? 1 - 0.58 * d : 1; };
+  W.pace = (x, z) => { const d = depthAt(x, z); return d ? 1 - 0.58 * d : (W.paceExtra?.(x, z) ?? 1); };
 
   const veil = document.createElement('div');
   veil.style.cssText = 'position:absolute;inset:0;z-index:1;pointer-events:none;opacity:0;transition:opacity .25s;';

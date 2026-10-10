@@ -1,7 +1,8 @@
 // The wellness floor's sounds (floors/wellness.js): the pool lapping and a long echo off the water and glass in the pool
 // hall; a splash going in, strokes as you swim, everything muffled under the water; your steps on the stone; the gym's
 // music faint from its speakers, a treadmill's whirr, the bike's freewheel, the rower's flywheel, plates clanking; the
-// sauna's stove crackling and the hiss of löyly; the steam room's hiss; a shower running; the blender; lockers; the doors.
+// sauna's stove crackling and the hiss of löyly; the steam room's hiss; the jacuzzi bubbling; a shower running; the blender;
+// lockers; the doors.
 // All synthesised here, through the office's own audio (sounds.js `audio`), so its volume and M apply. Positions are
 // the floor's own (x, z; y over its boards).
 
@@ -9,7 +10,7 @@ const TAU = Math.PI * 2;
 
 export function makeSound(ctx, W) {
   let A = null, B = null, out = null, lp = null, verb = null, wet = null, loops = [], under = null, tool = null, shower = null;
-  let crackleAt = 0, stepAcc = 0, last = null, musicV = null, steamV = null;
+  let crackleAt = 0, stepAcc = 0, last = null, musicV = null, steamV = null, jacV = null;
   const rnd = (a, b) => a + Math.random() * (b - a), nz = () => Math.random() * 2 - 1;
   const pick = (a) => a[Math.floor(Math.random() * a.length)];
 
@@ -92,6 +93,16 @@ export function makeSound(ctx, W) {
       return (Math.sin(TAU * ph) * 0.5 + Math.sign(Math.sin(TAU * ph)) * 0.15) * sp + bp(nz()) * sp * 0.6 + lo(nz()) * sp * (0.5 + 0.5 * Math.sin(TAU * 7 * t)) * 0.6;
     });
   }
+  function bubbles() {   // the jacuzzi: a churning rumble, the jets' hiss, bubbles popping (4 s, looped)
+    const lo = biq('lp', 220, 0.7), mid = biq('bp', 650, 0.8), pop = biq('bp', 1100, 6), D = 4;
+    let e = 0;
+    return make(D, (t) => {
+      if (Math.random() < 60 / A.ctx.sampleRate) e = rnd(0.5, 1);
+      e *= 0.997;
+      const s = 0.8 + 0.2 * Math.sin(TAU * 2 * t / D);
+      return lo(nz()) * 2.5 * s + mid(nz()) * 0.5 * s + pop(nz()) * e * 3;
+    });
+  }
   const beep = () => make(0.12, (t) => Math.sin(TAU * 1760 * t) * Math.min(1, t / 0.004) * (t < 0.09 ? 1 : 0));
   // The gym's music: 8 s of a soft four-to-the-floor at 120 bpm, a bass line and a pad (whole cycles, so it loops).
   function music() {
@@ -110,7 +121,7 @@ export function makeSound(ctx, W) {
   function build() {
     const n = (k, f) => Array.from({ length: k }, f);
     return { lap: lap(), splash: splash(true), dip: splash(false), stroke: n(4, stroke), clank: n(3, clank), hiss: hiss(), crackle: n(5, crackle),
-      steam: steamLoop(), rain: rain(), whirr: whirr(), fly: fly(), thud: n(3, thud), blend: blend(), beep: beep(), music: music() };
+      steam: steamLoop(), rain: rain(), whirr: whirr(), fly: fly(), thud: n(3, thud), blend: blend(), beep: beep(), music: music(), bubbles: bubbles() };
   }
 
   // ----- playback -----
@@ -168,7 +179,10 @@ export function makeSound(ctx, W) {
         musicV = loop(B.music, 0.035, 13, 3.0, 9.2, 3, 1.1);
         const f = A.ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 2400; musicV.g.disconnect(); musicV.g.connect(f).connect(musicV.p);
         steamV = loop(B.steam, 0.05, 13.2, 0.4, -14.3, 1.2, 1.8);
+        if (W.jacuzzi) jacV = loop(B.bubbles, 0.07, W.jacuzzi.x, 0.5, W.jacuzzi.z, 1.5, 1.3);
       }
+      // The jacuzzi, louder all round you once you're in it.
+      if (jacV) jacV.g.gain.setTargetAtTime(W.jacuzzi.in ? 0.16 : 0.07, now, 0.5);
       // The pool hall's echo: you're in it (west of the gym, north of the glass).
       const hall = x < 6 && z > 3.5;
       wet.gain.setTargetAtTime(hall ? 0.22 : 0.04, now, 0.4);
@@ -182,7 +196,7 @@ export function makeSound(ctx, W) {
       // Your steps on the stone (not while you're swimming or on a machine).
       const moved = last ? Math.hypot(x - last.x, z - last.z) / Math.max(dt, 1e-3) : 0;
       last = { x, z };
-      const walking = moved > 1.2 && moved < 12 && !W.swim?.in && !W.using;
+      const walking = moved > 1.2 && moved < 12 && !W.swim?.in && !W.jacuzzi?.in && !W.using;
       stepAcc = walking ? stepAcc + dt : 0.3;
       if (walking && stepAcc > (moved > 4.5 ? 0.31 : 0.43)) {
         stepAcc = 0;
@@ -228,7 +242,7 @@ export function makeSound(ctx, W) {
     stop() {
       if (A) for (const { src, g } of loops) { g.gain.setTargetAtTime(0, A.ctx.currentTime, 0.2); src.stop(A.ctx.currentTime + 1); }
       if (lp) lp.frequency.setTargetAtTime(18000, A.ctx.currentTime, 0.05);
-      loops = []; under = null; tool = null; shower = null; last = null; musicV = null; steamV = null;
+      loops = []; under = null; tool = null; shower = null; last = null; musicV = null; steamV = null; jacV = null;
     },
   };
 }
