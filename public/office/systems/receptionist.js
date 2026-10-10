@@ -16,9 +16,10 @@ const CHAIR = { x: 17.62, z: -2.3, rotY: -Math.PI / 2 };   // behind the counter
 const PANEL = { x: LIFT.x - 0.012, y: 1.3, z: -1.33 };     // the light panel on the lift core, by the end of the counter
 const BLIND_NAMES = { front: 'office front blinds', side: 'office side blinds', office: 'blinds in your office', north: 'north window blinds',
   west: 'west window blinds', east: 'east window blinds', meetSouth: 'south meeting room blinds', meetNorth: 'north meeting room blinds',
-  meetSmall: 'small meeting room blinds' };
+  meetSmall: 'small meeting room blinds', meetHuddle: 'huddle room blinds' };
 const BLIND_STATE = { raised: 0, open: 0.5, closed: 1 }, BLIND_SAID = { raised: 'raised', open: 'lowered, slats open', closed: 'closed' };
-const DOOR_NAMES = { office: 'your office door', meetSouth: 'south meeting room door', meetNorth: 'north meeting room door', meetSmall: 'small meeting room door' };
+const DOOR_NAMES = { office: 'your office door', meetSouth: 'south meeting room door', meetNorth: 'north meeting room door', meetSmall: 'small meeting room door',
+  meetHuddle: 'huddle room door' };
 const WALK = 1.5;   // brisker than the sessions' stroll
 
 /** @param {import('../ctx.js').OfficeCtx} ctx */
@@ -232,7 +233,7 @@ export function install(ctx) {
 
   // ----- where each job is done -----
   const v3 = new THREE.Vector3(), n3 = new THREE.Vector3();
-  const meetDoor = { meetSouth: [14, 3], meetNorth: [14, 8], meetSmall: [-1.3, 11.2] };
+  const meetDoor = { meetSouth: [14, 3], meetNorth: [14, 8], meetSmall: [-1.3, 11.2], meetHuddle: [-5.5, 11.8] };
   const doorOf = (id) => id === 'office' ? door
     : doors.filter((d) => d.name === 'Meeting room door').sort((a, b) => Math.hypot(a.hx - meetDoor[id][0], a.hz - meetDoor[id][1]) - Math.hypot(b.hx - meetDoor[id][0], b.hz - meetDoor[id][1]))[0];
   const facing = (s, at) => ({ ...s, rotY: Math.atan2(at.x - s.x, at.z - s.z) });
@@ -466,7 +467,7 @@ export function install(ctx) {
     const history = chat.msgs.filter((m) => (m.role === 'user' || m.role === 'rosie') && !m.lunch && !m.error).slice(-10).map(({ role, text }) => ({ role, text }));
     chat.msgs.push({ role: 'user', text }); input.value = ''; input.style.height = '';
     chat.busy = true; chat.note = null; render();
-    const local = { sound: dash.sound, doors: Object.fromEntries(['meetSouth', 'meetNorth', 'meetSmall'].map((id) => [id, doorOf(id)?.to === 1])) };
+    const local = { sound: dash.sound, doors: Object.fromEntries(['meetSouth', 'meetNorth', 'meetSmall', 'meetHuddle'].map((id) => [id, doorOf(id)?.to === 1])) };
     const r = await fetch('/api/receptionist', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text, history, local }) })
       .then((x) => x.json()).catch((e) => ({ error: e.message }));
     chat.busy = false;

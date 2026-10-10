@@ -8,10 +8,10 @@ const { CLAUDE, readJSON, clients } = require('./util');
 
 const OFFICE_FILE = path.join(CLAUDE, 'my-office', 'office.json');
 // blinds: side/front are my glass office's, north/east/west the outside windows per wall, office the outside window in my office,
-// meetSouth/meetNorth/meetSmall the meeting rooms' glass. Each is 0 raised, 0.5 lowered with the slats open, 1 closed.
+// meetSouth/meetNorth/meetSmall/meetHuddle the meeting rooms' glass. Each is 0 raised, 0.5 lowered with the slats open, 1 closed.
 // cameras: { [id]: { on, pan, tilt, zoom } } for those changed from their defaults (on, aimed as built, zoom 1); pan and
 // tilt in degrees off that aim (each camera's own limits are the app's; these are the outer bounds).
-const OFFICE_DEFAULT = { lights: 'auto', brightness: 1, blinds: { side: 0, front: 0, north: 0, east: 0, west: 0, office: 0, meetSouth: 0, meetNorth: 0, meetSmall: 0 }, door: 0,
+const OFFICE_DEFAULT = { lights: 'auto', brightness: 1, blinds: { side: 0, front: 0, north: 0, east: 0, west: 0, office: 0, meetSouth: 0, meetNorth: 0, meetSmall: 0, meetHuddle: 0 }, door: 0,
   cameras: {} };
 const CAM_ID = /^[a-z0-9-]{1,40}$/, CAM_MAX = 32;
 const num = (v, lo, hi, d) => (Number.isFinite(v) ? Math.round(Math.min(hi, Math.max(lo, v)) * 100) / 100 : d);

@@ -280,10 +280,11 @@ export function installSpots(ctx) {
     return [spot(`mr${ri}S${i}`, x, s, 0, 'meeting', [...via, { x, z: r.south }]),
       spot(`mr${ri}N${i}`, x, n, Math.PI, 'meeting', [...via, ...R([r.around, r.north], [x, r.north])])];
   }));
-  const [mrSouth, mrNorth, mrSmall] = mrSeats;
+  const [mrSouth, mrNorth, mrSmall, mrHuddle] = mrSeats;
   const IDLE_ORDER = [sofaA[1], coffee[0], pp[0], pp[1], stool[1], sofaA[0], chat[0], stool[2], chat[1], bean[0], coffee[1], sofaA[2], fridge, stool[0],
     bean[1], chat[2], stool[3], ...beanDarts, ...ahOrder.slice(0, 6),
-    mrSmall[0], mrSmall[1], sofaB[0], sofaB[1], sofaB[2], ...meet, ...mrSouth, ...mrNorth, ...mrSmall.slice(2), ...ahOrder.slice(6)];
+    mrSmall[0], mrSmall[1], mrHuddle[0], mrHuddle[1], sofaB[0], sofaB[1], sofaB[2], ...meet, ...mrSouth, ...mrNorth, ...mrSmall.slice(2),
+    ...mrHuddle.slice(2), ...ahOrder.slice(6)];
   const LOBBY = { key: 'lobby', kind: 'idle', pos: { x: 15.6, z: -0.5 }, rotY: -Math.PI / 2, pose: 'chat', route: R([15.6, AISLE], [15.6, -0.5]) };
   Object.assign(ctx, { idleSpots, LOBBY, IDLE_ORDER, pp });
 }
