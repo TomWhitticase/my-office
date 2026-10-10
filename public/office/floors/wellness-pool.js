@@ -3,7 +3,7 @@
 // over the city 160 m up. One water shader (wellness ripples, the window and sky reflected off them, your own ripples, lit
 // from below at night) and caustics on the basin. Walk in down the steps at the east end and you're swimming: slower,
 // eyes at the water, a bob; hold Space to dive under (or dip under on a stroke) for the blue-green and muffled sound.
-// Climb out up the same steps. Loungers along the deck, a towel stack by the steps.
+// Climb out up the same steps. Loungers along the deck, a towel stack by the glass east of the pool.
 
 import * as THREE from 'three';
 import { clamp, EYE, makeCanvas } from '../util.js';
@@ -197,13 +197,15 @@ export function installPool(ctx, W) {
       solid(x, z, 0.72, 1.95);
       if (i % 2) { k.cyl(M.oak, 0.22, 0.22, 0.03, x + 1.3, 0.42, z - 0.3, 20); k.cyl(M.black, 0.02, 0.02, 0.4, x + 1.3, 0.2, z - 0.3, 8); }
     }
-    // The towel stack by the steps: a teak shelf of folded towels.
-    k.box(M.oak, 0.5, 0.04, 1.2, 4.75, 0.45, 10.4); k.box(M.oak, 0.5, 0.04, 1.2, 4.75, 0.9, 10.4);
-    for (const z of [9.85, 10.95]) k.box(M.oak, 0.5, 1.0, 0.04, 4.75, 0.5, z);
-    for (let y = 0; y < 3; y++) for (let i = 0; i < 3; i++) { k.box(M.towel, 0.4, 0.1, 0.32, 4.75, 0.52 + y * 0.1, 9.98 + i * 0.36); if (y < 2) k.box(M.towel, 0.4, 0.1, 0.32, 4.75, 0.97 + y * 0.1, 9.98 + i * 0.36); }
-    solid(4.75, 10.4, 0.55, 1.2);
+    // The towel stack: a teak shelf of folded towels against the gym wall by the glass, past the steps (not in the way to
+    // them: you walk west onto the steps from the strip east of the pool).
+    const TX = 5.66, TZ = 13.9;
+    k.box(M.oak, 0.5, 0.04, 1.2, TX, 0.45, TZ); k.box(M.oak, 0.5, 0.04, 1.2, TX, 0.9, TZ);
+    for (const z of [TZ - 0.55, TZ + 0.55]) k.box(M.oak, 0.5, 1.0, 0.04, TX, 0.5, z);
+    for (let y = 0; y < 3; y++) for (let i = 0; i < 3; i++) { k.box(M.towel, 0.4, 0.1, 0.32, TX, 0.52 + y * 0.1, TZ - 0.42 + i * 0.36); if (y < 2) k.box(M.towel, 0.4, 0.1, 0.32, TX, 0.97 + y * 0.1, TZ - 0.42 + i * 0.36); }
+    solid(TX, TZ, 0.55, 1.2);
     k.flush(G);
-    W.hits.push(ctx.hitBox(G, 0.55, 1.0, 1.2, 4.75, 0.6, 10.4, { action: 'wellness-towel', reach: 3 }));
+    W.hits.push(ctx.hitBox(G, 0.55, 1.0, 1.2, TX, 0.6, TZ, { action: 'wellness-towel', reach: 3 }));
   }
   for (const [x, z] of [[-19.2, 4.2], [-6.3, 4.2], [3.0, 4.2]]) W.planter(x, z, 1.15);
 
