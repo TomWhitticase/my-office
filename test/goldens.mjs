@@ -267,6 +267,12 @@ export const POSES = [
     await o.eval(() => window.__office.ctx.actionOf('wellness-ladle').click({}));
     await o.step(40);
   }],
+  ['wellness-jacuzzi', async (o) => {   // the jacuzzi on its deck by the west glass, from the steps up to it
+    await arrive(o);
+    await ride(o, 46);
+    await stand(o, -13.4, -10.6, { x: -17.2, y: 0.3, z: -12.6 });
+    await o.step(40);
+  }],
 ];
 
 // Compares two PNGs in the page: counts pixels where any channel differs by more than `tol`.

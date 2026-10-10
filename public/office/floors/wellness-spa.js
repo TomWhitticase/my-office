@@ -59,6 +59,7 @@ export function installSpa(ctx, W) {
     puffs.push({ x, y, z, vx: (Math.random() - 0.5) * 0.15, vy: o.vy ?? 0.35, vz: (Math.random() - 0.5) * 0.15, age: 0, life: o.life ?? 3, size: o.size ?? 0.4,
       grow: o.grow ?? 0.5, a: o.a ?? 0.5, seed: Math.random(), ceil: o.ceil ?? 3.2 });
   }
+  W.puff = puff;
   function steamFx(dt) {
     let n = 0;
     for (let i = puffs.length - 1; i >= 0; i--) {
@@ -386,13 +387,13 @@ export function installSpa(ctx, W) {
   });
 
   // ----- the yoga studio -----
-  // Oak floor behind glass on the west windows: mats in two rows facing the view (click one to sit), bolsters and blocks,
+  // Oak floor behind glass on the west windows (the jacuzzi beyond its south wall): mats facing the view (click one to sit), bolsters and blocks,
   // a round mirror and a shelf of rolled mats on the east wall.
   {
     const matCols = ['#9caf88', '#c98f6e', '#b9b2a4', '#7e9a9a', '#c4a484', '#8f8aa8'];
     let i = 0;
-    for (const x of [-17.6, -14.6, -11.6]) for (const z of [-12.6, -8.6, -5.8]) {
-      if (x === -11.6 && z === -5.8) continue;   // by the door
+    for (const x of [-17.6, -14.6, -11.6]) for (const z of [-8.0, -5.6]) {
+      if (x === -11.6 && z === -5.6) continue;   // by the door
       const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = -Math.PI / 2; G.add(g);
       const mk = kit(); mk.box(mat(matCols[i++ % matCols.length], { roughness: 0.95 }), 0.62, 0.012, 1.85, 0, 0.007, 0);
       if (i % 2) mk.cyl(M.taupe, 0.11, 0.11, 0.6, -0.15, 0.12, 0.95, 16, 0, Math.PI / 2);
@@ -400,13 +401,13 @@ export function installSpa(ctx, W) {
       mk.flush(g);
       const st = W.seat(g, 'Yoga mat', 0, 0.78); W.markSeat(g, st);
     }
-    const mr = new THREE.Mesh(new THREE.CircleGeometry(0.75, 48), M.mirror); mr.position.set(-8.08, 1.6, -9.4); mr.rotation.y = -Math.PI / 2; G.add(mr);
-    k.geo(M.brass, new THREE.TorusGeometry(0.76, 0.02, 8, 48).rotateY(Math.PI / 2).translate(-8.08, 1.6, -9.4));
+    const mr = new THREE.Mesh(new THREE.CircleGeometry(0.75, 48), M.mirror); mr.position.set(-8.08, 1.6, -8.3); mr.rotation.y = -Math.PI / 2; G.add(mr);
+    k.geo(M.brass, new THREE.TorusGeometry(0.76, 0.02, 8, 48).rotateY(Math.PI / 2).translate(-8.08, 1.6, -8.3));
     k.box(M.oak, 0.3, 0.035, 1.6, -8.2, 1.2, -6.2);
     for (let j = 0; j < 6; j++) k.cyl(mat(matCols[j], { roughness: 0.95 }), 0.07, 0.07, 0.62, -8.2, 1.29, -6.85 + j * 0.26, 12, Math.PI / 2, 0, Math.PI / 2);
     // A singing bowl on a low stool.
-    k.cyl(M.oak, 0.18, 0.18, 0.2, -19.0, 0.1, -14.0, 20); k.geo(M.brass, new THREE.SphereGeometry(0.12, 18, 10, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2).translate(-19.0, 0.32, -14.0));
-    W.planter(-19.3, -4.3, 1.1); W.planter(-8.7, -14.3, 0.9);
+    k.cyl(M.oak, 0.18, 0.18, 0.2, -19.0, 0.1, -9.05, 20); k.geo(M.brass, new THREE.SphereGeometry(0.12, 18, 10, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2).translate(-19.0, 0.32, -9.05));
+    W.planter(-19.3, -4.3, 1.1); W.planter(-8.7, -9.0, 0.9);
   }
 
   // ----- the lounge -----

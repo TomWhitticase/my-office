@@ -2055,7 +2055,7 @@
   [
    "Yoga mat",
    -17.6,
-   -12.6,
+   -8,
    -1.571,
    0.78,
    46
@@ -2063,15 +2063,7 @@
   [
    "Yoga mat",
    -17.6,
-   -8.6,
-   -1.571,
-   0.78,
-   46
-  ],
-  [
-   "Yoga mat",
-   -17.6,
-   -5.8,
+   -5.6,
    -1.571,
    0.78,
    46
@@ -2079,7 +2071,7 @@
   [
    "Yoga mat",
    -14.6,
-   -12.6,
+   -8,
    -1.571,
    0.78,
    46
@@ -2087,15 +2079,7 @@
   [
    "Yoga mat",
    -14.6,
-   -8.6,
-   -1.571,
-   0.78,
-   46
-  ],
-  [
-   "Yoga mat",
-   -14.6,
-   -5.8,
+   -5.6,
    -1.571,
    0.78,
    46
@@ -2103,15 +2087,7 @@
   [
    "Yoga mat",
    -11.6,
-   -12.6,
-   -1.571,
-   0.78,
-   46
-  ],
-  [
-   "Yoga mat",
-   -11.6,
-   -8.6,
+   -8,
    -1.571,
    0.78,
    46
@@ -2138,6 +2114,22 @@
    2.35,
    -1.571,
    0.92,
+   46
+  ],
+  [
+   "Lounger",
+   -14.2,
+   -14.05,
+   -1.571,
+   0.95,
+   46
+  ],
+  [
+   "Lounger",
+   -14.2,
+   -10.45,
+   -1.571,
+   0.95,
    46
   ]
  ],
@@ -4942,8 +4934,8 @@
     "kind": "wellness",
     "steps": true
    },
-   "colliders": 95,
-   "hits": 34,
+   "colliders": 102,
+   "hits": 35,
    "hooks": [
     "enter",
     "leave",
@@ -6111,14 +6103,14 @@
  ],
  "scenes": {
   "office": {
-   "objects": 3096,
+   "objects": 3116,
    "types": {
     "Scene": 1,
     "HemisphereLight": 1,
     "DirectionalLight": 2,
     "Object3D": 2,
-    "Mesh": 2685,
-    "Group": 487,
+    "Mesh": 2704,
+    "Group": 488,
     "PointLight": 16,
     "Sprite": 9,
     "LineSegments": 1,
@@ -6150,11 +6142,12 @@
     "wellness-shower": 3,
     "wellness-locker": 2,
     "wellness-blender": 1,
+    "wellness-jacuzzi": 1,
     "lightpanel": 5,
     "rosie": 57
    },
-   "ordered": "f9e3f679",
-   "sorted": "9010425f"
+   "ordered": "dfbb0a8c",
+   "sorted": "10bae1bc"
   },
   "servers": {
    "objects": 383,
