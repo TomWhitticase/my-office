@@ -387,14 +387,15 @@ export function installSpa(ctx, W) {
   });
 
   // ----- the yoga studio -----
-  // Oak floor behind glass on the west windows (the jacuzzi beyond its south wall): mats facing the view (click one to sit), bolsters and blocks,
+  // Oak floor behind glass on the west windows (the jacuzzi beyond its south wall): mats facing a big TV (click one to sit), bolsters and blocks,
   // a round mirror and a shelf of rolled mats on the east wall.
   {
     const matCols = ['#9caf88', '#c98f6e', '#b9b2a4', '#7e9a9a', '#c4a484', '#8f8aa8'];
     let i = 0;
-    for (const x of [-17.6, -14.6, -11.6]) for (const z of [-8.0, -5.6]) {
-      if (x === -11.6 && z === -5.6) continue;   // by the door
-      const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = -Math.PI / 2; G.add(g);
+    // Two rows facing the big TV on the south wall (a class on it), clear of the door.
+    for (const x of [-17.6, -14.6, -11.6]) for (const z of [-7.3, -4.9]) {
+      if (x === -11.6 && z === -4.9) continue;   // by the door
+      const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = Math.PI; G.add(g);
       const mk = kit(); mk.box(mat(matCols[i++ % matCols.length], { roughness: 0.95 }), 0.62, 0.012, 1.85, 0, 0.007, 0);
       if (i % 2) mk.cyl(M.taupe, 0.11, 0.11, 0.6, -0.15, 0.12, 0.95, 16, 0, Math.PI / 2);
       if (i % 3 === 0) mk.box(mat('#d7c7a3', { roughness: 0.9 }), 0.22, 0.1, 0.15, 0.2, 0.06, 0.95);
@@ -409,6 +410,11 @@ export function installSpa(ctx, W) {
     k.cyl(M.oak, 0.18, 0.18, 0.2, -19.0, 0.1, -9.05, 20); k.geo(M.brass, new THREE.SphereGeometry(0.12, 18, 10, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2).translate(-19.0, 0.32, -9.05));
     W.planter(-19.3, -4.3, 1.1); W.planter(-8.7, -9.0, 0.9);
   }
+
+  // The studio's big TV, on its south wall over the mats (a yoga class on it to start with), and one in the lobby across
+  // from reception (calm music): the office's own wall TVs (systems/tvs.js), streamed and heard only while you're here.
+  W.hits.push(ctx.addTv('wellness-yoga', -14.6, 1.85, -9.4, 0, 2.8, false, { parent: G, floor: 46 }).scr.mesh);
+  W.hits.push(ctx.addTv('wellness-lobby', 9.4, 1.8, -3.4, 0, 1.6, false, { parent: G, floor: 46 }).scr.mesh);
 
   // ----- the lounge -----
   // Three daybeds on the west windows with throws and cushions, low tables between, a floor lamp and a rug.

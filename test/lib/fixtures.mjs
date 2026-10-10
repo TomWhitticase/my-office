@@ -100,6 +100,8 @@ export function makeHome(home) {
   }
   // A cached ad list, so the server doesn't go and fetch one.
   write(path.join(claude, 'my-office', 'adblock', 'hosts'), '0.0.0.0 ads.example.com\n0.0.0.0 tracker.example.net\n', T0 - MIN);
+  // The wellness floor's TVs already had their defaults (and were turned off), so no run starts a real browser on YouTube.
+  write(path.join(claude, 'my-office', 'tvs-defaults.json'), ['wellness-lobby', 'wellness-yoga']);
   // The task board in my office: a few of each kind of card in each column (one overdue, one with a long story).
   const card = (id, col, kind, color, title, body, more = {}) => ({ id, col, kind, color, title, body, prio: 0, due: '', labels: [], who: '', archived: false,
     created: T0 - 3 * 1440 * MIN, updated: T0 - 60 * MIN, ...more });

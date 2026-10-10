@@ -9,25 +9,28 @@ import { box, clamp, cyl, dash, fit, FONT, makeScreen, ROOM, sstep } from '../ut
 /** @param {import('../ctx.js').OfficeCtx} ctx */
 export function install(ctx) {
   const { world, camera, door, blinds } = ctx;
-  Object.assign(ctx, { tvQuiet, openTvPanel, updateTVs, tvSocket });
+  Object.assign(ctx, { tvQuiet, openTvPanel, updateTVs, tvSocket, addTv: tvSet });
   // ----- wall TVs -----
   // Each is a live tab in a browser the server runs (set from its panel or the Admin tab, /api/tvs). Frames arrive over
   // one socket and are drawn into the screen's canvas; only the nearest few in view stream, the rest keep their last frame.
   const tvs = [];
   let using = null;   // the TV clicked into, taking mouse and keys
-  function tvSet(id, x, y, z, rotY, w, hung) {
+  // A floor below builds its own into its group (`parent`, offset by its height) and says which floor they're on: they
+  // stream and play only while you're there.
+  function tvSet(id, x, y, z, rotY, w, hung, { parent = world, floor = 48 } = {}) {
     const name = dash.tvList[id];
-    const h = w * 9 / 16, g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = rotY; world.add(g);
+    const h = w * 9 / 16, g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = rotY; parent.add(g);
     box(g, w + 0.08, h + 0.08, 0.06, '#111214', 0, 0, -0.03, { mat: { roughness: 0.4 } });
     if (hung) for (const dx of [-w / 3, w / 3]) cyl(g, 0.01, 0.01, ROOM.h - y - h / 2, '#222', dx, (ROOM.h - y + h / 2) / 2, -0.03, { shadow: false });
     const scr = makeScreen(g, w, h, 1280, 720, 0, 0, 0.004);
     scr.mesh.userData.tv = id;
     scr.mesh.material.color.setScalar(1); scr.mesh.material.toneMapped = false;   // web pages in their own colours, not tone-mapped
-    const t = { id, name, w, h, scr, cfg: null, frame: null, seq: 0, shown: 0, live: false, page: null, center: new THREE.Vector3(x, y, z),
+    const t = { id, name, w, h, scr, floor, cfg: null, frame: null, seq: 0, shown: 0, live: false, page: null, center: new THREE.Vector3(x, y + parent.position.y, z),
       normal: new THREE.Vector3(Math.sin(rotY), 0, Math.cos(rotY)) };
     t.sphere = new THREE.Sphere(t.center, w * 0.6);
     tvs.push(t);
     paintTv(t);
+    return t;
   }
   const hostOf = (u) => { try { return new URL(u).host; } catch { return u; } };
   function paintTv(t) {
@@ -95,7 +98,8 @@ export function install(ctx) {
   function updateTVs(now) {
     camera.updateMatrixWorld();
     tvFrustum.setFromProjectionMatrix(tvProj.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
-    for (const t of tvs) t.dist = toCam.subVectors(camera.position, t.center).length();
+    const here = ctx.away?.n ?? 48;
+    for (const t of tvs) t.dist = t.floor === here ? toCam.subVectors(camera.position, t.center).length() : Infinity;
     const want = tvs.filter((t) => t.cfg && t.dist < 25
       && toCam.subVectors(camera.position, t.center).dot(t.normal) > 0 && tvFrustum.intersectsSphere(t.sphere)).sort((a, b) => a.dist - b.dist).slice(0, 3);
     for (const t of tvs) {
@@ -211,7 +215,7 @@ export function installUse(ctx) {
     hud.classList.remove('of-using');
     tvUrl.blur();
     if (ctx.mode !== 'tv') return;
-    tween(camPose(), { x: player.x, y: player.eye, z: player.z, yaw: player.yaw, pitch: player.pitch }, 600,
+    tween(camPose(), { x: player.x, y: player.eye + (ctx.away?.y || 0) + (player.fy || 0), z: player.z, yaw: player.yaw, pitch: player.pitch }, 600,
       () => { if (ctx.mode === 'tv') ctx.mode = 'free'; });
     if (relock) renderer.domElement.requestPointerLock();   // only works from a click; after Esc, click to look around again
   }
@@ -301,6 +305,7 @@ export function installUse(ctx) {
   Object.defineProperty(ctx, 'tvMove', { get: () => tvMove, set: (v) => { tvMove = v; }, enumerable: true });
   ctx.onFrame((dt, t, now) => {
     if (ctx.tvMove) { tvMouse(ctx.tvMove, 'mouseMoved'); ctx.tvMove = null; }
-    if (!ctx.away && ctx.active) ctx.updateTVs(now);   // not while it runs unseen for the cameras (cctv.js)
+    // In the office, or on a floor with TVs of its own (46); not while it runs unseen for the cameras (cctv.js).
+    if (ctx.active && (!ctx.away || ctx.tvs.some((t) => t.floor === ctx.away.n))) ctx.updateTVs(now);
   }, 140);
 }
