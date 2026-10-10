@@ -152,7 +152,7 @@ export function mountOffice(container) {
   const { lifts } = ctx;
 
   installVending(ctx);
-  installDarts(ctx);   // the dartboard on the lounge pillar, its scoreboard and the beanbags behind the oche
+  installDarts(ctx);   // the dartboard by the breakroom whiteboard, its scoreboard, and the lounge beanbags
   installAllHands(ctx);
 
   installClocks(ctx);
@@ -278,7 +278,7 @@ export function mountOffice(container) {
       r = renderer.domElement.getBoundingClientRect(); return { x: r.left + (p.x + 1) / 2 * r.width, y: r.top + (1 - p.y) / 2 * r.height }; },
     tvs: () => tvs.map((t) => ({ id: t.id, live: t.live, frame: !!t.frame, url: t.page?.url, title: t.page?.title, dist: t.dist })), seats, sitIn, openLaptop,
       laptop, kitchen, player, keys, camera, people, blinds, door, doors, collide, colliders, desks, idleSpots, lifts, sfx, mine, arch, roof, srv, FLOORS,
-      openJohn, johnChat, rosie, openRosie, setFloor, get away() { return ctx.away; }, callLift, heli: ctx.heli, cctv: ctx.cctv,
+      openJohn, johnChat, rosie, openRosie, setFloor, get away() { return ctx.away; }, callLift, heli: ctx.heli, cctv: ctx.cctv, darts: ctx.darts,
     goFloor: (n) => {   // debug: straight into your car at floor n, doors opening (headless tests can't sit through a ride)
       const L = mine.L || lifts.find(spare); if (!L) return false;
       Object.assign(mine, { L, call: false, goal: null }); L.player = true;
