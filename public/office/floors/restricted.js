@@ -375,6 +375,7 @@ function build(ctx) {
       for (const b of e?.cols() || []) restr.colliders.push({ minX: b.minX, maxX: b.maxX, minZ: b.minZ + z0, maxZ: b.maxZ + z0 });
       restr.hits.push(...e?.hits() || []);
     }
+    for (const e of restr.extras) e.cut?.(restr.colliders);   // a doorway through a wall (world-edge-backstage.js)
     lightAt = null;
   }
   // The point lights go to the nearest working panels, picked again when you move a few metres.
@@ -414,20 +415,30 @@ function build(ctx) {
   restr.bound = (p) => {
     p.x = clamp(p.x, GX - (LIM + 1) * C, GX + LIM * C); p.z = clamp(p.z, restr.z0 + GZ - LIM * C, restr.z0 + GZ + (LIM + 1) * C);
   };
-  let glitchAt = 0;
-  restr.fx = (dt, t) => {
-    const { x, z } = local();
-    stream(x, z, false);
+  // The rooms round (x, z) built and lit: where you are, or (heard: false) seen from another floor through a doorway.
+  function seen(x, z, t, heard, all = false) {
+    stream(x, z, all);
     placeLights(x, z);
     for (const m of restr.planes) m.position.set(Math.round(x / 4.8) * 4.8, m.position.y, Math.round(z / 4.8) * 4.8);
     for (const ch of restr.chunks.values()) {
       let v = flicker(t, ch.seed);
       if (creature.near(ch)) v = Math.min(v, Math.sin(t * 23 + ch.seed * 3) * Math.sin(t * 7.1) > 0.15 ? 0.05 : 1);   // something's near
-      if (v !== ch.v && v < 1 && chunkDist(ch.ci, ch.cj, x, z) < 4) sound.buzz(ch, x, z);
+      if (heard && v !== ch.v && v < 1 && chunkDist(ch.ci, ch.cj, x, z) < 4) sound.buzz(ch, x, z);
       ch.v = v; ch.flickM.color.setScalar(0.1 + 0.9 * v);
     }
     near.forEach((q, k) => { restr.look.lights[k][1] = 2.8 * (q.p.kind === 1 ? q.ch.v : 1) * creature.dim(q.p.x, q.p.z, t); });
     for (let k = near.length; k < NLIGHTS; k++) restr.look.lights[k][1] = 0;
+  }
+  // Seen from another floor through a doorway (world-edge-backstage.js): with your car at z0, the rooms round (x, z) (the
+  // floor's own space) as they'd be if you were there (all: every room in reach at once, not one a frame).
+  restr.view = (x, z, t, z0, all) => {
+    if (z0 !== restr.z0) { restr.z0 = z0; root.position.z = z0; syncChunks(); }
+    seen(x, z, t, false, all);
+  };
+  let glitchAt = 0;
+  restr.fx = (dt, t) => {
+    const { x, z } = local();
+    seen(x, z, t, true);
     // The ride down: the car's light stutters, the panel loses its mind, and the dark comes and goes.
     const L = ctx.mine.L, riding = L?.state === 'travel' && ctx.inMyCar();
     if (riding) {

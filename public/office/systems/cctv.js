@@ -160,9 +160,9 @@ function build(ctx) {
   // The grade: ACES as the office's tone mapping does it, to sRGB, then the CCTV look. Flipped, so the read-back's rows
   // (bottom first) come out top first.
   const gradeM = new THREE.ShaderMaterial({
-    uniforms: { tDiffuse: { value: null }, exposure: { value: 1 }, seed: { value: 0 }, flip: { value: 1 }, res: { value: new THREE.Vector2(320, 180) } },
+    uniforms: { tDiffuse: { value: null }, exposure: { value: 1 }, seed: { value: 0 }, flip: { value: 1 }, tv: { value: 0 }, res: { value: new THREE.Vector2(320, 180) } },
     vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
-    fragmentShader: `uniform sampler2D tDiffuse; uniform float exposure, seed, flip; uniform vec2 res; varying vec2 vUv;
+    fragmentShader: `uniform sampler2D tDiffuse; uniform float exposure, seed, flip, tv; uniform vec2 res; varying vec2 vUv;
       vec3 rrt(vec3 v) { vec3 a = v * (v + 0.0245786) - 0.000090537, b = v * (0.983729 * v + 0.4329510) + 0.238081; return a / b; }
       vec3 aces(vec3 c) {
         const mat3 I = mat3(vec3(0.59719, 0.07600, 0.02840), vec3(0.35458, 0.90834, 0.13383), vec3(0.04823, 0.01566, 0.83777));
@@ -176,9 +176,9 @@ function build(ctx) {
         uv = 0.5 + d * (0.97 + 0.08 * dot(d, d));   // a touch of barrel
         vec3 c = srgb(aces(texture2D(tDiffuse, uv).rgb));
         float l = dot(c, vec3(0.299, 0.587, 0.114));
-        c = mix(vec3(l), c, 0.3) * vec3(0.9, 1.0, 0.92);
+        c = mix(mix(vec3(l), c, 0.3) * vec3(0.9, 1.0, 0.92), c, tv);   // tv: a broadcast, in colour and cleaner
         c = (c - 0.5) * 1.15 + 0.53;
-        c += (hash(floor(vUv * res)) - 0.5) * 0.09;
+        c += (hash(floor(vUv * res)) - 0.5) * mix(0.09, 0.03, tv);
         c *= 0.9 + 0.1 * step(0.5, fract(vUv.y * res.y * 0.5));
         c *= smoothstep(0.95, 0.35, length(d * vec2(1.0, 0.8)));
         gl_FragColor = vec4(clamp(c, 0.0, 1.0), 1.0);
@@ -247,9 +247,9 @@ function build(ctx) {
   let n = 0, seed = 0;
   const fresh = new Set(), vp = new THREE.Vector4(), vp0 = new THREE.Vector4();
   const stats = { renders: 0, ms: 0 };
-  function shoot(f, t) {
-    const { cam } = f, F = cam.F, W = f.img.width, H = f.img.height, T = targetsFor(W, H);
-    const sc = F.scene || scene, t0 = performance.now();
+  // A camera's picture into T.hdr (its floor staged as the feed sees it); the exposure to grade it with.
+  function capture(cam, T) {
+    const F = cam.F, sc = F.scene || scene;
     const undo = F.cctv?.stage?.();
     // The office's sky dome follows whoever is looking.
     const skyAt = sc === scene ? ctx.sky.position.clone() : null;
@@ -266,9 +266,16 @@ function build(ctx) {
     for (const o of hide) o.visible = true;
     sc.matrixWorldAutoUpdate = auto;
     if (skyAt) ctx.sky.position.copy(skyAt);
+    renderer.setRenderTarget(prev);
     undo?.();
+    return F.cctv?.exposure ?? F.look?.exposure ?? ctx.officeExposure;   // (a floor whose look changes as you go gives its own)
+  }
+  function shoot(f, t) {
+    const { cam } = f, W = f.img.width, H = f.img.height, T = targetsFor(W, H), t0 = performance.now();
+    const prev = renderer.getRenderTarget();
+    gradeM.uniforms.exposure.value = capture(cam, T);
     gradeM.uniforms.tDiffuse.value = T.hdr.texture;
-    gradeM.uniforms.exposure.value = F.cctv?.exposure ?? F.look?.exposure ?? ctx.officeExposure;   // (a floor whose look changes as you go gives its own)
+    gradeM.uniforms.tv.value = 0;
     gradeM.uniforms.seed.value = (seed = (seed + 1) % 97);
     gradeM.uniforms.res.value.set(W, H);
     const gl = renderer.domElement, pr = renderer.getPixelRatio();
@@ -298,6 +305,19 @@ function build(ctx) {
     renderer.setRenderTarget(prev);
     cam.seen = t;
     stats.renders++; stats.ms += performance.now() - t0;
+  }
+
+  // A feed into a render target of your own (a monitor in the world: floors/world-edge-gallery.js), graded the same, or as
+  // a broadcast (tv 1). cam: one of the cameras (cams), or your own { F: { scene?, cctv?, look? }, eye, n? }.
+  function into(cam, out, t, tv = 0) {
+    const T = targetsFor(out.width, out.height), prev = renderer.getRenderTarget();
+    if (ctx.away?.scene && !cam.F.scene) renderer.shadowMap.needsUpdate = true;   // the office's own frame isn't updating them
+    gradeM.uniforms.exposure.value = capture(cam, T);
+    gradeM.uniforms.tDiffuse.value = T.hdr.texture; gradeM.uniforms.tv.value = tv; gradeM.uniforms.flip.value = 0;
+    gradeM.uniforms.seed.value = (seed = (seed + 1) % 97); gradeM.uniforms.res.value.set(out.width, out.height);
+    renderer.setRenderTarget(out); renderer.render(quadScene, quadCam); renderer.setRenderTarget(prev);
+    cam.seen = t;
+    stats.renders++;
   }
 
   // Once a frame (the office's, or resume()'s own while the 3D view is closed): the floors' watched bits move, then the
@@ -342,5 +362,5 @@ function build(ctx) {
 
   const list = cams.map(({ id, name, n: fl, lim, dead }) => ({ id, name, floor: fl, where: floorOf(fl).title, lim, dead: !!dead }));
   dash.cctv = { cams: list, want, stats };
-  Object.assign(ctx, { cctv: { cams, want, resume, stats } });
+  Object.assign(ctx, { cctv: { cams, want, resume, stats, into } });
 }
