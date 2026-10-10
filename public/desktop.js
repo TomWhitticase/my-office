@@ -195,6 +195,8 @@ export function mountDesktop() {
     .cc-tile .ns, .cc-one .ns { inset: 0; max-width: none; display: grid; place-items: center; color: #9aa59b; letter-spacing: .2em;
       background: repeating-linear-gradient(0deg, #101211 0 2px, #161917 2px 4px); }
     .cc-tile canvas[data-live] ~ .ns, .cc-one canvas[data-live] ~ .ns { display: none; }
+    .cc-tile.ghost .ns::after, .cc-one.ghost .ns::after { content: ''; position: absolute; left: 41%; top: 8%; width: 14%; height: 88%; opacity: .7; filter: blur(.6px);
+      background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 160'%3E%3Cg fill='%23000'%3E%3Cellipse cx='20' cy='12' rx='6' ry='9'/%3E%3Crect x='15' y='22' width='10' height='58' rx='5'/%3E%3Cpath d='M15 26 L7 112 L9 112 L18 30Z M25 26 L33 112 L31 112 L22 30Z M16 76 L13 160 L17 160 L20 78Z M24 76 L27 160 L23 160 L20 78Z'/%3E%3C/g%3E%3C/svg%3E") center / contain no-repeat; }
     .cc-tile.off canvas, .cc-one.off canvas, .cc-tile.off .rc, .cc-one.off .rc { visibility: hidden; }
     .cc-tile.off canvas ~ .ns, .cc-one.off canvas ~ .ns { display: grid; color: #d8ddd8; animation: cc-static .24s steps(3) infinite;
       background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='90'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.4' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .55 0 0 0 0 .5 0 0 0 .8 -.35'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' fill='%23202421'/%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E") 0 0 / 160px 90px; }
@@ -508,6 +510,12 @@ export function mountDesktop() {
   const nudge = (dp, dt) => { const s = camSet(oneId), k = 5 / s.zoom; setCam(oneId, { pan: s.pan + dp * k, tilt: s.tilt + dt * k * 0.6 }); };
   const zoomBy = (d) => setCam(oneId, { zoom: camSet(oneId).zoom * (d > 0 ? 1.25 : 0.8) });
   dash.officeListeners.add(() => syncPower());
+  // Very rarely, a dead camera (the restricted level's) shows a frame of something standing in the static. Not under test.
+  setInterval(() => {
+    if (!camList || !shown('cctv') || navigator.webdriver || Math.random() > 1 / 400) return;
+    const t = oneId ? (dead(oneId) ? ccOne : null) : [...tiles].find(([id, el]) => dead(id) && !el.hidden)?.[1];
+    if (t) { t.classList.add('ghost'); setTimeout(() => t.classList.remove('ghost'), 260); }
+  }, 1000);
   cc.addEventListener('click', (e) => {
     if (!camList) return;
     const b = e.target.closest('button'), tile = e.target.closest('.cc-tile');

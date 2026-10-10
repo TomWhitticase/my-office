@@ -4,8 +4,8 @@
 // more frantic (the lift's chime comes from where the lift isn't; follow the hum instead); a door with the lift arriving
 // behind it; Hale's last note, to you by name: Hale left the code upstairs on purpose, so someone would come down. Last,
 // if you stay long enough, your own name on a wall. Between them, rarer the longer you're down here: a phone ringing in a
-// far room that stops as you get near, wet footprints that aren't yours, and once, at the end of a long view, someone
-// standing, gone when you get closer. Each beat is placed once a visit, ahead of you in rooms already built, seeded by
+// far room that stops as you get near, and wet footprints that aren't yours; and whatever it is that keeps its distance
+// (restricted-creature.js). Each beat is placed once a visit, ahead of you in rooms already built, seeded by
 // the visit; what you've found before comes round sooner next time. Notes, the badge and the tape can be picked up.
 
 import * as THREE from 'three';
@@ -30,8 +30,8 @@ export function installStory(ctx, restr, sound) {
   const { camera, hud, style, hitBox } = ctx;
   const { C, H, T, X, Z, edgeType, SOLID, cellOk, h3 } = restr.grid;
   const owner = () => String(dash.config?.owner || 'You').slice(0, 24);
-  const st = { visit: 0, R: rng(1), walked: 0, t: 0, idx: 0, best: 0, items: [], last: null, prints: null, figure: null,
-    phone: null, rings: 0, ringAt: 0, figSeen: false, printsSeen: false };
+  const st = { visit: 0, R: rng(1), walked: 0, t: 0, idx: 0, best: 0, items: [], last: null, prints: null,
+    phone: null, rings: 0, ringAt: 0, printsSeen: false };
   const story = { cols: () => st.items.flatMap((it) => it.cols), hits: () => st.items.flatMap((it) => it.hits), st };
 
   // ----- papers: drawn once each, the same canvas on the wall and in your hands -----
@@ -85,7 +85,7 @@ export function installStory(ctx, restr, sound) {
         'go back while it still', 'answers. don’t wait', 'for me.', '', '— R'], 40, 70, 31, 50, R, '#1d2c6e');
     });
     PAPERS.frantic = [['SAME ROOM.', '!SAME ROOM'], ['count the doors.', 'then count', 'them again'], ['the EXIT signs', 'point at', 'each other'],
-      ['don’t follow', '!the chime'], ['follow the HUM', 'the hum is', 'the real lift']].map((lines, k) =>
+      ['don’t follow', '!the chime'], ['follow the HUM', 'the hum is', 'the real lift'], ['it’s in the', '!CEILING', 'don’t look away']].map((lines, k) =>
       paper(256, 256, 20 + k, (c, w, h, R) => scrawl(c, lines, 18, 70, 30, 48, R, k === 3 ? '#7a1a12' : '#2a2418'), k % 2 ? '#f3dd6c' : '#efe8d2'));
     PAPERS.scrawl = paper(1024, 256, 30, (c, w, h, R) => { c.clearRect(0, 0, w, h); scrawl(c, ['!IT LEARNED THE CHIME'], 30, 160, 80, 0, R, 'rgba(70,40,18,.82)'); }, 'rgba(0,0,0,0)');
     PAPERS.name = paper(1024, 400, 31, (c, w, h, R) => {
@@ -270,29 +270,17 @@ export function installStory(ctx, restr, sound) {
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx);
     return g;
   };
-  function figure(x, z, d) {   // someone standing at the end of it, facing you
-    const g = new THREE.Group(), m = new THREE.MeshBasicMaterial({ color: '#120e06', fog: true });
-    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.2, 1.05, 4, 10), m); body.position.y = 0.95; body.scale.z = 0.6;
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 10), m); head.position.y = 1.72;
-    g.add(body, head);
-    const fx = -Math.sin(ctx.player.yaw), fz = -Math.cos(ctx.player.yaw);
-    g.position.set(x + fx * d, 0, z + fz * d);
-    restr.root.add(g);
-    st.figure = { g, born: st.t, away: 0 };
-  }
-  function dropFigure() { if (!st.figure) return; restr.root.remove(st.figure.g); st.figure.g.traverse((o) => o.geometry?.dispose()); st.figure = null; }
 
   // ----- each frame (x, z: you, in the floor's own space) -----
   story.enter = () => {
     let v = 0, b = 0;
     try { v = (+localStorage[VISITS] || 0) + 1; localStorage[VISITS] = String(v); b = +localStorage[FOUND] || 0; } catch {}
-    Object.assign(st, { visit: v, R: rng(v * 7919 + 13), walked: 0, t: 0, idx: 0, best: b, last: null, rings: 0, figSeen: false, printsSeen: false });
+    Object.assign(st, { visit: v, R: rng(v * 7919 + 13), walked: 0, t: 0, idx: 0, best: b, last: null, rings: 0, printsSeen: false });
     st.ringAt = 90 + st.R() * 90;
   };
   story.leave = () => {
     for (const it of [...st.items]) remove(it);
     if (st.prints) { restr.root.remove(st.prints.m); st.prints.m.geometry.dispose(); st.prints = null; }
-    dropFigure();
     st.phone?.h?.stop(); st.phone = null;
     reader.close();
   };
@@ -330,17 +318,6 @@ export function installStory(ctx, restr, sound) {
     // wet footprints that aren't yours, once, after the badge
     if (!st.printsSeen && st.idx >= 3 && st.t % 2 < dt) { const clear = ahead(x, z, 14); if (clear > 8) { footprints(x, z, clear); st.printsSeen = true; } }
     if (st.prints && Math.hypot(st.prints.x - x, st.prints.z - z) > 40) { restr.root.remove(st.prints.m); st.prints.m.geometry.dispose(); st.prints = null; }
-    // someone at the end of a long view, once a visit, late on: gone when you get closer, look away, or after a while
-    if (!st.figSeen && (st.walked > 430 || st.idx >= 6) && st.R() < dt / 60) {
-      const clear = ahead(x, z, 30);
-      if (clear > 20) { figure(x, z, Math.min(clear - 1.5, 25)); st.figSeen = true; }
-    }
-    if (st.figure) {
-      const g = st.figure.g, dx = g.position.x - x, dz = g.position.z - z, d = Math.hypot(dx, dz), look = (dx * fx + dz * fz) / d;
-      g.rotation.y = Math.atan2(-dx, -dz);
-      st.figure.away = look < 0.8 ? st.figure.away + dt : 0;
-      if (d < 12 || st.figure.away > 0.3 || st.t - st.figure.born > 8) dropFigure();
-    }
   };
 
   // ----- picking things up: the paper (or the badge, or the tape playing) close up -----

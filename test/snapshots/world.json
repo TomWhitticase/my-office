@@ -5909,21 +5909,21 @@
    "sorted": "4918b7c3"
   },
   "restricted": {
-   "objects": 41,
+   "objects": 52,
    "types": {
     "Scene": 1,
     "HemisphereLight": 1,
-    "Group": 6,
+    "Group": 9,
     "PointLight": 6,
-    "Mesh": 25,
+    "Mesh": 33,
     "PerspectiveCamera": 2
    },
    "actions": {
     "liftcall": 1,
     "liftpanel": 1
    },
-   "ordered": "c30840b5",
-   "sorted": "33012db9"
+   "ordered": "6473153a",
+   "sorted": "6e7c2d8e"
   }
  }
 }

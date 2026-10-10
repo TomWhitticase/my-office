@@ -221,6 +221,15 @@ export const POSES = [
     await o.eval(() => window.__office.ctx.restr.story.read('tally'));
     await o.step(4);
   }],
+  ['restricted-creature', async (o) => {   // out of the car, looking down the long corridor: it, at the far end, under the dimmed lights
+    await arrive(o);
+    await dusk(o);
+    await ride(o, -3);
+    const z = await o.eval(() => window.__office.mine.L.z);
+    await stand(o, 16.5, z, { x: 0, y: 1.6, z });
+    await o.eval(() => window.__office.ctx.restr.creature.force('far', -4, 0));
+    await o.step(20);
+  }],
   ['task-board', async (o) => {   // over to the task board in my office, in use: the fixture board, the layer over it
     await arrive(o);
     await stand(o, 16.7, -11.5, { x: 16.7, y: 1.9, z: -14.9 });
