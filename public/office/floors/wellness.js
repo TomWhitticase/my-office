@@ -299,20 +299,33 @@ function build(ctx) {
 
   // ----- doors -----
   // Sliding glass leaves in the doorways that open as you come within reach and close behind you (no colliders: they're
-  // always open by the time you get there).
+  // always open by the time you get there). One leaf running into the wall on its -x side, or with `split` two meeting in
+  // the middle and parting (where there's little wall either side); `lining` (a depth) frames a solid wall's doorway in
+  // dark steel, as the spa's; `off` hangs the leaves that far in front of a glass wall on a track, clear of its panes.
   const doors = [];
-  W.slidingDoor = (axis, fixed, a, b, { m = M.glass, frame = M.black, name = 'Door' } = {}) => {
-    const w = b - a, g = new THREE.Group(), leaf = new THREE.Group(), DH = 2.25;
+  W.slidingDoor = (axis, fixed, a, b, { m = M.glass, frame = M.black, name = 'Door', split = false, lining = 0, off = 0 } = {}) => {
+    const w = b - a, g = new THREE.Group(), DH = 2.25;
     g.position.set(axis === 'x' ? (a + b) / 2 : fixed, 0, axis === 'x' ? fixed : (a + b) / 2);
     if (axis === 'z') g.rotation.y = Math.PI / 2;
+    const leafOf = (lw, pull) => {   // a leaf lw wide, its pull at x = pull
+      const leaf = new THREE.Group(), k = kit();
+      k.box(m, lw - 0.02, DH - 0.04, 0.02, 0, DH / 2, 0);
+      for (const s of [-1, 1]) k.box(frame, 0.035, DH - 0.02, 0.035, s * (lw / 2 - 0.02), DH / 2, 0);
+      k.box(frame, lw, 0.035, 0.035, 0, DH - 0.02, 0); k.box(frame, lw, 0.05, 0.035, 0, 0.025, 0);
+      for (const s of [-1, 1]) k.box(M.brass, 0.025, 0.7, 0.03, pull, 1.05, s * 0.04);
+      k.flush(leaf, false); leaf.position.z = off; g.add(leaf);
+      return leaf;
+    };
+    const leaves = split ? [leafOf(w / 2, w / 4 - 0.1), leafOf(w / 2, -w / 4 + 0.1)] : [leafOf(w, w / 2 - 0.12)];
     const k = kit();
-    k.box(m, w - 0.02, DH - 0.04, 0.02, 0, DH / 2, 0);
-    for (const s of [-1, 1]) k.box(frame, 0.035, DH - 0.02, 0.035, s * (w / 2 - 0.02), DH / 2, 0);
-    k.box(frame, w, 0.035, 0.035, 0, DH - 0.02, 0); k.box(frame, w, 0.05, 0.035, 0, 0.025, 0);
-    k.box(M.brass, 0.025, 0.7, 0.03, w / 2 - 0.12, 1.05, 0.04); k.box(M.brass, 0.025, 0.7, 0.03, w / 2 - 0.12, 1.05, -0.04);
-    k.flush(leaf, false);
-    g.add(leaf); G.add(g);
-    const d = { name, g, leaf, w, k: 0, at: { x: g.position.x, z: g.position.z } };
+    if (lining) {
+      for (const s of [-1, 1]) k.box(M.black, 0.05, DH, lining, s * (w / 2 - 0.025), DH / 2, 0);
+      k.box(M.black, w, 0.08, lining, 0, DH + 0.04, 0);
+    }
+    if (off) k.box(M.black, w * 2 + 0.1, 0.06, 0.05, split ? 0 : -w / 2, DH + 0.03, off);
+    k.flush(g, false);
+    G.add(g);
+    const d = { name, g, leaves, w, split, k: 0, at: { x: g.position.x, z: g.position.z } };
     doors.push(d);
     return d;
   };
@@ -344,13 +357,21 @@ function build(ctx) {
   };
   W.hinged = hinged;
   for (const [axis, fixed, a, b] of [['x', 3.5, 13.6, 15.2], ['z', 6, 4.6, 6.2], ['x', -3.5, -12.6, -11.2], ['z', -8, -12.8, -11.4], ['z', 4, -10.65, -8.6]]) W.slidingDoor(axis, fixed, a, b);
+  // The rest of the doorways: a pair parting in the pool hall's glass (hung on its side of it), a pair at each end of the
+  // passage between the changing rooms (whose doors leave no room for one leaf to run into the wall), the spa's from the
+  // way through.
+  W.slidingDoor('x', 3.5, -1.2, 0.6, { split: true, off: 0.07 });
+  W.slidingDoor('x', -3.5, -1.3, 0.3, { split: true, lining: T + 0.06 }); W.slidingDoor('x', -7, -1.4, 0.4, { split: true, lining: T + 0.06 });
+  W.slidingDoor('x', -3.5, 6.4, 8.0, { lining: T + 0.06 });
   function doorFx(dt) {
     const p = ctx.player;
     for (const d of doors) {
       const near = Math.hypot(p.x - d.at.x, p.z - d.at.z) < 2.1, was = d.k;
       d.k = clamp(d.k + (near ? dt : -dt) / 0.7, 0, 1);
       if ((was === 0 && d.k > 0) || (was === 1 && d.k < 1)) W.sound?.door(d.at);
-      d.leaf.position.x = -ease(d.k) * (d.w - 0.08);
+      const e = ease(d.k);
+      if (d.split) { d.leaves[0].position.x = -d.w / 4 - e * (d.w / 2 - 0.06); d.leaves[1].position.x = d.w / 4 + e * (d.w / 2 - 0.06); }
+      else d.leaves[0].position.x = -e * (d.w - 0.08);
     }
     for (const d of hinged) {
       if (d.k === d.to) continue;
