@@ -313,11 +313,18 @@ function build(ctx) {
     const r = d.r0 + (open ? d.swing * Math.PI / 2 : 0), tx = d.hx + Math.cos(r) * d.W, tz = d.hz - Math.sin(r) * d.W;
     Object.assign(d.box, { minX: Math.min(d.hx, tx) - 0.04, maxX: Math.max(d.hx, tx) + 0.04, minZ: Math.min(d.hz, tz) - 0.04, maxZ: Math.max(d.hz, tz) + 0.04 });
   };
-  W.hingedDoor = ({ name, hx, hz, r0 = 0, swing, w = 0.98, m = M.oak }) => {
+  // `win`: a small window in the leaf, [x0, x1, y0, y1] along it and up from the floor.
+  W.hingedDoor = ({ name, hx, hz, r0 = 0, swing, w = 0.98, m = M.oak, win = null }) => {
     const d = { name, k: 0, to: 0, r0, swing, W: w, hx, hz, pivot: new THREE.Group(), box: {} }, DH = 2.2;
     d.pivot.position.set(hx, 0, hz); d.pivot.rotation.y = r0; G.add(d.pivot);
     const k = kit();
-    k.box(m, w - 0.02, DH, 0.045, w / 2, DH / 2 + 0.01, 0);
+    if (!win) k.box(m, w - 0.02, DH, 0.045, w / 2, DH / 2 + 0.01, 0);
+    else {
+      const [a, b, y0, y1] = win, x0 = 0.01, x1 = w - 0.01;
+      k.box(m, x1 - x0, y0 - 0.01, 0.045, (x0 + x1) / 2, (y0 + 0.01) / 2, 0); k.box(m, x1 - x0, DH + 0.01 - y1, 0.045, (x0 + x1) / 2, (y1 + DH + 0.01) / 2, 0);
+      k.box(m, a - x0, y1 - y0, 0.045, (x0 + a) / 2, (y0 + y1) / 2, 0); k.box(m, x1 - b, y1 - y0, 0.045, (b + x1) / 2, (y0 + y1) / 2, 0);
+      k.box(M.glass, b - a, y1 - y0, 0.012, (a + b) / 2, (y0 + y1) / 2, 0);
+    }
     for (const s of [-1, 1]) { k.box(M.brass, 0.025, 0.42, 0.025, w - 0.12, 1.05, s * 0.05); k.box(M.brass, 0.025, 0.025, 0.05, w - 0.12, 1.24, s * 0.035); }
     k.flush(d.pivot);
     W.hits.push(hitBox(d.pivot, w, DH, 0.12, w / 2, DH / 2, 0, { action: 'door', door: d, reach: 3.2 }));

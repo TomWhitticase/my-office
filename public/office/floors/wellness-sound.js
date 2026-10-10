@@ -1,7 +1,7 @@
 // The wellness floor's sounds (floors/wellness.js): the pool lapping and a long echo off the water and glass in the pool
 // hall; a splash going in, strokes as you swim, everything muffled under the water; your steps on the stone; the gym's
 // music faint from its speakers, a treadmill's whirr, the bike's freewheel, the rower's flywheel, plates clanking; the
-// sauna's stove crackling and the hiss of löyly; the steam room's hiss; the jacuzzi bubbling; a shower running; the blender;
+// sauna's stove crackling, the hiss of löyly and its benches creaking; the steam room's hiss and its generator's bursts; the jacuzzi bubbling; a shower running; the blender;
 // lockers; the doors; in the float pod, near silence and a slow heartbeat and breath.
 // All synthesised here, through the office's own audio (sounds.js `audio`), so its volume and M apply. Positions are
 // the floor's own (x, z; y over its boards).
@@ -68,6 +68,19 @@ export function makeSound(ctx, W) {
     const hp = biq('hp', 1600, 0.5), lo = biq('lp', 300, 0.7), D = 6;
     return make(D, (t) => { const s = 0.55 + 0.45 * Math.sin(TAU * t / D) ** 2; return hp(nz()) * s + lo(nz()) * 0.6 * s; });
   }
+  function pulse() {   // the steam generator's burst: a rush of hiss that swells and falls away (2.6 s)
+    const hp = biq('hp', 1800, 0.6), bp = biq('bp', 3600, 0.9), lo = biq('lp', 220, 0.7);
+    return make(2.6, (t) => { const n = nz(), e = Math.min(1, t / 0.18) * Math.exp(-Math.max(0, t - 0.5) / 0.6); return (hp(n) + bp(n) * 0.5 + lo(nz()) * 0.8) * e; });
+  }
+  function creak() {   // a cedar board taking weight: stick-slip ticks through a woody resonance, rising and falling
+    const f0 = rnd(150, 260), r1 = biq('bp', f0 * 2.1, 9), r2 = biq('bp', f0 * 4.3, 7), D = rnd(0.35, 0.75), rate = rnd(22, 45);
+    let ph = 0;
+    return make(D + 0.08, (t) => {
+      ph += rate * (1 + 0.7 * Math.sin(Math.PI * Math.min(1, t / D))) / A.ctx.sampleRate;
+      const x = ph % 1 < 0.025 ? nz() * 3 : nz() * 0.02;
+      return (r1(x) + r2(x) * 0.6) * Math.sin(Math.PI * Math.min(1, t / D));
+    });
+  }
   function rain() {   // a rain shower: dense droplets on stone (3 s)
     const hp = biq('hp', 900, 0.6), bp = biq('bp', 3200, 0.9);
     return make(3, (t) => nz() * 0.15 + hp(nz()) * 0.6 + bp(nz()) * (Math.random() < 0.02 ? 3 : 0.4));
@@ -129,7 +142,7 @@ export function makeSound(ctx, W) {
   }
   function build() {
     const n = (k, f) => Array.from({ length: k }, f);
-    return { lap: lap(), splash: splash(true), dip: splash(false), stroke: n(4, stroke), clank: n(3, clank), hiss: hiss(), crackle: n(5, crackle),
+    return { lap: lap(), splash: splash(true), dip: splash(false), stroke: n(4, stroke), clank: n(3, clank), hiss: hiss(), crackle: n(5, crackle), pulse: pulse(), creak: n(3, creak),
       steam: steamLoop(), rain: rain(), whirr: whirr(), fly: fly(), thud: n(3, thud), blend: blend(), beep: beep(), music: music(), bubbles: bubbles(), calm: calm() };
   }
 
@@ -219,6 +232,8 @@ export function makeSound(ctx, W) {
     clank(x, y, z, gain = 0.4) { if (ready()) shot(pick(B.clank), x, y, z, gain, { rate: rnd(0.92, 1.08) }); },
     thud(x, z, gain = 0.2) { if (ready()) shot(pick(B.thud), x, 0.2, z, gain, { rate: rnd(0.9, 1.1) }); },
     hiss(x, z) { if (ready()) shot(B.hiss, x, 0.8, z, 0.5, { rate: rnd(0.95, 1.05) }); },
+    pulse(x, z) { if (ready()) shot(B.pulse, x, 0.35, z, 0.4, { rate: rnd(0.95, 1.05) }); },
+    creak(x, y, z) { if (ready()) shot(pick(B.creak), x, y, z, 0.1, { rate: rnd(0.9, 1.1) }); },
     blend(x, z) { if (ready()) shot(B.blend, x, 1.1, z, 0.35); },
     beep(x, y, z) { if (ready()) shot(B.beep, x, y, z, 0.12, { ref: 1 }); },
     door(at) { if (ready()) shot(office('slide'), at.x, 1.2, at.z, 0.12, { rate: rnd(1.1, 1.25) }); },

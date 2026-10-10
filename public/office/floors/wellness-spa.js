@@ -6,8 +6,10 @@
 // through, a juice bar (click the blender); on the west windows, a yoga studio behind glass and a lounge of daybeds.
 
 import * as THREE from 'three';
-import { clamp, FONT, makeCanvas, mat } from '../util.js';
+import { clamp, FONT, makeCanvas, mat, rng } from '../util.js';
 import { causticMaterial } from './wellness-pool.js';
+
+const AMBER = new THREE.Color('#ffb070');
 
 export function installSpa(ctx, W) {
   const { G, M, kit, solid, R } = W, { toast, camera } = ctx;
@@ -57,8 +59,8 @@ export function installSpa(ctx, W) {
   const m4 = new THREE.Matrix4();
   function puff(x, y, z, o = {}) {
     if (puffs.length >= NS) puffs.shift();
-    puffs.push({ x, y, z, vx: (Math.random() - 0.5) * 0.15, vy: o.vy ?? 0.35, vz: (Math.random() - 0.5) * 0.15, age: 0, life: o.life ?? 3, size: o.size ?? 0.4,
-      grow: o.grow ?? 0.5, a: o.a ?? 0.5, seed: Math.random(), ceil: o.ceil ?? 3.2 });
+    puffs.push({ x, y, z, vx: o.vx ?? (Math.random() - 0.5) * 0.15, vy: o.vy ?? 0.35, vz: o.vz ?? (Math.random() - 0.5) * 0.15, age: 0, life: o.life ?? 3, size: o.size ?? 0.4,
+      grow: o.grow ?? 0.5, a: o.a ?? 0.5, seed: Math.random(), ceil: o.ceil ?? 3.2, drag: o.drag ?? 0 });
   }
   W.puff = puff;
   function steamFx(dt) {
@@ -68,6 +70,7 @@ export function installSpa(ctx, W) {
       p.age += dt;
       if (p.age > p.life) { puffs.splice(i, 1); continue; }
       p.x += p.vx * dt; p.z += p.vz * dt; p.y = Math.min(p.ceil, p.y + p.vy * dt);
+      if (p.drag) { const f = Math.exp(-p.drag * dt); p.vx *= f; p.vz *= f; }
       if (p.y >= p.ceil) { p.vx *= 1.01; p.vz *= 1.01; }
     }
     for (const p of puffs) {
@@ -79,27 +82,94 @@ export function installSpa(ctx, W) {
     steam.count = n; steam.instanceMatrix.needsUpdate = true; iData.needsUpdate = true;
   }
 
+  // ----- standing fog: the steam room's (thick by the floor and under the ceiling) and the sauna's faint heat haze -----
+  // Big soft sprites that stay put and drift slowly, one instanced mesh for both rooms; each kept half its size clear of
+  // the walls, floor and ceiling (a billboard cutting through a wall shows a hard edge), faded as you come up to one.
+  const bank = [], bankR = rng(4646 + 7);
+  const NB = 44, bankGeo = new THREE.PlaneGeometry(1, 1), bData = new THREE.InstancedBufferAttribute(new Float32Array(NB * 4), 4);
+  bankGeo.setAttribute('iData', bData);
+  const bankM = new THREE.ShaderMaterial({
+    uniforms: { time: W.U.time }, transparent: true, depthWrite: false,
+    vertexShader: `attribute vec4 iData; varying vec2 vUv; varying vec4 vD; varying float vNear;
+      void main() { vec4 mv = modelViewMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0); mv.xy += position.xy * iData.y;
+        vNear = smoothstep(0.15, 0.9, -mv.z / iData.y); gl_Position = projectionMatrix * mv; vUv = uv; vD = iData; }`,
+    fragmentShader: `uniform float time; varying vec2 vUv; varying vec4 vD; varying float vNear;
+      void main() {
+        vec2 p = vUv - 0.5; float r = length(p) * 2.0, s = fract(vD.z);
+        float n = 0.6 + 0.4 * sin(p.x * 6.0 + s * 9.0 + time * 0.23) * sin(p.y * 5.0 - s * 7.0 + time * 0.17);
+        vec3 c = mix(vec3(0.92, 0.95, 0.95), vec3(1.0, 0.78, 0.5), step(1.0, vD.z));   // white steam; amber haze
+        gl_FragColor = vec4(c, (1.0 - smoothstep(0.05, 1.0, r)) * n * vD.x * vD.w * vNear);
+      }`,
+  });
+  const fogBank = new THREE.InstancedMesh(bankGeo, bankM, NB);
+  fogBank.frustumCulled = false; fogBank.layers.set(1); fogBank.renderOrder = 3; fogBank.count = 0; G.add(fogBank);
+  const ST = { x0: 10.8, x1: 15.6, z0: -14.9, z1: -10.6 };
+  const SA = { x0: 15.6, x1: 19.9, z0: -14.9, z1: -10.6 };
+  {
+    // The steam room: a layer on the floor, a layer under the ceiling (2.55), thinner between.
+    for (let i = 0; i < 34; i++) {
+      const band = i < 14 ? 0 : i < 26 ? 2 : 1, size = band === 1 ? 1.5 + bankR() * 0.4 : 0.95 + bankR() * 0.35, h = size / 2;
+      const y = band === 0 ? h + bankR() * 0.15 : band === 2 ? 2.55 - h - bankR() * 0.1 : 1.0 + bankR() * 0.5;
+      bank.push({ room: 0, x: ST.x0 + h + 0.05 + bankR() * (ST.x1 - ST.x0 - size - 0.1), y, z: ST.z0 + 0.7 + h + bankR() * (ST.z1 - ST.z0 - 0.7 - size - 0.1),
+        size, a: band === 1 ? 0.22 : 0.42, ph: bankR() * 6.28, seed: bankR() * 0.99 });
+    }
+    // The sauna: a faint warm haze under its lowered ceiling (2.45) and over the stove.
+    for (let i = 0; i < 10; i++) {
+      const size = 0.8 + bankR() * 0.3, h = size / 2, overStove = i < 3;
+      bank.push({ room: 1, x: overStove ? 19.0 - bankR() * 0.3 : SA.x0 + 1.4 + h + bankR() * (SA.x1 - SA.x0 - 1.5 - size), y: overStove ? 1.35 + i * 0.25 : 2.45 - h - bankR() * 0.05,
+        z: overStove ? -11.5 - bankR() * 0.3 : SA.z0 + 0.2 + h + bankR() * (SA.z1 - SA.z0 - 0.4 - size), size, a: overStove ? 0.16 : 0.12, ph: bankR() * 6.28, seed: 1 + bankR() * 0.99 });
+    }
+  }
+  function bankFx(t, steamK, hazeK) {
+    let n = 0;
+    for (const b of bank) {
+      const k = b.room ? hazeK : steamK;
+      if (k < 0.01) continue;
+      // A slow drift, never further than keeps it clear of the walls.
+      const dx = Math.sin(t * 0.07 + b.ph) * 0.12, dz = Math.cos(t * 0.05 + b.ph * 1.3) * 0.12, dy = Math.sin(t * 0.11 + b.ph) * 0.04;
+      m4.makeTranslation(b.x + dx, b.y + dy, b.z + dz); fogBank.setMatrixAt(n, m4);
+      bData.setXYZW(n, k, b.size, b.seed, b.a); n++;
+    }
+    fogBank.count = n; fogBank.instanceMatrix.needsUpdate = true; bData.needsUpdate = true;
+  }
+
   // ----- the sauna -----
   // Cedar inside: the shared wall, the south wall, a lowered ceiling and duckboards; two tiers of benches along the west
   // wall facing the window; the stove by the door, a bucket and ladle; a dial on the south wall.
-  const SA = { x0: 15.6, x1: 19.9, z0: -14.9, z1: -10.6 }, stove = { x: 19.1, z: -11.35 };
-  const sauna = { temp: 82, hum: 12, heat: 0, stove, inside: false };
+  const stove = { x: 19.1, z: -11.35 };
+  const sauna = { temp: 82, hum: 12, heat: 0, stove, inside: false, creakAt: 6, burst: 0,
+    hotM: new THREE.MeshStandardMaterial({ color: '#4a2c20', emissive: '#ff5a1a', emissiveIntensity: 0.6, roughness: 0.9 }) };
   W.sauna = sauna;
   {
     cedarBox(SA.x1 - SA.x0, 3.3, 0.04, (SA.x0 + SA.x1) / 2, 1.65, SA.z0 + 0.12);   // over the south wall
     cedarBox(SA.x1 - SA.x0, 0.06, SA.z1 - SA.z0, (SA.x0 + SA.x1) / 2, 2.45, (SA.z0 + SA.z1) / 2);   // the lowered ceiling
     cedarBox(SA.x1 - SA.x0 - 0.1, 0.04, SA.z1 - SA.z0 - 0.15, (SA.x0 + SA.x1) / 2, 0.02, (SA.z0 + SA.z1) / 2);
-    // Benches: upper at the wall, lower in front, a backrest board with warm light behind it.
+    // Benches in two tiers: slatted tops on bearers, the upper one's front boarded with gaps, slatted backrests on the wall
+    // with warm light behind them.
     const BZ = -12.95, BL = 3.5;   // the benches' middle and length, clear of the door
-    cedarBox(0.55, 0.06, BL, SA.x0 + 0.38, 0.95, BZ); cedarBox(0.55, 0.92, 0.05, SA.x0 + 0.38, 0.46, BZ - BL / 2 + 0.03);
-    cedarBox(0.55, 0.06, BL, SA.x0 + 0.9, 0.48, BZ); cedarBox(0.05, 0.45, BL, SA.x0 + 1.17, 0.24, BZ);
-    cedarBox(0.04, 0.35, BL, SA.x0 + 0.13, 1.35, BZ);
+    const slats = (x0, x1, y) => {   // boards along the bench, 9 cm with 1.5 cm gaps, on bearers every 0.8 m
+      for (let x = x0 + 0.05; x < x1 - 0.04; x += 0.105) cedarBox(0.09, 0.035, BL, x, y, BZ);
+      for (let z = BZ - BL / 2 + 0.15; z < BZ + BL / 2; z += 0.8) cedarBox(x1 - x0 - 0.02, 0.05, 0.05, (x0 + x1) / 2, y - 0.045, z);
+    };
+    slats(SA.x0 + 0.1, SA.x0 + 0.66, 0.95); cedarBox(0.55, 0.92, 0.05, SA.x0 + 0.38, 0.46, BZ - BL / 2 + 0.03);
+    for (let y = 0.6; y < 0.92; y += 0.11) cedarBox(0.03, 0.08, BL, SA.x0 + 0.65, y, BZ);   // the step's riser
+    slats(SA.x0 + 0.62, SA.x0 + 1.18, 0.48);
+    for (let y = 0.06; y < 0.44; y += 0.11) cedarBox(0.03, 0.08, BL, SA.x0 + 1.17, y, BZ);
+    for (const y of [1.24, 1.37, 1.5]) cedarBox(0.035, 0.08, BL, SA.x0 + 0.13, y, BZ);
     k.box(glow('#ffb35c', 1.6), 0.02, 0.02, BL - 0.1, SA.x0 + 0.11, 1.17, BZ); k.box(glow('#ffb35c', 1.2), 0.02, 0.02, BL - 0.1, SA.x0 + 0.6, 0.9, BZ);
     solid(SA.x0 + 0.62, BZ, 1.15, BL);
     // The stove: black steel under a heap of stones, a cedar guard round it.
     k.box(M.black, 0.55, 0.7, 0.45, stove.x, 0.35, stove.z); k.box(M.black, 0.6, 0.04, 0.5, stove.x, 0.72, stove.z);
+    // Stones, the ones down in the heap glowing (brighter with each ladle), and the firebox's slot under them.
     const stoneM = mat('#6b6762', { roughness: 0.95 });
-    for (let i = 0; i < 30; i++) { const r = 0.05 + R() * 0.04; k.geo(stoneM, new THREE.IcosahedronGeometry(r, 0).translate(stove.x + (R() - 0.5) * 0.45, 0.78 + R() * 0.16, stove.z + (R() - 0.5) * 0.36)); }
+    for (let i = 0; i < 30; i++) {
+      const r = 0.05 + R() * 0.04, x = stove.x + (R() - 0.5) * 0.45, y = 0.78 + R() * 0.16, z = stove.z + (R() - 0.5) * 0.36;
+      k.geo(i % 3 === 0 && y < 0.88 ? sauna.hotM : stoneM, new THREE.IcosahedronGeometry(r, 0).translate(x, y, z));
+    }
+    k.geo(sauna.hotM, new THREE.BoxGeometry(0.3, 0.035, 0.01).toNonIndexed().translate(stove.x - 0.02, 0.5, stove.z - 0.226));   // (merged with the stones: unindexed too)
+    // A wall lamp in the corner behind a cedar louvre: the low amber light.
+    k.box(glow('#ffa64d', 2.2), 0.04, 0.3, 0.3, SA.x0 + 0.06, 2.05, SA.z0 + 0.35);
+    for (let y = 1.92; y < 2.2; y += 0.06) cedarBox(0.03, 0.025, 0.36, SA.x0 + 0.12, y, SA.z0 + 0.35);
     for (const [w, d, x, z] of [[0.04, 0.7, stove.x - 0.42, stove.z], [0.75, 0.04, stove.x - 0.05, stove.z - 0.4]]) cedarBox(w, 0.85, d, x, 0.43, z);
     solid(stove.x, stove.z, 0.9, 0.85);
     // Bucket and ladle on the lower bench's end.
@@ -130,11 +200,45 @@ export function installSpa(ctx, W) {
     c.textAlign = 'left'; dial.tex.needsUpdate = true;
   }
   paintDial();
+  // A sand timer on the wall beside it (15 minutes): click to turn it over.
+  const sand = { k: 0.6, flip: 0, g: new THREE.Group(), hg: new THREE.Group() };
+  {
+    const { g, hg } = sand, sk = kit(), H = 0.11, Rb = 0.045, sandM = mat('#d9b77a', { roughness: 1 });
+    g.position.set(17.45, 1.62, SA.z0 + 0.2); G.add(g); g.add(hg);
+    sk.cyl(M.cedar, 0.07, 0.07, 0.02, 0, H + 0.01, 0, 16); sk.cyl(M.cedar, 0.07, 0.07, 0.02, 0, -H - 0.01, 0, 16);
+    for (let i = 0; i < 3; i++) { const a = i * 2.094; sk.cyl(M.brass, 0.005, 0.005, 2 * H, Math.cos(a) * 0.058, 0, Math.sin(a) * 0.058, 6); }
+    sk.flush(hg);
+    const bulbs = new THREE.Mesh(mergeBulbs(Rb, H), M.glass); hg.add(bulbs);
+    sand.top = new THREE.Mesh(new THREE.ConeGeometry(Rb * 0.92, H * 0.92, 16).rotateX(Math.PI).translate(0, H * 0.46, 0), sandM); hg.add(sand.top);
+    sand.bot = new THREE.Mesh(new THREE.ConeGeometry(Rb * 0.95, H * 0.6, 16).translate(0, H * 0.3, 0), sandM); sand.bot.position.y = -H; hg.add(sand.bot);
+    sand.stream = new THREE.Mesh(new THREE.CylinderGeometry(0.0015, 0.0015, H, 4).translate(0, -H / 2, 0), sandM); hg.add(sand.stream);
+    W.hits.push(ctx.hitBox(g, 0.16, 0.26, 0.12, 0, 0, 0, { action: 'wellness-timer', reach: 2.6 }));
+    sand.place = () => {
+      const a = Math.cbrt(Math.max(sand.k, 1e-4)), b = Math.cbrt(Math.max(1 - sand.k, 1e-4));
+      sand.top.scale.setScalar(a); sand.bot.scale.set(b, b, b);
+      sand.stream.visible = sand.k > 0.002 && !sand.flip; sand.stream.scale.y = 1 - 0.6 * b;
+    };
+    sand.place();
+  }
+  function mergeBulbs(r, h) {   // two cones of glass meeting at a narrow neck
+    const a = new THREE.CylinderGeometry(r, 0.004, h, 16, 1, true).translate(0, h / 2, 0), b = new THREE.CylinderGeometry(0.004, r, h, 16, 1, true).translate(0, -h / 2, 0);
+    const g = new THREE.BufferGeometry(), pa = [...a.attributes.position.array, ...b.attributes.position.array], na = [...a.attributes.normal.array, ...b.attributes.normal.array];
+    const off = a.attributes.position.count, ix = [...a.index.array, ...b.index.array.map((i) => i + off)];
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pa, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(na, 3)); g.setIndex(ix);
+    return g;
+  }
+  ctx.action('wellness-timer', {
+    hover: () => `<b>Sand timer</b><div class="m">${sand.k > 0.002 ? `About ${Math.max(1, Math.round(sand.k * 15))} min of sand left` : 'Run out'}</div><div class="k">Click to turn it over</div>`,
+    click: () => { if (!sand.flip) sand.flip = 0.001; },
+  });
   ctx.action('wellness-ladle', {
     hover: () => `<b>Löyly</b><div class="m">${Math.round(sauna.temp)} °C · ${Math.round(sauna.hum)} % humidity</div><div class="k">Click to throw a ladle of water on the stones</div>`,
     click: () => {
       sound.hiss(stove.x, stove.z);
-      for (let i = 0; i < 9; i++) puff(stove.x + (Math.random() - 0.5) * 0.3, 0.95, stove.z + (Math.random() - 0.5) * 0.3, { vy: 0.5 + Math.random() * 0.4, life: 3.5 + Math.random() * 2, size: 0.35, grow: 0.5, a: 0.85, ceil: 2.35 });
+      // A burst off the stones that hits the ceiling and spreads along it (and a second wave as the water reaches the bottom).
+      const burst = () => { for (let i = 0; i < 9; i++) puff(stove.x + (Math.random() - 0.5) * 0.3, 0.95, stove.z + (Math.random() - 0.5) * 0.3, { vy: 0.6 + Math.random() * 0.5, life: 3.5 + Math.random() * 2, size: 0.35, grow: 0.55, a: 0.85, ceil: 2.3,
+        vx: -0.25 - Math.random() * 0.3, vz: (Math.random() - 0.5) * 0.4, drag: 0.4 }); };
+      burst(); sauna.burst = 0.45; sauna.again = burst;
       sauna.temp = Math.min(104, sauna.temp + 6); sauna.hum = Math.min(60, sauna.hum + 14); sauna.heat = Math.min(1, sauna.heat + 0.55);
       toast(sauna.temp > 98 ? 'Löyly · it’s fierce in here now' : 'Löyly · a wave of heat rolls down from the ceiling');
     },
@@ -143,8 +247,8 @@ export function installSpa(ctx, W) {
   // ----- the steam room -----
   // Mosaic everywhere inside (a skin over the cedar wall and the south wall, a lowered ceiling with a field of tiny lights),
   // tiled benches round two walls, a brass nozzle low down that breathes steam out every so often.
-  const ST = { x0: 10.8, x1: 15.6, z0: -14.9, z1: -10.6 }, nozzle = { x: 15.45, z: -12.4 };
-  const steamRoom = { fog: 0.35, puff: 0, next: 4, inside: false };
+  const nozzle = { x: 15.45, z: -12.4 };
+  const steamRoom = { fog: 0.35, puff: 0, next: 4, inside: false, dense: 0.7, open: false };
   W.steam = steamRoom;
   {
     tiled(0.04, 3.3, ST.z1 - ST.z0, ST.x1 - 0.08, 1.65, (ST.z0 + ST.z1) / 2); tiled(ST.x1 - ST.x0, 3.3, 0.04, (ST.x0 + ST.x1) / 2, 1.65, ST.z0 + 0.12);
@@ -167,8 +271,32 @@ export function installSpa(ctx, W) {
     }
   }
   // The sauna's and steam room's doors: cedar-framed glass, and frameless fogged glass.
-  W.slidingDoor('x', -10.6, 17.3, 18.1, { frame: M.cedar });
-  W.slidingDoor('x', -10.6, 12.8, 13.6, { m: M.fog, frame: M.chrome });
+  W.hingedDoor({ name: 'Sauna door', hx: 18.1, hz: -10.6, r0: Math.PI, swing: 1, w: 0.8, m: M.cedar, win: [0.2, 0.6, 1.2, 1.75] });   // opens out, a small window in it
+  const steamDoor = W.slidingDoor('x', -10.6, 12.8, 13.6, { m: M.fog, frame: M.chrome });
+
+  // The steam room's glass, fogged, with condensation: beads all over it and drops that gather and run down, leaving
+  // clearer trails that mist over again (an alpha map on the fog glass, repainted a few times a second while you're near).
+  const cond = makeCanvas(256, 256), drops = [], beads = [];
+  for (let i = 0; i < 700; i++) beads.push([bankR() * 256, bankR() * 256, 0.6 + bankR() * 1.4, 0.3 + bankR() * 0.5]);
+  cond.tex.wrapS = cond.tex.wrapT = THREE.RepeatWrapping; cond.tex.repeat.set(2, 1);
+  M.fog.alphaMap = cond.tex; M.fog.needsUpdate = true;
+  let condAt = 0;
+  function paintCond(dt) {
+    const c = cond.ctx;
+    c.fillStyle = '#fff'; c.fillRect(0, 0, 256, 256);
+    for (const [x, y, r, a] of beads) { c.fillStyle = `rgba(90,90,90,${a})`; c.fillRect(x, y, r, r); }
+    if (drops.length < 22 && bankR() < dt * 4 * (0.5 + steamRoom.fog)) drops.push({ x: bankR() * 256, y0: bankR() * 140, y: 0, v: 8 + bankR() * 14, age: 0, w: 1.5 + bankR() * 2 });
+    for (let i = drops.length - 1; i >= 0; i--) {
+      const d = drops[i];
+      d.age += dt; d.y += d.v * dt * (0.6 + 0.8 * Math.abs(Math.sin(d.age * 1.7 + d.x)));   // runs in fits and starts
+      const fade = Math.max(0, 1 - d.age / 14);
+      if (fade <= 0 || d.y0 + d.y > 262) { drops.splice(i, 1); continue; }
+      c.fillStyle = `rgba(0,0,0,${0.8 * fade})`; c.fillRect(d.x, d.y0, d.w, d.y);
+      c.fillStyle = `rgba(255,255,255,${fade})`; c.fillRect(d.x - 0.5, d.y0 + d.y - 1, d.w + 1, 2.5);
+    }
+    cond.tex.needsUpdate = true;
+  }
+  paintCond(0);
 
   // ----- the cold plunge -----
   // A raised travertine tub of icy water: click to get in up to your shoulders (shiver, the cold blue), move or Esc to climb out.
@@ -451,17 +579,28 @@ export function installSpa(ctx, W) {
     // The sauna: cooling back toward 82 °C, the heat of a fresh löyly fading; inside it, a warm shimmer.
     sauna.temp += (82 - sauna.temp) * Math.min(1, dt * 0.02); sauna.hum += (12 - sauna.hum) * Math.min(1, dt * 0.03); sauna.heat = Math.max(0, sauna.heat - dt / 14);
     sauna.inside = inZone(p, SA.x0, SA.x1, SA.z0, SA.z1);
+    sauna.hotM.emissiveIntensity = (0.5 + 1.6 * sauna.heat) * (0.85 + 0.15 * Math.sin(t * 3.7) * Math.sin(t * 1.3));
+    if (sauna.burst > 0 && (sauna.burst -= dt) <= 0) sauna.again?.();
+    if (sand.flip) {   // turning over: half a turn, then the full end's on top
+      sand.flip = Math.min(1, sand.flip + dt / 0.8); sand.hg.rotation.z = Math.PI * sand.flip * sand.flip * (3 - 2 * sand.flip);
+      if (sand.flip >= 1) { sand.flip = 0; sand.hg.rotation.z = 0; sand.k = 1 - sand.k; }
+      sand.place();
+    } else if (sand.k > 0) { sand.k = Math.max(0, sand.k - dt / 900); sand.place(); }
     if ((sauna.paintAt = (sauna.paintAt || 0) - dt) <= 0) { sauna.paintAt = 0.5; paintDial(); }
     if (sauna.inside) {
       const h = 0.35 + 0.65 * sauna.heat;
       camera.position.y += Math.sin(t * 2.3) * 0.004 * h; camera.rotation.z += Math.sin(t * 3.1) * 0.0025 * h;
       W.wantVeil = [`radial-gradient(ellipse at 50% 60%, rgba(255,170,90,.0), rgba(190,90,30,.${Math.round(30 + 25 * h)}))`, 0.25 + 0.3 * h];
       if (Math.random() < dt * 0.5) puff(stove.x + (Math.random() - 0.5) * 0.3, 0.9, stove.z, { vy: 0.25, life: 3, size: 0.25, grow: 0.25, a: 0.18, ceil: 2.35 });
+      // The light in here: low and amber.
+      ctx.hemi.color.lerp(AMBER, 0.5); ctx.hemi.intensity *= 0.75;
+      // The benches creak now and then.
+      if ((sauna.creakAt -= dt) <= 0) { sauna.creakAt = 5 + Math.random() * 12; sound.creak(SA.x0 + 0.6, 0.9, -12.95 + (Math.random() - 0.5) * 3); }
     }
     // The steam room: the generator breathes out every 20-30 s; inside, steam rolls round you and the glass fogs over.
     steamRoom.inside = inZone(p, ST.x0, ST.x1, ST.z0, ST.z1);
     steamRoom.next -= dt;
-    if (steamRoom.next <= 0) { steamRoom.puff = 1; steamRoom.next = 20 + Math.random() * 10; }
+    if (steamRoom.next <= 0) { steamRoom.puff = 1; steamRoom.next = 20 + Math.random() * 10; if (Math.hypot(p.x - nozzle.x, p.z - nozzle.z) < 10) sound.pulse(nozzle.x, nozzle.z); }
     steamRoom.puff = Math.max(0, steamRoom.puff - dt / 7);
     const near = Math.hypot(p.x - 13.2, p.z + 12.75) < 9;
     if (near && Math.random() < dt * (2.5 + 8 * steamRoom.puff)) {
@@ -471,8 +610,20 @@ export function installSpa(ctx, W) {
         { vy: 0.12 + Math.random() * 0.1, life: 6 + Math.random() * 4, size: 0.6, grow: 0.4, a: 0.32, ceil: 2.45 });
     }
     steamRoom.fog = clamp(steamRoom.fog + (steamRoom.inside ? dt / 35 : -dt / 120), 0.35, 1);
-    M.fog.opacity = 0.35 + 0.55 * steamRoom.fog; M.fog.roughness = 0.6 + 0.4 * steamRoom.fog;
-    if (steamRoom.inside) W.wantVeil = ['radial-gradient(ellipse at 50% 45%, rgba(235,240,240,.35), rgba(225,232,232,.95))', 0.12 + 0.22 * steamRoom.fog];
+    M.fog.opacity = 0.45 + 0.5 * steamRoom.fog; M.fog.roughness = 0.6 + 0.4 * steamRoom.fog;
+    // How thick the air is: up with each burst, settling back while the door's shut, thinning while it's open.
+    const open = steamDoor.k > 0.05;
+    steamRoom.dense = clamp(steamRoom.dense + dt * (0.12 * steamRoom.puff + (open ? -0.08 : 0.02 * (0.8 - steamRoom.dense))), 0.35, 1);
+    // Opening the door lets a billow roll out into the corridor, and a little more while it stands open.
+    if (open && !steamRoom.open) for (let i = 0; i < 18; i++) steamOut(0.5 + Math.random() * 0.5, 0.9 * steamRoom.dense);
+    else if (open && Math.random() < dt * 5 * steamRoom.dense) steamOut(0.3 + Math.random() * 0.25, 0.5 * steamRoom.dense);
+    steamRoom.open = open;
+    if (steamRoom.inside) {   // the further in, the less you see
+      const deep = clamp((ST.z1 - p.z) / (ST.z1 - ST.z0), 0, 1);
+      W.wantVeil = ['radial-gradient(ellipse at 50% 45%, rgba(232,238,238,.55), rgba(222,230,230,.97))', 0.2 + 0.5 * steamRoom.dense * (0.45 + 0.55 * deep)];
+    }
+    if (near && (condAt -= dt) <= 0) { paintCond(0.15 - condAt); condAt = 0.15; }
+    bankFx(t, near ? 0.55 + 0.45 * steamRoom.dense : 0, Math.hypot(p.x - 17.8, p.z + 12.75) < 8 ? 0.45 + 0.55 * sauna.heat : 0);
     steamFx(dt);
     // Lockers swinging, the blender, the lamp.
     lockers.forEach((L, i) => { if (L.k !== L.to) { L.k = L.to > L.k ? Math.min(1, L.k + dt / 0.6) : Math.max(0, L.k - dt / 0.5); placeLocker(i); } });
@@ -490,8 +641,12 @@ export function installSpa(ctx, W) {
     // Showers left running turn themselves off after a minute.
     for (const s of showers) if (s.on && (s.at += dt) > 60) { s.on = false; s.rain.visible = false; s.rain.material.uniforms.on.value = 0; if (!showers.some((q) => q.on)) sound.shower(false); }
   });
+  function steamOut(v, a) {   // a puff from the steam room's doorway out into the corridor (north), slowing as it spreads
+    puff(12.85 + Math.random() * 0.7, 0.3 + Math.random() * 1.9, -10.7, { vx: (Math.random() - 0.5) * 0.35, vz: v, vy: 0.08, life: 4 + Math.random() * 2.5,
+      size: 0.7, grow: 0.6, a, ceil: 3.1, drag: 0.3 });
+  }
   W.leaves.push(() => {
     for (const s of showers) { s.on = false; s.rain.visible = false; s.rain.material.uniforms.on.value = 0; }
-    sound.shower(false); puffs.length = 0; steam.count = 0;
+    sound.shower(false); puffs.length = 0; steam.count = 0; fogBank.count = 0;
   });
 }

@@ -4934,8 +4934,8 @@
     "kind": "wellness",
     "steps": true
    },
-   "colliders": 107,
-   "hits": 39,
+   "colliders": 108,
+   "hits": 41,
    "hooks": [
     "enter",
     "leave",
@@ -6105,14 +6105,14 @@
  ],
  "scenes": {
   "office": {
-   "objects": 3178,
+   "objects": 3190,
    "types": {
     "Scene": 1,
     "HemisphereLight": 1,
     "DirectionalLight": 2,
     "Object3D": 2,
-    "Mesh": 2748,
-    "Group": 501,
+    "Mesh": 2759,
+    "Group": 502,
     "PointLight": 16,
     "Sprite": 9,
     "LineSegments": 1,
@@ -6123,7 +6123,7 @@
     "blinds": 48,
     "board": 6,
     "laptop": 7,
-    "door": 83,
+    "door": 84,
     "coffee": 1,
     "taskboard": 1,
     "decanter": 1,
@@ -6141,6 +6141,7 @@
     "wellness-bench": 1,
     "wellness-cable": 1,
     "wellness-ladle": 1,
+    "wellness-timer": 1,
     "wellness-plunge": 1,
     "wellness-shower": 3,
     "wellness-locker": 2,
@@ -6150,8 +6151,8 @@
     "lightpanel": 5,
     "rosie": 57
    },
-   "ordered": "9a9a1e61",
-   "sorted": "9810e199"
+   "ordered": "8b289509",
+   "sorted": "1999f373"
   },
   "servers": {
    "objects": 383,
