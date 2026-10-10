@@ -5,7 +5,7 @@
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { clamp, FONT, LIFT, makeCanvas, MARKER, rng } from '../util.js';
+import { clamp, fit, FONT, LIFT, makeCanvas, MARKER, rng } from '../util.js';
 import { MONO } from '../painters.js';
 import { makeSound } from './restricted-sound.js';
 import { installStory } from './restricted-story.js';
@@ -103,7 +103,7 @@ export function install(ctx) {
 
 /** @param {import('../ctx.js').OfficeCtx} ctx */
 function build(ctx) {
-  const { scene, liftShaft, addFloor, CAR, hitBox, camera, mapCtx, hud, style, FLOORS, floorName } = ctx;
+  const { scene, liftShaft, addFloor, CAR, hitBox, camera, mapCtx, hud, style, floorName } = ctx;
   const restr = { n: N, label: 'RESTRICTED', title: 'Restricted Level', unlisted: true, ride: 9, on: false, composer: null,
     colliders: [], hits: [], chunks: new Map(), z0: 0, sound: { kind: 'restricted', steps: true } };   // steps: it plays your own (on the wet carpet)
   const S = restr.scene = new THREE.Scene(), root = restr.root = new THREE.Group();
@@ -437,19 +437,18 @@ function build(ctx) {
   };
   // The car panel on the way down: buttons that swap places and labels that don't say anything.
   function glitchPanel(scr, t) {
-    const { ctx: c, W, H: PH } = scr, n = FLOORS.length, step = PH / n, rr = Math.min(27, step * 0.3), j = Math.floor(t * 12);
-    c.fillStyle = '#4d5157'; c.fillRect(0, 0, W, PH); c.textAlign = 'center';
-    const lit = Math.floor(h3(j, 1, 2) * n);
-    FLOORS.forEach((F, i) => {
-      const y = step * (i + 0.42) + (h3(j, i, 3) < 0.2 ? (h3(j, i, 4) - 0.5) * 20 : 0);
-      c.beginPath(); c.arc(W / 2, y, rr, 0, Math.PI * 2); c.fillStyle = '#d9dcdf'; c.fill();
-      c.lineWidth = rr / 5.4; c.strokeStyle = i === lit ? '#ffb347' : '#8b9096'; c.stroke();
+    const { ctx: c, W, H: PH } = scr, grid = ctx.panelGrid(scr), j = Math.floor(t * 12), lit = Math.floor(h3(j, 1, 2) * grid.length);
+    c.fillStyle = '#4d5157'; c.fillRect(0, 0, W, PH); c.textAlign = 'center'; c.textBaseline = 'middle';
+    grid.forEach(({ F, x, y: y0, r: rr, cw }, i) => {
+      const y = y0 + (h3(j, i, 3) < 0.2 ? (h3(j, i, 4) - 0.5) * 40 : 0);
+      c.beginPath(); c.arc(x, y, rr, 0, Math.PI * 2); c.fillStyle = i === lit ? '#ffb347' : '#33363b'; c.fill();
+      c.beginPath(); c.arc(x, y, rr * 0.84, 0, Math.PI * 2); c.fillStyle = '#d9dcdf'; c.fill();
       const scramble = h3(j, i, 5) < 0.5;
-      c.fillStyle = '#26282b'; c.font = `600 ${Math.round(rr * 0.9)}px ${FONT}`; c.fillText(scramble ? '?▓░B'[Math.floor(h3(j, i, 6) * 4)] : floorName(F.n), W / 2, y + rr * 0.3);
-      c.fillStyle = '#e8e6e1'; c.font = `600 ${Math.min(12, Math.round(rr * 0.48))}px ${FONT}`; c.fillText(scramble ? '▓▒░▒▓' : F.label, W / 2, y + rr * 1.75);
+      c.fillStyle = '#26282b'; c.font = `700 ${Math.round(rr * 0.8)}px ${FONT}`; c.fillText(scramble ? '?▓░B'[Math.floor(h3(j, i, 6) * 4)] : floorName(F.n), x, y);
+      c.fillStyle = '#e8e6e1'; c.font = `700 ${Math.round(Math.min(30, rr * 0.64))}px ${FONT}`; c.fillText(scramble ? '▓▒░▒▓' : fit(c, F.label, cw - 8), x, y + rr * 1.45);
     });
-    if (h3(j, 9, 9) < 0.3) { c.fillStyle = 'rgba(255,255,255,.25)'; c.fillRect(0, h3(j, 9, 8) * PH, W, 2 + h3(j, 9, 7) * 8); }
-    c.textAlign = 'left'; scr.tex.needsUpdate = true;
+    if (h3(j, 9, 9) < 0.3) { c.fillStyle = 'rgba(255,255,255,.25)'; c.fillRect(0, h3(j, 9, 8) * PH, W, 2 + h3(j, 9, 7) * 16); }
+    c.textAlign = 'left'; c.textBaseline = 'alphabetic'; scr.tex.needsUpdate = true;
   }
 
   // ----- the minimap: static, and the lift -----
