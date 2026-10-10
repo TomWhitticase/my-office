@@ -3762,6 +3762,215 @@
      "door": 0,
      "cameras": {}
     }
+   },
+   {
+    "event": "board",
+    "data": {
+     "rev": 7,
+     "columns": [
+      {
+       "id": "backlog",
+       "name": "Backlog"
+      },
+      {
+       "id": "todo",
+       "name": "To do"
+      },
+      {
+       "id": "doing",
+       "name": "Doing"
+      },
+      {
+       "id": "review",
+       "name": "Review"
+      },
+      {
+       "id": "done",
+       "name": "Done"
+      }
+     ],
+     "cards": [
+      {
+       "id": "fix00001",
+       "col": "backlog",
+       "kind": "index",
+       "color": "white",
+       "title": "Dark mode for the docs",
+       "body": "People keep asking.\nCheck contrast on code blocks first.",
+       "prio": 1,
+       "due": "",
+       "labels": [
+        "docs"
+       ],
+       "who": "",
+       "archived": false,
+       "created": 1781443800000,
+       "updated": 1781699400000
+      },
+      {
+       "id": "fix00002",
+       "col": "backlog",
+       "kind": "sticky",
+       "color": "pink",
+       "title": "Call the bank",
+       "body": "About the card limit",
+       "prio": 0,
+       "due": "",
+       "labels": [],
+       "who": "TW",
+       "archived": false,
+       "created": 1781443800000,
+       "updated": 1781699400000
+      },
+      {
+       "id": "fix00003",
+       "col": "backlog",
+       "kind": "sticky",
+       "color": "blue",
+       "title": "Book dentist",
+       "body": "",
+       "prio": 0,
+       "due": "",
+       "labels": [],
+       "who": "",
+       "archived": false,
+       "created": 1781443800000,
+       "updated": 1781699400000
+      },
+      {
+       "id": "fix00004",
+       "col": "todo",
+       "kind": "index",
+       "color": "white",
+       "title": "Rate limits: per-user buckets",
+       "body": "Token bucket per API key.\nBurst 20, refill 5/s.\nReturn Retry-After on 429.\nTests for the edge of the window.\nAsk ops about Redis.",
+       "prio": 3,
+       "due": "2026-06-16",
+       "labels": [
+        "api",
+        "backend"
+       ],
+       "who": "TW",
+       "archived": false,
+       "created": 1781443800000,
+       "updated": 1781699400000
+      },
+      {
+       "id": "fix00005",
+       "col": "todo",
+       "kind": "sticky",
+       "color": "yellow",
+       "title": "Renew domain!",
+       "body": "expires end of June",
+       "prio": 2,
+       "due": "2026-06-28",
+       "labels": [],
+       "who": "",
+       "archived": false,
+       "created": 1781443800000,
+       "updated": 1781699400000
+      },
+      {
+       "id": "fix00006",
+       "col": "doing",
+       "kind": "index",
+       "color": "yellow",
+       "title": "Getting started guide",
+       "body": "Fit it on one page. Screenshots of the office.",
+       "prio": 2,
+       "due": "",
+       "labels": [
+        "docs"
+       ],
+       "who": "JD",
+       "archived": false,
+       "created": 1781443800000,
+       "updated": 1781699400000
+      },
+      {
+       "id": "fix00007",
+       "col": "doing",
+       "kind": "sticky",
+       "color": "green",
+       "title": "Upgrade build image",
+       "body": "node LTS + rebuild",
+       "prio": 0,
+       "due": "",
+       "labels": [
+        "infra"
+       ],
+       "who": "",
+       "archived": false,
+       "created": 1781443800000,
+       "updated": 1781699400000
+      },
+      {
+       "id": "fix00008",
+       "col": "review",
+       "kind": "index",
+       "color": "blue",
+       "title": "Login crash on empty password",
+       "body": "Validator assumed a string. Fixed + test.",
+       "prio": 3,
+       "due": "",
+       "labels": [
+        "mobile",
+        "bug"
+       ],
+       "who": "AK",
+       "archived": false,
+       "created": 1781443800000,
+       "updated": 1781699400000
+      },
+      {
+       "id": "fix00009",
+       "col": "done",
+       "kind": "index",
+       "color": "white",
+       "title": "Bump dependencies",
+       "body": "All green.",
+       "prio": 0,
+       "due": "",
+       "labels": [
+        "chore"
+       ],
+       "who": "",
+       "archived": false,
+       "created": 1781443800000,
+       "updated": 1781699400000
+      },
+      {
+       "id": "fix00010",
+       "col": "done",
+       "kind": "sticky",
+       "color": "orange",
+       "title": "Fix broken links",
+       "body": "12 of them",
+       "prio": 0,
+       "due": "",
+       "labels": [],
+       "who": "",
+       "archived": false,
+       "created": 1781443800000,
+       "updated": 1781699400000
+      },
+      {
+       "id": "fix00011",
+       "col": "done",
+       "kind": "index",
+       "color": "white",
+       "title": "Old idea",
+       "body": "Archived long ago",
+       "prio": 0,
+       "due": "",
+       "labels": [],
+       "who": "",
+       "archived": true,
+       "created": 1781443800000,
+       "updated": 1781699400000
+      }
+     ]
+    }
    }
   ]
  },
@@ -4063,6 +4272,710 @@
   "status": 403,
   "body": {
    "error": "refused: unknown Host"
+  }
+ },
+ "GET /api/board": {
+  "status": 200,
+  "type": "application/json",
+  "cache": "no-store",
+  "body": {
+   "rev": 7,
+   "columns": [
+    {
+     "id": "backlog",
+     "name": "Backlog"
+    },
+    {
+     "id": "todo",
+     "name": "To do"
+    },
+    {
+     "id": "doing",
+     "name": "Doing"
+    },
+    {
+     "id": "review",
+     "name": "Review"
+    },
+    {
+     "id": "done",
+     "name": "Done"
+    }
+   ],
+   "cards": [
+    {
+     "id": "fix00001",
+     "col": "backlog",
+     "kind": "index",
+     "color": "white",
+     "title": "Dark mode for the docs",
+     "body": "People keep asking.\nCheck contrast on code blocks first.",
+     "prio": 1,
+     "due": "",
+     "labels": [
+      "docs"
+     ],
+     "who": "",
+     "archived": false,
+     "created": 1781443800000,
+     "updated": 1781699400000
+    },
+    {
+     "id": "fix00002",
+     "col": "backlog",
+     "kind": "sticky",
+     "color": "pink",
+     "title": "Call the bank",
+     "body": "About the card limit",
+     "prio": 0,
+     "due": "",
+     "labels": [],
+     "who": "TW",
+     "archived": false,
+     "created": 1781443800000,
+     "updated": 1781699400000
+    },
+    {
+     "id": "fix00003",
+     "col": "backlog",
+     "kind": "sticky",
+     "color": "blue",
+     "title": "Book dentist",
+     "body": "",
+     "prio": 0,
+     "due": "",
+     "labels": [],
+     "who": "",
+     "archived": false,
+     "created": 1781443800000,
+     "updated": 1781699400000
+    },
+    {
+     "id": "fix00004",
+     "col": "todo",
+     "kind": "index",
+     "color": "white",
+     "title": "Rate limits: per-user buckets",
+     "body": "Token bucket per API key.\nBurst 20, refill 5/s.\nReturn Retry-After on 429.\nTests for the edge of the window.\nAsk ops about Redis.",
+     "prio": 3,
+     "due": "2026-06-16",
+     "labels": [
+      "api",
+      "backend"
+     ],
+     "who": "TW",
+     "archived": false,
+     "created": 1781443800000,
+     "updated": 1781699400000
+    },
+    {
+     "id": "fix00005",
+     "col": "todo",
+     "kind": "sticky",
+     "color": "yellow",
+     "title": "Renew domain!",
+     "body": "expires end of June",
+     "prio": 2,
+     "due": "2026-06-28",
+     "labels": [],
+     "who": "",
+     "archived": false,
+     "created": 1781443800000,
+     "updated": 1781699400000
+    },
+    {
+     "id": "fix00006",
+     "col": "doing",
+     "kind": "index",
+     "color": "yellow",
+     "title": "Getting started guide",
+     "body": "Fit it on one page. Screenshots of the office.",
+     "prio": 2,
+     "due": "",
+     "labels": [
+      "docs"
+     ],
+     "who": "JD",
+     "archived": false,
+     "created": 1781443800000,
+     "updated": 1781699400000
+    },
+    {
+     "id": "fix00007",
+     "col": "doing",
+     "kind": "sticky",
+     "color": "green",
+     "title": "Upgrade build image",
+     "body": "node LTS + rebuild",
+     "prio": 0,
+     "due": "",
+     "labels": [
+      "infra"
+     ],
+     "who": "",
+     "archived": false,
+     "created": 1781443800000,
+     "updated": 1781699400000
+    },
+    {
+     "id": "fix00008",
+     "col": "review",
+     "kind": "index",
+     "color": "blue",
+     "title": "Login crash on empty password",
+     "body": "Validator assumed a string. Fixed + test.",
+     "prio": 3,
+     "due": "",
+     "labels": [
+      "mobile",
+      "bug"
+     ],
+     "who": "AK",
+     "archived": false,
+     "created": 1781443800000,
+     "updated": 1781699400000
+    },
+    {
+     "id": "fix00009",
+     "col": "done",
+     "kind": "index",
+     "color": "white",
+     "title": "Bump dependencies",
+     "body": "All green.",
+     "prio": 0,
+     "due": "",
+     "labels": [
+      "chore"
+     ],
+     "who": "",
+     "archived": false,
+     "created": 1781443800000,
+     "updated": 1781699400000
+    },
+    {
+     "id": "fix00010",
+     "col": "done",
+     "kind": "sticky",
+     "color": "orange",
+     "title": "Fix broken links",
+     "body": "12 of them",
+     "prio": 0,
+     "due": "",
+     "labels": [],
+     "who": "",
+     "archived": false,
+     "created": 1781443800000,
+     "updated": 1781699400000
+    },
+    {
+     "id": "fix00011",
+     "col": "done",
+     "kind": "index",
+     "color": "white",
+     "title": "Old idea",
+     "body": "Archived long ago",
+     "prio": 0,
+     "due": "",
+     "labels": [],
+     "who": "",
+     "archived": true,
+     "created": 1781443800000,
+     "updated": 1781699400000
+    }
+   ]
+  }
+ },
+ "GET /api/board (cross-site)": {
+  "status": 403,
+  "type": "application/json",
+  "cache": "no-store",
+  "body": {
+   "error": "refused"
+  }
+ },
+ "GET /api/board (foreign Host)": {
+  "status": 403,
+  "type": "application/json",
+  "cache": "no-store",
+  "body": {
+   "error": "refused"
+  }
+ },
+ "POST /api/board (add, clamped)": {
+  "status": 200,
+  "card": {
+   "id": "api00001",
+   "col": "todo",
+   "kind": "sticky",
+   "color": "white",
+   "title": "Call the bank",
+   "body": "line 1\nline 2",
+   "prio": 3,
+   "due": "",
+   "labels": [
+    "a",
+    "b",
+    "xxxxxxxxxxxxxxxxxxxxxxxx"
+   ],
+   "who": "AB",
+   "archived": false,
+   "created": 1781703000000,
+   "updated": 1781703000000
+  },
+  "at": 3
+ },
+ "POST /api/board (add more)": {
+  "status": 200,
+  "body": {
+   "rev": 9,
+   "columns": [
+    "backlog:Backlog",
+    "todo:To do",
+    "doing:Doing",
+    "review:Review",
+    "done:Done"
+   ],
+   "cards": [
+    "api00002@backlog",
+    "api00001@todo",
+    "api00003@done"
+   ]
+  }
+ },
+ "POST /api/board (duplicate id)": {
+  "status": 400,
+  "body": {
+   "error": "bad or duplicate card id",
+   "rev": 9
+  }
+ },
+ "POST /api/board (bad id)": {
+  "status": 400,
+  "body": {
+   "error": "bad or duplicate card id",
+   "rev": 9
+  }
+ },
+ "POST /api/board (edit)": {
+  "status": 200,
+  "card": [
+   {
+    "id": "api00002",
+    "col": "backlog",
+    "kind": "index",
+    "color": "white",
+    "title": "B2",
+    "body": 10000,
+    "prio": 2,
+    "due": "2026-07-01",
+    "labels": [],
+    "who": "JD",
+    "archived": false,
+    "created": 1781703000000,
+    "updated": 1781703000000
+   }
+  ]
+ },
+ "POST /api/board (move)": {
+  "status": 200,
+  "body": {
+   "rev": 11,
+   "columns": [
+    "backlog:Backlog",
+    "todo:To do",
+    "doing:Doing",
+    "review:Review",
+    "done:Done"
+   ],
+   "cards": [
+    "api00001@todo",
+    "api00002@review",
+    "api00003@review"
+   ]
+  }
+ },
+ "POST /api/board (archive)": {
+  "status": 200,
+  "body": {
+   "rev": 12,
+   "columns": [
+    "backlog:Backlog",
+    "todo:To do",
+    "doing:Doing",
+    "review:Review",
+    "done:Done"
+   ],
+   "cards": [
+    "api00001@todo",
+    "api00002@review",
+    "api00003@review (archived)"
+   ]
+  }
+ },
+ "POST /api/board (a bad op: none applied)": {
+  "status": 400,
+  "body": {
+   "error": "no column \"nope\"",
+   "rev": 12
+  }
+ },
+ "POST /api/board (unknown card)": {
+  "status": 400,
+  "body": {
+   "error": "no card \"nope0000\"",
+   "rev": 12
+  }
+ },
+ "POST /api/board (unknown op)": {
+  "status": 400,
+  "body": {
+   "error": "unknown op \"drop\"",
+   "rev": 12
+  }
+ },
+ "POST /api/board (no ops)": {
+  "status": 400,
+  "body": {
+   "error": "no ops",
+   "rev": 12
+  }
+ },
+ "POST /api/board (not ops)": {
+  "status": 400,
+  "body": {
+   "error": "no ops",
+   "rev": 12
+  }
+ },
+ "POST /api/board (too many ops)": {
+  "status": 400,
+  "body": {
+   "error": "at most 100 ops at a time",
+   "rev": 12
+  }
+ },
+ "POST /api/board (too big)": {
+  "status": 413,
+  "body": {
+   "error": "too big"
+  }
+ },
+ "POST /api/board (bad JSON)": {
+  "status": 400,
+  "body": {
+   "error": "Expected property name or '}' in JSON at position 1 (line 1 column 2)",
+   "rev": 12
+  }
+ },
+ "POST /api/board (columns: add, rename, reorder)": {
+  "status": 200,
+  "body": {
+   "rev": 13,
+   "columns": [
+    "backlog:Backlog",
+    "todo:To do",
+    "doing:Doing",
+    "apicol01:QA",
+    "review:Review",
+    "done:Done"
+   ],
+   "cards": [
+    "api00001@todo",
+    "api00003@review (archived)",
+    "api00002@apicol01"
+   ]
+  }
+ },
+ "POST /api/board (columns: one dropped, its cards to the first)": {
+  "status": 200,
+  "body": {
+   "rev": 14,
+   "columns": [
+    "backlog:Backlog",
+    "todo:To do",
+    "doing:Doing",
+    "review:Review",
+    "done:Done"
+   ],
+   "cards": [
+    "api00001@todo",
+    "api00003@review (archived)",
+    "api00002@backlog"
+   ]
+  }
+ },
+ "POST /api/board (columns: none)": {
+  "status": 400,
+  "body": {
+   "error": "columns: give at least one",
+   "rev": 14
+  }
+ },
+ "POST /api/board (columns: too many)": {
+  "status": 400,
+  "body": {
+   "error": "columns: at most 12",
+   "rev": 14
+  }
+ },
+ "POST /api/board (no Origin)": {
+  "status": 403,
+  "body": {
+   "error": "refused: missing or foreign Origin"
+  }
+ },
+ "POST /api/board (foreign Origin)": {
+  "status": 403,
+  "body": {
+   "error": "refused: missing or foreign Origin"
+  }
+ },
+ "POST /api/board (text/plain)": {
+  "status": 403,
+  "body": {
+   "error": "refused: Content-Type must be application/json"
+  }
+ },
+ "POST /api/board (HeadlessChrome)": {
+  "status": 403,
+  "body": {
+   "error": "refused: not from a TV or headless browser"
+  }
+ },
+ "POST /api/board (TV browser)": {
+  "status": 403,
+  "body": {
+   "error": "refused: not from a TV or headless browser"
+  }
+ },
+ "POST /api/board (foreign Host)": {
+  "status": 403,
+  "body": {
+   "error": "refused: unknown Host"
+  }
+ },
+ "PUT /api/board": {
+  "status": 405,
+  "body": {
+   "error": "GET or POST"
+  }
+ },
+ "POST /api/board (full)": {
+  "status": 400,
+  "body": {
+   "error": "the board is full (500 cards): archive or delete some",
+   "rev": 19
+  }
+ },
+ "GET /api/board (after)": {
+  "status": 200,
+  "type": "application/json",
+  "cache": "no-store",
+  "body": {
+   "rev": "number",
+   "columns": [
+    {
+     "id": "backlog",
+     "name": "Backlog"
+    },
+    {
+     "id": "todo",
+     "name": "To do"
+    },
+    {
+     "id": "doing",
+     "name": "Doing"
+    },
+    {
+     "id": "review",
+     "name": "Review"
+    },
+    {
+     "id": "done",
+     "name": "Done"
+    }
+   ],
+   "cards": [
+    {
+     "id": "fix00001",
+     "col": "backlog",
+     "kind": "index",
+     "color": "white",
+     "title": "Dark mode for the docs",
+     "body": "People keep asking.\nCheck contrast on code blocks first.",
+     "prio": 1,
+     "due": "",
+     "labels": [
+      "docs"
+     ],
+     "who": "",
+     "archived": false,
+     "created": 1781443800000,
+     "updated": 1781699400000
+    },
+    {
+     "id": "fix00002",
+     "col": "backlog",
+     "kind": "sticky",
+     "color": "pink",
+     "title": "Call the bank",
+     "body": "About the card limit",
+     "prio": 0,
+     "due": "",
+     "labels": [],
+     "who": "TW",
+     "archived": false,
+     "created": 1781443800000,
+     "updated": 1781699400000
+    },
+    {
+     "id": "fix00003",
+     "col": "backlog",
+     "kind": "sticky",
+     "color": "blue",
+     "title": "Book dentist",
+     "body": "",
+     "prio": 0,
+     "due": "",
+     "labels": [],
+     "who": "",
+     "archived": false,
+     "created": 1781443800000,
+     "updated": 1781699400000
+    },
+    {
+     "id": "fix00004",
+     "col": "todo",
+     "kind": "index",
+     "color": "white",
+     "title": "Rate limits: per-user buckets",
+     "body": "Token bucket per API key.\nBurst 20, refill 5/s.\nReturn Retry-After on 429.\nTests for the edge of the window.\nAsk ops about Redis.",
+     "prio": 3,
+     "due": "2026-06-16",
+     "labels": [
+      "api",
+      "backend"
+     ],
+     "who": "TW",
+     "archived": false,
+     "created": 1781443800000,
+     "updated": 1781699400000
+    },
+    {
+     "id": "fix00005",
+     "col": "todo",
+     "kind": "sticky",
+     "color": "yellow",
+     "title": "Renew domain!",
+     "body": "expires end of June",
+     "prio": 2,
+     "due": "2026-06-28",
+     "labels": [],
+     "who": "",
+     "archived": false,
+     "created": 1781443800000,
+     "updated": 1781699400000
+    },
+    {
+     "id": "fix00006",
+     "col": "doing",
+     "kind": "index",
+     "color": "yellow",
+     "title": "Getting started guide",
+     "body": "Fit it on one page. Screenshots of the office.",
+     "prio": 2,
+     "due": "",
+     "labels": [
+      "docs"
+     ],
+     "who": "JD",
+     "archived": false,
+     "created": 1781443800000,
+     "updated": 1781699400000
+    },
+    {
+     "id": "fix00007",
+     "col": "doing",
+     "kind": "sticky",
+     "color": "green",
+     "title": "Upgrade build image",
+     "body": "node LTS + rebuild",
+     "prio": 0,
+     "due": "",
+     "labels": [
+      "infra"
+     ],
+     "who": "",
+     "archived": false,
+     "created": 1781443800000,
+     "updated": 1781699400000
+    },
+    {
+     "id": "fix00008",
+     "col": "review",
+     "kind": "index",
+     "color": "blue",
+     "title": "Login crash on empty password",
+     "body": "Validator assumed a string. Fixed + test.",
+     "prio": 3,
+     "due": "",
+     "labels": [
+      "mobile",
+      "bug"
+     ],
+     "who": "AK",
+     "archived": false,
+     "created": 1781443800000,
+     "updated": 1781699400000
+    },
+    {
+     "id": "fix00009",
+     "col": "done",
+     "kind": "index",
+     "color": "white",
+     "title": "Bump dependencies",
+     "body": "All green.",
+     "prio": 0,
+     "due": "",
+     "labels": [
+      "chore"
+     ],
+     "who": "",
+     "archived": false,
+     "created": 1781443800000,
+     "updated": 1781699400000
+    },
+    {
+     "id": "fix00010",
+     "col": "done",
+     "kind": "sticky",
+     "color": "orange",
+     "title": "Fix broken links",
+     "body": "12 of them",
+     "prio": 0,
+     "due": "",
+     "labels": [],
+     "who": "",
+     "archived": false,
+     "created": 1781443800000,
+     "updated": 1781699400000
+    },
+    {
+     "id": "fix00011",
+     "col": "done",
+     "kind": "index",
+     "color": "white",
+     "title": "Old idea",
+     "body": "Archived long ago",
+     "prio": 0,
+     "due": "",
+     "labels": [],
+     "who": "",
+     "archived": true,
+     "created": 1781443800000,
+     "updated": 1781699400000
+    }
+   ]
   }
  },
  "PUT /api/tvs/lobby (foreign Origin)": {

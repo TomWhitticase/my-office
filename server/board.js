@@ -15,7 +15,7 @@ const isId = (s) => typeof s === 'string' && /^[a-z0-9]{4,16}$/.test(s);
 
 const line = (s, n) => String(s ?? '').replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, n);
 const text = (s, n) => String(s ?? '').replace(/\r\n?/g, '\n').replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, '').slice(0, n);
-const day = (s) => (typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s)) ? s : '');
+const day = (s) => (typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && new Date(s + 'T00:00:00Z').toISOString().startsWith(s) ? s : '');   // a real date (not 31 Feb)
 const labelsOf = (a) => [...new Set((Array.isArray(a) ? a : typeof a === 'string' ? a.split(',') : []).map((l) => line(l, LIM.label)).filter(Boolean))].slice(0, LIM.labels);
 const whoOf = (s) => line(s, LIM.who).toUpperCase().replace(/[^\p{L}\p{N}]/gu, '');
 const newId = () => Date.now().toString(36).slice(-5) + Math.random().toString(36).slice(2, 7);
