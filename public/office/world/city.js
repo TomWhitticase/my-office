@@ -284,6 +284,7 @@ export function install(ctx) {
 
     return {
       mat: cityMat, ground: groundMat, av: avMat, mtn: mtnMat, ridge: ridgeDeg, boxes, GROUND,
+      riverX, RIVER_W, parks, ponds,   // where the water and grass are, for walking about down there (helicopter.js)
       trees: [trunks, crowns],   // 1.4M triangles, never culled (one instanced mesh): the security cameras leave them out
       setEnv(tex) { for (const m of [cityMat, waterMat]) { if (!m.envMap) m.needsUpdate = true; m.envMap = tex; } },
     };
