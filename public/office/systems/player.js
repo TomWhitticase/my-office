@@ -123,6 +123,7 @@ export function install(ctx) {
   }
   function movePlayer(dt) {
     if (ctx.away?.fly) { flyPlayer(dt); return; }
+    if (ctx.away?.walk) { ctx.away.walk(dt, keys); return; }   // a floor that moves you itself (relativity.js)
     let f = 0, s = 0;
     if (keys.has('KeyW') || keys.has('ArrowUp')) f += 1;
     if (keys.has('KeyS') || keys.has('ArrowDown')) f -= 1;

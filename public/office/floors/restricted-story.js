@@ -84,7 +84,7 @@ export function installStory(ctx, restr, sound) {
       scrawl(c, [`${owner()} —`, '', 'I left the code where', 'you’d find it. I’m sorry.', 'somebody had to come down', 'for the lift to come down.', '',
         'go back while it still', 'answers. don’t wait', 'for me.', '', '— R'], 40, 70, 31, 50, R, '#1d2c6e');
     });
-    PAPERS.frantic = [['SAME ROOM.', '!SAME ROOM'], ['count the doors.', 'then count', 'them again'], ['the EXIT signs', 'point at', 'each other'],
+    PAPERS.frantic = [['SAME ROOM.', '!SAME ROOM'], ['a STONE door', 'it doesn’t', 'belong. stairs', '!every way up'], ['the EXIT signs', 'point at', 'each other'],
       ['don’t follow', '!the chime'], ['follow the HUM', 'the hum is', 'the real lift'], ['it’s in the', '!CEILING', 'don’t look away']].map((lines, k) =>
       paper(256, 256, 20 + k, (c, w, h, R) => scrawl(c, lines, 18, 70, 30, 48, R, k === 3 ? '#7a1a12' : '#2a2418'), k % 2 ? '#f3dd6c' : '#efe8d2'));
     PAPERS.scrawl = paper(1024, 256, 30, (c, w, h, R) => { c.clearRect(0, 0, w, h); scrawl(c, ['!IT LEARNED THE CHIME'], 30, 160, 80, 0, R, 'rgba(70,40,18,.82)'); }, 'rgba(0,0,0,0)');

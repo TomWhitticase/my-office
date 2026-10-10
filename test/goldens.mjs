@@ -230,6 +230,33 @@ export const POSES = [
     await o.eval(() => window.__office.ctx.restr.creature.force('far', -4, 0));
     await o.step(20);
   }],
+  ['relativity-door', async (o) => {   // B3: the stone door that doesn't belong, put in a wall ahead of you (it's found by walking, normally)
+    await from('restricted', o);
+    await o.eval(() => window.__office.ctx.rel.door.force());
+    const d = await o.eval(() => { const r = window.__office.ctx.restr, g = window.__office.ctx.rel.door.g; return { x: g.position.x, z: g.position.z + r.z0, ry: g.rotation.y }; });
+    const nx = Math.sin(d.ry), nz = Math.cos(d.ry), x = d.x + nx * 2.6 + nz * 0.5, z = d.z + nz * 2.6 - nx * 0.5;
+    await stand(o, x, z, { x: d.x, y: 1.9, z: d.z });
+    await o.step(20);
+  }],
+  ['relativity', async (o) => {   // through it: Relativity as you arrive, the door behind you, three gravities' stairs ahead
+    await arrive(o);
+    await ride(o, -3);
+    await o.eval(() => window.__office.ctx.rel.go(true));
+    await o.step(6);
+  }],
+  ['relativity-stair', async (o) => {   // the shared stair from the floor below: one figure walking up its top, another its underside
+    await arrive(o);
+    await ride(o, -3);
+    await o.eval(() => { const r = window.__office.ctx.rel; r.go(true); r.pose(0, 4, -15, -1, 1.45, 0.88); });
+    await o.step(4);
+  }],
+  ['relativity-turn', async (o) => {   // walking into the next gravity's floor: halfway through the roll onto it
+    await arrive(o);
+    await ride(o, -3);
+    await o.eval(() => { const r = window.__office.ctx.rel; r.go(true); r.pose(0, 0, -15, -13.6, 0.3, 0.1); window.__office.keys.add('KeyW'); });
+    await stepUntil(o, () => window.__office.ctx.rel.walker.S.roll?.t > 0.45, 60);
+    await o.eval(() => window.__office.keys.delete('KeyW'));
+  }],
   ['task-board', async (o) => {   // over to the task board in my office, in use: the fixture board, the layer over it
     await arrive(o);
     await stand(o, 16.7, -11.5, { x: 16.7, y: 1.9, z: -14.9 });

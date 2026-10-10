@@ -37,6 +37,7 @@
  * @property {boolean} [carless]          no lift to arrive by (inside a repo)
  * @property {boolean} [liftGone]         its lift isn't there just now (out in the archive's void): no car to stand in
  * @property {boolean} [fly]              you fly rather than walk
+ * @property {(dt: number, keys: Set<string>) => void} [walk]   moves you (and the camera) itself instead of the usual walk
  * @property {any} [sound]                its ambience for sounds.js
  * @property {(z: number) => void} [enter]          you've arrived, in a car at z
  * @property {() => void} [leave]

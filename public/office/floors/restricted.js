@@ -106,7 +106,7 @@ export function install(ctx) {
 function build(ctx) {
   const { scene, liftShaft, addFloor, CAR, hitBox, camera, mapCtx, hud, style, floorName } = ctx;
   const restr = { n: N, label: 'RESTRICTED', title: 'Restricted Level', unlisted: true, ride: 9, on: false, composer: null,
-    colliders: [], hits: [], chunks: new Map(), z0: 0, sound: { kind: 'restricted', steps: true } };   // steps: it plays your own (on the wet carpet)
+    colliders: [], hits: [], chunks: new Map(), z0: 0, extras: [], sound: { kind: 'restricted', steps: true } };   // steps: it plays your own (on the wet carpet)
   const S = restr.scene = new THREE.Scene(), root = restr.root = new THREE.Group();
   const murk = new THREE.Color('#1f1a0b');
   S.background = murk; S.fog = new THREE.Fog(murk, 3, 30);
@@ -371,8 +371,10 @@ function build(ctx) {
       for (const b of ch.cols) restr.colliders.push({ minX: b.minX, maxX: b.maxX, minZ: b.minZ + z0, maxZ: b.maxZ + z0 });
       restr.hits.push(...ch.hits);
     }
-    for (const b of story?.cols() || []) restr.colliders.push({ minX: b.minX, maxX: b.maxX, minZ: b.minZ + z0, maxZ: b.maxZ + z0 });
-    restr.hits.push(...story?.hits() || []);
+    for (const e of [story, ...restr.extras]) {   // Hale's things, and whatever else a part puts down here (relativity-door.js)
+      for (const b of e?.cols() || []) restr.colliders.push({ minX: b.minX, maxX: b.maxX, minZ: b.minZ + z0, maxZ: b.maxZ + z0 });
+      restr.hits.push(...e?.hits() || []);
+    }
     lightAt = null;
   }
   // The point lights go to the nearest working panels, picked again when you move a few metres.
