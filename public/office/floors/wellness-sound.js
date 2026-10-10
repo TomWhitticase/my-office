@@ -2,7 +2,7 @@
 // hall; a splash going in, strokes as you swim, everything muffled under the water; your steps on the stone; the gym's
 // music faint from its speakers, a treadmill's whirr, the bike's freewheel, the rower's flywheel, plates clanking; the
 // sauna's stove crackling, the hiss of löyly and its benches creaking; the steam room's hiss and its generator's bursts; the jacuzzi bubbling; a shower running; the blender;
-// lockers; the doors; in the float pod, near silence and a slow heartbeat and breath.
+// lockers; the doors; the infrared cabin's heaters humming; in the float pod, near silence and a slow heartbeat and breath.
 // All synthesised here, through the office's own audio (sounds.js `audio`), so its volume and M apply. Positions are
 // the floor's own (x, z; y over its boards).
 
@@ -10,7 +10,7 @@ const TAU = Math.PI * 2;
 
 export function makeSound(ctx, W) {
   let A = null, B = null, out = null, lp = null, verb = null, wet = null, loops = [], under = null, tool = null, shower = null;
-  let crackleAt = 0, stepAcc = 0, last = null, musicV = null, steamV = null, jacV = null, calmV = null, floatK = 0;
+  let crackleAt = 0, stepAcc = 0, last = null, musicV = null, steamV = null, jacV = null, irV = null, calmV = null, floatK = 0;
   const rnd = (a, b) => a + Math.random() * (b - a), nz = () => Math.random() * 2 - 1;
   const pick = (a) => a[Math.floor(Math.random() * a.length)];
 
@@ -67,6 +67,14 @@ export function makeSound(ctx, W) {
   function steamLoop() {   // the steam generator breathing out: hiss with slow surges (6 s)
     const hp = biq('hp', 1600, 0.5), lo = biq('lp', 300, 0.7), D = 6;
     return make(D, (t) => { const s = 0.55 + 0.45 * Math.sin(TAU * t / D) ** 2; return hp(nz()) * s + lo(nz()) * 0.6 * s; });
+  }
+  function hum() {   // the infrared cabin's heaters: a soft mains hum with now and then a tick as a panel warms (6 s)
+    const tk = biq('bp', 2400, 3), lo = biq('lp', 300, 0.7), ticks = [0.9, 2.6, 3.1, 5.2];
+    return make(6, (t) => {
+      let e = 0;
+      for (const at of ticks) if (t > at && t < at + 0.03) e += Math.exp(-(t - at) / 0.006);
+      return Math.sin(TAU * 100 * t) * 0.25 + Math.sin(TAU * 200 * t) * 0.08 + lo(nz()) * 0.3 + tk(nz() * e) * 6;
+    }, 0.5);
   }
   function pulse() {   // the steam generator's burst: a rush of hiss that swells and falls away (2.6 s)
     const hp = biq('hp', 1800, 0.6), bp = biq('bp', 3600, 0.9), lo = biq('lp', 220, 0.7);
@@ -143,7 +151,7 @@ export function makeSound(ctx, W) {
   function build() {
     const n = (k, f) => Array.from({ length: k }, f);
     return { lap: lap(), splash: splash(true), dip: splash(false), stroke: n(4, stroke), clank: n(3, clank), hiss: hiss(), crackle: n(5, crackle), pulse: pulse(), creak: n(3, creak),
-      steam: steamLoop(), rain: rain(), whirr: whirr(), fly: fly(), thud: n(3, thud), blend: blend(), beep: beep(), music: music(), bubbles: bubbles(), calm: calm() };
+      steam: steamLoop(), rain: rain(), whirr: whirr(), fly: fly(), thud: n(3, thud), blend: blend(), beep: beep(), music: music(), bubbles: bubbles(), calm: calm(), hum: hum() };
   }
 
   // ----- playback -----
@@ -201,10 +209,12 @@ export function makeSound(ctx, W) {
         musicV = loop(B.music, 0.035, 13, 3.0, 9.2, 3, 1.1);
         const f = A.ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 2400; musicV.g.disconnect(); musicV.g.connect(f).connect(musicV.p);
         steamV = loop(B.steam, 0.05, 13.2, 0.4, -14.3, 1.2, 1.8);
+        if (W.infrared) irV = loop(B.hum, 0.01, W.infrared.x, 1.4, W.infrared.z, 0.8, 1.8);
         if (W.jacuzzi) jacV = loop(B.bubbles, 0.07, W.jacuzzi.x, 0.5, W.jacuzzi.z, 1.5, 1.3);
       }
       // The jacuzzi, louder all round you once you're in it.
       if (jacV) jacV.g.gain.setTargetAtTime(W.jacuzzi.in ? 0.16 : 0.07, now, 0.5);
+      if (irV) irV.g.gain.setTargetAtTime(W.infrared.inside ? 0.05 : 0.01, now, 0.6);
       // The pool hall's echo: you're in it (west of the gym, north of the glass).
       const hall = x < 6 && z > 3.5;
       wet.gain.setTargetAtTime(hall ? 0.22 : 0.04, now, 0.4);
@@ -286,7 +296,7 @@ export function makeSound(ctx, W) {
       if (out) out.gain.setTargetAtTime(1, A.ctx.currentTime, 0.05);
       if (calmV) { calmV.src.stop(A.ctx.currentTime + 0.5); calmV = null; }
       floatK = 0;
-      loops = []; under = null; tool = null; shower = null; last = null; musicV = null; steamV = null; jacV = null;
+      loops = []; under = null; tool = null; shower = null; last = null; musicV = null; steamV = null; jacV = null; irV = null;
     },
   };
 }

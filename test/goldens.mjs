@@ -345,7 +345,13 @@ export const POSES = [
     await stand(o, 2.6, -11.5, { x: 1.9, y: 0.3, z: -13.4 });
     await o.step(80);
   }],
-  ['wellness-hall', async (o) => {   // the hall past the changing rooms: the quiet room's fluted door, the infrared cabin, the showers
+  ['wellness-infrared', async (o) => {   // the infrared cabin on the spa's north wall, its heaters glowing through the glass
+    await arrive(o);
+    await ride(o, 46);
+    await stand(o, 6.0, -9.8, { x: 13.5, y: 1.2, z: -4.5 });
+    await o.step(40);
+  }],
+  ['wellness-hall', async (o) => {   // the hall past the changing rooms: the quiet room's fluted door, the treatment room, the showers
     await arrive(o);
     await ride(o, 46);
     await stand(o, 3.0, -7.6, { x: -6, y: 1.0, z: -12.6 });

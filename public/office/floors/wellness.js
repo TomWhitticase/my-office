@@ -2,8 +2,8 @@
 // city, sky and sun out of the windows are the real ones from there), laid out as a members' club. Reception and a
 // towel counter at the lifts; a lap pool along the north glass with an infinity edge right against it (the glass comes
 // down to the water there); the gym in the north-east corner, cardio facing the east windows; the spa in the south-east
-// (a cedar sauna with a window, a steam room, a cold plunge, rain showers, a quiet lounge); two small changing rooms behind
-// doors off a passage from the way through, and past them a hall with a float room, a quiet room, an infrared cabin and
+// (a cedar sauna with a window, a steam room, an infrared cabin, a cold plunge, rain showers, a quiet lounge); two small changing rooms behind
+// doors off a passage from the way through, and past them a hall with a float room, a quiet room, a treatment room and
 // experience showers, and a jacuzzi on a raised deck along the west glass in the south-west corner; a juice bar on the way through; a yoga studio and a lounge of daybeds on the west windows. Partitions are travertine, oak slats on
 // felt, clear or fluted glass; the doors slide open as you come up to them.
 //
@@ -231,9 +231,11 @@ function build(ctx) {
     ['x', -10.6, 10.8, 15.6, 'fog', [[12.8, 13.6]]], ['z', 10.8, -14.9, -10.6, 'tile'],    // the steam room (its glass fogs up)
     ['z', 6.4, -14.9, -11.2, 'fluted'],                                 // the showers' screen
     // The hall past the changing rooms (wellness-hall.js): a quiet room on its west side (round into the corner by the
-    // changing rooms), an infrared cabin behind glass beside it, and experience showers in bays along the south glass.
+    // changing rooms), a treatment room beside it, and experience showers in bays along the south glass.
     ['x', -11.2, -8, -1.6, 'stone'], ['z', -4.6, -11.2, -7, 'stone', [[-8.4, -7.2]]],
-    ['x', -8.6, -4.6, -1.6, 'glass', [[-2.9, -2.0]]], ['z', -1.6, -11.2, -8.6, 'stone'],
+    ['x', -8.6, -4.6, -1.6, 'stone', [[-3.4, -2.5]]], ['z', -1.6, -11.2, -8.6, 'stone'],
+    // The infrared cabin (wellness-spa.js), on the spa's north wall: cedar sides, glass onto the spa, a cedar door.
+    ['z', 11, -6.3, -3.5, 'cedar'], ['z', 14, -6.3, -3.5, 'cedar'], ['x', -6.3, 11, 14, 'glass', [[13.0, 13.8]]],
     ['z', -6, -14.9, -13.1, 'pale'], ['z', -4, -14.9, -13.1, 'pale'], ['z', -2, -14.9, -13.1, 'pale'],
   ];
   W.WALLS = WALLS;
@@ -371,7 +373,7 @@ function build(ctx) {
   W.slidingDoor('x', 3.5, -1.2, 0.6, { split: true, off: 0.07 });
   W.slidingDoor('x', -3.5, -1.3, 0.3, { split: true, lining: T + 0.06 }); W.slidingDoor('x', -7, -1.4, 0.4, { split: true, lining: T + 0.06 });
   W.slidingDoor('x', -3.5, 6.4, 8.0, { lining: T + 0.06 });
-  W.slidingDoor('z', -4.6, -8.4, -7.2, { m: M.fluted, lining: T + 0.06 }); W.slidingDoor('x', -8.6, -2.9, -2.0, { off: 0.07 });   // the quiet room, the infrared
+  W.slidingDoor('z', -4.6, -8.4, -7.2, { m: M.fluted, lining: T + 0.06 });   // the quiet room
   function doorFx(dt) {
     const p = ctx.player;
     for (const d of doors) {
@@ -686,7 +688,7 @@ function build(ctx) {
     c.fillStyle = 'rgba(255,255,255,.22)';
     for (const b of W.colliders()) c.fillRect(sx(b.minX), sz(b.minZ), Math.max(2, sx(b.maxX) - sx(b.minX)), Math.max(2, sz(b.maxZ) - sz(b.minZ)));
     c.font = '600 16px system-ui'; c.fillStyle = 'rgba(255,255,255,.6)';
-    for (const [t, x, z] of [['Pool', -9, 12.6], ['Gym', 11, 7], ['Sauna', 16.3, -13], ['Steam', 11.7, -13], ['Spa', 8, -8], ['Changing', -4.4, -5.2], ['Jacuzzi', -19, -13.6], ['Float', 1.0, -13.4], ['Quiet', -7.6, -8.6], ['Infrared', -4.4, -9.6], ['Showers', -6.6, -14.0],
+    for (const [t, x, z] of [['Pool', -9, 12.6], ['Gym', 11, 7], ['Sauna', 16.3, -13], ['Steam', 11.7, -13], ['Spa', 8, -8], ['Changing', -4.4, -5.2], ['Jacuzzi', -19, -13.6], ['Float', 1.0, -13.4], ['Quiet', -7.6, -8.6], ['Treatment', -4.5, -9.6], ['Infrared', 11.1, -4.3], ['Showers', -6.6, -14.0],
       ['Yoga', -16, -6.8], ['Lounge', -18.5, 0.6], ['Juice bar', -6.5, 0.6], ['Reception', 12.2, 0.6]]) c.fillText(t, sx(x), sz(z));
     c.font = '600 15px system-ui'; c.fillText('Lifts', sx(LIFT.x) - 44, sz(-2.6));
     const px = sx(camera.position.x), pz = sz(camera.position.z);

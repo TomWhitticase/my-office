@@ -1,7 +1,7 @@
 // The wellness floor's spa and the rooms round it (floors/wellness.js). In the south-east: a cedar sauna with a window
 // on the city (benches to sit on, a stove of stones: click the ladle for löyly, a hiss, a cloud of steam, the dial
 // climbing, the air shimmering while you're in), a tiled steam room under a starry ceiling (the glass fogs the longer
-// you're in, steam rolling round you), a cold plunge (click to get in), rain showers (click one to run it) and a quiet
+// you're in, steam rolling round you), an infrared cabin (a bench in the heaters' red glow), a cold plunge (click to get in), rain showers (click one to run it) and a quiet
 // lounge on the window. West of them, two small changing rooms behind doors (oak lockers: click one to open it); on the way
 // through, a juice bar (click the blender); on the west windows, a yoga studio behind glass and a lounge of daybeds.
 
@@ -9,7 +9,7 @@ import * as THREE from 'three';
 import { clamp, FONT, makeCanvas, mat, rng } from '../util.js';
 import { causticMaterial } from './wellness-pool.js';
 
-const AMBER = new THREE.Color('#ffb070');
+const AMBER = new THREE.Color('#ffb070'), IR = new THREE.Color('#ff9a70');
 
 export function installSpa(ctx, W) {
   const { G, M, kit, solid, R } = W, { toast, camera } = ctx;
@@ -572,6 +572,33 @@ export function installSpa(ctx, W) {
     lampShade.position.set(-12.0, 1.55, 2.9); G.add(lampShade); solid(-12.0, 2.9, 0.35, 0.35);
     W.planter(-19.3, 3.0, 1.2);
   }
+  // ----- the infrared cabin -----
+  // On the spa's north wall between the plunge and the lounge (x 11..14, z -6.3..-3.5; its walls in WALLS): cedar inside,
+  // glass onto the spa with a cedar door like the sauna's (click it), a bench along the back wall facing out (click to
+  // sit), carbon heater panels glowing a dull red; warm on you while you're in, the heaters humming and ticking.
+  const IRC = { x0: 11, x1: 14, z0: -6.3, z1: -3.5 };
+  const heatM = new THREE.MeshStandardMaterial({ color: '#2a1d18', emissive: '#ff4a1c', emissiveIntensity: 0.2, roughness: 0.7 });
+  W.infrared = { x: 12.5, z: -4.4, inside: false };
+  {
+    const i0 = IRC.x0 + 0.06, i1 = IRC.x1 - 0.06, jb = IRC.z1 - 0.07, jf = IRC.z0 + 0.05, cx = (i0 + i1) / 2;
+    cedarBox(i1 - i0, 3.2, 0.02, cx, 1.6, jb);   // lining the stone wall behind
+    for (let x = i0 + 0.05; x < i1; x += 0.12) k.box(M.cedar, 0.09, 0.025, jb - jf - 0.04, x, 0.013, (jb + jf) / 2);   // duckboards
+    // The bench: slats on a frame along the back wall, a slatted back rest.
+    const bz = jb - 0.3;
+    for (let q = 0; q < 5; q++) k.box(M.cedar, i1 - i0 - 0.1, 0.035, 0.08, cx, 0.45, bz + 0.2 - q * 0.1);
+    for (const x of [i0 + 0.2, cx, i1 - 0.2]) k.box(M.cedar, 0.06, 0.43, 0.48, x, 0.215, bz);
+    for (let q = 0; q < 4; q++) k.box(M.cedar, i1 - i0 - 0.1, 0.07, 0.025, cx, 0.62 + q * 0.12, jb - 0.04 - q * 0.012);
+    solid(cx, bz, i1 - i0, 0.55);
+    // Heaters: three over the bench, one on each side wall, a long one low under the bench.
+    for (const x of [cx - 0.85, cx, cx + 0.85]) { k.box(heatM, 0.7, 0.95, 0.02, x, 1.6, jb - 0.02); k.box(M.black, 0.74, 0.99, 0.01, x, 1.6, jb - 0.012); }
+    for (const [x, bx] of [[i0 + 0.02, i0 + 0.011], [i1 - 0.02, i1 - 0.011]]) { k.box(heatM, 0.02, 1.0, 0.7, x, 1.5, -4.85); k.box(M.black, 0.01, 1.04, 0.74, bx, 1.5, -4.85); }
+    k.box(heatM, i1 - i0 - 0.4, 0.06, 0.02, cx, 0.12, bz - 0.2);
+    k.box(glow('#ffb48a', 0.6), i1 - i0, 0.02, 0.03, cx, 3.0, jb - 0.03);   // a warm strip light up under the ceiling
+    const g = new THREE.Group(); g.position.set(cx, 0, bz); g.rotation.y = Math.PI; G.add(g);   // facing out, south
+    for (const lx of [-0.9, 0, 0.9]) { const st = W.seat(g, 'Infrared bench', lx, 1.12); W.markSeat(g, st); }
+    W.hingedDoor({ name: 'Infrared door', hx: 13.8, hz: -6.3, r0: Math.PI, swing: -1, w: 0.8, m: M.cedar, win: [0.2, 0.6, 1.2, 1.75] });   // opens out
+    W.plaque('INFRARED', 13.4, 2.45, -6.34, Math.PI);
+  }
   k.flush(G);
 
   // ----- each frame -----
@@ -580,6 +607,13 @@ export function installSpa(ctx, W) {
     // The sauna: cooling back toward 82 °C, the heat of a fresh löyly fading; inside it, a warm shimmer.
     sauna.temp += (82 - sauna.temp) * Math.min(1, dt * 0.02); sauna.hum += (12 - sauna.hum) * Math.min(1, dt * 0.03); sauna.heat = Math.max(0, sauna.heat - dt / 14);
     sauna.inside = inZone(p, SA.x0, SA.x1, SA.z0, SA.z1);
+    // The infrared heaters cycling, a slow breath of glow; in the cabin, the warmth on you.
+    heatM.emissiveIntensity = 0.2 + 0.05 * Math.sin(t * 0.4);
+    W.infrared.inside = inZone(p, IRC.x0, IRC.x1, IRC.z0, IRC.z1);
+    if (W.infrared.inside) {
+      ctx.hemi.color.lerp(IR, 0.35);
+      W.wantVeil = ['radial-gradient(ellipse at 50% 55%, rgba(255,120,60,0), rgba(255,80,40,.4))', 0.3];
+    }
     sauna.hotM.emissiveIntensity = (0.5 + 1.6 * sauna.heat) * (0.85 + 0.15 * Math.sin(t * 3.7) * Math.sin(t * 1.3));
     if (sauna.burst > 0 && (sauna.burst -= dt) <= 0) sauna.again?.();
     if (sand.flip) {   // turning over: half a turn, then the full end's on top
