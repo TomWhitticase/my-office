@@ -9,15 +9,19 @@ export const VIEW = { width: 800, height: 500 };
 // A desktop Chrome's, not HeadlessChrome's: the office only offers chat to a real browser (see chat.js CAN_CHAT).
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36';
 
-export async function launch() {
-  return chromium.launch({ executablePath: CHROME, args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-gpu-vsync', '--font-render-hinting=none'] });
+// This machine's GPU (ANGLE on Metal) by default; `software` renders with SwiftShader instead, slower but the same on any
+// machine. The goldens are recorded on the GPU, so a software run differs from them by more than the tolerance.
+export async function launch({ software = false } = {}) {
+  const gl = software ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'];
+  return chromium.launch({ executablePath: CHROME, args: [...gl, '--disable-gpu-vsync', '--font-render-hinting=none'] });
 }
 
-// Before any page script: a seeded Math.random, settled preferences, and a count of fetches still in flight (so a step
-// can wait for whatever it set off to land before the next frame).
+// Before any page script: a seeded Math.random (window.__seed(n) restarts it from n), settled preferences, and a count
+// of fetches still in flight (so a step can wait for whatever it set off to land before the next frame).
 function init() {
   let s = 20260617;
   Math.random = () => { s = (s + 0x6d2b79f5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  window.__seed = (n) => { s = n; };
   Object.assign(localStorage, { officeSound: 'off', officeQuality: 'high', officeOverlays: 'on', officeTimeSpeed: 'live' });
   const real = window.fetch;
   window.__inflight = 0;

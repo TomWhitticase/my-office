@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "setup": "node bin/setup.mjs",
-    "test": "node test/run.mjs"
+    "test": "node test/run.mjs",
+    "full-check": "bin/full-check.sh"
   },
   "engines": {
     "node": ">=18"
