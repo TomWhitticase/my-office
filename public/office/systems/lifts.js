@@ -267,7 +267,8 @@ export function installRiding(ctx) {
   const carPanels = () => [...lifts.map((L) => L.panel), ...FLOORS.filter((F) => F.panel).map((F) => F.panel)];
   const mine = { L: null, call: false, goal: null, from: 48, to: 48, k: 0, dur: 1 };
   // (Not while the floor has put its lift out of reach: out in the archive's void, see archive-entrance.js.)
-  const inMyCar = () => !!mine.L && !ctx.away?.liftGone && ctx.player.x > LIFT.x + 0.3 && Math.abs(ctx.player.z - mine.L.z) < CAR.w / 2;
+  const inMyCar = () => !!mine.L && !ctx.away?.liftGone && ctx.player.x > LIFT.x + 0.3 &&
+    ctx.player.x < LIFT.x + 0.1 + CAR.d && Math.abs(ctx.player.z - mine.L.z) < CAR.w / 2;
   const atMyDoor = () => !!mine.L && !ctx.away?.liftGone && ctx.player.x > LIFT.x - 0.7 && ctx.player.x < LIFT.x + 0.45 && Math.abs(ctx.player.z - mine.L.z) < DOOR.w / 2 + 0.1;
   const spare = (L) => !L.player && !L.pending.length && !L.cargo.size && !L.callers.size && !L.riders.size && !L.exits.size &&
     ['home', 'away', 'open', 'closing'].includes(L.state);
@@ -378,11 +379,19 @@ export function installRiding(ctx) {
     ctx.setFloor(null);
   }
   // Your car while it's yours: its walls, and the doorway while the doors are open (the core's collider rules otherwise).
+  // The car is a box you get into only through its open doorway: once in, `held` keeps you while you're anywhere in the
+  // shaft's footprint (a step out through a wall, up to 0.43 m sprinting at the frame cap, is still in). Beside or behind
+  // the shaft (the freestanding ones on the other floors), or at shut doors, the shaft's own collider rules, so a long step
+  // never lands you inside. Arriving from more than a metre away in one go (goFloor, a teleport), the car's own box counts.
+  let held = false, was = null;
   function carCollide(p) {
     const L = mine.L;
-    if (!L || ctx.away?.liftGone) return false;
-    const r = 0.25, front = LIFT.x + 0.1, open = L.doorK > 0.75, half = DOOR.w / 2 - r, inCar = p.x > front;
-    if (!inCar && !(open && p.x > LIFT.x - 0.6 && Math.abs(p.z - L.z) < DOOR.w / 2)) return false;
+    if (!L || ctx.away?.liftGone) { was = null; return (held = false); }
+    const r = 0.25, front = LIFT.x + 0.1, open = L.doorK > 0.75, half = DOOR.w / 2 - r, off = Math.abs(p.z - L.z),
+      jumped = !was || Math.hypot(p.x - was.x, p.z - was.z) > 1,
+      inCar = p.x > front && (held ? p.x < front + CAR.d + 0.2 && off < CAR.w / 2 + 0.3 : jumped && p.x < front + CAR.d && off < CAR.w / 2);
+    held = false; was = { x: p.x, z: p.z };
+    if (!inCar && !(open && p.x > LIFT.x - 0.6 && p.x < front + r && off < DOOR.w / 2)) return false;
     if (!inCar && p.x < LIFT.x - r) return true;   // in front of the open doors: nothing to bump into
     p.x = Math.min(p.x, front + CAR.d - r);
     p.z = clamp(p.z, L.z - CAR.w / 2 + r, L.z + CAR.w / 2 - r);
@@ -391,6 +400,7 @@ export function installRiding(ctx) {
       const dz = Math.abs(p.z - L.z) - half, dx = front + r - p.x;
       if (dx < dz) p.x = front + r; else p.z = L.z + Math.sign(p.z - L.z) * half;
     }
+    held = true; was = { x: p.x, z: p.z };
     return true;
   }
   Object.assign(ctx, { ARCHIVE, mine, FLOORS, hitBox, addFloor, inMyCar, spare });
@@ -481,8 +491,9 @@ export function installShafts(ctx) {
     }
     F.gtao.enabled = ctx.quality;
     // Only the car itself is office-lit: the switch happens across the doorway (0.4 m inside to 0.3 m out), eased over ~1 s,
-    // so walking up to the lift from the floor never dims anything.
-    F.out = F.carless || F.liftGone ? 1 : damp(F.out ?? 0, clamp((LIFT.x + 0.4 - ctx.player.x) / 0.7, 0, 1), 3, 1 / 60);
+    // so walking up to the lift from the floor (or round the back of it) never dims anything.
+    const P = ctx.player, byCar = !!mine.L && P.x < LIFT.x + 0.3 + CAR.d && Math.abs(P.z - mine.L.z) < CAR.w / 2 + 0.3;
+    F.out = F.carless || F.liftGone ? 1 : damp(F.out ?? 0, byCar ? clamp((LIFT.x + 0.4 - P.x) / 0.7, 0, 1) : 1, 3, 1 / 60);
     const k = ease(F.out);
     renderer.toneMappingExposure = lerp(ctx.officeExposure, L.exposure, k);
     F.hemi.intensity = lerp(hemi.intensity, L.hemi, k);
