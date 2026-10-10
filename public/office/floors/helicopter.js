@@ -1,9 +1,9 @@
 // THE HELICOPTER: a little two-seat light helicopter (R44-sized: a 9 m two-blade rotor) parked on the roof's helipad.
 // Click it to climb into the pilot's seat; the rotor spools up and you fly it round the city with arcade controls (W/S
 // pitch, A/D yaw, Space/Shift or E/Q up and down, the mouse to look round the cockpit), land on the pad (it settles onto the
-// H) or on any roof or street, and F to get out once you're back on ours. R flies you home on its own.
+// H) or on any roof or street, and F to get out wherever you've landed (not in the river). R flies you home on its own.
 // It's in the office's scene beside the roof terrace (shown with it), in world coordinates; you stay on the roof floor
-// while you fly, so the office below carries on and the TVs stay paused.
+// while you fly, and while you walk about wherever you got out (S.out), so the office below carries on and the TVs stay paused.
 
 import * as THREE from 'three';
 import { angDiff, clamp, damp, EYE, FONT, lerp, LIFT, makeCanvas, makeScreen, mat, rng, sstep } from '../util.js';
@@ -165,6 +165,7 @@ function build(ctx) {
   const K = new Set();   // flight keys held
   const fwd = new THREE.Vector3(), right = new THREE.Vector3(), tmp = new THREE.Vector3(), eye = new THREE.Vector3(), q = new THREE.Quaternion();
   const lookE = new THREE.Euler(0, 0, 0, 'YXZ'), lookQ = new THREE.Quaternion();
+  const near = () => Math.hypot(ctx.player.x - S.pos.x, ctx.player.z - S.pos.z);
   const onDeck = () => Math.abs(S.pos.x) < EDGE.x - 1.5 && Math.abs(S.pos.z) < EDGE.z - 1.5 && S.pos.y < DECK + 0.3;
   const toPad = () => Math.hypot(S.pos.x - PARK.x, S.pos.z - PARK.z);
 
@@ -174,7 +175,7 @@ function build(ctx) {
     g.position.set(S.pos.x, S.pos.y + PIVOT + bob, S.pos.z);
     g.rotation.set(S.pitch, S.yaw, S.roll);
     g.updateMatrixWorld(true);
-    const parked = S.landed && onDeck(), c = Math.cos(S.yaw), s = Math.sin(S.yaw);
+    const parked = S.landed && (onDeck() || !!S.out), c = Math.cos(S.yaw), s = Math.sin(S.yaw);
     [[-1.05, 1.05, -1.75, 1.7], [-0.35, 0.35, 1.7, 6.7]].forEach(([x0, x1, z0, z1], i) => {
       const k = keepOut[i];
       if (!parked) { Object.assign(k, { minX: 1e6, maxX: 1e6, minZ: 1e6, maxZ: 1e6 }); return; }
@@ -197,6 +198,7 @@ function build(ctx) {
   }
   function board() {
     if (S.aboard || !roof.on || ctx.mode !== 'free') return false;
+    if (S.out) backIn();
     S.aboard = true; S.cam = 'tween'; S.auto = null; K.clear(); ctx.keys.clear();
     ctx.mode = 'heli'; hud.classList.add('of-flying');
     Object.assign(S, { lookYaw: 0, lookPitch: -0.08, quiet: 0 });
@@ -211,18 +213,95 @@ function build(ctx) {
   function getOut() {
     if (!S.aboard || S.cam !== 'in') return false;
     if (!S.landed) { toast('Land first · <kbd>Shift</kbd> to descend'); return false; }
-    if (!onDeck()) { toast('You can only get out on our roof · <kbd>R</kbd> flies you back to the helipad'); return false; }
+    let out = body.localToWorld(tmp.set(2.6, 0, -0.2)), side = 1, y = ROOF_Y;
+    if (!onDeck()) {   // somewhere else: a roof, a park, the street
+      const on = surface(), spot = on && stepOut(on);
+      if (!spot) {
+        toast(`${on === 'street' ? 'You’d get wet' : 'Nowhere to stand here'} · <kbd>R</kbd> flies you back to the helipad`);
+        return false;
+      }
+      goOut(on); ({ x: out.x, z: out.z, side } = spot); y = S.out.ground(out.x, out.z);
+    }
     S.engine = false; S.auto = null; K.clear();
-    const p = ctx.player, out = body.localToWorld(tmp.set(2.6, 0, -0.2));
-    Object.assign(p, { x: out.x, z: out.z, seated: false, seat: null, eye: EYE, fy: 0, yaw: S.yaw - Math.PI / 2, pitch: -0.05 });   // stepped out, facing away
+    const p = ctx.player;
+    Object.assign(p, { x: out.x, z: out.z, seated: false, seat: null, eye: EYE, fy: y - ROOF_Y, yaw: S.yaw - side * Math.PI / 2, pitch: -0.05 });   // stepped out, facing away
     ctx.collide(p);
     S.cam = 'tween';
-    ctx.tween(ctx.camPose(), { x: p.x, y: EYE + ROOF_Y, z: p.z, yaw: p.yaw, pitch: p.pitch }, 1100, () => {
+    ctx.tween(ctx.camPose(), { x: p.x, y: EYE + y, z: p.z, yaw: p.yaw, pitch: p.pitch }, 1100, () => {
       S.aboard = false; S.cam = 'out'; hud.classList.remove('of-flying');
       if (ctx.mode === 'heli') ctx.mode = 'free';
+      if (S.out) toast(`${S.out.street ? 'Out in the street' : 'Out on the roof'} · click the helicopter or <kbd>F</kbd> by it to climb back in`);
     });
     return true;
   }
+
+  // ----- on foot, wherever you got out -----
+  // S.out: what you're standing on (a building's roof, or the street round where you landed), its ground height and what
+  // you can't walk through: the helicopter, anything taller near you, and in the street the trees. The roof floor's
+  // colliders, bound, ground and map follow it while it's set; the lift isn't there (liftGone).
+  const WALK_R = 65;
+  const wet = (x, z) => Math.abs(x - city.riverX(z)) < city.RIVER_W || city.ponds.some(([px, pz, r]) => Math.hypot(x - px, z - pz) < r + 0.3);
+  const inPark = (x, z) => city.parks.some(([px, pz]) => Math.abs(x - px) < 28 && Math.abs(z - pz) < 28);
+  const streetY = (x, z) => city.GROUND + (inPark(x, z) ? 0.4 : Math.abs(x - city.riverX(z)) < city.RIVER_W + 24 ? 0.3 : 0);
+  const inside = (b, x, z, m = 0) => Math.abs(x - b.x) < b.w / 2 - m && Math.abs(z - b.z) < b.d / 2 - m;
+  function surface() {   // what the skids are on: a building (its box), 'street', or null (somewhere too small to stand)
+    for (const b of nearBy(S.pos.x, S.pos.z)) if (!b.deck && Math.abs(S.pos.y - b.top) < 0.5 && inside(b, S.pos.x, S.pos.z, -0.6)) return b.w > 4 && b.d > 4 ? b : null;
+    return S.pos.y < STREET + 0.5 ? 'street' : null;
+  }
+  // Where you step down: your door (the right), else the left, else behind them; on the same roof, or dry street clear of buildings.
+  function stepOut(on) {
+    if (on === 'street' && wet(S.pos.x, S.pos.z)) return null;
+    for (const [lx, lz, side] of [[2.6, -0.2, 1], [-2.6, -0.2, -1], [2.6, 2.2, 1], [-2.6, 2.2, -1]]) {
+      const w = body.localToWorld(tmp.set(lx, 0, lz)), x = w.x, z = w.z;
+      if (on === 'street' ? !wet(x, z) && ![...nearBy(x, z)].some((b) => inside(b, x, z, -0.5)) : inside(on, x, z, 0.5)) return { x, z, side };
+    }
+    return null;
+  }
+  let trunks = null;   // the street trees' trunks, [x, z], read once from the city's instanced trees
+  function goOut(on) {
+    const street = on === 'street', y = street ? STREET : on.top, c = { x: S.pos.x, z: S.pos.z };
+    const cols = [...keepOut];
+    for (const b of nearBy(c.x, c.z)) if (b !== on && b.top > y + 0.5) cols.push({ minX: b.x - b.w / 2, maxX: b.x + b.w / 2, minZ: b.z - b.d / 2, maxZ: b.z + b.d / 2 });
+    if (street) {
+      if (!trunks) { const a = city.trees[0].instanceMatrix.array; trunks = []; for (let i = 0; i < a.length; i += 16) trunks.push([a[i + 12], a[i + 14]]); }
+      for (const [x, z] of trunks) if (Math.abs(x - c.x) < WALK_R + 5 && Math.abs(z - c.z) < WALK_R + 5) cols.push({ minX: x - 0.3, maxX: x + 0.3, minZ: z - 0.3, maxZ: z + 0.3 });
+    }
+    S.out = { on, street, c, cols, last: { ...c }, edge: false,
+      ground: street ? streetY : () => on.top,
+      bound(p) {
+        const o = S.out;
+        let hit = false;
+        if (!street) {   // the roof's edge, half a metre in
+          const x = clamp(p.x, on.x - on.w / 2 + 0.5, on.x + on.w / 2 - 0.5), z = clamp(p.z, on.z - on.d / 2 + 0.5, on.z + on.d / 2 - 0.5);
+          hit = x !== p.x || z !== p.z; p.x = x; p.z = z;
+        } else {   // a way round the helicopter, and not into the water
+          const dx = p.x - c.x, dz = p.z - c.z, r = Math.hypot(dx, dz);
+          if (r > WALK_R) { p.x = c.x + dx / r * WALK_R; p.z = c.z + dz / r * WALK_R; hit = true; }
+          if (wet(p.x, p.z)) { p.x = o.last.x; p.z = o.last.z; hit = true; }
+        }
+        if (p === ctx.player) {
+          o.last.x = p.x; o.last.z = p.z;
+          if (hit && !o.edge) toast(street ? (wet(p.x + (p.x - c.x) * 0.02, p.z + (p.z - c.z) * 0.02) ? 'That’s the river' : 'Best not wander far from the helicopter') : 'The edge of the roof');
+          o.edge = hit;
+        }
+      } };
+    roof.liftGone = true;
+    ctx.sfx?.setAway(true, street ? { hums: [] } : roof.sound);   // the roof's wind up high; down in the street, just your steps
+    ctx.sfx?.softGround?.((x, z) => street && (inPark(x, z) || Math.abs(x - city.riverX(z)) < city.RIVER_W + 24));
+    place(0);
+  }
+  function backIn() {   // aboard again (or gone from the roof floor): the roof's own colliders, bounds and lift
+    S.out = null; roof.liftGone = false;
+    ctx.sfx?.softGround?.(null);
+    if (roof.on) ctx.sfx?.setAway(true, roof.sound);
+  }
+  // F on foot near it climbs back in, as clicking it does.
+  ctx.key('KeyF', () => {
+    if (!roof.on || S.aboard || !g.visible) return false;
+    if (near() > 6) { if (S.out) toast('Walk back to the helicopter to climb in'); return !!S.out; }
+    return board();
+  });
+
   function goHome() {
     if (!S.aboard || S.cam !== 'in') return false;
     if (S.landed && toPad() < 0.5 && onDeck()) { toast('You’re on the helipad'); return false; }
@@ -238,8 +317,12 @@ function build(ctx) {
     toast('Flying back to the helipad · any flight key takes over');
     return true;
   }
+  const deckCols = roof.colliders, bound0 = roof.bound, ground0 = roof.ground;
+  Object.defineProperty(roof, 'colliders', { get: () => (S.out ? S.out.cols : deckCols), enumerable: true, configurable: true });
+  roof.bound = (p) => (S.out ? S.out.bound(p) : bound0(p));
+  roof.ground = (x, z) => (S.out ? S.out.ground(x, z) - ROOF_Y : ground0?.(x, z) || 0);
   ctx.action('heli', {
-    hover: () => (S.aboard ? '' : '<b>Helicopter</b><div class="k">Click to fly</div>'),
+    hover: () => (S.aboard ? '' : `<b>Helicopter</b><div class="k">Click${near() < 6 ? ' or <kbd>F</kbd>' : ''} to ${S.out ? 'climb in' : 'fly'}</div>`),
     click: () => board(),
   });
 
@@ -292,7 +375,7 @@ function build(ctx) {
       // Back on the ground after a flight with nothing pressed: shut down after a moment.
       S.quiet = S.flown && !A && S.engine && !I.f && !I.t && I.c <= 0 ? S.quiet + dt : 0;
       if (S.quiet > 1.5 && S.cam === 'in') { S.engine = false; S.quiet = 0; S.flown = false; toast(onDeck() ? 'Landed · <kbd>F</kbd> to get out · <kbd>Space</kbd> to take off'
-        : 'Landed · <kbd>R</kbd> flies you back to the helipad'); }
+        : canOut() ? 'Landed · <kbd>F</kbd> to get out · <kbd>R</kbd> flies you back to the helipad' : 'Landed · <kbd>R</kbd> flies you back to the helipad'); }
     } else if (A) autopilot(dt, A, lift);
     else {
       // Arcade handling: nose down to go, it levels itself and slows when you let go; yaw with a bank into the turn.
@@ -386,6 +469,8 @@ function build(ctx) {
   const hudEl = hud.querySelector('.of-heli'), el = (c) => hudEl.querySelector(c);
   const hudOut = { alt: el('.alt'), spd: el('.spd'), hdg: el('.hdg'), rpm: el('.rpm'), hint: el('.hint') }, shown = {};
   const set = (k, v) => { if (shown[k] !== v) { shown[k] = v; if (k === 'hintOn') hudOut.hint.classList.toggle('on', v); else hudOut[k].innerHTML = v; } };
+  let outAt = 0, outOk = false;
+  const canOut = () => { const now = performance.now(); if (now - outAt > 250) { outAt = now; const on = surface(); outOk = !!on && !!stepOut(on); } return outOk; };
   const COMPASS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
   const heading = () => ((Math.atan2(-Math.sin(S.yaw), -Math.cos(S.yaw)) * 180 / Math.PI) + 360) % 360;
   function updateHud() {
@@ -396,8 +481,9 @@ function build(ctx) {
     let hint, on = false;
     if (S.cam === 'tween') hint = '';
     else if (S.auto) hint = 'Autopilot: flying home · any flight key takes over';
-    else if (S.landed) hint = !S.engine && S.rpm < 0.97 && S.rpm > 0.02 ? (onDeck() ? 'Shutting down · <kbd>F</kbd> get out · <kbd>Space</kbd> take off' : 'Shutting down · <kbd>R</kbd> fly home')
-      : S.rpm < 0.97 ? 'Starting up…' : `<kbd>Space</kbd> take off${onDeck() ? ' · <kbd>F</kbd> get out' : ' · <kbd>R</kbd> fly home'}`;
+    else if (S.landed) hint = !S.engine && S.rpm < 0.97 && S.rpm > 0.02 ? (onDeck() ? 'Shutting down · <kbd>F</kbd> get out · <kbd>Space</kbd> take off'
+      : `Shutting down${canOut() ? ' · <kbd>F</kbd> get out' : ''} · <kbd>R</kbd> fly home`)
+      : S.rpm < 0.97 ? 'Starting up…' : `<kbd>Space</kbd> take off${onDeck() ? ' · <kbd>F</kbd> get out' : `${canOut() ? ' · <kbd>F</kbd> get out' : ''} · <kbd>R</kbd> fly home`}`;
     else if (pad < 4 && above < 30) { hint = 'Over the pad · <kbd>Shift</kbd> to land'; on = true; }
     else if (pad < 60 && above < 80) { hint = 'Helipad ahead · slow down and descend onto the H'; on = true; }
     else hint = '<kbd>W</kbd><kbd>S</kbd> pitch · <kbd>A</kbd><kbd>D</kbd> turn · <kbd>Space</kbd><kbd>Shift</kbd> up/down · <kbd>R</kbd> home';
@@ -437,8 +523,8 @@ function build(ctx) {
   paintPanel(0); paintAt = -1e9;
 
   ctx.onFrame((dt, t, now) => {   // the sun's shadows follow you while you're away from the roof
-    const away = g.visible && (!S.landed || !onDeck());
-    if (away) { sun.target.position.copy(S.pos); sun.position.copy(sunDir).multiplyScalar(90).add(S.pos); }
+    const away = g.visible && (!S.landed || !onDeck()), at = S.out && !S.aboard ? tmp.set(ctx.player.x, S.out.ground(ctx.player.x, ctx.player.z), ctx.player.z) : S.pos;
+    if (away) { sun.target.position.copy(at); sun.position.copy(sunDir).multiplyScalar(90).add(at); }
     else sun.target.position.set(0, 0, 0);
     sun.target.updateMatrixWorld();
   }, 55);
@@ -473,22 +559,31 @@ function build(ctx) {
   }, 85);
   ctx.onFrame(() => ctx.sfx.heli(g.visible ? S.rpm : 0, tmp.copy(S.pos).setY(S.pos.y + 2.5), S.aboard && S.cam === 'in'), 115);
 
-  // While you're aboard the minimap is a map of the city round you instead of the roof's.
-  const roofMap = roof.map;
-  roof.map = () => (S.aboard ? heliMap() : roofMap());
+  // While you're aboard, or on foot somewhere else, the minimap is a map of the city round you instead of the roof's (a
+  // getter, so the parts after this that add to the roof's map, the bar, add to the roof's).
+  let roofMap = roof.map;
+  Object.defineProperty(roof, 'map', { get: () => (S.aboard || S.out ? heliMap : roofMap), set: (f) => { roofMap = f; }, enumerable: true, configurable: true });
   function heliMap() {
-    const c = mapCtx, W = 440, H = 330, M = 2.4, cx = S.pos.x, cz = S.pos.z, sx = (x) => W / 2 + (x - cx) / M, sz = (z) => H / 2 + (z - cz) / M;
+    const walk = S.out && !S.aboard, p = ctx.player, M = walk ? 0.5 : 2.4, cx = walk ? p.x : S.pos.x, cz = walk ? p.z : S.pos.z, y = walk ? S.out.ground(p.x, p.z) + 0.5 : S.pos.y;
+    const c = mapCtx, W = 440, H = 330, sx = (x) => W / 2 + (x - cx) / M, sz = (z) => H / 2 + (z - cz) / M;
     c.clearRect(0, 0, W, H);
-    c.fillStyle = 'rgba(255,255,255,.2)';
+    if (walk) {   // where you can walk: the roof you're on, or the circle round the helicopter; and the helicopter
+      const o = S.out;
+      c.fillStyle = 'rgba(255,255,255,.16)';
+      if (o.street) { c.beginPath(); c.arc(sx(o.c.x), sz(o.c.z), WALK_R / M, 0, Math.PI * 2); c.fill(); }
+      else c.fillRect(sx(o.on.x - o.on.w / 2), sz(o.on.z - o.on.d / 2), o.on.w / M, o.on.d / M);
+      c.fillStyle = 'rgba(217,119,87,.9)';
+      for (const k of keepOut) c.fillRect(sx(k.minX), sz(k.minZ), (k.maxX - k.minX) / M, (k.maxZ - k.minZ) / M);
+    }
     for (const b of solids) {
-      if (Math.abs(b.x - cx) > W / 2 * M + 30 || Math.abs(b.z - cz) > H / 2 * M + 30) continue;
-      c.fillStyle = b.top > S.pos.y ? 'rgba(255,140,110,.55)' : b.deck ? 'rgba(255,255,255,.4)' : 'rgba(255,255,255,.2)';
+      if (Math.abs(b.x - cx) > W / 2 * M + 30 || Math.abs(b.z - cz) > H / 2 * M + 30 || (walk && b === S.out.on)) continue;
+      c.fillStyle = b.top > y ? 'rgba(255,140,110,.55)' : b.deck ? 'rgba(255,255,255,.4)' : 'rgba(255,255,255,.2)';
       c.fillRect(sx(b.x - b.w / 2), sz(b.z - b.d / 2), Math.max(1.5, b.w / M), Math.max(1.5, b.d / M));
     }
     c.strokeStyle = 'rgba(232,195,58,.9)'; c.lineWidth = 3; c.beginPath(); c.arc(sx(PARK.x), sz(PARK.z), Math.max(4, HELI.r / M), 0, Math.PI * 2); c.stroke();
     c.strokeStyle = 'rgba(255,255,255,.25)'; c.lineWidth = 2; c.beginPath(); c.arc(sx(0), sz(0), EDGE_R / M, 0, Math.PI * 2); c.stroke();
     c.font = '600 18px system-ui'; c.fillStyle = 'rgba(255,255,255,.55)'; c.fillText('N', W / 2 - 6, 22);
-    c.save(); c.translate(W / 2, H / 2); c.rotate(-S.yaw);
+    c.save(); c.translate(W / 2, H / 2); c.rotate(-(walk ? p.yaw : S.yaw));
     c.fillStyle = '#fff'; c.beginPath(); c.moveTo(0, -14); c.lineTo(9, 10); c.lineTo(0, 5); c.lineTo(-9, 10); c.closePath(); c.fill();
     c.restore();
   }
@@ -499,6 +594,7 @@ function build(ctx) {
   roof.leave = () => {
     leave0(); g.visible = false;
     if (S.aboard) { S.aboard = false; S.cam = 'out'; K.clear(); hud.classList.remove('of-flying'); if (ctx.mode === 'heli') ctx.mode = 'free'; }
+    if (S.out) backIn();
     if (!S.landed || !onDeck()) park();
     S.engine = false; S.rpm = 0; ctx.sfx?.heli(0);
     place(0);
@@ -508,5 +604,5 @@ function build(ctx) {
   const stage0 = roof.cctv.stage;
   roof.cctv.stage = () => { const undo = stage0(), was = g.visible; g.visible = true; return () => { g.visible = was; undo(); }; };
 
-  ctx.heli = { S, body, keys: K, board, getOut, goHome, park, get eye() { return eyePose(); } };
+  ctx.heli = { S, body, keys: K, board, getOut, goHome, park, surface, get eye() { return eyePose(); } };
 }

@@ -20,6 +20,7 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos, roof 
   let ctx = null, bus = null, master = null, B = null, voices = 0, active = false;
   let away = false, tone = null, hum = null, humOn = false, pullV = null, heliV = null;   // away: off the office floor, where it can't be heard ('roof' up top, true in the archive)
   let room = null, fans = [], clickAt = 0, relayAt = 0;   // room: a floor's own sound (see setAway), fans: its hum loops
+  let softAt = null;   // off the office floor: (x, z) => true where your steps fall soft (grass), see softGround
   let voidK = 1;   // the archive: 1 out in the void, 0 in its entrance hall (see voidMix)
   const played = {};   // debug counts by kind (window.__office.sfx.played)
   const st = new Map();       // person -> sound state
@@ -561,7 +562,7 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos, roof 
     lastCam.copy(L);
     if (free && moved > 1.5 && moved < 15) {
       stepAcc += dt;
-      if (away !== 'tess' && !room?.steps && stepAcc > (moved > 6 ? 0.3 : 0.42)) { stepAcc = 0; const soft = !away && onRug(L.x, L.z); play(pick(soft ? B.soft : B.step), L.x, 0.05, L.z - 0.01, soft ? 0.03 : 0.045, rnd(0.95, 1.1)); }
+      if (away !== 'tess' && !room?.steps && stepAcc > (moved > 6 ? 0.3 : 0.42)) { stepAcc = 0; const soft = away ? !!softAt?.(L.x, L.z) : onRug(L.x, L.z); play(pick(soft ? B.soft : B.step), L.x, L.y - 1.6, L.z - 0.01, soft ? 0.03 : 0.045, rnd(0.95, 1.1)); }
     } else stepAcc = 0.3;
     // Door and blinds: a sound whenever their target changes (clicks here or anywhere else).
     if (!away && lastDoor !== null && door.to !== lastDoor) play(B.swish, doorPos.x, 1.1, doorPos.z, 0.4, door.to ? 1 : 0.9);
@@ -605,6 +606,7 @@ export function createSounds({ camera, rugs, glass, lift, coffee, doorPos, roof 
     // kind: 'roof' up top, or a floor's own sound { hums: [[x, y, z, gain]], clicks, relays: [[x, y, z]] } (the server hall;
     // steps: true, it plays your footsteps itself);
     // none is the archive's vast quiet.
+    softGround(fn) { softAt = fn; },
     setAway(on, kind) { away = on && (kind || true); room = on && typeof kind === 'object' ? kind : null; voidK = 1; applyAway(); }, hum: liftHum,
     // The archive: how far out into the void you are (0 in the entrance hall, 1 out in it), set each frame while you're there.
     voidMix(k) { k = Math.round(k * 20) / 20; if (k !== voidK) { voidK = k; mix(); } },
