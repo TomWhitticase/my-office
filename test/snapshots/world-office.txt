@@ -2548,7 +2548,7 @@ Mesh||BufferGeometry:24|MeshStandardMaterial:f6f4ef::|0 0 0 0 0 0 1 1 1||1||0|se
 Mesh||BufferGeometry:468|MeshStandardMaterial:f1dcc0:map:|0 0 0 0 0 0 1 1 1||1||0|
 Mesh||BufferGeometry:156|MeshStandardMaterial:1b1c1e::|0 0 0 0 0 0 1 1 1||1||0|
 Mesh||BufferGeometry:360|MeshStandardMaterial:f6f4ef::|0 0 0 0 0 0 1 1 1||1||0|
-Mesh||BoxGeometry:24|MeshStandardMaterial:ffffff::|4.75 0.6 10.4 0 0 0 1 1 1|hidden|1||0|action=wellness-towel,reach=3
+Mesh||BoxGeometry:24|MeshStandardMaterial:ffffff::|5.66 0.6 13.9 0 0 0 1 1 1|hidden|1||0|action=wellness-towel,reach=3
 Mesh||BufferGeometry:124|MeshStandardMaterial:ffffff:map:|0 0 0 0 0 0 1 1 1||1||0|
 Mesh||BufferGeometry:76|MeshStandardMaterial:3b2c22::|0 0 0 0 0 0 1 1 1||1||0|
 Mesh||BufferGeometry:124|MeshStandardMaterial:ffffff:map:|0 0 0 0 0 0 1 1 1||1||0|
