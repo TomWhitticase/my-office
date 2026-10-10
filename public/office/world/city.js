@@ -52,7 +52,7 @@ export function install(ctx) {
       geos.push(g); boxes.push({ x, z, w, d, top: GROUND + h });
     };
     const tree = (x, z, scale = 1) => trees.push([x, z, (8 + R() * 7) * scale, (2.6 + R() * 1.9) * scale]);
-    addB(40.6, -GROUND - 0.05, 30.6, 0, 0, '#d8d2c8', 0, 0);                // our own tower, below the office
+    addB(40.6, -GROUND - 15.25, 30.6, 0, 0, '#d8d2c8', 0, 0);               // our own tower, up to 44 (47 to 44 over it: floors/empty-floors.js)
     for (let gx = -12; gx <= 12; gx++) for (let gz = -12; gz <= 12; gz++) {
       const cx = gx * 70, cz = gz * 70, dist = Math.hypot(cx, cz), ring = Math.max(Math.abs(gx), Math.abs(gz));
       if ((gx === 0 && gz === 0) || dist > 880) continue;
