@@ -247,6 +247,7 @@ tr.click:hover td { background: var(--surface-2); }
     <div class="adm-row"><span class="lbl">Meeting room (south)</span><span class="seg" data-blind="meetSouth"><button data-v="0">Raised</button><button data-v="0.5">Slats open</button><button data-v="1">Closed</button></span></div>
     <div class="adm-row"><span class="lbl">Meeting room (north)</span><span class="seg" data-blind="meetNorth"><button data-v="0">Raised</button><button data-v="0.5">Slats open</button><button data-v="1">Closed</button></span></div>
     <div class="adm-row"><span class="lbl">Small meeting room</span><span class="seg" data-blind="meetSmall"><button data-v="0">Raised</button><button data-v="0.5">Slats open</button><button data-v="1">Closed</button></span></div>
+    <div class="adm-row"><span class="lbl">Huddle room</span><span class="seg" data-blind="meetHuddle"><button data-v="0">Raised</button><button data-v="0.5">Slats open</button><button data-v="1">Closed</button></span></div>
     <div class="adm-row"><span class="lbl">Every blind</span><span style="display:flex;gap:6px"><button data-all="0">Raise all</button><button data-all="0.5">Lower all</button><button data-all="1">Close all</button></span></div>
   </section>
   <section class="panel">
@@ -635,7 +636,7 @@ window.dash = {
   },
   normUrl: (s) => { s = s.trim(); return !s ? '' : s.startsWith('/') ? location.origin + s : /^[a-z][\w+.-]*:/i.test(s) ? s : (/^(localhost|127\.)/.test(s) ? 'http://' : 'https://') + s; },
   // Lights, blinds, door and the security cameras (server-side, /api/office). putOffice applies locally at once, then saves.
-  office: { lights: 'auto', brightness: 1, blinds: { side: 0, front: 0, north: 0, east: 0, west: 0, office: 0, meetSouth: 0, meetNorth: 0, meetSmall: 0 }, door: 0,
+  office: { lights: 'auto', brightness: 1, blinds: { side: 0, front: 0, north: 0, east: 0, west: 0, office: 0, meetSouth: 0, meetNorth: 0, meetSmall: 0, meetHuddle: 0 }, door: 0,
     cameras: {} }, officeListeners: new Set(),
   board: null, boardListeners: new Set(),   // the task board (server-side, /api/board): the office paints it and sends its changes
   putOffice(patch, save = true) {   // save false: this page only (the Security app saves a drag's aim a few times a second)

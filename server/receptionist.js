@@ -38,10 +38,11 @@ const BLIND_PLACES = {
   east: 'the east windows (inside the two big meeting rooms)',
   meetSouth: 'the glass of the south meeting room (next to reception)',
   meetNorth: 'the glass of the north meeting room (by the lounge)',
-  meetSmall: 'the glass of the small meeting room (by the ping pong table)',
+  meetSmall: 'the glass of the small meeting room (by the north windows, next to the huddle room)',
+  meetHuddle: 'the glass of the huddle room (the little meeting room between the ping pong table and the small meeting room)',
 };
 const DOOR_PLACES = { office: 'the owner’s private office door', meetSouth: 'the south meeting room door', meetNorth: 'the north meeting room door',
-  meetSmall: 'the small meeting room door' };
+  meetSmall: 'the small meeting room door', meetHuddle: 'the huddle room door' };
 const BLIND_STATE = { raised: 0, open: 0.5, closed: 1 };   // raised, lowered with the slats open, lowered and shut
 const REFRESH = [0, 30, 60, 300, 900, 3600];
 const KINDS = ['live', 'playlist', 'video', 'any'];

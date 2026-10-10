@@ -30,7 +30,7 @@ export function install(ctx) {
   for (const [key, name] of [['side', 'Blinds'], ['front', 'Blinds'], ['north', 'North window blinds'], ['east', 'East window blinds'],
     ['west', 'West window blinds'], ['office', 'Window blinds'],
     ['meetSouth', 'Meeting room (south) blinds'], ['meetNorth', 'Meeting room (north) blinds'],
-      ['meetSmall', 'Small meeting room blinds']]) blinds[key] = { key, name, k: 0, to: 0, runs: [] };
+      ['meetSmall', 'Small meeting room blinds'], ['meetHuddle', 'Huddle room blinds']]) blinds[key] = { key, name, k: 0, to: 0, runs: [] };
   const BL = { top: ROOM.h - 0.12, sp: 0.05, stack: 0.008, slatG: new THREE.BoxGeometry(1, 0.004, 0.058), railG: new THREE.BoxGeometry(1, 0.02, 0.06) };
   const _m4 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _q0 = new THREE.Quaternion(), _e = new THREE.Euler(), _v = new THREE.Vector3(),
     _s = new THREE.Vector3(1, 1, 1);
