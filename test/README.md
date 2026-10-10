@@ -49,7 +49,7 @@ Choosing the shots (`POSES` in `goldens.mjs` has them all, with what each sets u
 - **Another floor**: its own shots: `archive*` and `gateway`, `inside-a-repo` (B2); `server-hall` (47); `vacant-floor`
   (45); `roof` and `heli-cockpit` (50); `restricted*` (B3); and `security-app` / `security-archive` if one of its
   cameras sees it.
-- **The lifts**: `lift-car`, `restricted-keypad`, and one shot on each floor you can reach.
+- **The lifts**: `lift-car`, `lift-panel`, `restricted-keypad`, and one shot on each floor you can reach.
 - **The HUD, the overlays, `main.js`, `ctx.js`, `util.js`, post-processing, people**: they're in every office shot; run
   the whole golden suite.
 - **The desktop or `index.html`** (apps, the tabs, `window.dash`): `desktop`, `seated`, `security-app`,
