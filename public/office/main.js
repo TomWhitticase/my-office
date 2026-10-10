@@ -43,6 +43,7 @@ import { install as installRoofBar } from './floors/roof-bar.js';
 import { install as installServerHall } from './floors/server-hall.js';
 import { install as installRestricted } from './floors/restricted.js';
 import { install as installEmptyFloors } from './floors/empty-floors.js';
+import { install as installWellness } from './floors/wellness.js';
 import { install as installCctv } from './systems/cctv.js';
 import { installUse as installTaskBoardUse } from './systems/task-board.js';
 import { install as installTerminals } from './systems/terminals.js';
@@ -185,7 +186,8 @@ export function mountOffice(container) {
   installServerHall(ctx);
   const { srv } = ctx;
   installRestricted(ctx);   // B3, behind a code; before the cameras (two of its are dead)
-  installEmptyFloors(ctx);   // 46, 45 and 44, vacant: the office's shell with nothing in it
+  installEmptyFloors(ctx);   // 45 and 44, vacant: the office's shell with nothing in it
+  installWellness(ctx);   // 46: the gym, the pool and the spa
 
   installCctv(ctx);
 
