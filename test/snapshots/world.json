@@ -1782,7 +1782,7 @@
    13.4,
    2.1,
    1.2,
-   47
+   -1
   ]
  ],
  "desks": [
@@ -4463,7 +4463,64 @@
    "hooks": []
   },
   {
-   "n": 47,
+   "n": 46,
+   "label": "VACANT",
+   "title": "Vacant floor",
+   "scene": false,
+   "y": -7.6,
+   "carless": false,
+   "fly": false,
+   "sound": null,
+   "colliders": 5,
+   "hits": 2,
+   "hooks": [
+    "enter",
+    "leave",
+    "bound",
+    "map",
+    "fx"
+   ]
+  },
+  {
+   "n": 45,
+   "label": "VACANT",
+   "title": "Vacant floor",
+   "scene": false,
+   "y": -11.399999999999999,
+   "carless": false,
+   "fly": false,
+   "sound": null,
+   "colliders": 5,
+   "hits": 2,
+   "hooks": [
+    "enter",
+    "leave",
+    "bound",
+    "map",
+    "fx"
+   ]
+  },
+  {
+   "n": 44,
+   "label": "VACANT",
+   "title": "Vacant floor",
+   "scene": false,
+   "y": -15.2,
+   "carless": false,
+   "fly": false,
+   "sound": null,
+   "colliders": 5,
+   "hits": 2,
+   "hooks": [
+    "enter",
+    "leave",
+    "bound",
+    "map",
+    "fx"
+   ]
+  },
+  {
+   "n": -1,
    "label": "SERVERS",
    "title": "Server Hall",
    "scene": true,
@@ -5466,63 +5523,6 @@
    "hits": 98,
    "hooks": [
     "enter",
-    "bound",
-    "map",
-    "fx"
-   ]
-  },
-  {
-   "n": 46,
-   "label": "VACANT",
-   "title": "Vacant floor",
-   "scene": false,
-   "y": -7.6,
-   "carless": false,
-   "fly": false,
-   "sound": null,
-   "colliders": 5,
-   "hits": 2,
-   "hooks": [
-    "enter",
-    "leave",
-    "bound",
-    "map",
-    "fx"
-   ]
-  },
-  {
-   "n": 45,
-   "label": "VACANT",
-   "title": "Vacant floor",
-   "scene": false,
-   "y": -11.399999999999999,
-   "carless": false,
-   "fly": false,
-   "sound": null,
-   "colliders": 5,
-   "hits": 2,
-   "hooks": [
-    "enter",
-    "leave",
-    "bound",
-    "map",
-    "fx"
-   ]
-  },
-  {
-   "n": 44,
-   "label": "VACANT",
-   "title": "Vacant floor",
-   "scene": false,
-   "y": -15.2,
-   "carless": false,
-   "fly": false,
-   "sound": null,
-   "colliders": 5,
-   "hits": 2,
-   "hooks": [
-    "enter",
-    "leave",
     "bound",
     "map",
     "fx"

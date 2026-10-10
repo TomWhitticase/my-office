@@ -123,7 +123,7 @@ export const POSES = [
   }],
   ['server-hall', async (o) => {
     await arrive(o);
-    await ride(o, 47);
+    await ride(o, -1);
     const z = await o.eval(() => window.__office.mine.L.z);   // the hall is laid out about your car
     await stand(o, 10, z, { x: 0, y: 1.4, z });
     await o.step(2); await o.idle(); await o.step(3);
