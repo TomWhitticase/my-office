@@ -41,6 +41,10 @@ export function makePeople(root, arch, R) {
   const body = new THREE.InstancedMesh(bodyG, skin, N), legs = new THREE.InstancedMesh(legG, skin, N * 2), arms = new THREE.InstancedMesh(armG, skin, N * 2);
   const bask = new THREE.InstancedMesh(basketG, wicker, Math.max(1, baskets.length));
   for (const m of [body, legs, arms, bask]) { m.frustumCulled = false; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); root.add(m); }
+  // you're the dark one: the same figure, in shadow, whatever the light
+  const pale = new THREE.Color(1, 1, 1), dark = new THREE.Color(0.22, 0.21, 0.2), mi = N - 1;
+  for (let i = 0; i < N; i++) body.setColorAt(i, i === mi ? dark : pale);
+  for (let i = 0; i < N * 2; i++) { legs.setColorAt(i, i >> 1 === mi ? dark : pale); arms.setColorAt(i, i >> 1 === mi ? dark : pale); }
 
   // ----- each frame -----
   const at = (f, s) => {   // where along its path, and which way it's heading there
@@ -90,15 +94,21 @@ export function makePeople(root, arch, R) {
 
   // ----- you, far off: on another gravity's stair, walking when you walk -----
   const stairs = figs.filter((f) => f.kind === 'top' || f.kind === 'under');
-  function glimpse(k, from) {   // a stair of another gravity, 25-50 m from `from` (world): null if there's none
-    const far = stairs.filter((f) => f.k !== k).map((f) => {
-      const mid = new THREE.Vector3(...toWorld(f.k, f.pts[1].clone().lerp(f.pts[2], 0.5).toArray()));
-      return { f, d: mid.distanceTo(from) };
-    }).filter((x) => x.d > 22 && x.d < 55).sort((a, b) => a.d - b.d)[Math.floor(R() * 2)];
-    if (!far) return null;
-    Object.assign(me, { k: far.f.k, pts: far.f.pts, seg: far.f.seg, len: far.f.len, s: far.f.len * (0.3 + R() * 0.4), dir: 1, on: true, walking: false });
+  // A spot on a stair of another gravity, 13-55 m from `from` (world) that `seen(p)` says you can see: you're there, or
+  // nobody is (false).
+  function glimpse(k, from, seen) {
+    const probe = { pts: null, seg: null, dir: 1, pos: new THREE.Vector3(), yaw: 0 }, spots = [];
+    for (const f of stairs) if (f.k !== k) for (const u of [0.25, 0.4, 0.55, 0.7]) {
+      Object.assign(probe, { pts: f.pts, seg: f.seg });
+      at(probe, f.len * u);
+      const w = new THREE.Vector3(...toWorld(f.k, [probe.pos.x, probe.pos.y + 1, probe.pos.z])), d = w.distanceTo(from);
+      if (d > 13 && d < 55) spots.push({ f, s: f.len * u, w, d, r: R() });
+    }
+    const spot = spots.sort((a, b) => a.r - b.r).find((x) => seen(x.w));
+    if (!spot) return false;
+    Object.assign(me, { k: spot.f.k, pts: spot.f.pts, seg: spot.f.seg, len: spot.f.len, s: spot.s, dir: 1, on: true, walking: false });
     at(me, me.s);
-    return me;
+    return true;
   }
   // `step`: how far you walked this frame, so it walks too (and only then)
   function mirror(step, dt) {
