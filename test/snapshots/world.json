@@ -6033,6 +6033,28 @@
     "map",
     "fx"
    ]
+  },
+  {
+   "n": -4,
+   "label": "RELATIVITY",
+   "title": "Relativity",
+   "scene": true,
+   "y": null,
+   "carless": true,
+   "fly": false,
+   "sound": {
+    "kind": "relativity",
+    "steps": true
+   },
+   "colliders": 0,
+   "hits": 7,
+   "hooks": [
+    "enter",
+    "leave",
+    "bound",
+    "map",
+    "fx"
+   ]
   }
  ],
  "tvs": [
@@ -6218,6 +6240,23 @@
    },
    "ordered": "6473153a",
    "sorted": "6e7c2d8e"
+  },
+  "relativity": {
+   "objects": 41,
+   "types": {
+    "Scene": 1,
+    "HemisphereLight": 1,
+    "DirectionalLight": 2,
+    "Group": 10,
+    "Mesh": 27
+   },
+   "actions": {
+    "relexit": 3,
+    "relsky": 3,
+    "relfig": 1
+   },
+   "ordered": "532dfa5",
+   "sorted": "502b700d"
   }
  }
 }
