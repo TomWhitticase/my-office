@@ -78,6 +78,14 @@ export const POSES = [
     await stepUntil(o, () => window.__office.mine.L?.state === 'open', 80);
     await o.step(2);
   }],
+  ['lift-panel', async (o) => {   // in a car, turned to the floor buttons on its side wall, B2 lit
+    await arrive(o);
+    await ride(o, 48);
+    const z = await o.eval(() => window.__office.mine.L.z);
+    await stand(o, 19, z - 0.1, { x: 18.42, y: 1.32, z: z + 0.75 });
+    await o.eval(() => window.__office.pressFloor(-2));
+    await o.step(2);
+  }],
   ['archive', async (o) => {
     await arrive(o);
     await ride(o, -2);
