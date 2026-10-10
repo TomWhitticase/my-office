@@ -7,7 +7,7 @@ import { box, clamp, colliders, cyl, FONT, lerp, LIFT, makeCanvas, makeScreen, m
 
 /** @param {import('../ctx.js').OfficeCtx} ctx */
 export function install(ctx) {
-  const { ROOF, seats, world, CAR, CORE, lifts, hitBox, carPanel, paintPanel, city, plantKit, sofa, lamps, glowMat, addFloor, DOOR, addSeat,
+  const { ROOF, seats, world, CAR, CORE, lifts, hitBox, carPanel, carPlate, city, plantKit, sofa, lamps, glowMat, addFloor, DOOR, addSeat,
     paintIndicator, mapCtx, camera } = ctx;
   // ----- THE ROOF (R) -----
   // The tower's roof terrace, over the office in the same scene, so the sky, sun, city, clouds and shadows are the ones
@@ -91,7 +91,7 @@ export function install(ctx) {
         [0.04, CAR.h, CAR.w, back, CAR.h / 2, z, '#8a6446']);
       for (const s of [-1, 1]) car.push([CAR.d, CAR.h, 0.04, cx, CAR.h / 2, z + s * CAR.w / 2, '#aeb4ba'],
         [CAR.d - 0.3, 0.035, 0.035, cx + 0.1, 0.95, z + s * (CAR.w / 2 - 0.06), '#dfe2e5']);
-      car.push([0.035, 0.035, CAR.w - 0.2, back - 0.06, 0.95, z, '#dfe2e5'], [0.02, 0.4, 0.16, LIFT.x + 0.35, 1.2, z + CAR.w / 2 - 0.03, '#5a5f66']);
+      car.push([0.035, 0.035, CAR.w - 0.2, back - 0.06, 0.95, z, '#dfe2e5']); steel.push(carPlate(z));
       mirror.push([0.01, 1.05, CAR.w - 0.3, back - 0.025, 1.65, z]);
       glow.push([CAR.d - 0.5, 0.01, CAR.w - 0.45, cx, CAR.h - 0.025, z]);
       // Doors and lantern in a group on the car's z, so they slide like every floor's (see myLift).
@@ -110,7 +110,7 @@ export function install(ctx) {
     const carLight = mergedBoxes(glow, new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: '#fff3df', emissiveIntensity: 1.6 }));
     carLight.castShadow = false; G.add(carLight);
     roof.callHit = hitBox(G, 0.06, 0.42, 0.22, LIFT.x - 0.03, 1.1, LIFT.z, { action: 'liftcall', reach: 2.5 });
-    roof.panel = carPanel(G, 0); paintPanel(roof.panel, null);   // one, moved into your car (see roof.enter)
+    roof.panel = carPanel(G, 0);   // one, moved into your car (see roof.enter)
     roof.colliders.push({ minX: LIFT.x, maxX: EDGE.x, minZ: z0, maxZ: z1 });
     // A plaque by the doors, like the floor sign downstairs.
     const sign = makeScreen(G, 0.9, 0.6, 360, 240, LIFT.x - 0.012, 1.6, z0 + 0.62), sc = sign.ctx;
@@ -310,7 +310,7 @@ export function install(ctx) {
     roof.enter = (z) => {
       const c = roof.cars.find((k) => k.z === z) || roof.cars[0];
       Object.assign(roof, { leaves: c.leaves, ind: c.ind });
-      roof.panel.mesh.position.z = z + 0.68;
+      roof.panel.moveTo(z);
       G.visible = true;
     };
     roof.leave = () => { G.visible = false; };

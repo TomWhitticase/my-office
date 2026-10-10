@@ -26,6 +26,10 @@ export function install(ctx) {
   const signs = [];   // every floor sign (floorSign), and the floors their directories list (see directory)
   let listed = [];
   const CORE = { x0: LIFT.x, x1: 20, z0: -3.47, z1: 2.46 }, DOOR = { w: 1.1, h: 2.2 }, CAR = { d: 1.8, w: 1.5, h: 2.35 };
+  // The car operating panel: a brushed-steel plate on the car's side wall (+z) just inside the doors, above the handrail;
+  // its buttons are a screen on it (carPanel, installRiding). The plate is part of every car's steel (carPlate).
+  const PANEL = { x: LIFT.x + 0.42, y: 1.32, w: 0.38, h: 0.62, dz: CAR.w / 2 - 0.0335 };
+  const carPlate = (z) => [0.42, 0.66, 0.012, PANEL.x, PANEL.y, z + CAR.w / 2 - 0.026];
   /** @type {import('../ctx.js').Lift[] & { callM?: any, callHit?: any }} */
   const lifts = [[LIFT.z - 0.9, 48],
     [LIFT.z + 0.9, 12]].map(([z, floor]) =>
@@ -71,7 +75,8 @@ export function install(ctx) {
         [0.04, CAR.h, CAR.w, back, CAR.h / 2, z, '#8a6446']);
       for (const s of [-1, 1]) car.push([CAR.d, CAR.h, 0.04, cx, CAR.h / 2, z + s * CAR.w / 2, '#aeb4ba'],
         [CAR.d - 0.3, 0.035, 0.035, cx + 0.1, 0.95, z + s * (CAR.w / 2 - 0.06), '#dfe2e5']);
-      car.push([0.035, 0.035, CAR.w - 0.2, back - 0.06, 0.95, z, '#dfe2e5'], [0.02, 0.4, 0.16, LIFT.x + 0.35, 1.2, z + CAR.w / 2 - 0.03, '#5a5f66']);
+      car.push([0.035, 0.035, CAR.w - 0.2, back - 0.06, 0.95, z, '#dfe2e5']);
+      steel.push(carPlate(z));
       mirror.push([0.01, 1.05, CAR.w - 0.3, back - 0.025, 1.65, z]);
       glow.push([CAR.d - 0.5, 0.01, CAR.w - 0.45, cx, CAR.h - 0.025, z]);
       // Two leaves meeting in the middle; they slide apart into the wall.
@@ -137,7 +142,7 @@ export function install(ctx) {
     L.ind.tex.needsUpdate = true;
   }
   lifts.forEach(paintIndicator);
-  Object.assign(ctx, { lifts, ROOF, DOOR, CAR, floorName, CORE });
+  Object.assign(ctx, { lifts, ROOF, DOOR, CAR, floorName, CORE, PANEL, carPlate });
   Object.defineProperty(ctx, 'liftSteelM', { get: () => liftSteelM, set: (v) => { liftSteelM = v; }, enumerable: true });
   ctx.minimap((c, sx, sz) => {   // the lifts
     c.fillStyle = 'rgba(200,205,212,.9)';
@@ -269,8 +274,8 @@ export function installCycle(ctx) {
 
 /** @param {import('../ctx.js').OfficeCtx} ctx */
 export function installRiding(ctx) {
-  const { lifts, world, CAR, DOOR, floorName, toast, setLift, paintIndicator } = ctx;
-  Object.assign(ctx, { callLift, pressFloor, myLift, myCar, carPanel, paintPanel, carCollide, resetLift });
+  const { lifts, world, CAR, DOOR, PANEL, floorName, toast, setLift, paintIndicator } = ctx;
+  Object.assign(ctx, { callLift, pressFloor, myLift, myCar, carPanel, panelGrid, carCollide, resetLift });
   // ----- riding the lifts yourself -----
   // Click the call panel and the nearest car no session needs is yours (`mine.L`, `L.player`) until you step out and it
   // closes: it opens, you walk in, press a floor on the car panel, and ride. Sessions keep using the other car meanwhile.
@@ -283,8 +288,7 @@ export function installRiding(ctx) {
   const OFFICE = /** @type {Floor} */ ({ n: 48, label: 'OFFICE', title: 'Office' }), FLOORS = /** @type {Floor[]} */ ([OFFICE]);
   let away = /** @type {Floor | null} */ (null);
   /** @param {Floor} F */
-  const addFloor = (F) => { FLOORS.push(F); FLOORS.sort((a, b) => b.n - a.n); for (const P of carPanels()) paintPanel(P, null); ctx.paintDirectory?.(FLOORS); };
-  const carPanels = () => [...lifts.map((L) => L.panel), ...FLOORS.filter((F) => F.panel).map((F) => F.panel)];
+  const addFloor = (F) => { FLOORS.push(F); FLOORS.sort((a, b) => b.n - a.n); repaint(); ctx.paintDirectory?.(FLOORS); };
   const mine = { L: null, call: false, goal: null, from: 48, to: 48, k: 0, dur: 1 };
   // (Not while the floor has put its lift out of reach: out in the archive's void, see archive-entrance.js.)
   const inMyCar = () => !!mine.L && !ctx.away?.liftGone && ctx.player.x > LIFT.x + 0.3 &&
@@ -292,29 +296,48 @@ export function installRiding(ctx) {
   const atMyDoor = () => !!mine.L && !ctx.away?.liftGone && ctx.player.x > LIFT.x - 0.7 && ctx.player.x < LIFT.x + 0.45 && Math.abs(ctx.player.z - mine.L.z) < DOOR.w / 2 + 0.1;
   const spare = (L) => !L.player && !L.pending.length && !L.cargo.size && !L.callers.size && !L.riders.size && !L.exits.size &&
     ['home', 'away', 'open', 'closing'].includes(L.state);
-  function carPanel(parent, z) {   // the car's floor buttons, on the return beside the doors: one per floor, top floor first
-    const scr = makeScreen(parent, 0.1, 0.34, 80, 272, LIFT.x + 0.3615, 1.2, z + 0.68);
-    scr.mesh.rotation.y = Math.PI / 2;
-    Object.assign(scr.mesh.userData,
-      { action: 'liftpanel', reach: 2.2, floorAt: (uv) => FLOORS[clamp(Math.floor((1 - uv.y) * FLOORS.length), 0, FLOORS.length - 1)].n });
-    return scr;
+  // The car panels: every one made (both office cars, each floor's shaft, the roof's and the empty floors' shared one) is in
+  // `panels`, and they're all repainted together whenever FLOORS or the lit button changes, so every car shows the same.
+  const panels = new Set();
+  const repaint = () => { for (const P of panels) paintPanel(P, mine.goal); };
+  function carPanel(parent, z) {   // on the car's side wall by the doors (the plate is carPlate), facing across the car
+    const scr = makeScreen(parent, PANEL.w, PANEL.h, 380, 620, PANEL.x, PANEL.y, z + PANEL.dz);
+    scr.mesh.rotation.y = Math.PI;
+    Object.assign(scr.mesh.userData, { action: 'liftpanel', reach: 2.2, floorAt: (uv) => {   // the nearest button
+      const x = uv.x * scr.W, y = (1 - uv.y) * scr.H;
+      return panelGrid(scr).reduce((a, b) => (Math.hypot(b.x - x, b.y - y) < Math.hypot(a.x - x, a.y - y) ? b : a)).F.n;
+    } });
+    const P = Object.assign(scr, { moveTo: (z) => { scr.mesh.position.z = z + PANEL.dz; } });
+    panels.add(P); paintPanel(P, mine.goal);
+    return P;
+  }
+  // A button per floor the car serves, top first, left to right in two columns once there are more than five: each cell's
+  // floor, button centre and radius, in the panel's pixels (restricted.js scrambles the same grid).
+  function panelGrid({ W, H }) {
+    const list = FLOORS.filter((F) => !F.carless), cols = list.length > 5 ? 2 : 1, rows = Math.ceil(list.length / cols), pad = 22;
+    const cw = W / cols, ch = (H - pad * 2) / rows, r = Math.min(cw * 0.25, ch * 0.29);
+    return list.map((F, i) => ({ F, x: cw * (i % cols + 0.5), y: pad + ch * Math.floor(i / cols) + r + ch * 0.06, r, cw, ch }));
   }
   function paintPanel(scr, lit) {
-    const { ctx: c, W, H } = scr, step = H / FLOORS.length, r = Math.min(27, step * 0.3);
-    c.fillStyle = '#4d5157'; c.fillRect(0, 0, W, H); c.textAlign = 'center';
-    FLOORS.forEach(({ n: f, label: t }, i) => {
-      const y = step * (i + 0.42);
-      c.beginPath(); c.arc(W / 2, y, r, 0, Math.PI * 2); c.fillStyle = '#d9dcdf'; c.fill();
-      c.lineWidth = r / 5.4; c.strokeStyle = f === lit ? '#ffb347' : '#8b9096'; c.stroke();
-      c.fillStyle = '#26282b'; c.font = `600 ${Math.round(r * 0.9)}px ${FONT}`; c.fillText(floorName(f), W / 2, y + r * 0.3);
-      c.fillStyle = '#e8e6e1'; c.font = `600 ${Math.min(12, Math.round(r * 0.48))}px ${FONT}`; c.fillText(fit(c, t, W - 4), W / 2, y + r * 1.75);
-    });
-    c.textAlign = 'left'; scr.tex.needsUpdate = true;
+    const { ctx: c, W, H } = scr;
+    c.drawImage(ctx.liftSteelM.map.image, 0, 0, W, H);
+    c.fillStyle = 'rgba(30,34,40,.22)'; c.fillRect(0, 0, W, H);
+    c.textAlign = 'center'; c.textBaseline = 'middle';
+    for (const { F, x, y, r, cw } of panelGrid(scr)) {
+      const on = F.n === lit;
+      c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fillStyle = on ? '#ffb347' : '#33363b'; c.fill();
+      c.beginPath(); c.arc(x, y, r * 0.84, 0, Math.PI * 2); c.fillStyle = on ? '#fff0d4' : '#f3f1ec'; c.fill();
+      c.fillStyle = '#17181a'; c.font = `700 ${Math.round(r * (floorName(F.n).length > 2 ? 0.66 : 0.8))}px ${FONT}`;
+      c.fillText(floorName(F.n), x, y + r * 0.04);
+      c.fillStyle = '#121315'; c.font = `700 ${Math.round(Math.min(30, r * 0.64))}px ${FONT}`;
+      c.fillText(fit(c, F.label, cw - 8), x, y + r * 1.45);
+    }
+    c.textAlign = 'left'; c.textBaseline = 'alphabetic'; scr.tex.needsUpdate = true;
   }
   const hitBox = (parent, w, h, d, x, y, z, ud) =>
     { const m = box(parent, w, h, d, '#fff', x, y, z, { shadow: false }); m.visible = false; Object.assign(m.userData, ud); return m; };
   lifts.callHit = hitBox(world, 0.06, 0.42, 0.22, LIFT.x - 0.03, 1.1, LIFT.z, { action: 'liftcall', reach: 2.5 });
-  for (const L of lifts) { L.panel = carPanel(world, L.z); paintPanel(L.panel, null); }
+  for (const L of lifts) L.panel = carPanel(world, L.z);
 
   function callLift() {
     const L = mine.L;
@@ -328,7 +351,7 @@ export function installRiding(ctx) {
     if (f !== Math.round(L.floor) && FLOORS.find((F) => F.n === f)?.access?.() === false) return;   // behind a code: its keypad instead (restricted.js)
     mine.goal = f === Math.round(L.floor) ? null : f;
     if (mine.goal === null && L.state !== 'open') setLift(L, 'opening');
-    for (const P of carPanels()) paintPanel(P, mine.goal);
+    repaint();
   }
   function travelTo(L, f) {
     const ride = FLOORS.find((F) => F.n === f)?.ride;   // a floor can take longer to reach (restricted.js)
@@ -340,7 +363,7 @@ export function installRiding(ctx) {
     L.player = false; L.floor = Math.round(L.floor); L.dir = 0; L.doorK = 0;
     setLift(L, L.floor === 48 ? 'home' : 'away');
     Object.assign(mine, { L: null, goal: null });
-    paintPanel(L.panel, null);
+    repaint();
   }
   function myCar(L, dt) {
     const inside = inMyCar(), door = atMyDoor(), here = Math.round(L.floor);
@@ -366,7 +389,7 @@ export function installRiding(ctx) {
         L.floor = lerp(mine.from, mine.to, ease(mine.k));
         if (mine.k === 1) {
           L.floor = mine.to; L.dir = 0; mine.goal = null; ctx.sfx.hum(false);
-          for (const P of carPanels()) paintPanel(P, null);
+          repaint();
           ctx.sfx.ding(L.at, true); setLift(L, 'opening');
           if (away) toast(`<b>${away.title.toUpperCase()}</b> · ${floorName(away.n)}`);
         }
@@ -437,7 +460,7 @@ export function installRiding(ctx) {
 
 /** @param {import('../ctx.js').OfficeCtx} ctx */
 export function installShafts(ctx) {
-  const { CAR, DOOR, ARCHIVE, hitBox, carPanel, paintPanel, cssRenderer, mine, tvQuiet, container, renderer, hemi, scene, camera } = ctx;
+  const { CAR, DOOR, ARCHIVE, hitBox, carPanel, carPlate, cssRenderer, mine, tvQuiet, container, renderer, hemi, scene, camera } = ctx;
   Object.assign(ctx, { setFloor, liftShaft, renderFloor });
   // Another floor's car: a freestanding stone shaft and the same car as the office's, facing -x at LIFT.x about z = 0, with
   // its own doors, hall lantern, call button and floor panel (moved onto your car's z when you arrive, see setFloor).
@@ -455,13 +478,14 @@ export function installShafts(ctx) {
     lift.add(mergedBoxes(stone.map((b) => [...b, b[1] === 0.006 ? '#5d5852' : '#77716a']), mat('#ffffff', { vertexColors: true, roughness: 0.55 })));
     const steel = [[0.05, 0.08, DOOR.w + 0.16, LIFT.x - 0.02, DOOR.h + 0.04, 0], [0.34, 0.012, DOOR.w, fx + 0.02, 0.006, 0],
       [0.04, 0.26, 0.56, LIFT.x - 0.02, 2.5, 0],
-      [0.02, 0.38, 0.15, LIFT.x - 0.01, 1.1, DOOR.w / 2 + 0.3], [back + 0.24 - LIFT.x, 0.03, sw * 2 + 0.02, (LIFT.x + back + 0.24) / 2, top + 0.015, 0]];
+      [0.02, 0.38, 0.15, LIFT.x - 0.01, 1.1, DOOR.w / 2 + 0.3], [back + 0.24 - LIFT.x, 0.03, sw * 2 + 0.02, (LIFT.x + back + 0.24) / 2, top + 0.015, 0],
+      carPlate(0)];
     for (const s of [-1, 1]) steel.push([0.05, DOOR.h + 0.08, 0.08, LIFT.x - 0.02, (DOOR.h + 0.08) / 2, s * (DOOR.w / 2 + 0.04)]);
     const steelM = ctx.liftSteelM;   // the office's brushed steel, so doors and surrounds match on every floor
     lift.add(mergedBoxes(steel, steelM));
     const car = [[CAR.d, 0.02, CAR.w, cx, 0.01, 0, '#2c2b2a'], [CAR.d, 0.04, CAR.w, cx, CAR.h, 0, '#232426'],
       [0.04, CAR.h, CAR.w, back, CAR.h / 2, 0, '#8a6446'],
-      [0.035, 0.035, CAR.w - 0.2, back - 0.06, 0.95, 0, '#dfe2e5'], [0.02, 0.4, 0.16, LIFT.x + 0.35, 1.2, CAR.w / 2 - 0.03, '#5a5f66']];
+      [0.035, 0.035, CAR.w - 0.2, back - 0.06, 0.95, 0, '#dfe2e5']];
     for (const s of [-1, 1]) car.push([CAR.d, CAR.h, 0.04, cx, CAR.h / 2, s * CAR.w / 2, '#aeb4ba'],
       [CAR.d - 0.3, 0.035, 0.035, cx + 0.1, 0.95, s * (CAR.w / 2 - 0.06), '#dfe2e5']);
     lift.add(mergedBoxes(car, mat('#ffffff', { vertexColors: true, roughness: 0.45, metalness: 0.35 })),
@@ -476,7 +500,7 @@ export function installShafts(ctx) {
     for (const y of [1.16, 1.04]) cyl(lift, 0.026, 0.026, 0.02, '', LIFT.x - 0.025, y, DOOR.w / 2 + 0.3,
       { material: y > 1.1 ? mat('#e6e3dc', { roughness: 0.4 }) : callM, seg: 16, shadow: false }).rotation.z = Math.PI / 2;
     const callHit = hitBox(lift, 0.06, 0.42, 0.22, LIFT.x - 0.03, 1.1, DOOR.w / 2 + 0.3, { action: 'liftcall', reach: 2.5 });
-    const panel = carPanel(lift, 0); paintPanel(panel, null);
+    const panel = carPanel(lift, 0);
     return { lift, leaves, ind, callM, callHit, panel };
   }
   // Going to (F) or leaving (null) another floor, behind closed doors.

@@ -20,7 +20,7 @@ export function install(ctx) {
 
 /** @param {import('../ctx.js').OfficeCtx} ctx */
 function build(ctx) {
-  const { world, lifts, CORE, DOOR, hitBox, carPanel, paintPanel, liftCore, floorSign, shellWalls, sunbeams, shaftU, WIN, ceilingM, glowMat,
+  const { world, lifts, CORE, DOOR, hitBox, carPanel, liftCore, floorSign, shellWalls, sunbeams, shaftU, WIN, ceilingM, glowMat,
     paintIndicator, addFloor, mapCtx, camera, lamps, mine } = ctx;
   const G = new THREE.Group(), R = rng(4545);
   G.visible = false; world.add(G);
@@ -106,7 +106,7 @@ function build(ctx) {
   const sign = floorSign(G, EMPTY[0], () => ['Available', 'Vacant floor · To let']);
   const cars = core.cars.map((c) => ({ ...c, lantern: { ind: c.ind, floor: 48, dir: 0 } }));
   const callHit = hitBox(G, 0.06, 0.42, 0.22, LIFT.x - 0.03, 1.1, LIFT.z, { action: 'liftcall', reach: 2.5 });
-  const panel = carPanel(G, 0); paintPanel(panel, null);   // one, moved into your car (see enter)
+  const panel = carPanel(G, 0);   // one, moved into your car (see enter)
 
   // A letting agent's board on its stand, out in the lobby, turned to the lift doors.
   const BX = 15.6, BZ = 3.7, ry = Math.atan2(LIFT.x - BX, LIFT.z - BZ);
@@ -138,7 +138,7 @@ function build(ctx) {
       colliders, hits: [callHit, panel.mesh] });
     F.enter = (z) => {
       G.position.y = F.y; floorY.value = F.y; G.visible = true;
-      panel.mesh.position.z = z + 0.68;
+      panel.moveTo(z);
       sign.n = n; sign.paint(); paintBoard(n);
     };
     F.leave = () => { G.visible = false; };
