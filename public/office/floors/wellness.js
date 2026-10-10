@@ -9,7 +9,7 @@
 //
 // This file builds the shell, floors, partitions, doors, reception and lighting, and registers the floor; the pool
 // (wellness-pool.js), the gym (wellness-gym.js), the spa and its rooms (wellness-spa.js) and the jacuzzi
-// (wellness-retreat.js) build into the same floor
+// and float room (wellness-retreat.js) build into the same floor
 // kit, `W`, and its sounds are wellness-sound.js. X is always shown (from outside: the helicopter, the roof, the
 // cameras, the pool glowing through the glass at night); G, everything inside, only while you're here.
 
@@ -225,6 +225,7 @@ function build(ctx) {
     // The changing rooms either side of the passage in from the way through (x -1.4..0.4), their doors onto the hall.
     ['x', -7, -4.6, 4, 'stone', [[-3.6, -2.6], [-1.4, 0.4], [1.6, 2.6]]], ['z', -4.6, -7, -3.5, 'stone'],
     ['z', -1.4, -7, -3.5, 'stone'], ['z', 0.4, -7, -3.5, 'stone'],
+    ['x', -11, 0, 4, 'stone', [[1.2, 2.2]]], ['z', 0, -15, -11, 'stone'],   // the float room, in the hall's south-east corner
     ['x', -10.6, 15.6, 19.9, 'glass', [[17.3, 18.1]]], ['z', 15.6, -14.9, -10.6, 'cedar'],   // the sauna
     ['x', -10.6, 10.8, 15.6, 'fog', [[12.8, 13.6]]], ['z', 10.8, -14.9, -10.6, 'tile'],    // the steam room (its glass fogs up)
     ['z', 6.4, -14.9, -11.2, 'fluted'],                                 // the showers' screen
@@ -569,7 +570,7 @@ function build(ctx) {
     c.fillStyle = 'rgba(255,255,255,.22)';
     for (const b of W.colliders()) c.fillRect(sx(b.minX), sz(b.minZ), Math.max(2, sx(b.maxX) - sx(b.minX)), Math.max(2, sz(b.maxZ) - sz(b.minZ)));
     c.font = '600 16px system-ui'; c.fillStyle = 'rgba(255,255,255,.6)';
-    for (const [t, x, z] of [['Pool', -9, 12.6], ['Gym', 11, 7], ['Sauna', 16.3, -13], ['Steam', 11.7, -13], ['Spa', 8, -8], ['Changing', -4.4, -5.2], ['Jacuzzi', -19, -13.6],
+    for (const [t, x, z] of [['Pool', -9, 12.6], ['Gym', 11, 7], ['Sauna', 16.3, -13], ['Steam', 11.7, -13], ['Spa', 8, -8], ['Changing', -4.4, -5.2], ['Jacuzzi', -19, -13.6], ['Float', 1.0, -13.4],
       ['Yoga', -16, -6.8], ['Lounge', -18.5, 0.6], ['Juice bar', -6.5, 0.6], ['Reception', 12.2, 0.6]]) c.fillText(t, sx(x), sz(z));
     c.font = '600 15px system-ui'; c.fillText('Lifts', sx(LIFT.x) - 44, sz(-2.6));
     const px = sx(camera.position.x), pz = sz(camera.position.z);

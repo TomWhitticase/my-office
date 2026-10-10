@@ -273,6 +273,13 @@ export const POSES = [
     await stand(o, -13.4, -10.6, { x: -17.2, y: 0.3, z: -12.6 });
     await o.step(40);
   }],
+  ['wellness-float', async (o) => {   // the float room: its door open, the pod's lid raised over the blue-lit water
+    await arrive(o);
+    await ride(o, 46);
+    await o.eval(() => { const O = window.__office; O.ctx.wellness.hinged.find((d) => d.name === 'Float room door').to = 1; O.ctx.actionOf('wellness-float').click({}, {}); });
+    await stand(o, 2.6, -11.5, { x: 1.9, y: 0.3, z: -13.4 });
+    await o.step(80);
+  }],
 ];
 
 // Compares two PNGs in the page: counts pixels where any channel differs by more than `tol`.
