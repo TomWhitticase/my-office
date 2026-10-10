@@ -221,7 +221,7 @@ function build(ctx) {
     ['x', -3.5, -20, -8, 'glass', [[-12.6, -11.2]]], ['x', -3.5, -8, 4, 'stone', [[-1.3, 0.3]]], ['x', -3.5, 4, 18, 'stone', [[6.4, 8.0]]],
     ['z', -8, -15, -3.5, 'stone', [[-12.8, -11.4]]],                    // yoga and the jacuzzi | the hall past the changing rooms
     ['x', -9.5, -20, -8, 'stone'],                                      // yoga | the jacuzzi, in the south-west corner
-    ['z', 4, -15, -3.5, 'stone', [[-7.72, -6.12]]],                     // the south windows | spa (the column at z -8 its jamb)
+    ['z', 4, -15, -3.5, 'stone', [[-10.65, -8.6]]],                     // the south windows | spa (2 m, south of the column's pier)
     // The changing rooms either side of the passage in from the way through (x -1.4..0.4), their doors onto the hall.
     ['x', -7, -4.6, 4, 'stone', [[-3.6, -2.6], [-1.4, 0.4], [1.6, 2.6]]], ['z', -4.6, -7, -3.5, 'stone'],
     ['z', -1.4, -7, -3.5, 'stone'], ['z', 0.4, -7, -3.5, 'stone'],
@@ -275,6 +275,17 @@ function build(ctx) {
   {
     const k = kit();
     for (const [x, z] of [[4, -8], [4, 8], [-9, 0.5 - 2.6]]) { k.box(M.stoneWall, 0.56, ROOM.h, 0.56, x, ROOM.h / 2, z); k.box(M.brass, 0.6, 0.04, 0.6, x, 0.02, z); solid(x, z, 0.56, 0.56); }
+    // The one at (4, -8) is wrapped into the spa's wall as a thick pier, from the spa doorway's north side to the corner of
+    // the changing rooms, so it stands beside the doorway rather than in it. The doorway: a dark steel frame (jambs and a
+    // head under the stone header), the sliding glass door running into the pier.
+    const PZ0 = -8.6, PZ1 = -7.0, PT = 0.62, D0 = -10.65, DH = 2.25;
+    { const g = new THREE.BoxGeometry(PT, ROOM.h, PZ1 - PZ0); g.translate(4, ROOM.h / 2, (PZ0 + PZ1) / 2); k.geo(M.stoneWall, uvWorld(g, 2.4, 'wall')); }
+    k.box(M.brass, PT + 0.04, 0.04, PZ1 - PZ0, 4, 0.02, (PZ0 + PZ1) / 2);
+    for (const s of [-1, 1]) k.box(M.cove, 0.05, 0.03, PZ1 - PZ0, 4 + s * (PT / 2 + 0.03), ROOM.h - 0.33, (PZ0 + PZ1) / 2);
+    solid(4, (PZ0 + PZ1) / 2, PT, PZ1 - PZ0);
+    k.box(M.black, PT, 0.08, PZ0 - D0 + 0.1, 4, DH + 0.04, (D0 + PZ0) / 2);   // the head, as deep as the pier
+    k.box(M.black, PT, DH, 0.05, 4, DH / 2, PZ0 - 0.025);                   // the pier's jamb
+    k.box(M.black, T + 0.06, DH, 0.05, 4, DH / 2, D0 + 0.025);              // the south jamb
     k.flush(G);
   }
 
@@ -332,7 +343,7 @@ function build(ctx) {
     return d;
   };
   W.hinged = hinged;
-  for (const [axis, fixed, a, b] of [['x', 3.5, 13.6, 15.2], ['z', 6, 4.6, 6.2], ['x', -3.5, -12.6, -11.2], ['z', -8, -12.8, -11.4]]) W.slidingDoor(axis, fixed, a, b);
+  for (const [axis, fixed, a, b] of [['x', 3.5, 13.6, 15.2], ['z', 6, 4.6, 6.2], ['x', -3.5, -12.6, -11.2], ['z', -8, -12.8, -11.4], ['z', 4, -10.65, -8.6]]) W.slidingDoor(axis, fixed, a, b);
   function doorFx(dt) {
     const p = ctx.player;
     for (const d of doors) {
