@@ -2,7 +2,7 @@
 // hall; a splash going in, strokes as you swim, everything muffled under the water; your steps on the stone; the gym's
 // music faint from its speakers, a treadmill's whirr, the bike's freewheel, the rower's flywheel, plates clanking; the
 // sauna's stove crackling and the hiss of löyly; the steam room's hiss; the jacuzzi bubbling; a shower running; the blender;
-// lockers; the doors.
+// lockers; the doors; in the float pod, near silence and a slow heartbeat and breath.
 // All synthesised here, through the office's own audio (sounds.js `audio`), so its volume and M apply. Positions are
 // the floor's own (x, z; y over its boards).
 
@@ -10,7 +10,7 @@ const TAU = Math.PI * 2;
 
 export function makeSound(ctx, W) {
   let A = null, B = null, out = null, lp = null, verb = null, wet = null, loops = [], under = null, tool = null, shower = null;
-  let crackleAt = 0, stepAcc = 0, last = null, musicV = null, steamV = null, jacV = null;
+  let crackleAt = 0, stepAcc = 0, last = null, musicV = null, steamV = null, jacV = null, calmV = null, floatK = 0;
   const rnd = (a, b) => a + Math.random() * (b - a), nz = () => Math.random() * 2 - 1;
   const pick = (a) => a[Math.floor(Math.random() * a.length)];
 
@@ -103,6 +103,15 @@ export function makeSound(ctx, W) {
       return lo(nz()) * 2.5 * s + mid(nz()) * 0.5 * s + pop(nz()) * e * 3;
     });
   }
+  // The float pod: a slow heartbeat (54 a minute) under one long breath in and out, five beats to the breath (looped).
+  function calm() {
+    const lo = biq('lp', 90, 0.9), br = biq('bp', 420, 0.6), D = 5 * 60 / 54;
+    return make(D, (t) => {
+      const b = t % (60 / 54), lub = Math.exp(-b / 0.05) * Math.sin(TAU * 48 * b), dub = b > 0.28 ? Math.exp(-(b - 0.28) / 0.06) * Math.sin(TAU * 40 * (b - 0.28)) * 0.7 : 0;
+      const ph = t / D, breath = ph < 0.4 ? Math.sin(Math.PI * ph / 0.4) : Math.sin(Math.PI * (ph - 0.4) / 0.6) * 0.8;
+      return lo((lub + dub) * 3) * 2.5 + br(nz()) * breath * breath * 0.35;
+    });
+  }
   const beep = () => make(0.12, (t) => Math.sin(TAU * 1760 * t) * Math.min(1, t / 0.004) * (t < 0.09 ? 1 : 0));
   // The gym's music: 8 s of a soft four-to-the-floor at 120 bpm, a bass line and a pad (whole cycles, so it loops).
   function music() {
@@ -121,7 +130,7 @@ export function makeSound(ctx, W) {
   function build() {
     const n = (k, f) => Array.from({ length: k }, f);
     return { lap: lap(), splash: splash(true), dip: splash(false), stroke: n(4, stroke), clank: n(3, clank), hiss: hiss(), crackle: n(5, crackle),
-      steam: steamLoop(), rain: rain(), whirr: whirr(), fly: fly(), thud: n(3, thud), blend: blend(), beep: beep(), music: music(), bubbles: bubbles() };
+      steam: steamLoop(), rain: rain(), whirr: whirr(), fly: fly(), thud: n(3, thud), blend: blend(), beep: beep(), music: music(), bubbles: bubbles(), calm: calm() };
   }
 
   // ----- playback -----
@@ -215,10 +224,27 @@ export function makeSound(ctx, W) {
     door(at) { if (ready()) shot(office('slide'), at.x, 1.2, at.z, 0.12, { rate: rnd(1.1, 1.25) }); },
     latch(x, y, z, open) { if (ready()) { shot(pick(office('latch') || [null]), x, y, z, 0.25); if (!open) shot(pick(office('slam') || [null]), x, y, z, 0.15, { rate: 1.6 }); } },
     towel() { if (ready()) shot(pick(office('rustle') || [null]), null, 0, 0, 0.18, { rate: 0.8 }); },
+    // In the float pod, k 0..1 as the lights go: the floor falls away to almost nothing, muffled, and a slow heartbeat and
+    // breathing come up (straight to the office's master, past the floor's own muffling).
+    float(k) {
+      if (!ready() || (Math.abs(k - floatK) < 0.002 && (k > 0 || floatK === 0))) return;
+      floatK = k;
+      const now = A.ctx.currentTime;
+      out.gain.setTargetAtTime(1 - 0.94 * k, now, 0.3);
+      lp.frequency.setTargetAtTime(k > 0.01 ? 18000 * Math.pow(400 / 18000, k) : 18000, now, 0.3);
+      if (k > 0 && !calmV) {
+        const src = A.ctx.createBufferSource(), g = A.ctx.createGain(), f = A.ctx.createBiquadFilter();
+        f.type = 'lowpass'; f.frequency.value = 700; src.buffer = B.calm; src.loop = true; g.gain.value = 0;
+        src.connect(f).connect(g).connect(A.master); src.start(); calmV = { src, g };
+      }
+      if (calmV) calmV.g.gain.setTargetAtTime(0.3 * k, now, 0.4);
+      if (k === 0 && calmV) { const c = calmV; c.g.gain.setTargetAtTime(0, now, 0.2); c.src.stop(now + 1); calmV = null; }
+    },
     // You under the water: everything closes down to a low rumble.
     under(on) {
       if (!A || !lp) return;
       const now = A.ctx.currentTime;
+      if (floatK > 0.01) return;
       lp.frequency.setTargetAtTime(on ? 420 : 18000, now, 0.08);
       if (on && !under && ready()) under = loop(B.lap, 0, null, 0, 0, 0, 0, 0.1);
       under?.g.gain.setTargetAtTime(on ? 0.3 : 0, now, 0.1);
@@ -242,6 +268,9 @@ export function makeSound(ctx, W) {
     stop() {
       if (A) for (const { src, g } of loops) { g.gain.setTargetAtTime(0, A.ctx.currentTime, 0.2); src.stop(A.ctx.currentTime + 1); }
       if (lp) lp.frequency.setTargetAtTime(18000, A.ctx.currentTime, 0.05);
+      if (out) out.gain.setTargetAtTime(1, A.ctx.currentTime, 0.05);
+      if (calmV) { calmV.src.stop(A.ctx.currentTime + 0.5); calmV = null; }
+      floatK = 0;
       loops = []; under = null; tool = null; shower = null; last = null; musicV = null; steamV = null; jacV = null;
     },
   };

@@ -2,9 +2,13 @@
 // deck along the west glass with the tub sunk into it, so sitting in the water your eyes are over the sill and the city's
 // right there. Walk in (or click it) and you're sitting in it: slower, eyes just over the bubbling water, a
 // gentle sway, steam curling off it, the jets churning; walk out to get out.
+//
+// And in the hall past the changing rooms, a float room: a small dark room behind a door with a white pod in it. Click
+// the pod to open it, again to get in: the lid comes down, the lights fade to black, the floor's sound falls away to a
+// slow heartbeat and breathing, and the view drifts as you float. Move, Esc or click to get out.
 
 import * as THREE from 'three';
-import { EYE } from '../util.js';
+import { EYE, mat } from '../util.js';
 import { causticMaterial } from './wellness-pool.js';
 
 export function installRetreat(ctx, W) {
@@ -145,7 +149,115 @@ export function installRetreat(ctx, W) {
   });
   W.leaves.push(() => { J.in = false; });
 
+  installFloat(ctx, W);
+
   // Every frame, wherever you are: its lights (a soft teal by day, brighter at night).
   const tick = W.tick;
   W.tick = (dt, t) => { tick?.(dt, t); glow.value = 0.25 + 0.75 * W.lampK; };
+}
+
+function installFloat(ctx, W) {
+  const { G, M, kit, solid, R } = W, { toast } = ctx;
+  const sound = W.sound;
+  // The room: x 0..4, z -15..-11 (walls in wellness.js), its door in the north wall. Inside it's all charcoal felt over the
+  // walls (covering their coves), a dark ceiling and slate underfoot; a blue glow round the pod's foot and a dim warm
+  // light by the door.
+  const RM = { x0: 0.06, x1: 3.94, z0: -14.9, z1: -11.06 }, P = { x: 2.0, z: -13.35, l: 1.3, w: 0.75, h: 0.55 };
+  const feltM = new THREE.MeshStandardMaterial({ color: '#1d1f22', roughness: 1 }), k = kit();
+  {
+    const mx = (RM.x0 + RM.x1) / 2, mz = (RM.z0 + RM.z1) / 2, w = RM.x1 - RM.x0, d = RM.z1 - RM.z0, o = 0.08;
+    k.box(feltM, w, 3.28, 0.02, mx, 1.64, RM.z0 + 0.04); k.box(feltM, 0.02, 3.28, d, RM.x0 + o, 1.64, mz); k.box(feltM, 0.02, 3.28, d, RM.x1 - o, 1.64, mz);
+    for (const [a, b] of [[RM.x0, 1.2], [2.2, RM.x1]]) k.box(feltM, b - a, 3.28, 0.02, (a + b) / 2, 1.64, RM.z1 - o);
+    k.box(feltM, 0.98, 1.0, 0.02, 1.7, 2.75, RM.z1 - o);   // over the door
+    k.box(feltM, w, 0.03, d, mx, 2.98, mz);   // under the beams
+    k.box(mat('#202326', { roughness: 0.7 }), w, 0.01, d, mx, 0.006, mz);
+    // A fluted acoustic panel behind the pod's head end and a little shelf with a folded towel and a robe hook by the door.
+    for (let i = 0; i < 18; i++) k.box(mat('#26292d', { roughness: 0.95 }), 0.1, 2.2, 0.04, RM.x0 + 0.5 + i * 0.16, 1.4, RM.z0 + 0.08);
+    k.box(M.oak, 0.5, 0.03, 0.28, 0.45, 0.95, RM.z1 - 0.25); k.box(M.towel, 0.32, 0.08, 0.22, 0.45, 1.01, RM.z1 - 0.25);
+    k.box(M.brass, 0.03, 0.12, 0.03, 3.5, 1.7, RM.z1 - 0.12);
+    const blue = new THREE.MeshStandardMaterial({ color: '#1d3a5a', emissive: '#3f8fe0', emissiveIntensity: 1.2, roughness: 0.8 });
+    k.geo(blue, new THREE.TorusGeometry(1, 0.012, 6, 64).scale(P.l + 0.08, P.w + 0.08, 1).rotateX(Math.PI / 2).translate(P.x, 0.02, P.z));
+    const warm = new THREE.MeshStandardMaterial({ color: '#3a2a1a', emissive: '#ffb062', emissiveIntensity: 0.9, roughness: 0.8 });
+    k.box(warm, 0.18, 0.05, 0.03, 0.9, 1.9, RM.z1 - 0.1);
+    k.flush(G);
+  }
+  W.hingedDoor({ name: 'Float room door', hx: 1.2, hz: -11, swing: 1 });
+  W.plaque('FLOAT', 0.88, 1.5, -10.93, 0);
+  // The pod: a white shell, its lid hinged along the back (south) and lifting at the front; inside, a shallow pool lit blue.
+  const shellM = new THREE.MeshStandardMaterial({ color: '#f1f2f0', roughness: 0.18, metalness: 0.05, side: THREE.DoubleSide });
+  const innerM = new THREE.MeshStandardMaterial({ color: '#0d1a26', emissive: '#2a6fb0', emissiveIntensity: 0.35, roughness: 0.2 });
+  const half = (top) => new THREE.SphereGeometry(1, 40, 14, 0, Math.PI * 2, top ? 0 : Math.PI / 2, Math.PI / 2);
+  const pod = new THREE.Group(); pod.position.set(P.x, 0, P.z); G.add(pod);
+  const hull = new THREE.Mesh(half(false).scale(P.l, P.h, P.w).translate(0, P.h, 0), shellM); hull.castShadow = true; pod.add(hull);
+  const pool = new THREE.Mesh(new THREE.CircleGeometry(1, 40).scale(P.l * 0.92, P.w * 0.88, 1).rotateX(-Math.PI / 2).translate(0, P.h - 0.12, 0), innerM); pod.add(pool);
+  const rimM = new THREE.MeshStandardMaterial({ color: '#cfd6dc', emissive: '#58a8ff', emissiveIntensity: 0.6, roughness: 0.4 });
+  pod.add(new THREE.Mesh(new THREE.TorusGeometry(1, 0.018, 6, 64).scale(P.l, P.w, 1).rotateX(Math.PI / 2).translate(0, P.h, 0), rimM));
+  const hinge = new THREE.Group(); hinge.position.set(0, P.h, -P.w); pod.add(hinge);   // along the back edge
+  const lid = new THREE.Mesh(half(true).scale(P.l * 1.01, P.h * 0.75, P.w * 1.01).translate(0, 0, P.w), shellM); lid.castShadow = true; hinge.add(lid);
+  // Stars on the lid's underside, for while it's shut over you.
+  {
+    const pts = [];
+    for (let i = 0; i < 90; i++) {
+      const u = R() * Math.PI * 2, v = 0.15 + R() * 0.8, x = Math.cos(u) * Math.sin(v * Math.PI / 2), z = Math.sin(u) * Math.sin(v * Math.PI / 2), y = Math.cos(v * Math.PI / 2);
+      pts.push(x * P.l * 0.98, y * P.h * 0.73, z * P.w * 0.98 + P.w);
+    }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+    hinge.add(new THREE.Points(g, new THREE.PointsMaterial({ color: '#cfe4ff', size: 0.012, transparent: true, opacity: 0.8 })));
+  }
+  solid(P.x, P.z, P.l * 2 + 0.05, P.w * 2 + 0.05);
+  W.hits.push(ctx.hitBox(G, P.l * 2, 1.0, P.w * 2, P.x, 0.5, P.z, { action: 'wellness-float', reach: 2.8 }));
+
+  // ----- floating -----
+  const S = { lid: 0, lidTo: 0, closeAt: 0, t: 0, dark: 0, inside: false };
+  W.float = S;
+  const float = {
+    name: 'Float pod',
+    start() {
+      S.lidTo = 1; S.t = 0; S.inside = true;
+      Object.assign(ctx.player, { x: P.x, z: P.z, seated: false, seat: null, yaw: -Math.PI / 2, pitch: 1.25 });
+      W.lift.eye = 0.6;
+      sound.splash(P.x, P.z, false);
+      toast('Float pod · lie back · the lid comes down and the lights go out · move, <kbd>Esc</kbd> or click to get out');
+    },
+    fx(dt) {
+      S.t += dt;
+      if (S.t > 2.5) S.lidTo = 0;
+      // Floating: a slow breath in the view and the faintest drift and roll.
+      const d = S.dark;
+      W.lift.bob = Math.sin(S.t * 0.42) * 0.012;
+      W.lift.roll = Math.sin(S.t * 0.11) * 0.05 * d + Math.sin(S.t * 0.29) * 0.012 * d;
+      W.lift.dx = Math.sin(S.t * 0.07) * 0.06 * d; W.lift.dz = Math.sin(S.t * 0.05 + 1) * 0.04 * d;
+      ctx.player.yaw += Math.sin(S.t * 0.09) * 0.0008 * d;
+    },
+    key: () => false,
+    stop() {
+      S.inside = false; S.lidTo = 1; S.closeAt = 6;
+      Object.assign(ctx.player, { x: P.x, z: RM.z1 - 0.6, yaw: Math.PI, pitch: -0.25 });
+      W.lift.bob = W.lift.roll = W.lift.dx = W.lift.dz = 0;
+      sound.splash(P.x, P.z, false);
+      toast('Out of the float pod · slowly now');
+    },
+  };
+  ctx.action('wellness-float', {
+    hover: () => `<b>Float pod</b><div class="m">Skin-warm salt water · total darkness · near silence</div><div class="k">${
+      W.using === float ? 'Click to get out' : S.lidTo ? 'Click to get in' : 'Click to open it'}</div>`,
+    click: () => {
+      if (W.using === float) { W.stop(); return; }
+      if (!S.lidTo) { S.lidTo = 1; S.closeAt = 20; sound.latch(P.x, 0.8, P.z, true); return; }
+      W.use(float);
+    },
+  });
+  W.fxs.push((dt) => {
+    if (S.closeAt > 0 && !S.inside && (S.closeAt -= dt) <= 0) S.lidTo = 0;
+    if (S.lid !== S.lidTo) {
+      S.lid = S.lidTo > S.lid ? Math.min(1, S.lid + dt / 1.6) : Math.max(0, S.lid - dt / 2.2);
+      hinge.rotation.x = -1.15 * (S.lid * S.lid * (3 - 2 * S.lid));
+    }
+    // The lights fade to black once the lid's down over you, and back when you're out.
+    const want = S.inside && S.lid < 0.05 ? 1 : 0;
+    S.dark = want ? Math.min(1, S.dark + dt / 8) : Math.max(0, S.dark - dt / 2.5);
+    if (S.dark > 0.003) W.wantVeil = [`radial-gradient(ellipse at 50% 50%, rgba(0,0,0,${(0.9 + 0.1 * S.dark).toFixed(2)}), #000)`, 0.985 * S.dark];
+    sound.float(S.dark);
+  });
+  W.leaves.push(() => { S.inside = false; S.dark = 0; S.lid = S.lidTo = 0; hinge.rotation.x = 0; sound.float(0); });
 }
