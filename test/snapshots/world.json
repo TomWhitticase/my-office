@@ -2055,40 +2055,40 @@
   [
    "Yoga mat",
    -17.6,
-   -8,
-   -1.571,
+   -7.3,
+   3.142,
    0.78,
    46
   ],
   [
    "Yoga mat",
    -17.6,
-   -5.6,
-   -1.571,
+   -4.9,
+   3.142,
    0.78,
    46
   ],
   [
    "Yoga mat",
    -14.6,
-   -8,
-   -1.571,
+   -7.3,
+   3.142,
    0.78,
    46
   ],
   [
    "Yoga mat",
    -14.6,
-   -5.6,
-   -1.571,
+   -4.9,
+   3.142,
    0.78,
    46
   ],
   [
    "Yoga mat",
    -11.6,
-   -8,
-   -1.571,
+   -7.3,
+   3.142,
    0.78,
    46
   ],
@@ -4935,7 +4935,7 @@
     "steps": true
    },
    "colliders": 107,
-   "hits": 37,
+   "hits": 39,
    "hooks": [
     "enter",
     "leave",
@@ -6041,7 +6041,9 @@
   "breakroom",
   "pingpong",
   "lounge",
-  "lobby"
+  "lobby",
+  "wellness-yoga",
+  "wellness-lobby"
  ],
  "boards": [
   [
@@ -6103,14 +6105,14 @@
  ],
  "scenes": {
   "office": {
-   "objects": 3137,
+   "objects": 3143,
    "types": {
     "Scene": 1,
     "HemisphereLight": 1,
     "DirectionalLight": 2,
     "Object3D": 2,
-    "Mesh": 2721,
-    "Group": 491,
+    "Mesh": 2725,
+    "Group": 493,
     "PointLight": 16,
     "Sprite": 9,
     "LineSegments": 1,
@@ -6148,8 +6150,8 @@
     "lightpanel": 5,
     "rosie": 57
    },
-   "ordered": "666e71f8",
-   "sorted": "b8e3756a"
+   "ordered": "296f2edd",
+   "sorted": "9fc514b7"
   },
   "servers": {
    "objects": 383,

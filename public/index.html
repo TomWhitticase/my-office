@@ -608,7 +608,8 @@ window.dash = {
   openDrawer, closeDrawer, openPanel,
   tvs: {}, tvAds: {}, tvListeners: new Set(),   // tvAds: id -> ad requests blocked since the server started
   // Wall TVs by id (office.js places them) and the auto-refresh choices, shared by the TV panel and the Admin tab.
-  tvList: { 'desks-west': 'Desks west', 'desks-east': 'Desks east', breakroom: 'Breakroom', pingpong: 'Ping pong', lounge: 'Lounge', lobby: 'Lobby' },
+  tvList: { 'desks-west': 'Desks west', 'desks-east': 'Desks east', breakroom: 'Breakroom', pingpong: 'Ping pong', lounge: 'Lounge', lobby: 'Lobby',
+    'wellness-lobby': 'Wellness lobby (46)', 'wellness-yoga': 'Yoga studio (46)' },
   tvRefresh: [[0, 'Off'], [30, 'Every 30 s'], [60, 'Every minute'], [300, 'Every 5 min'], [900, 'Every 15 min'], [3600, 'Every hour']],
   async saveTv(id, url, refresh) {
     const r = await fetch('/api/tvs/' + id, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url, refresh }) })

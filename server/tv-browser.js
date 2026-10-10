@@ -13,6 +13,22 @@ const { TV_UA_TAG, trustedHost } = require('./security');
 const TVS_FILE = path.join(CLAUDE, 'my-office', 'tvs.json');
 let tvs = readJSON(TVS_FILE) || {};
 for (const c of Object.values(tvs)) { delete c.src; delete c.blocked; c.volume ??= 100; c.muted ??= false; c.adblock ??= true; c.at ??= 0; }   // pre-browser entries
+// The wellness floor's TVs start on something that suits them, once: the first time this server finds one unset it puts
+// its default on, and notes that in tvs-defaults.json, so a TV you turn off (or change) stays as you left it.
+const TV_DEFAULTS = {
+  'wellness-lobby': { url: 'https://www.youtube.com/watch?v=EbnH3VHzhu8', volume: 35 },   // calm spa piano, 10 hours (Soothing Relaxation)
+  'wellness-yoga': { url: 'https://www.youtube.com/watch?v=GnHTeHAZQhM', volume: 70 },    // a gentle 20-minute class (Yoga With Adriene)
+};
+const TV_DEFAULTS_FILE = path.join(CLAUDE, 'my-office', 'tvs-defaults.json');
+{
+  const done = new Set(readJSON(TV_DEFAULTS_FILE) || []), todo = Object.keys(TV_DEFAULTS).filter((id) => !done.has(id));
+  for (const id of todo) if (!tvs[id]) tvs[id] = { url: TV_DEFAULTS[id].url, refresh: 0, volume: TV_DEFAULTS[id].volume, muted: false, adblock: true, at: Date.now() };
+  if (todo.length) {
+    fs.mkdirSync(path.dirname(TVS_FILE), { recursive: true });
+    fs.writeFileSync(TVS_FILE, JSON.stringify(tvs, null, 2));
+    fs.writeFileSync(TV_DEFAULTS_FILE, JSON.stringify([...done, ...todo]));
+  }
+}
 function sendTvs() { const json = JSON.stringify(tvs); for (const res of clients) res.write(`event: tvs\ndata: ${json}\n\n`); }
 function putTv(id, body) {
   if (!/^[\w-]{1,40}$/.test(id) || id in Object.prototype) throw new Error('bad TV id');   // '__proto__', 'constructor'…
