@@ -537,8 +537,8 @@ export function installSpa(ctx, W) {
     }
     const mr = new THREE.Mesh(new THREE.CircleGeometry(0.75, 48), M.mirror); mr.position.set(-8.08, 1.6, -8.3); mr.rotation.y = -Math.PI / 2; G.add(mr);
     k.geo(M.brass, new THREE.TorusGeometry(0.76, 0.02, 8, 48).rotateY(Math.PI / 2).translate(-8.08, 1.6, -8.3));
-    k.box(M.oak, 0.3, 0.035, 1.6, -8.2, 1.2, -6.2);
-    for (let j = 0; j < 6; j++) k.cyl(mat(matCols[j], { roughness: 0.95 }), 0.07, 0.07, 0.62, -8.2, 1.29, -6.85 + j * 0.26, 12, Math.PI / 2, 0, Math.PI / 2);
+    k.box(M.oak, 0.64, 0.035, 1.6, -8.39, 1.2, -6.2);   // deep enough for the rolls, which lie across it clear of the wall
+    for (let j = 0; j < 6; j++) k.cyl(mat(matCols[j], { roughness: 0.95 }), 0.07, 0.07, 0.6, -8.4, 1.29, -6.85 + j * 0.26, 12, Math.PI / 2, 0, Math.PI / 2);
     // A singing bowl on a low stool.
     k.cyl(M.oak, 0.18, 0.18, 0.2, -19.0, 0.1, -9.05, 20); k.geo(M.brass, new THREE.SphereGeometry(0.12, 18, 10, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2).translate(-19.0, 0.32, -9.05));
     W.planter(-19.3, -4.3, 1.1); W.planter(-8.7, -9.0, 0.9);

@@ -411,12 +411,47 @@ function build(ctx) {
   });
 
   // Plants in pale stone planters: their leaves in the office's one instanced kit (world positions, so at this floor's height).
+  // Each leaf is kept on the planter's side of the partitions and windows near it: a card that would reach through one is
+  // turned back toward the room, and failing that drawn in and made smaller (no draws, so nothing after it shifts).
+  const planes = [...WALLS.map(([axis, fixed, from, to]) => ({ n: axis === 'x' ? 'z' : 'x', at: fixed, a: from, b: to, half: T / 2 + 0.03 })),
+    ...[-20, 20].map((at) => ({ n: 'x', at, a: -15, b: 15, half: 0.15 })), ...[-15, 15].map((at) => ({ n: 'z', at, a: -20, b: 20, half: 0.15 }))];
+  const bx = new THREE.Vector3(), by = new THREE.Vector3(), bz = new THREE.Vector3(), UPV = new THREE.Vector3(0, 1, 0), XV = new THREE.Vector3(1, 0, 0);
+  const pts = [0, 1, 2, 3, 4, 5].map(() => new THREE.Vector3());
+  const leafPts = (P, D, sx, sy, roll, droop) => {   // as plantKit's add lays a card out: corners at its foot, middle and tip
+    by.copy(D).normalize(); bx.crossVectors(by, Math.abs(by.y) > 0.99 ? XV : UPV).normalize(); bz.crossVectors(bx, by);
+    const cr = Math.cos(roll), sr = Math.sin(roll);
+    [[-0.5, 0], [0.5, 0], [-0.5, 0.5], [0.5, 0.5], [-0.5, 1], [0.5, 1]].forEach(([u, v], i) => {
+      const lx = u * sx, lz = -droop * v * v * sy;
+      pts[i].copy(P).addScaledVector(bx, lx * cr + lz * sr).addScaledVector(by, v * sy).addScaledVector(bz, -lx * sr + lz * cr);
+    });
+    return pts;
+  };
+  const fitLeaf = (cx, cz, L) => {   // L: { P, D, sx, sy, roll, droop }, changed in place; false if it can't be made to fit
+    const near = planes.filter((q) => Math.abs((q.n === 'x' ? cx : cz) - q.at) < 1.6 && (q.n === 'x' ? cz : cx) > q.a - 1.6 && (q.n === 'x' ? cz : cx) < q.b + 1.6);
+    for (let i = 0; i < 8; i++) {
+      let bad = null;
+      for (const p of leafPts(L.P, L.D, L.sx, L.sy, L.roll, L.droop)) for (const q of near) {
+        const along = q.n === 'x' ? p.z : p.x, side = Math.sign((q.n === 'x' ? cx : cz) - q.at);
+        if (along > q.a - 0.05 && along < q.b + 0.05 && side * (p[q.n] - q.at) < q.half) { bad = q; break; }
+      }
+      if (!bad) return true;
+      const side = Math.sign((bad.n === 'x' ? cx : cz) - bad.at);
+      if (L.D[bad.n] * side < 0) L.D[bad.n] = -L.D[bad.n];
+      else { L.P.x += (cx - L.P.x) * 0.5; L.P.z += (cz - L.P.z) * 0.5; L.sx *= 0.85; L.sy *= 0.85; }
+    }
+    return false;
+  };
   W.planter = (x, z, s = 1, round = true) => {
     const k = kit();
     if (round) k.cyl(M.stoneWall, 0.3 * s, 0.24 * s, 0.6 * s, x, 0.3 * s, z, 20); else k.box(M.stoneWall, 0.56 * s, 0.6 * s, 0.56 * s, x, 0.3 * s, z);
     k.cyl(mat('#3b2c22', { roughness: 1 }), 0.27 * s, 0.27 * s, 0.02, x, 0.6 * s, z, 12);
     k.flush(G);
-    const { twig, strap, stem, add } = plantKit(), P = new THREE.Vector3(), D = new THREE.Vector3(), c = new THREE.Color(), soil = Y + 0.6 * s;
+    const { twig, strap, stem, add: put } = plantKit(), P = new THREE.Vector3(), D = new THREE.Vector3(), c = new THREE.Color(), soil = Y + 0.6 * s;
+    const add = (im, P, D, sx, sy, roll, color) => {
+      if (im === stem) { put(im, P, D, sx, sy, roll, color); return; }
+      const L = { P, D, sx, sy, roll, droop: im === twig ? 0.35 : 0.15 };
+      if (fitLeaf(x, z, L)) put(im, L.P, L.D, L.sx, L.sy, L.roll, color);
+    };
     if (R() < 0.5) {
       for (let i = 0; i < 16; i++) {   // a tall bird of paradise / snake plant: upright straps
         const a = i * 2.4 + R(), r = R() * 0.14 * s, h = (0.9 + R() * 0.6) * s;
