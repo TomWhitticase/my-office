@@ -21,7 +21,9 @@ npx tsc -p test/tsconfig.json   # JSDoc types: the office's ctx, registries, FLO
 
 To try a change, run your own server from your checkout with an isolated HOME on a spare port (7831-7840), not the live one.
 
-The harness (`node test/run.mjs`, `npm test`, any suite) runs one at a time across all sessions, under a shared lock: `until mkdir /tmp/my-office-harness.lock 2>/dev/null; do sleep 20; done`, run it, then `rmdir /tmp/my-office-harness.lock` (a lock older than 30 min is stale: `find /tmp/my-office-harness.lock -mmin +30`, then rmdir it). While iterating, run only the shots you touched (`golden --only=<names>`); run the full suite once, just before you push. Close the headless browsers and test servers you aren't using.
+The harness (`node test/run.mjs`, `npm test`, any suite) runs one at a time across all sessions, under a shared lock: `until mkdir /tmp/my-office-harness.lock 2>/dev/null; do sleep 20; done`, run it, then `rmdir /tmp/my-office-harness.lock` (a lock older than 30 min is stale: `find /tmp/my-office-harness.lock -mmin +30`, then rmdir it). Close the headless browsers and test servers you aren't using.
+
+Before you push, under the lock: `node test/run.mjs api world` and `node test/run.mjs golden --only=<the shots your change can affect>` (each golden pose loads the office afresh, so that renders only those). `test/README.md` ("Before you push") says how to choose them: the floor or area you touched; HUD, `main.js`/`ctx.js`/`util.js`, post-processing or people changes reach every office shot, so run the whole golden suite for those. Don't run the full suite before every push: the coordinator runs it on main periodically (`bin/full-check.sh`, report in `~/.claude/my-office/full-check.log`) and sends a failure back to the commit's author to fix.
 
 ## Live site
 
@@ -29,7 +31,7 @@ The live office on http://127.0.0.1:7777 runs from a dedicated checkout, `/Users
 
 On another machine, the installer's service (`launchctl kickstart -k gui/$(id -u)/com.my-office.server`; Linux: `systemctl --user restart my-office`) runs the server instead, and `server.js` / `server/` changes need that restart.
 
-For a change that shouldn't alter anything you can see (a refactor, a tidy-up), also run the harness: `npm test` (about five minutes; see `test/README.md`). It must say `all match`. If it doesn't, fix the change; only re-record its baselines for an intended visual or behaviour change, after looking at every changed shot.
+For a change that shouldn't alter anything you can see (a refactor, a tidy-up), the harness must say `all match` on the suites and shots it can affect (as above; see `test/README.md`). If it doesn't, fix the change; only re-record its baselines for an intended visual or behaviour change, after looking at every changed shot.
 
 ## Layout
 
@@ -73,4 +75,4 @@ Things built while installing must not depend on a part installed later: put the
 2. Give it a lift to arrive by: `Object.assign(floor, ctx.liftShaft())` and add `floor.lift` to its scene; `enter(z)` moves it onto your car's z.
 3. `ctx.addFloor(floor)` puts it on every car panel. Lifts never import floors.
 4. Its clickables register actions as above; on that floor, hover uses its `hits` (or `pick`) and the minimap its `map()`.
-5. Add a pose for it at the end of `POSES` in `test/goldens.mjs`, and record just that one.
+5. Add a pose for it to `POSES` in `test/goldens.mjs` (each starts from a freshly loaded office), and record just that one (`golden --only=<name> --record`).
