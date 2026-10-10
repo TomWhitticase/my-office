@@ -1,13 +1,11 @@
 // The wellness floor's hall past the changing rooms (floors/wellness.js), round the float room (wellness-retreat.js):
 // on its west side a quiet room behind a fluted door (five loungers on a rug facing a fire set in a stone chimney
-// breast, blankets, candles); beside it an infrared cabin behind glass (cedar inside, a bench, the heaters' dull red
-// glow, warm on you while you're in); and along the south glass, experience showers in tiled bays opening onto the way
+// breast, blankets, candles); beside it a treatment room behind an oak door (a massage table to lie on, oils, warm
+// stones); and along the south glass, experience showers in tiled bays opening onto the way
 // to the jacuzzi: tropical rain, a cold mist, a bucket drench and an ice fountain (click each).
 
 import * as THREE from 'three';
 import { mat } from '../util.js';
-
-const IR = new THREE.Color('#ff9a70');
 
 export function installHall(ctx, W) {
   const { G, M, kit, solid, R, uvWorld } = W, { toast } = ctx;
@@ -78,30 +76,41 @@ export function installHall(ctx, W) {
     W.plaque('QUIET', -4.53, 2.45, -7.8, Math.PI / 2);
   }
 
-  // ----- the infrared cabin -----
-  // x -4.6..-1.6, z -11.2..-8.6, glass onto the hall: cedar inside, a bench on the back wall, carbon heater panels glowing
-  // a dull red, warmer on you while you're in it.
-  const IRC = { x0: -4.6, x1: -1.6, z0: -11.2, z1: -8.6 };
-  const heatM = new THREE.MeshStandardMaterial({ color: '#2a1d18', emissive: '#ff4a1c', emissiveIntensity: 0.2, roughness: 0.7 });
+  // ----- the treatment room -----
+  // x -4.6..-1.6, z -11.2..-8.6, behind an oak door off the hall: a massage table under a low warm pendant (click to lie
+  // on it), shelves of oils and rolled towels on the back wall, a trolley with a bowl of warm stones, a rug.
   {
-    const i0 = IRC.x0 + 0.07, i1 = IRC.x1 - 0.07, j0 = IRC.z0 + 0.07;
-    panel(M.cedar, i1 - i0, 3.2, 0.02, (i0 + i1) / 2, 1.6, j0);
-    for (const x of [i0, i1]) panel(M.cedar, 0.02, 3.2, IRC.z1 - 0.06 - j0, x, 1.6, (j0 + IRC.z1 - 0.06) / 2);
-    for (let x = i0 + 0.05; x < i1; x += 0.12) k.box(M.cedar, 0.09, 0.025, IRC.z1 - 0.1 - j0, x, 0.013, (j0 + IRC.z1 - 0.1) / 2);   // duckboards
-    // The bench: slats on a frame along the back wall, a slatted back rest.
-    const bz = j0 + 0.3;
-    for (let q = 0; q < 5; q++) k.box(M.cedar, i1 - i0 - 0.1, 0.035, 0.08, (i0 + i1) / 2, 0.45, bz - 0.2 + q * 0.1);
-    for (const x of [i0 + 0.2, (i0 + i1) / 2, i1 - 0.2]) k.box(M.cedar, 0.06, 0.43, 0.48, x, 0.215, bz);
-    for (let q = 0; q < 4; q++) k.box(M.cedar, i1 - i0 - 0.1, 0.07, 0.025, (i0 + i1) / 2, 0.62 + q * 0.12, j0 + 0.04 + q * 0.012);
-    solid((i0 + i1) / 2, bz, i1 - i0, 0.55);
-    // Heaters: three over the bench, one on each side wall, a long one low under the bench.
-    for (const x of [-3.95, -3.1, -2.25]) { k.box(heatM, 0.7, 0.95, 0.02, x, 1.6, j0 + 0.02); k.box(M.black, 0.74, 0.99, 0.01, x, 1.6, j0 + 0.012); }
-    for (const [x, bx] of [[i0 + 0.02, i0 + 0.011], [i1 - 0.02, i1 - 0.011]]) { k.box(heatM, 0.02, 1.0, 0.7, x, 1.5, -9.85); k.box(M.black, 0.01, 1.04, 0.74, bx, 1.5, -9.85); }
-    k.box(heatM, i1 - i0 - 0.4, 0.06, 0.02, (i0 + i1) / 2, 0.12, bz + 0.2);
-    k.box(glow('#ffb48a', 0.6), i1 - i0, 0.02, 0.03, (i0 + i1) / 2, 3.0, j0 + 0.03);   // a warm strip light up under the ceiling
-    const g = new THREE.Group(); g.position.set((i0 + i1) / 2, 0, bz); G.add(g);
-    for (const lx of [-0.9, 0, 0.9]) { const st = W.seat(g, 'Infrared bench', lx, 1.12); W.markSeat(g, st); }
-    W.plaque('INFRARED', -1.53, 1.5, -9.0, Math.PI / 2);
+    const TX = -2.9, TZ = -10.15;
+    k.box(mat('#a3917c', { roughness: 1 }), 2.6, 0.01, 2.2, -3.1, 0.006, -9.9);
+    // The table: a padded top on an oak frame, a face cradle at its west end, a towel folded at its foot.
+    const g = new THREE.Group(); g.position.set(TX, 0, TZ); G.add(g);
+    const tk = kit();
+    tk.box(M.oak, 1.8, 0.08, 0.66, 0, 0.62, 0); tk.box(M.taupe, 1.84, 0.1, 0.7, 0, 0.71, 0);
+    for (const [dx, dz] of [[-0.8, -0.27], [-0.8, 0.27], [0.8, -0.27], [0.8, 0.27]]) tk.box(M.oak, 0.06, 0.6, 0.06, dx, 0.3, dz);
+    tk.box(M.oak, 1.6, 0.04, 0.04, 0, 0.18, 0.27); tk.box(M.oak, 1.6, 0.04, 0.04, 0, 0.18, -0.27);
+    tk.box(M.taupe, 0.26, 0.08, 0.32, -1.07, 0.7, 0); tk.box(M.black, 0.1, 0.03, 0.2, -0.96, 0.62, 0);
+    tk.box(M.towel, 0.4, 0.06, 0.6, 0.62, 0.79, 0);
+    tk.flush(g);
+    const st = W.seat(g, 'Treatment table', 0, 1.15); W.markSeat(g, st);
+    solid(TX, TZ, 2.1, 0.75);
+    // Shelves on the back wall: amber oil bottles, rolled towels, a candle.
+    for (const y of [1.1, 1.5]) k.box(M.oak, 1.6, 0.035, 0.24, -3.1, y, -11.02);
+    for (let i = 0; i < 6; i++) { const x = -3.75 + i * 0.13; k.cyl(mat('#8a4a16', { roughness: 0.2, metalness: 0.1 }), 0.03, 0.03, 0.13, x, 1.185, -11.0, 10); k.cyl(M.black, 0.012, 0.012, 0.04, x, 1.27, -11.0, 6); }
+    for (let i = 0; i < 4; i++) k.cyl(M.towel, 0.055, 0.055, 0.22, -2.75 + i * 0.12, 1.175, -11.0, 10, Math.PI / 2);
+    for (let i = 0; i < 5; i++) k.cyl(M.towel, 0.055, 0.055, 0.22, -3.7 + i * 0.12, 1.575, -11.0, 10, Math.PI / 2);
+    k.cyl(M.glass, 0.05, 0.05, 0.1, -2.6, 1.57, -11.0, 12); k.cyl(glow('#ffd08a', 1.6), 0.012, 0.012, 0.03, -2.6, 1.56, -11.0, 8);
+    // The trolley: two oak trays on chrome posts, a black bowl of warm stones on top.
+    k.box(M.oak, 0.5, 0.03, 0.36, -4.15, 0.8, -10.55); k.box(M.oak, 0.5, 0.03, 0.36, -4.15, 0.3, -10.55);
+    for (const [dx, dz] of [[-0.22, -0.15], [-0.22, 0.15], [0.22, -0.15], [0.22, 0.15]]) k.cyl(M.chrome, 0.012, 0.012, 0.8, -4.15 + dx, 0.4, -10.55 + dz, 6);
+    k.cyl(M.dark, 0.14, 0.09, 0.07, -4.15, 0.85, -10.55, 18);
+    for (let i = 0; i < 7; i++) k.geo(mat('#2e2c2a', { roughness: 0.35 }), new THREE.SphereGeometry(0.04, 10, 6).scale(1.3, 0.55, 1).translate(-4.15 + (R() - 0.5) * 0.14, 0.89, -10.55 + (R() - 0.5) * 0.14));
+    solid(-4.15, -10.55, 0.55, 0.4);
+    // A low pendant over the table, a sconce by the door.
+    k.cyl(M.black, 0.006, 0.006, 1.6, TX, 2.5, TZ, 6); k.cyl(glow('#ffcf96', 0.9), 0.16, 0.2, 0.14, TX, 1.65, TZ, 20);
+    k.box(glow('#ffcf96', 0.7), 0.05, 0.3, 0.1, -4.51, 1.7, -9.2);
+    W.planter(-4.22, -9.0, 0.6);
+    W.hingedDoor({ name: 'Treatment room door', hx: -3.4, hz: -8.6, swing: 1, w: 0.9 });
+    W.plaque('TREATMENT', -3.95, 1.5, -8.53, 0);
   }
 
   // ----- the experience showers -----
@@ -184,12 +193,6 @@ export function installHall(ctx, W) {
   let mistT = 0;
   W.fxs.push((dt, t) => {
     const p = ctx.player;
-    // The heaters cycling, a slow breath of glow; in the cabin, the warmth on you.
-    heatM.emissiveIntensity = 0.2 + 0.05 * Math.sin(t * 0.4);
-    if (inZone(p, IRC.x0, IRC.x1, IRC.z0, IRC.z1)) {
-      ctx.hemi.color.lerp(IR, 0.35);
-      W.wantVeil = ['radial-gradient(ellipse at 50% 55%, rgba(255,120,60,0), rgba(255,80,40,.4))', 0.3];
-    }
     for (const b of bays) {
       if (b.kind === 'mist' && b.on) {
         mistT -= dt;

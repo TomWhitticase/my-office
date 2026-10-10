@@ -2117,6 +2117,30 @@
    46
   ],
   [
+   "Infrared bench",
+   13.4,
+   -3.87,
+   3.142,
+   1.12,
+   46
+  ],
+  [
+   "Infrared bench",
+   12.5,
+   -3.87,
+   3.142,
+   1.12,
+   46
+  ],
+  [
+   "Infrared bench",
+   11.6,
+   -3.87,
+   3.142,
+   1.12,
+   46
+  ],
+  [
    "Lounger",
    -14.2,
    -14.05,
@@ -2173,27 +2197,11 @@
    46
   ],
   [
-   "Infrared bench",
-   -4,
-   -10.83,
+   "Treatment table",
+   -2.9,
+   -10.15,
    0,
-   1.12,
-   46
-  ],
-  [
-   "Infrared bench",
-   -3.1,
-   -10.83,
-   0,
-   1.12,
-   46
-  ],
-  [
-   "Infrared bench",
-   -2.2,
-   -10.83,
-   0,
-   1.12,
+   1.15,
    46
   ]
  ],
@@ -4998,8 +5006,8 @@
     "kind": "wellness",
     "steps": true
    },
-   "colliders": 132,
-   "hits": 45,
+   "colliders": 141,
+   "hits": 47,
    "hooks": [
     "enter",
     "leave",
@@ -6191,14 +6199,14 @@
  ],
  "scenes": {
   "office": {
-   "objects": 3315,
+   "objects": 3332,
    "types": {
     "Scene": 1,
     "HemisphereLight": 1,
     "DirectionalLight": 2,
     "Object3D": 2,
-    "Mesh": 2860,
-    "Group": 526,
+    "Mesh": 2876,
+    "Group": 527,
     "PointLight": 16,
     "Sprite": 9,
     "LineSegments": 1,
@@ -6209,7 +6217,7 @@
     "blinds": 48,
     "board": 6,
     "laptop": 7,
-    "door": 84,
+    "door": 86,
     "coffee": 1,
     "taskboard": 1,
     "decanter": 1,
@@ -6238,8 +6246,8 @@
     "lightpanel": 5,
     "rosie": 57
    },
-   "ordered": "280dd688",
-   "sorted": "522f3b18"
+   "ordered": "e37d1b60",
+   "sorted": "b5c763bc"
   },
   "servers": {
    "objects": 383,
