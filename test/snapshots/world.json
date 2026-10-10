@@ -1857,6 +1857,310 @@
    2.1,
    1.2,
    -1
+  ],
+  [
+   "Lounger",
+   -17.2,
+   6.4,
+   0,
+   0.95,
+   46
+  ],
+  [
+   "Lounger",
+   -14.6,
+   6.4,
+   0,
+   0.95,
+   46
+  ],
+  [
+   "Lounger",
+   -12,
+   6.4,
+   0,
+   0.95,
+   46
+  ],
+  [
+   "Lounger",
+   -9.4,
+   6.4,
+   0,
+   0.95,
+   46
+  ],
+  [
+   "Lounger",
+   -6.8,
+   6.4,
+   0,
+   0.95,
+   46
+  ],
+  [
+   "Lounger",
+   -4.2,
+   6.4,
+   0,
+   0.95,
+   46
+  ],
+  [
+   "Sauna bench",
+   16.02,
+   -13.6,
+   1.571,
+   1.85,
+   46
+  ],
+  [
+   "Sauna bench",
+   16.02,
+   -12,
+   1.571,
+   1.85,
+   46
+  ],
+  [
+   "Sauna bench",
+   16.55,
+   -13.9,
+   1.571,
+   1.45,
+   46
+  ],
+  [
+   "Sauna bench",
+   16.55,
+   -12.4,
+   1.571,
+   1.45,
+   46
+  ],
+  [
+   "Steam bench",
+   12,
+   -14.48,
+   0,
+   0.95,
+   46
+  ],
+  [
+   "Steam bench",
+   13.3,
+   -14.48,
+   0,
+   0.95,
+   46
+  ],
+  [
+   "Steam bench",
+   14.6,
+   -14.48,
+   0,
+   0.95,
+   46
+  ],
+  [
+   "Steam bench",
+   11.17,
+   -12.9,
+   1.571,
+   0.95,
+   46
+  ],
+  [
+   "Steam bench",
+   11.17,
+   -11.6,
+   1.571,
+   0.95,
+   46
+  ],
+  [
+   "Heated lounger",
+   17.6,
+   -8.9,
+   1.571,
+   0.95,
+   46
+  ],
+  [
+   "Heated lounger",
+   17.6,
+   -6.4,
+   1.571,
+   0.95,
+   46
+  ],
+  [
+   "Bench",
+   -4,
+   -10.6,
+   0,
+   1.12,
+   46
+  ],
+  [
+   "Bench",
+   -3,
+   -10.6,
+   0,
+   1.12,
+   46
+  ],
+  [
+   "Bench",
+   -2,
+   -10.6,
+   0,
+   1.12,
+   46
+  ],
+  [
+   "Bench",
+   -4,
+   -7.4,
+   0,
+   1.12,
+   46
+  ],
+  [
+   "Bench",
+   -3,
+   -7.4,
+   0,
+   1.12,
+   46
+  ],
+  [
+   "Bench",
+   -2,
+   -7.4,
+   0,
+   1.12,
+   46
+  ],
+  [
+   "Bar stool",
+   -6.6,
+   -1.15,
+   3.142,
+   1.5,
+   46
+  ],
+  [
+   "Bar stool",
+   -5.5,
+   -1.15,
+   3.142,
+   1.5,
+   46
+  ],
+  [
+   "Bar stool",
+   -4.4,
+   -1.15,
+   3.142,
+   1.5,
+   46
+  ],
+  [
+   "Bar stool",
+   -3.3,
+   -1.15,
+   3.142,
+   1.5,
+   46
+  ],
+  [
+   "Yoga mat",
+   -17.6,
+   -12.6,
+   -1.571,
+   0.78,
+   46
+  ],
+  [
+   "Yoga mat",
+   -17.6,
+   -8.6,
+   -1.571,
+   0.78,
+   46
+  ],
+  [
+   "Yoga mat",
+   -17.6,
+   -5.8,
+   -1.571,
+   0.78,
+   46
+  ],
+  [
+   "Yoga mat",
+   -14.6,
+   -12.6,
+   -1.571,
+   0.78,
+   46
+  ],
+  [
+   "Yoga mat",
+   -14.6,
+   -8.6,
+   -1.571,
+   0.78,
+   46
+  ],
+  [
+   "Yoga mat",
+   -14.6,
+   -5.8,
+   -1.571,
+   0.78,
+   46
+  ],
+  [
+   "Yoga mat",
+   -11.6,
+   -12.6,
+   -1.571,
+   0.78,
+   46
+  ],
+  [
+   "Yoga mat",
+   -11.6,
+   -8.6,
+   -1.571,
+   0.78,
+   46
+  ],
+  [
+   "Daybed",
+   -16.4,
+   -2.35,
+   -1.571,
+   0.92,
+   46
+  ],
+  [
+   "Daybed",
+   -16.4,
+   0,
+   -1.571,
+   0.92,
+   46
+  ],
+  [
+   "Daybed",
+   -16.4,
+   2.35,
+   -1.571,
+   0.92,
+   46
   ]
  ],
  "desks": [
@@ -4650,21 +4954,25 @@
   },
   {
    "n": 46,
-   "label": "VACANT",
-   "title": "Vacant floor",
+   "label": "WELLNESS",
+   "title": "Wellness",
    "scene": false,
    "y": -7.6,
    "carless": false,
    "fly": false,
-   "sound": null,
-   "colliders": 5,
-   "hits": 2,
+   "sound": {
+    "kind": "wellness",
+    "steps": true
+   },
+   "colliders": 87,
+   "hits": 32,
    "hooks": [
     "enter",
     "leave",
     "bound",
     "map",
-    "fx"
+    "fx",
+    "ground"
    ]
   },
   {
@@ -5825,14 +6133,14 @@
  ],
  "scenes": {
   "office": {
-   "objects": 2716,
+   "objects": 3092,
    "types": {
     "Scene": 1,
     "HemisphereLight": 1,
     "DirectionalLight": 2,
     "Object3D": 2,
-    "Mesh": 2365,
-    "Group": 427,
+    "Mesh": 2681,
+    "Group": 487,
     "PointLight": 16,
     "Sprite": 9,
     "LineSegments": 1,
@@ -5849,16 +6157,26 @@
     "computer": 1,
     "darts": 26,
     "dartsBoard": 2,
-    "liftcall": 3,
-    "liftpanel": 4,
+    "liftcall": 4,
+    "liftpanel": 5,
     "pint": 1,
     "heli": 2,
     "restrictednote": 2,
+    "wellness-towel": 3,
+    "wellness-cardio": 7,
+    "wellness-dumbbells": 1,
+    "wellness-bench": 1,
+    "wellness-cable": 1,
+    "wellness-ladle": 1,
+    "wellness-plunge": 1,
+    "wellness-shower": 3,
+    "wellness-locker": 2,
+    "wellness-blender": 1,
     "lightpanel": 5,
     "rosie": 57
    },
-   "ordered": "9701fac3",
-   "sorted": "d2de965f"
+   "ordered": "c01e7441",
+   "sorted": "fa233e27"
   },
   "servers": {
    "objects": 383,

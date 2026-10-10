@@ -248,6 +248,25 @@ export const POSES = [
     await stand(o, 12, -2, { x: -10, y: 1.4, z: 6 });
     await o.step(45);
   }],
+  ['wellness-pool', async (o) => {   // 46, the wellness floor: swimming at the north glass, looking out over the city
+    await arrive(o);
+    await ride(o, 46);
+    await stand(o, -8, 12.9, { x: -8, y: 0, z: 20 });
+    await o.step(45);
+  }],
+  ['wellness-gym', async (o) => {   // the gym: the cardio row on the east windows, the power rack, the dumbbells under the mirror
+    await arrive(o);
+    await ride(o, 46);
+    await stand(o, 7.5, 4.6, { x: 16, y: 0.8, z: 11 });
+    await o.step(30);
+  }],
+  ['wellness-sauna', async (o) => {   // in the sauna, just after a ladle of water on the stones
+    await arrive(o);
+    await ride(o, 46);
+    await stand(o, 17.4, -13.9, { x: 19.1, y: 1.75, z: -11.35 });
+    await o.eval(() => window.__office.ctx.actionOf('wellness-ladle').click({}));
+    await o.step(40);
+  }],
 ];
 
 // Compares two PNGs in the page: counts pixels where any channel differs by more than `tol`.
