@@ -190,12 +190,13 @@ function build(ctx) {
     await fadeTo(0, 1400);
     busy = false;
   }
-  rel.back = () => back(exits[0]);
+  rel.back = () => { back(exits[0]); };
+  rel.glimpse = () => { glimpse.now = true; };   // (for looking: yourself, far off, next frame)
 
   rel.enter = () => {
     const d = exits[0], [x, y, z] = d.at;
     walker.place(d.k, x, y, z);
-    Object.assign(ctx.player, { yaw: d.yaw, pitch: 0.28, seated: false, seat: null });
+    Object.assign(ctx.player, { yaw: d.yaw, pitch: 0.36, seated: false, seat: null });
     for (const e of [...exits, ...skyDoors]) { e.open = e.want = 0; e.leaf.rotation.y = 0; }
     glimpse.at = 40 + R() * 40; glimpse.on = 0; rel.t = 0;
     hud.classList.add('of-relative');
@@ -225,7 +226,14 @@ function build(ctx) {
 
   // ----- each frame while you're here -----
   const glimpse = { at: 0, on: 0, seen: 0, gone: 0 };
-  const tmp = new THREE.Vector3(), fwd = new THREE.Vector3();
+  const tmp = new THREE.Vector3(), fwd = new THREE.Vector3(), ray = new THREE.Raycaster();
+  // In front of you, and nothing of the building in the way (once, when a glimpse is due: the building's a lot of triangles).
+  const canSee = (p) => {
+    const d = tmp.copy(p).sub(camera.position), n = d.length();
+    if (d.normalize().dot(fwd) < 0.6) return false;
+    ray.set(camera.position, d); ray.far = n - 0.6;
+    return !ray.intersectObjects(shown, false).length;
+  };
   rel.fx = (dt, t) => {
     rel.t = (rel.t || 0) + dt;
     if (rel.composer && !hatch.added) { rel.composer.addPass(hatch); hatch.added = true; }
@@ -245,8 +253,9 @@ function build(ctx) {
     }
     // now and then, far off on another gravity's stair: you, walking when you walk; gone once you look away
     camera.getWorldDirection(fwd);
-    if (!glimpse.on && rel.t > glimpse.at && rel.step > 0) {
-      if (people.glimpse(walker.S.k, eye)) { glimpse.on = 1; glimpse.seen = 0; glimpse.gone = 0; sound.glimpse(people.worldPos(people.me)); }
+    if (!glimpse.on && (rel.t > glimpse.at || glimpse.now) && (rel.step > 0 || glimpse.now)) {
+      glimpse.now = false;
+      if (people.glimpse(walker.S.k, eye, canSee)) { Object.assign(glimpse, { on: 1, seen: 0, gone: 0, at: rel.t }); sound.glimpse(people.worldPos(people.me)); }
       else glimpse.at = rel.t + 20;
     }
     if (glimpse.on) {
@@ -285,7 +294,7 @@ function build(ctx) {
   };
 
   ctx.action('relexit', { hover: () => '<b>The door you came in by</b><div class="k">It shouldn’t lead anywhere. Click to go back through</div>',
-    click: (h) => back(exits[h.key] || exits[0]) });
+    click: (h) => { back(exits[h.key] || exits[0]); } });
   ctx.action('relsky', { hover: () => '<b>A door</b><div class="k">Open sky, all the way down.</div>' });
   ctx.action('relfig', { hover: () => '<b>Someone</b><div class="k">Going about their business. They don’t look up.</div>' });
   Object.assign(ctx, { rel });
