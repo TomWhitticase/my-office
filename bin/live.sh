@@ -4,11 +4,12 @@
 #   bin/live.sh <live-dir> [port]
 #
 # <live-dir> is a dedicated checkout (e.g. `git worktree add --detach ../office-live origin/main`) that nobody edits.
-# Every 30 s: fetch; if origin/main moved, run the syntax checks on it (in a scratch copy, so the live tree never holds
-# a broken version), check it out, `npm install` if package files changed, and restart the server only if server.js /
-# server/ / package files changed (front-end changes are served fresh, and open pages reload themselves when
-# /api/build changes). A version that fails the checks, or whose server doesn't come up, is skipped (rolled back) and
-# not tried again until main moves on. A server that dies is started again. Everything goes to <live-dir>/.live.log.
+# Every 30 s: fetch; if origin/main moved, run the syntax checks and the smoke test on it (in a scratch copy, so the
+# live tree never holds a broken version), check it out, `npm install` if package files changed, and restart the server
+# only if server.js / server/ / package files changed (front-end changes are served fresh, and open pages reload
+# themselves when /api/build changes). A version that fails the checks, or whose server doesn't come up, is skipped
+# (rolled back) and not tried again until main moves on. A server that dies is started again. Everything goes to
+# <live-dir>/.live.log.
 set -u
 [ $# -ge 1 ] || { echo "usage: bin/live.sh <live-dir> [port]" >&2; exit 2; }
 LIVE=$(cd "$1" && pwd) || exit 1; PORT=${2:-7777}
@@ -23,9 +24,12 @@ short() { git rev-parse --short "$1"; }
 if [ -f "$SELF" ] && kill -0 "$(cat "$SELF")" 2>/dev/null; then echo "live.sh already running for $LIVE (pid $(cat "$SELF"))" >&2; exit 1; fi
 echo $$ > "$SELF"
 
-# The CLAUDE.md syntax checks, on a scratch copy of <commit>. The front end is checked as a module on stdin: `node --check
-# file.js` passes an ES module with a syntax error in it (no "type" in package.json, so node guesses, and never checks it).
-checks() {
+# The CLAUDE.md checks, on a scratch copy of <commit>: the syntax checks, then the smoke test (the office loaded in
+# headless Chrome, on its own fixture server and a free port, with no page or console errors). The front end is checked
+# as a module on stdin: `node --check file.js` passes an ES module with a syntax error in it (no "type" in package.json,
+# so node guesses, and never checks it). The smoke test uses the live checkout's node_modules, or its own install if
+# <commit> changes the package files. If it can't run at all (no Chrome, say), that's logged and the commit goes ahead.
+checks() {   # <commit> <current>
   dir=$(mktemp -d "${TMPDIR:-/tmp}/office-live-check.XXXXXX") || return 1
   git archive "$1" | tar -x -C "$dir" && (
     cd "$dir" || exit 1
@@ -37,6 +41,15 @@ checks() {
       [ -f "$f" ] || continue
       node --input-type=module --check < "$f" || { echo "in $f"; exit 1; }
     done
+    [ -f test/smoke.mjs ] || exit 0
+    if git -C "$LIVE" diff --quiet "$2" "$1" -- package.json package-lock.json; then ln -s "$LIVE/node_modules" node_modules
+    else npm install --no-audit --no-fund --loglevel=error >&2 || exit 1; fi
+    out=$(node test/run.mjs smoke --port=0 2>&1)
+    case $out in
+      *'✓ the office loads'*) ;;
+      *'✗ the office'*) echo "$out" >&2; echo "smoke test failed" >&2; exit 1 ;;
+      *) echo "$out" | tail -5 >&2; echo "smoke test couldn't run; going ahead on the syntax checks" >&2 ;;
+    esac
   ) 2>>"$LOG"
   ok=$?; rm -rf "$dir"; return $ok
 }
@@ -72,7 +85,7 @@ trap 'stop; rm -f "$SELF"; log "live.sh stopped"; exit 0' INT TERM HUP
 
 deploy() {   # <new> <cur>
   new=$1; cur=$2; changed=$(git diff --name-only "$cur" "$new")
-  if ! checks "$new"; then log "$(short "$new") fails the checks; staying on $(short "$cur")"; skip=$new; return; fi
+  if ! checks "$new" "$cur"; then log "$(short "$new") fails the checks; staying on $(short "$cur")"; skip=$new; return; fi
   git checkout -q --detach "$new" 2>>"$LOG" || { log "checkout of $(short "$new") failed"; skip=$new; return; }
   pkg=$(echo "$changed" | grep '^package' || true)
   if [ -n "$pkg" ] && ! npmi; then

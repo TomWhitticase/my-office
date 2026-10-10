@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// The refactor harness: node test/run.mjs [api] [world] [golden] [--record] [--only=name,name] [--port=7781] [--log] [--software]
-// With no suite named it runs all three. Exit code 0 only if everything matches. See test/README.md.
+// The refactor harness: node test/run.mjs [smoke] [api] [world] [golden] [--record] [--only=name,name] [--port=7781] [--log] [--software]
+// With no suite named it runs them all. --port=0 picks a free port. Exit code 0 only if everything matches. See test/README.md.
 import { startServer } from './lib/server.mjs';
 import { launch } from './lib/browser.mjs';
 
@@ -19,7 +19,12 @@ try {
     console.log('api snapshots');
     failed += await runApi(server, { record });
   }
-  if (want('world') || want('golden')) browser = await launch({ software: !!flag('software') });
+  if (want('smoke') || want('world') || want('golden')) browser = await launch({ software: !!flag('software') });
+  if (want('smoke')) {
+    const { runSmoke } = await import('./smoke.mjs');
+    console.log('smoke');
+    failed += await runSmoke(browser, server.base);
+  }
   if (want('world')) {
     const { runWorld } = await import('./world.mjs');
     console.log('world snapshots');
