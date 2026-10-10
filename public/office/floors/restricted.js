@@ -517,6 +517,8 @@ function build(ctx) {
   const sound = makeSound(ctx, restr);
   restr.grid = { C, CH, H, T, X: (i) => GX + i * C, Z: (j) => GZ + j * C, edgeType, SOLID, cellOk, h3 };
   restr.sync = syncChunks;
+  // A reload down here (systems/resume.js): the same rooms round where you were (they're fixed by place, not by visit), and no keypad.
+  restr.restore = (s, p) => { stream(p.x, p.z - restr.z0, true); syncChunks(); };
   const story = restr.story = installStory(ctx, restr, sound);
   const creature = restr.creature = installCreature(ctx, restr, sound);
   const keypad = makeKeypad();

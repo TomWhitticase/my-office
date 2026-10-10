@@ -633,6 +633,32 @@ function build(ctx) {
     place(0);
   };
 
+  // A reload on the roof (systems/resume.js) brings it back as it was. Flying, you're aboard at the same place, heading and
+  // height, hovering with the rotor up to speed; landed with you in it, in it, cold; out somewhere (a roof, the street, the
+  // pier at the edge), it's where you left it and you're on foot where you were. Otherwise it's on our roof (or the pad).
+  const r2 = (v) => Math.round(v * 100) / 100;
+  roof.save = () => (S.cam === 'tween' ? false : { x: r2(S.pos.x), y: r2(S.pos.y), z: r2(S.pos.z), yaw: r2(S.yaw), landed: S.landed, aboard: S.aboard,
+    out: !!S.out, free: S.free, ly: r2(S.lookYaw), lp: r2(S.lookPitch) });
+  roof.restore = (s) => {
+    if (!Number.isFinite(s.x + s.y + s.z + s.yaw) || (!s.aboard && !s.landed)) { park(); place(0); return false; }
+    Object.assign(S, { yaw: s.yaw, pitch: 0, roll: 0, yawRate: 0, auto: null, snap: 0, insist: 0, free: !!s.free, landed: !!s.landed, flown: !s.landed,
+      engine: !s.landed, rpm: s.landed ? 0 : 1, bump: 0 });
+    S.pos.set(s.x, s.y, s.z); S.vel.set(0, 0, 0);
+    if (s.aboard) {
+      Object.assign(S, { aboard: true, cam: 'in', lookYaw: s.ly || 0, lookPitch: s.lp ?? -0.08 });
+      K.clear(); ctx.mode = 'heli'; hud.classList.add('of-flying');
+      Object.assign(ctx.player, { x: S.pos.x, z: S.pos.z });
+      place(0);
+      return true;
+    }
+    if (s.out) {   // what it's standing on again, and you round it
+      const on = surface();
+      if (on) goOut(on); else park();
+    } else if (!onDeck()) park();
+    place(0);
+    return false;
+  };
+
   // And on the helipad's camera, parked or flying.
   const stage0 = roof.cctv.stage;
   roof.cctv.stage = () => { const undo = stage0(), was = g.visible; g.visible = true; return () => { g.visible = was; undo(); }; };

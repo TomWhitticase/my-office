@@ -223,6 +223,18 @@ function build(ctx) {
   };
   // For the tests and for looking about: stand at (x, y, z) in gravity k, looking yaw/pitch.
   rel.pose = (k, x, y, z, yaw, pitch) => { walker.place(k, x, y, z); Object.assign(ctx.player, { yaw, pitch }); lastFeet = null; };
+  // A reload in here (systems/resume.js): back in your gravity where you stood (yaw and pitch are in its frame), or at the
+  // door you came in by if that's no longer somewhere to stand. Your car waits on B3.
+  rel.home = -3;
+  rel.save = () => (walker.S.roll ? false : { k: walker.S.k, x: +walker.S.x.toFixed(2), y: +walker.S.y.toFixed(2), z: +walker.S.z.toFixed(2) });
+  rel.restore = (s, p) => {
+    const W = walker.S;
+    if ([0, 1, 2].includes(s.k) && Number.isFinite(s.x + s.y + s.z)) rel.pose(s.k, s.x, s.y, s.z, p.yaw, p.pitch);
+    if (W.supp < 0 || Math.abs(W.y - s.y) > 0.5 || walker.hit(W.k, W.x, W.y, W.z) >= 0) rel.enter();
+    const f = walker.feet();
+    Object.assign(ctx.player, { x: f.x, z: f.z });
+    return true;
+  };
 
   // ----- each frame while you're here -----
   const glimpse = { at: 0, on: 0, seen: 0, gone: 0 };

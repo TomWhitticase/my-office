@@ -772,7 +772,7 @@ function syncAdmin() {
 buildAdmin();
 connect();
 // A new version went live (the deploy moved the server's checkout): reload to pick it up, once you're not in the middle of
-// typing, a chat, a TV / whiteboard / archive folder, flying, or a camera move. The office puts you back where you were (see restorePose).
+// typing, a chat, a TV / whiteboard / archive folder, flying, or a camera move. The office puts you back where you were, on whatever floor (see office/systems/resume.js).
 (() => {
   let build = null, pending = false;
   const busy = () => document.activeElement?.matches?.('input, textarea, select, [contenteditable]') || ['chat', 'tv', 'board', 'read', 'folder', 'heli', 'warp', 'intro', 'outro'].includes(window.__office?.mode);

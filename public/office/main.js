@@ -34,6 +34,7 @@ import { install as installWhiteboards, installDrawing } from './world/whiteboar
 import { install as installTVs, installUse } from './systems/tvs.js';
 import { install as installLiftLobby, installCycle, installRiding, installShafts } from './systems/lifts.js';
 import { install as installPlayer } from './systems/player.js';
+import { install as installResume } from './systems/resume.js';
 import { install as installArchive } from './floors/archive.js';
 import { install as installGateway } from './floors/gateway.js';
 import { install as installArchiveEntrance } from './floors/archive-entrance.js';
@@ -206,6 +207,7 @@ export function mountOffice(container) {
 
   installPlayer(ctx);
   const { sitIn, openLaptop, collide, tween, camPose, setCam, laptopFx, fillPose, seatedPose, player, keys, TELEPORTS } = ctx;
+  installResume(ctx);   // where a reload puts you back (after the floors and the player)
 
   installUse(ctx);
   const { leaveTv, useTv } = ctx;
@@ -307,13 +309,14 @@ export function mountOffice(container) {
       lastT = performance.now();
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(frame);
-      // The first time the page shows the office, pull back to wherever you last were (if anywhere but your desk);
-      // coming back from your computer, you're at your desk.
-      const back = firstShow && !laptop.shown ? ctx.restorePose() : null;
+      // The first time the page shows the office (a reload), fade in wherever you last were, on whatever floor (resume.js);
+      // with nothing saved, or coming back from your computer, pull back out of the monitor to your desk.
+      const back = firstShow && !laptop.shown && ctx.resume();
       firstShow = false;
-      const seat = back || seatedPose();
-      setTimeout(() => tween(fillPose(), seat, back ? 3200 : 2600, () => {
-        Object.assign(player, { x: seat.x, z: seat.z, eye: seat.y, yaw: seat.yaw, pitch: seat.pitch, seated: back ? back.seated : true, seat: seat.seat ?? null });
+      if (back) return;
+      const seat = seatedPose();
+      setTimeout(() => tween(fillPose(), seat, 2600, () => {
+        Object.assign(player, { x: seat.x, z: seat.z, eye: seat.y, yaw: seat.yaw, pitch: seat.pitch, seated: true, seat: seat.seat ?? null });
         ctx.mode = 'free';
         hud.classList.remove('hidden');
       }), REDUCED ? 0 : 350);
@@ -327,6 +330,7 @@ export function mountOffice(container) {
         if (ctx.using) { ctx.using.dirty = true; ctx.using = null; hud.classList.remove('of-using'); }
         leaveBoard();
         if (ctx.away) { resetLift(); setCam(seatedPose()); }
+        ctx.toDesk();   // a reload from your computer finds you at your desk
         hud.classList.add('hidden');
         ctx.mode = 'outro';
         if (laptop.open) { laptop.k = 1; laptopFx(0); }

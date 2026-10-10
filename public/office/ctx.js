@@ -38,6 +38,10 @@
  * @property {boolean} [liftGone]         its lift isn't there just now (out in the archive's void): no car to stand in
  * @property {boolean} [fly]              you fly rather than walk
  * @property {(dt: number, keys: Set<string>) => void} [walk]   moves you (and the camera) itself instead of the usual walk
+ * @property {() => any} [save]           what a reload should bring back here besides where you stand (systems/resume.js), or false: keep the last
+ * @property {(s: any, p: any) => boolean | void} [restore]   after a reload, put that back; true if it's placed you itself
+ * @property {(s: any) => Promise<boolean>} [prepare]   before arriving after a reload (a repo's tree to load)
+ * @property {number} [home]              a carless floor: where your car waits (Relativity on B3, a repo in the archive)
  * @property {any} [sound]                its ambience for sounds.js
  * @property {(z: number) => void} [enter]          you've arrived, in a car at z
  * @property {() => void} [leave]
