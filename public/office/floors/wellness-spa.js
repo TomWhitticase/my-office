@@ -7,6 +7,7 @@
 
 import * as THREE from 'three';
 import { clamp, FONT, makeCanvas, mat } from '../util.js';
+import { causticMaterial } from './wellness-pool.js';
 
 export function installSpa(ctx, W) {
   const { G, M, kit, solid, R } = W, { toast, camera } = ctx;
@@ -177,13 +178,17 @@ export function installSpa(ctx, W) {
     for (const [bw, bd, bx, bz] of [[w, t, x, z - d / 2], [w, t, x, z + d / 2], [t, d, x - w / 2, z], [t, d, x + w / 2, z]]) k.box(M.stoneWall, bw, plungeTop, bd, bx, plungeTop / 2, bz);
     k.box(M.stone, w + 0.14, 0.04, t + 0.1, x, plungeTop + 0.02, z + d / 2); k.box(M.stone, w + 0.14, 0.04, t + 0.1, x, plungeTop + 0.02, z - d / 2);
     k.box(M.stone, t + 0.1, 0.04, d, x - w / 2, plungeTop + 0.02, z); k.box(M.stone, t + 0.1, 0.04, d, x + w / 2, plungeTop + 0.02, z);
-    const inner = W.causticMaterial({ color: '#6f9a9c', roughness: 0.3 });
-    k.box(inner, w - t, 0.02, d - t, x, -0.6, z);
+    const inner = causticMaterial({ color: '#5f9497', roughness: 0.3 }, { ...W.U, waterY: { value: W.Y + plungeTop - 0.06 } });
+    // Its floor just over the room's (which would show through one sunk below it), tiled like the walls.
+    k.box(inner, w - t, 0.02, d - t, x, 0.02, z);
     for (const [bw, bd, bx, bz] of [[w - t, 0.02, x, z - d / 2 + t / 2 + 0.01], [w - t, 0.02, x, z + d / 2 - t / 2 - 0.01], [0.02, d - t, x - w / 2 + t / 2 + 0.01, z], [0.02, d - t, x + w / 2 - t / 2 - 0.01, z]])
-      k.box(inner, bw, 1.2, bd, bx, 0.0, bz);
+      k.box(inner, bw, plungeTop - 0.03, bd, bx, (plungeTop + 0.03) / 2, bz);
     k.box(M.chrome, 0.03, 0.9, 0.03, x + w / 2 - 0.25, 0.95, z + d / 2 + 0.02); k.box(M.chrome, 0.03, 0.03, 0.35, x + w / 2 - 0.25, 1.4, z + d / 2 - 0.15);
     const g = new THREE.PlaneGeometry(w - t, d - t); g.rotateX(-Math.PI / 2); g.translate(x, plungeTop - 0.06, z);
     const water = new THREE.Mesh(g, W.water()); water.renderOrder = 2; water.layers.set(1); G.add(water);
+    // The body of the water, so it reads as full: a cold blue-green just under the surface (the surface alone is clear).
+    const body = new THREE.Mesh(g.clone().translate(0, -0.012, 0), new THREE.MeshBasicMaterial({ color: '#1f6f7a', transparent: true, opacity: 0.3, depthWrite: false }));
+    body.renderOrder = 1; body.layers.set(1); G.add(body);
     solid(x, z, w + 0.1, d + 0.1);
     const sign = makeCanvas(256, 96), c = sign.ctx;
     c.fillStyle = '#1b1c1e'; c.fillRect(0, 0, 256, 96); c.fillStyle = '#9fd3e0'; c.font = `300 44px ${FONT}`; c.textAlign = 'center'; c.fillText('8 °C', 128, 52);

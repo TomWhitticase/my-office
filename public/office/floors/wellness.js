@@ -221,7 +221,7 @@ function build(ctx) {
     ['x', -3.5, -20, -8, 'glass', [[-12.6, -11.2]]], ['x', -3.5, -8, 4, 'stone', [[-1.3, 0.3]]], ['x', -3.5, 4, 18, 'stone', [[6.4, 8.0]]],
     ['z', -8, -15, -3.5, 'stone', [[-12.8, -11.4]]],                    // yoga and the jacuzzi | the hall past the changing rooms
     ['x', -9.5, -20, -8, 'stone'],                                      // yoga | the jacuzzi, in the south-west corner
-    ['z', 4, -15, -3.5, 'stone', [[-8.8, -7.2]]],                       // the south windows | spa
+    ['z', 4, -15, -3.5, 'stone', [[-7.72, -6.12]]],                     // the south windows | spa (the column at z -8 its jamb)
     // The changing rooms either side of the passage in from the way through (x -1.4..0.4), their doors onto the hall.
     ['x', -7, -4.6, 4, 'stone', [[-3.6, -2.6], [-1.4, 0.4], [1.6, 2.6]]], ['z', -4.6, -7, -3.5, 'stone'],
     ['z', -1.4, -7, -3.5, 'stone'], ['z', 0.4, -7, -3.5, 'stone'],
@@ -406,8 +406,14 @@ function build(ctx) {
         add(strap, P, D, h * 0.45, h, R() * 3, c.setRGB(0.75 + R() * 0.2, 1, 0.8 + R() * 0.2));
       }
     } else {
-      add(stem, P.set(x, soil, z), D.set(0, 1, 0), 0.03 * s, 0.9 * s);
-      for (let i = 0; i < 80; i++) {   // an olive-ish tree: a crown of twigs on a stem
+      // An olive-ish tree: the trunk up into a crown of twigs, held on six branches from its top (as 48's plants are).
+      const top = soil + 1.1 * s;
+      add(stem, P.set(x, soil, z), D.set(0, 1, 0), 0.03 * s, top - soil);
+      for (let i = 0; i < 6; i++) {
+        const a = i * 1.05 + 0.4, q = new THREE.Vector3(x + Math.cos(a) * 0.32 * s, top + (0.08 + (i % 3) * 0.14) * s, z + Math.sin(a) * 0.32 * s);
+        P.set(x, top - 0.12 * s, z); D.subVectors(q, P); add(stem, P, D, 0.014 * s, D.length());
+      }
+      for (let i = 0; i < 80; i++) {
         const u = R() * 2 - 1, a = R() * Math.PI * 2, kk = Math.sqrt(1 - u * u), f = 0.4 + R() * 0.6, cr = 0.5 * s, cy = soil + 1.25 * s;
         D.set(Math.cos(a) * kk, u * 0.7 + 0.3, Math.sin(a) * kk);
         P.set(x + D.x * cr * f * 0.8, cy + D.y * cr * f * 0.8, z + D.z * cr * f * 0.8);
