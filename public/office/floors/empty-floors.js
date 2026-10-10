@@ -1,7 +1,8 @@
 // The empty floors (46, 45, 44) under the office: the office's shell with nothing in it, in the office's own scene a floor
 // or more down (so the city, sky, sun and low cloud out of the windows are the ones you'd see from there). One build moves
 // to whichever of them you ride to: the same walls, glazing, beamed ceiling and lift core as 48, carpet tiles, the columns,
-// a few open floor boxes, protective sheeting out of the lifts, and a To Let board.
+// a few open floor boxes, protective sheeting out of the lifts, and a To Let board. The rest of the time, a cheap stand-in
+// for 47 to 44 shows from outside.
 
 import * as THREE from 'three';
 import { clamp, ease, FONT, LIFT, makeCanvas, makeScreen, mat, mergedBoxes, rng, ROOM } from '../util.js';
@@ -57,17 +58,45 @@ function build(ctx) {
   }
 
   // Bare concrete columns where 48's timber-clad pillars stand.
-  {
-    const cols = [[4, -8], [4, 8], [-9, 0.5 - 2.6]];
-    G.add(mergedBoxes(cols.map(([x, z]) => [0.5, ROOM.h, 0.5, x, ROOM.h / 2, z]), mat('#a9a7a2', { roughness: 0.92 })));
-    for (const [x, z] of cols) solid(x, z, 0.5, 0.5);
-  }
+  const cols = [[4, -8], [4, 8], [-9, 0.5 - 2.6]], colM = mat('#a9a7a2', { roughness: 0.92 });
+  G.add(mergedBoxes(cols.map(([x, z]) => [0.5, ROOM.h, 0.5, x, ROOM.h / 2, z]), colM));
+  for (const [x, z] of cols) solid(x, z, 0.5, 0.5);
 
   // Recessed LED panels between the beams, on the lamps (off by day, dim at night: nobody's here).
+  const panels = [], panelM = glowMat(0.35, '#eef2f6');
+  for (let x = -16; x <= 16; x += 4) for (const z of [-11, -5.5, 0, 5.5, 11]) panels.push([0.32, 0.02, 1.2, x, ROOM.h - 0.01, z]);
+  { const m = mergedBoxes(panels, panelM); m.castShadow = false; G.add(m); }
+
+  // From outside (the helicopter, the roof, the cameras), 47 down to 44 as they'd look from the air, always there in a few
+  // merged meshes: 44-46 the same shell, glazing and ceiling, a bare floor, the columns, the core and the panels (lit with the
+  // lamps); 47, the server hall, windowless behind dark louvres; a stone slab edge over each. The city's block for our
+  // tower stops under 44 (world/city.js). Hidden while you're on one of them: G is that floor then.
+  const out = new THREE.Group(); world.add(out);
   {
-    const panels = [];
-    for (let x = -16; x <= 16; x += 4) for (const z of [-11, -5.5, 0, 5.5, 11]) panels.push([0.32, 0.02, 1.2, x, ROOM.h - 0.01, z]);
-    const m = mergedBoxes(panels, glowMat(0.35, '#eef2f6')); m.castShadow = false; G.add(m);
+    const byM = new Map(), add = (m, b) => { if (!byM.has(m)) byM.set(m, []); byM.get(m).push(b); };
+    const bareM = mat('#5d6066', { roughness: 1 }), coreM = mat('#77716a', { roughness: 0.55 }), slabM = mat('#d8d2c8', { roughness: 0.85 });
+    const louvreM = mat('#34373c', { metalness: 0.4, roughness: 0.6 }), H = ROOM.h + 0.15;
+    const ring = (m, y, h, t = 0.4, o = 0.1) => {   // round the outside, `o` proud of the walls' centre lines
+      add(m, [40.2 + 2 * o + t, h, t, 0, y, 15 + o]); add(m, [40.2 + 2 * o + t, h, t, 0, y, -15 - o]);
+      add(m, [t, h, 30.2 + 2 * o - t, 20 + o, y, 0]); add(m, [t, h, 30.2 + 2 * o - t, -20 - o, y, 0]);
+    };
+    for (const n of EMPTY) {
+      const y0 = (n - 48) * STOREY;
+      shellWalls((w, h, d, x, y, z, m) => add(m, [w, h, d, x, y + y0, z]), ceilingM, false);
+      add(bareM, [40, 0.02, 30, 0, y0 + 0.01, 0]);
+      for (const [x, z] of cols) add(colM, [0.5, ROOM.h, 0.5, x, y0 + ROOM.h / 2, z]);
+      add(coreM, [CORE.x1 - LIFT.x, ROOM.h, CORE.z1 - CORE.z0, (LIFT.x + CORE.x1) / 2, y0 + ROOM.h / 2, (CORE.z0 + CORE.z1) / 2]);
+      for (const [w, h, d, x, y, z] of panels) add(panelM, [w, h, d, x, y + y0, z]);
+    }
+    const y47 = -STOREY;
+    ring(louvreM, y47 + H / 2, H, 0.2, 0);
+    for (let y = y47 + 0.15; y < y47 + H - 0.1; y += 0.16) ring(louvreM, y, 0.03, 0.08, 0.13);
+    for (const n of [47, ...EMPTY]) ring(slabM, (n - 48) * STOREY + (H + STOREY) / 2, STOREY - H);
+    for (const [m, list] of byM) {
+      const mesh = mergedBoxes(list, m);
+      mesh.castShadow = !m.transparent && m !== panelM;
+      out.add(mesh);
+    }
   }
 
   // Floor boxes with their lids off: the tile lifted beside each, the box's sockets, and a loose coil of cable or two.
@@ -137,11 +166,11 @@ function build(ctx) {
     const F = /** @type {import('../ctx.js').Floor} */ ({ n, label: 'VACANT', title: 'Vacant floor', blurb: 'Available · To let', y: (n - 48) * STOREY,
       colliders, hits: [callHit, panel.mesh] });
     F.enter = (z) => {
-      G.position.y = F.y; floorY.value = F.y; G.visible = true;
+      G.position.y = F.y; floorY.value = F.y; G.visible = true; out.visible = false;
       panel.moveTo(z);
       sign.n = n; sign.paint(); paintBoard(n);
     };
-    F.leave = () => { G.visible = false; };
+    F.leave = () => { G.visible = false; out.visible = true; };
     F.bound = (p) => { p.x = clamp(p.x, ROOM.minX + 0.4, ROOM.maxX - 0.4); p.z = clamp(p.z, ROOM.minZ + 0.4, ROOM.maxZ - 0.4); };
     F.fx = () => {
       // Your car's doors open here; the other stays shut. Each lantern shows where its car is.
