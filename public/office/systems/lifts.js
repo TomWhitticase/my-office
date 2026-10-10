@@ -23,6 +23,8 @@ export function install(ctx) {
   // Doors are brushed steel leaves sliding into the wall; each car is lit by an emissive ceiling panel only (no lights).
   // Sessions arrive and leave by lift: see the lift cycle next to the people sync.
   let liftSteelM;   // brushed steel for every lift's doors and surrounds (set below)
+  const signs = [];   // every floor sign (floorSign), and the floors their directories list (see directory)
+  let listed = [];
   const CORE = { x0: LIFT.x, x1: 20, z0: -3.47, z1: 2.46 }, DOOR = { w: 1.1, h: 2.2 }, CAR = { d: 1.8, w: 1.5, h: 2.35 };
   /** @type {import('../ctx.js').Lift[] & { callM?: any, callHit?: any }} */
   const lifts = [[LIFT.z - 0.9, 48],
@@ -35,10 +37,22 @@ export function install(ctx) {
     for (let i = 0; i < 260; i++) { brushed.ctx.fillStyle = `rgba(${R() > 0.5 ? '255,255,255' : '40,44,50'},${0.05 + R() * 0.08})`;
       brushed.ctx.fillRect(R() * 64, 0, 0.6 + R(), 256); }
     brushed.tex.needsUpdate = true;
-    const steelM = liftSteelM = new THREE.MeshStandardMaterial({ map: brushed.tex, metalness: 0.85, roughness: 0.32 });   // shared by every floor's lift
+    liftSteelM = new THREE.MeshStandardMaterial({ map: brushed.tex, metalness: 0.85, roughness: 0.32 });   // shared by every floor's lift
+    const core = liftCore(world, lifts.map((L) => L.z));
+    lifts.forEach((L, i) => Object.assign(L, core.cars[i]));
+    lifts.callM = core.callM;
+    solid((LIFT.x + CORE.x1) / 2, (CORE.z0 + CORE.z1) / 2, CORE.x1 - LIFT.x, CORE.z1 - CORE.z0);
+    floorSign(world, 48, () => [dash.officeName(), 'Desks · Meeting rooms · Lounge']);
+    directory([]);
+  }
+  // The core's face into `parent` (the office's; the empty floors' below, floors/empty-floors.js): stone cladding, a car behind
+  // each doorway at `zs` with its surround and hall lantern, and the call panel between. Returns each car's door leaves
+  // (sliding into the wall) and lantern, and the call button's lamp.
+  function liftCore(parent, zs) {
+    const steelM = liftSteelM;
     const fx = LIFT.x + 0.05, cx = LIFT.x + 0.1 + CAR.d / 2, back = LIFT.x + 0.1 + CAR.d;
-    const edges = [CORE.z0, ...lifts.flatMap((L) => [L.z - DOOR.w / 2, L.z + DOOR.w / 2]), CORE.z1];
-    const stone = [], steel = [], car = [], mirror = [], glow = [];
+    const edges = [CORE.z0, ...zs.flatMap((z) => [z - DOOR.w / 2, z + DOOR.w / 2]), CORE.z1];
+    const stone = [], steel = [], car = [], mirror = [], glow = [], cars = [];
     for (let k = 0; k < edges.length; k += 2) {
       const a = edges[k], b = edges[k + 1], len = b - a, mid = (a + b) / 2;
       stone.push([0.1, ROOM.h, len, fx, ROOM.h / 2, mid, '#77716a'], [0.02, 0.1, len, LIFT.x - 0.01, 0.05, mid, '#3b3835']);
@@ -46,8 +60,7 @@ export function install(ctx) {
     }
     stone.push([CORE.x1 - LIFT.x, ROOM.h, 0.06, (LIFT.x + CORE.x1) / 2, ROOM.h / 2, CORE.z0 + 0.03, '#77716a'],
       [CORE.x1 - LIFT.x, ROOM.h, 0.06, (LIFT.x + CORE.x1) / 2, ROOM.h / 2, CORE.z1 - 0.03, '#77716a']);
-    for (const L of lifts) {
-      const z = L.z;
+    for (const z of zs) {
       stone.push([0.1, ROOM.h - DOOR.h, DOOR.w, fx, (ROOM.h + DOOR.h) / 2, z, '#77716a']);
       // Surround: jambs, head, threshold and the indicator housing.
       for (const s of [-1, 1]) steel.push([0.05, DOOR.h + 0.08, 0.08, LIFT.x - 0.02, (DOOR.h + 0.08) / 2, z + s * (DOOR.w / 2 + 0.04)]);
@@ -63,45 +76,52 @@ export function install(ctx) {
       glow.push([CAR.d - 0.5, 0.01, CAR.w - 0.45, cx, CAR.h - 0.025, z]);
       // Two leaves meeting in the middle; they slide apart into the wall.
       // behind the stone face, so they slide into the wall
-      L.leaves = [-1,
-        1].map((s) => box(world, 0.03, DOOR.h, DOOR.w / 2 + 0.01, '', LIFT.x + 0.13, DOOR.h / 2, z + s * DOOR.w / 4, { material: steelM, shadow: false }));
-      L.ind = makeScreen(world, 0.48, 0.2, 192, 80, LIFT.x - 0.045, 2.5, z);
-      L.ind.mesh.rotation.y = -Math.PI / 2;
+      const leaves = [-1,
+        1].map((s) => box(parent, 0.03, DOOR.h, DOOR.w / 2 + 0.01, '', LIFT.x + 0.13, DOOR.h / 2, z + s * DOOR.w / 4, { material: steelM, shadow: false }));
+      const ind = makeScreen(parent, 0.48, 0.2, 192, 80, LIFT.x - 0.045, 2.5, z);
+      ind.mesh.rotation.y = -Math.PI / 2;
+      cars.push({ leaves, ind });
     }
     steel.push([0.02, 0.38, 0.15, LIFT.x - 0.01, 1.1, LIFT.z]);   // call panel
-    world.add(mergedBoxes(stone, mat('#ffffff', { vertexColors: true, roughness: 0.55 })), mergedBoxes(steel, steelM),
+    parent.add(mergedBoxes(stone, mat('#ffffff', { vertexColors: true, roughness: 0.55 })), mergedBoxes(steel, steelM),
       mergedBoxes(car, mat('#ffffff', { vertexColors: true, roughness: 0.45, metalness: 0.35 })),
         mergedBoxes(mirror, mat('#dfe4e8', { metalness: 1, roughness: 0.05 })));
     const carLight = mergedBoxes(glow, new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: '#fff3df', emissiveIntensity: 1.6 }));
-    carLight.castShadow = false; world.add(carLight);
-    lifts.callM = new THREE.MeshStandardMaterial({ color: '#e6e3dc', emissive: '#ffb347', emissiveIntensity: 0, roughness: 0.4 });
-    for (const y of [1.16, 1.04]) cyl(world, 0.026, 0.026, 0.02, '', LIFT.x - 0.025, y, LIFT.z,
-      { material: y > 1.1 ? mat('#e6e3dc', { roughness: 0.4 }) : lifts.callM, seg: 16, shadow: false }).rotation.z = Math.PI / 2;
-    solid((LIFT.x + CORE.x1) / 2, (CORE.z0 + CORE.z1) / 2, CORE.x1 - LIFT.x, CORE.z1 - CORE.z0);
-    // The floor sign on the core behind reception: "48" and a building directory.
-    const sign = makeScreen(world, 1.5, 1.0, 600, 400, LIFT.x - 0.012, 1.95, -2.3), c = sign.ctx;
+    carLight.castShadow = false; parent.add(carLight);
+    const callM = new THREE.MeshStandardMaterial({ color: '#e6e3dc', emissive: '#ffb347', emissiveIntensity: 0, roughness: 0.4 });
+    for (const y of [1.16, 1.04]) cyl(parent, 0.026, 0.026, 0.02, '', LIFT.x - 0.025, y, LIFT.z,
+      { material: y > 1.1 ? mat('#e6e3dc', { roughness: 0.4 }) : callM, seg: 16, shadow: false }).rotation.z = Math.PI / 2;
+    return { cars, callM };
+  }
+  // The floor sign on the core behind reception: the floor's number, `what` it is ([name, line]) and a building directory.
+  function floorSign(parent, n, what) {
+    const sign = makeScreen(parent, 1.5, 1.0, 600, 400, LIFT.x - 0.012, 1.95, -2.3);
     sign.mesh.rotation.y = -Math.PI / 2;
+    sign.mesh.material = new THREE.MeshStandardMaterial({ map: sign.tex, roughness: 0.5 });
+    const s = { n, what, sign, paint: () => paintSign(s) };
+    signs.push(s);
+    return s;
+  }
+  function paintSign({ n, what, sign }) {
+    const c = sign.ctx, [name, line] = what();
     c.fillStyle = '#26282b'; c.fillRect(0, 0, 600, 400);
     c.fillStyle = '#d97757'; c.fillRect(40, 54, 6, 120);
-    c.font = `200 132px ${FONT}`; c.fillStyle = '#f2efe8'; c.fillText('48', 62, 168);
+    c.font = `200 132px ${FONT}`; c.fillStyle = '#f2efe8'; c.fillText(String(n), 62, 168);
     c.font = `600 26px ${FONT}`; c.fillStyle = '#c3c2b7'; c.fillText('FLOOR', 250, 96);
-    c.font = `400 24px ${FONT}`; c.fillText(fit(c, dash.officeName(), 310), 250, 132); c.fillText('Desks · Meeting rooms · Lounge', 250, 164);
+    c.font = `400 24px ${FONT}`; c.fillText(fit(c, name, 310), 250, 132); c.fillText(fit(c, line, 310), 250, 164);
     c.fillStyle = 'rgba(255,255,255,.14)'; c.fillRect(40, 214, 520, 2);
-    sign.mesh.material = new THREE.MeshStandardMaterial({ map: sign.tex, roughness: 0.5 });
-    // The directory: every other floor the lift serves, top first, from the FLOORS table (repainted as floors register).
-    const directory = (floors) => {
-      c.fillStyle = '#26282b'; c.fillRect(0, 222, 600, 178);
-      const rows = floors.filter((F) => F.n !== 48 && !F.carless && !F.unlisted), h = Math.min(34, 168 / Math.max(1, rows.length));
-      rows.forEach((F, i) => {
-        const y = 252 + i * h;
-        c.fillStyle = '#f2efe8'; c.font = `600 22px ${FONT}`; c.fillText(floorName(F.n), 44, y);
-        c.fillStyle = '#9a9890'; c.font = `400 22px ${FONT}`; c.fillText(fit(c, F.blurb || F.title, 450), 100, y);
-      });
-      sign.tex.needsUpdate = true;
-    };
-    directory([]);
-    Object.assign(ctx, { paintDirectory: directory });
+    // The directory: every other floor the lift serves, top first, from the FLOORS table.
+    const rows = listed.filter((F) => F.n !== n && !F.carless && !F.unlisted), h = Math.min(34, 168 / Math.max(1, rows.length));
+    rows.forEach((F, i) => {
+      const y = 252 + i * h;
+      c.fillStyle = '#f2efe8'; c.font = `600 22px ${FONT}`; c.fillText(floorName(F.n), 44, y);
+      c.fillStyle = '#9a9890'; c.font = `400 22px ${FONT}`; c.fillText(fit(c, F.blurb || F.title, 450), 100, y);
+    });
+    sign.tex.needsUpdate = true;
   }
+  // (repainted as floors register)
+  function directory(floors) { listed = floors; signs.forEach(paintSign); }
+  Object.assign(ctx, { paintDirectory: directory, liftCore, floorSign });
   // Hall lantern over each lift: floor and direction, repainted only when they change.
   const ROOF = 50;   // the roof terrace, two floors up (49 is the plant room); its button and lanterns read R
   const floorName = (f) => (f === ROOF ? 'R' : f < 0 ? `B${-f}` : f ? String(f) : 'G');

@@ -213,6 +213,12 @@ export const POSES = [
     await o.eval(() => { const t = window.__office.ctx.taskBoard; t.openCard(t.tb.board.cards.find((c) => c.id === 'fix00004')); });
     await o.step(3);
   }],
+  ['vacant-floor', async (o) => {   // off the task board and down to 45, an empty floor, by day: out of the car into the bare shell
+    await o.eval((t) => { window.__office.leaveBoard(); window.__office.setTime(t); window.__office.goFloor(45); }, T0);
+    await stepUntil(o, () => window.__office.mine.L?.state === 'open', 80);
+    await stand(o, 12, -2, { x: -10, y: 1.4, z: 6 });
+    await o.step(45);   // the lamps ease down
+  }],
 ];
 
 // Compares two PNGs in the page: counts pixels where any channel differs by more than `tol`.
