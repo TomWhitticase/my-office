@@ -40,6 +40,7 @@ import { install as installArchiveEntrance } from './floors/archive-entrance.js'
 import { install as installRoof } from './floors/roof.js';
 import { install as installHelicopter } from './floors/helicopter.js';
 import { install as installRoofBar } from './floors/roof-bar.js';
+import { install as installWorldEdge } from './floors/world-edge.js';
 import { install as installServerHall } from './floors/server-hall.js';
 import { install as installRestricted } from './floors/restricted.js';
 import { install as installRelativity } from './floors/relativity.js';
@@ -183,6 +184,7 @@ export function mountOffice(container) {
   const { EDGE, roof } = ctx;
   installHelicopter(ctx);
   installRoofBar(ctx);   // the bar on the roof terrace
+  installWorldEdge(ctx);   // out past the city, where the sky's a wall (nothing built till you're out there)
 
   installServerHall(ctx);
   const { srv } = ctx;

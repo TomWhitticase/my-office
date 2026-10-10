@@ -148,6 +148,38 @@ export const POSES = [
     await stepUntil(o, () => window.__office.heli.S.cam === 'in', 80);
     await o.step(10);
   }],
+  ['edge-wall', async (o) => {   // out past the city in the helicopter, hovering 200 m off the sky wall: the pier and stairs at its foot
+    await arrive(o);
+    await ride(o, 50);
+    await o.eval(() => window.__office.heli.board());
+    await stepUntil(o, () => window.__office.heli.S.cam === 'in', 80);
+    await o.eval(() => { const h = window.__office.heli; h.edge.place(200, 35); h.S.lookPitch = -0.14; });
+    await o.step(10);
+  }],
+  ['edge-stairs', async (o) => {   // set down on the pier and out of the helicopter: the stairs up the wall to the door
+    await arrive(o);
+    await ride(o, 50);
+    await o.eval(() => window.__office.heli.board());
+    await stepUntil(o, () => window.__office.heli.S.cam === 'in', 80);
+    await o.eval(() => window.__office.heli.edge.land());
+    await o.step(2);
+    await o.eval(() => window.__office.heli.getOut());
+    await stepUntil(o, () => window.__office.heli.S.cam === 'out', 80);
+    await o.eval(() => {   // on the pier, back from the foot of the stairs, looking up them to the door
+      const O = window.__office, E = O.heli.edge, P = O.player, x = -E.R + 4.2, z = E.STAIR.u0 - 3.5;
+      Object.assign(P, { x, z, yaw: Math.atan2(-(-E.R - x), -(0 - z)), pitch: 0.12, fy: E.PT - O.roof.y });
+    });
+    await o.step(40);
+  }],
+  ['edge-door', async (o) => {   // up on the landing, the door open on the dark, the lights down
+    await from('edge-stairs', o);
+    await o.eval(() => {
+      const O = window.__office, E = O.heli.edge, P = O.player;
+      Object.assign(P, { x: -E.R + 1.25, z: 0.45, yaw: Math.atan2(1.25, 0.45), pitch: 0.02, fy: E.LT - O.roof.y });
+      E.door(true);
+    });
+    await o.step(40);
+  }],
   ['security-app', async (o) => {   // out of the helicopter to your desktop full screen, the Security app's feeds at dusk
     await from('heli-cockpit', o);
     await o.eval(() => { window.dash.setView('desktop', 'cctv'); });   // not awaited: the fly-in needs frames
