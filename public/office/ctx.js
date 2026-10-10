@@ -45,6 +45,7 @@
  * @property {(dt: number, t: number) => void} [fx]   per frame while you're on it
  * @property {(ray: any) => Hover | null} [pick]     find what you're pointing at itself
  * @property {(x: number, z: number) => number} [ground]   the floor's height there (steps)
+ * @property {(x: number, z: number) => number} [pace]     how fast you move there, 1 normally (wading, swimming)
  * @property {any} [lift]                 from ctx.liftShaft(): the shaft and car you arrive by, its door leaves, hall
  * @property {any[]} [leaves]               lantern (ind), call button (callM, callHit) and floor panel
  * @property {any} [ind]

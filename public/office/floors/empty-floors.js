@@ -1,5 +1,5 @@
-// The empty floors (46, 45, 44) under the office: the office's shell with nothing in it, in the office's own scene a floor
-// or more down (so the city, sky, sun and low cloud out of the windows are the ones you'd see from there). One build moves
+// The empty floors (45, 44) under the wellness floor: the office's shell with nothing in it, in the office's own scene
+// floors down (so the city, sky, sun and low cloud out of the windows are the ones you'd see from there). One build moves
 // to whichever of them you ride to: the same walls, glazing, beamed ceiling and lift core as 48, carpet tiles, the columns,
 // a few open floor boxes, protective sheeting out of the lifts, and a To Let board. The rest of the time, a cheap stand-in
 // for 47 to 44 shows from outside.
@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { clamp, ease, FONT, LIFT, makeCanvas, makeScreen, mat, mergedBoxes, rng, ROOM } from '../util.js';
 
 const STOREY = ROOM.h + 0.5;   // floor to floor, as the roof sits over the office
-export const EMPTY = [46, 45, 44];
+export const EMPTY = [45, 44];   // 46 is the wellness floor (floors/wellness.js)
 
 /** @param {import('../ctx.js').OfficeCtx} ctx */
 export function install(ctx) {
@@ -68,9 +68,10 @@ function build(ctx) {
   { const m = mergedBoxes(panels, panelM); m.castShadow = false; G.add(m); }
 
   // From outside (the helicopter, the roof, the cameras), 47 down to 44 as they'd look from the air, always there in a few
-  // merged meshes: 44-46 the same shell, glazing and ceiling, a bare floor, the columns, the core and the panels (lit with the
-  // lamps); 47, the server hall, windowless behind dark louvres; a stone slab edge over each. The city's block for our
-  // tower stops under 44 (world/city.js). Hidden while you're on one of them: G is that floor then.
+  // merged meshes: 44 and 45 the same shell, glazing and ceiling, a bare floor, the columns, the core and the panels (lit
+  // with the lamps); 47, the server hall, windowless behind dark louvres; a stone slab edge over each. 46, the wellness
+  // floor, shows its own (floors/wellness.js). The city's block for our tower stops under 44 (world/city.js). Hidden while
+  // you're on one of them: G is that floor then.
   const out = new THREE.Group(); world.add(out);
   {
     const byM = new Map(), add = (m, b) => { if (!byM.has(m)) byM.set(m, []); byM.get(m).push(b); };
@@ -80,9 +81,14 @@ function build(ctx) {
       add(m, [40.2 + 2 * o + t, h, t, 0, y, 15 + o]); add(m, [40.2 + 2 * o + t, h, t, 0, y, -15 - o]);
       add(m, [t, h, 30.2 + 2 * o - t, 20 + o, y, 0]); add(m, [t, h, 30.2 + 2 * o - t, -20 - o, y, 0]);
     };
+    // 45's ceiling and beams, their own mesh: hidden while you're on 46, whose pool's basin reaches down into them (wellness.js).
+    const lid = new Map(), beamM = mat('#9c6b43', { roughness: 0.75 });   // shellWalls' beams
     for (const n of EMPTY) {
       const y0 = (n - 48) * STOREY;
-      shellWalls((w, h, d, x, y, z, m) => add(m, [w, h, d, x, y + y0, z]), ceilingM, false);
+      shellWalls((w, h, d, x, y, z, m) => {
+        if (n === 45 && (m === ceilingM || m === beamM)) { if (!lid.has(m)) lid.set(m, []); lid.get(m).push([w, h, d, x, y + y0, z]); }
+        else add(m, [w, h, d, x, y + y0, z]);
+      }, ceilingM, false);
       add(bareM, [40, 0.02, 30, 0, y0 + 0.01, 0]);
       for (const [x, z] of cols) add(colM, [0.5, ROOM.h, 0.5, x, y0 + ROOM.h / 2, z]);
       add(coreM, [CORE.x1 - LIFT.x, ROOM.h, CORE.z1 - CORE.z0, (LIFT.x + CORE.x1) / 2, y0 + ROOM.h / 2, (CORE.z0 + CORE.z1) / 2]);
@@ -91,12 +97,14 @@ function build(ctx) {
     const y47 = -STOREY;
     ring(louvreM, y47 + H / 2, H, 0.2, 0);
     for (let y = y47 + 0.15; y < y47 + H - 0.1; y += 0.16) ring(louvreM, y, 0.03, 0.08, 0.13);
-    for (const n of [47, ...EMPTY]) ring(slabM, (n - 48) * STOREY + (H + STOREY) / 2, STOREY - H);
+    for (const n of [47, 46, ...EMPTY]) ring(slabM, (n - 48) * STOREY + (H + STOREY) / 2, STOREY - H);   // 46's own shell is wellness.js's
     for (const [m, list] of byM) {
       const mesh = mergedBoxes(list, m);
       mesh.castShadow = !m.transparent && m !== panelM;
       out.add(mesh);
     }
+    ctx.underPool = new THREE.Group(); out.add(ctx.underPool);
+    for (const [m, list] of lid) ctx.underPool.add(mergedBoxes(list, m));
   }
 
   // Floor boxes with their lids off: the tile lifted beside each, the box's sockets, and a loose coil of cable or two.

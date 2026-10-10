@@ -135,7 +135,7 @@ export function install(ctx) {
         if (st) { player.x += Math.sin(st.rotY) * 0.55; player.z += Math.cos(st.rotY) * 0.55; } else player.z += 0.25;
         player.seated = false; player.seat = null;
       }
-      const speed = (keys.has('ShiftLeft') || keys.has('ShiftRight') ? 8.5 : 4.4) * dt, n = Math.hypot(f, s);
+      const speed = (keys.has('ShiftLeft') || keys.has('ShiftRight') ? 8.5 : 4.4) * dt * (ctx.away?.pace?.(player.x, player.z) ?? 1), n = Math.hypot(f, s);
       const sy = Math.sin(player.yaw), cy = Math.cos(player.yaw);
       player.x += ((-sy * f + cy * s) / n) * speed;
       player.z += ((-cy * f - sy * s) / n) * speed;
