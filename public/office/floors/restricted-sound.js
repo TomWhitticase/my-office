@@ -13,6 +13,7 @@ export function makeSound(ctx, restr) {
   const { camera } = ctx;
   let A = null, B = null, out = null, loops = [], lamps = [], drone = null, ring = null;
   let thumpAt = 0, chimeAt = 0, walkT = 0, follow = null, last = null, stepAcc = 0, hushAt = 0, hushed = false, swellAt = 0;
+  let baseHum = null, dreadK = 0, rumble = null, echoAt = null;   // the creature (restricted-creature.js): how near, its rumble, your steps' echo
   const rnd = (a, b) => a + Math.random() * (b - a), nz = () => Math.random() * 2 - 1;
   const pick = (a) => a[Math.floor(Math.random() * a.length)];
 
@@ -77,6 +78,17 @@ export function makeSound(ctx, restr) {
       beep: make(0.06, (t) => Math.sin(TAU * 1900 * t) * Math.min(1, t / 0.003)),
       deny: make(0.55, (t) => Math.sign(Math.sin(TAU * 92 * t)) * (t < 0.22 || t > 0.3 ? 1 : 0) * 0.6 + Math.sin(TAU * 184 * t) * 0.3),
       ok: make(0.32, (t) => Math.sin(TAU * (t < 0.12 ? 1320 : 1760) * t) * (t < 0.1 || t > 0.14 ? 1 : 0)),
+      // The creature: ceiling grid creaking (stick-slip pulses through a resonance), something dragged over the tiles, a tile
+      // lifted and set back, a fast skitter, and a rumble you feel more than hear (4 s, whole cycles, looped).
+      creak: n(3, () => { const bp = biq('bp', rnd(500, 1100), 6), r0 = rnd(25, 60), r1 = rnd(70, 140); let ph = 0;
+        return make(rnd(0.5, 0.9), (t) => { ph += (r0 + (r1 - r0) * t) / A.ctx.sampleRate; const pulse = ph % 1 < 0.04 ? nz() : 0; return bp(pulse * (0.4 + Math.random() * 0.6)) * Math.sin(Math.PI * Math.min(1, t / 0.8)); }); }),
+      drag: (() => { const lp = biq('lp', 700, 0.7), bp = biq('bp', 1800, 1.5);
+        return make(1.6, (t) => (lp(nz()) * 3 + bp(nz()) * 0.4) * (0.5 + 0.5 * Math.sin(TAU * 2.3 * t) ** 2) * Math.sin(Math.PI * t / 1.6)); })(),
+      scrape: (() => { const bp = biq('bp', 2400, 2); return make(0.35, (t) => bp(nz()) * Math.sin(Math.PI * t / 0.35) + (t < 0.02 ? nz() : 0)); })(),
+      clack: (() => { const lp = biq('lp', 900, 1), bp = biq('bp', 3200, 4); return make(0.2, (t) => lp(nz()) * Math.exp(-t / 0.02) * 3 + bp(nz()) * Math.exp(-t / 0.008)); })(),
+      skitter: (() => { const hits = Array.from({ length: 22 }, (_, k) => k * 0.04 + Math.random() * 0.02), bp = biq('bp', 2600, 3);
+        return make(1, (t) => bp(hits.reduce((a, h) => a + (t > h && t < h + 0.012 ? nz() * Math.exp(-(t - h) / 0.003) : 0), 0)) * (1 - t)); })(),
+      rumble: make(4, (t) => (Math.sin(TAU * 31 * t) + 0.6 * Math.sin(TAU * 46.5 * t) + 0.3 * Math.sin(TAU * 62 * t)) * (0.6 + 0.4 * Math.sin(TAU * t / 4))),
     };
   }
 
@@ -84,7 +96,7 @@ export function makeSound(ctx, restr) {
   function ready() {
     const a = ctx.sfx.audio;
     if (!a || a.ctx.state !== 'running') return false;
-    if (A?.ctx !== a.ctx) { A = a; B = null; loops = []; lamps = []; out = A.ctx.createGain(); out.connect(A.master); }
+    if (A?.ctx !== a.ctx) { A = a; B = null; loops = []; lamps = []; baseHum = rumble = null; out = A.ctx.createGain(); out.connect(A.master); }
     if (!B) B = build();
     return true;
   }
@@ -96,14 +108,14 @@ export function makeSound(ctx, restr) {
   }
   // A one-shot: at (x, y, z), or all round you (x null) straight to the office's master (keypad beeps, your own steps:
   // they carry on through a silence). `lp` muffles it.
-  function shot(buf, x, y, z, gain, { rate = 1, lp = 0, ref = 2, roll = 1.1 } = {}) {
+  function shot(buf, x, y, z, gain, { rate = 1, lp = 0, ref = 2, roll = 1.1, when = 0 } = {}) {
     const src = A.ctx.createBufferSource(), g = A.ctx.createGain();
     src.buffer = buf; src.playbackRate.value = rate; g.gain.value = gain;
     let head = src;
     if (lp) { const f = A.ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = lp; src.connect(f); head = f; }
     head.connect(g).connect(x === null ? A.master : panner(x, y, z, ref, roll));
     src.onended = () => src.disconnect();
-    src.start();
+    src.start(A.ctx.currentTime + when);
     return { src, g };
   }
   function loop(buf, gain, x, y, z, ref = 3, roll = 1) {
@@ -134,7 +146,7 @@ export function makeSound(ctx, restr) {
         v.src.playbackRate.setTargetAtTime(0.93 + h * 0.14, now, 0.05);
         v.f.frequency.setTargetAtTime(600 + h2 * 2600, now, 0.05);
       }
-      v.g.gain.setTargetAtTime((q.p.kind === 1 ? 0.05 * q.ch.v : 0.028) * (hushed ? 0 : 1), now, 0.03);
+      v.g.gain.setTargetAtTime((q.p.kind === 1 ? 0.05 * q.ch.v : 0.028) * (hushed ? 0 : 1) * (1 - 0.9 * dreadK), now, 0.03);   // the hum drops away near it
     });
   }
 
@@ -152,7 +164,7 @@ export function makeSound(ctx, restr) {
       if (!ready()) return;
       const now = A.ctx.currentTime;
       if (!loops.length) {
-        loop(B.hum, 0.005, null, 0, 0, 0);
+        baseHum = loop(B.hum, 0.005, null, 0, 0, 0);
         drone = loop(B.drone, 0.02, null, 0, 0, 0);
         const f = A.ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 220;
         drone.g.disconnect(); drone.g.connect(f).connect(out);
@@ -160,6 +172,7 @@ export function makeSound(ctx, restr) {
         hushAt = t + rnd(70, 140); swellAt = t + rnd(20, 40);
       }
       lampVoices(near);
+      baseHum.g.gain.setTargetAtTime(0.005 * (1 - 0.9 * dreadK), now, 0.5);
       if (riding) return;
       // The drone swells now and then.
       if (t > swellAt) { drone.g.gain.setTargetAtTime(rnd(0.012, 0.045), now, rnd(2, 5)); swellAt = t + rnd(8, 25); }
@@ -182,7 +195,10 @@ export function makeSound(ctx, restr) {
       last = { x: p.x, z: p.z };
       const walking = moved > 1.2 && moved < 12;
       stepAcc = walking ? stepAcc + dt : 0.3;
-      if (walking && stepAcc > (moved > 4.5 ? 0.31 : 0.45)) { stepAcc = 0; shot(pick(B.step), null, 0, 0, 0.1, { rate: rnd(0.9, 1.08) }); }
+      if (walking && stepAcc > (moved > 4.5 ? 0.31 : 0.45)) {
+        stepAcc = 0; shot(pick(B.step), null, 0, 0, 0.1, { rate: rnd(0.9, 1.08) });
+        if (echoAt && Math.random() < 0.45) shot(pick(B.step), echoAt.x, 0.05, echoAt.z, 0.08, { rate: rnd(0.84, 0.9), lp: 800, when: rnd(0.24, 0.32) });   // a beat late, behind you
+      }
       walkT = walking ? walkT + dt : 0;
       if (!follow && walkT > 5 && Math.random() < dt / 25) follow = { next: t + 0.3, left: Infinity, until: t + rnd(6, 14) };
       if (follow) {
@@ -216,12 +232,29 @@ export function makeSound(ctx, restr) {
     },
     // The lift arriving behind a door at (x, z): muffled.
     chimeBehind(x, z) { if (ready() && ctx.sfx.buffers?.chime && !hushed) shot(ctx.sfx.buffers.chime, x, 1.6, z, 0.6, { lp: 650, ref: 2 }); },
+    // The creature's: positions in the floor's own space.
+    creature: {
+      dread(k, x, z) {   // how near it is (0..1), and where: the hum drops, a rumble comes up from there
+        dreadK = k;
+        if (!ready() || (!rumble && !(k > 0))) return;
+        if (!rumble) { rumble = loop(B.rumble, 0, null, 0, 0, 0); rumble.g.disconnect(); rumble.pan = panner(0, 1, 0, 6, 0.3); rumble.g.connect(rumble.pan); }
+        if (x !== undefined) setPos(rumble.pan, x, 1, z);
+        rumble.g.gain.setTargetAtTime(0.22 * k, A.ctx.currentTime, k ? 1.2 : 0.4);
+      },
+      echo(p) { echoAt = p; },
+      creak(x, z) { if (ready()) shot(pick(B.creak), x, 2.9, z, 0.35, { rate: rnd(0.85, 1.15), ref: 2.5, roll: 0.8 }); },
+      drag(x, z) { if (ready()) shot(B.drag, x, 2.95, z, 0.3, { rate: rnd(0.8, 1.1), lp: 1100, ref: 2.5, roll: 0.8 }); },
+      lift(x, z) { if (ready()) shot(B.scrape, x, 2.75, z, 0.35, { rate: rnd(0.9, 1.1) }); },
+      clack(x, z) { if (ready()) shot(B.clack, x, 2.75, z, 0.45, { rate: rnd(0.9, 1.1) }); },
+      skitter(x, z) { if (ready()) shot(B.skitter, x, 0.3, z, 0.5, { rate: rnd(1.1, 1.3), ref: 3 }); },
+      step(x, z) { if (ready()) shot(pick(B.step), x, 0.05, z, 0.16, { rate: rnd(0.55, 0.65), lp: 500, ref: 3, roll: 0.9 }); },   // too heavy, too slow
+    },
     get hushed() { return hushed; },
     stop() {
       if (A) for (const { src, g } of loops) { g.gain.setTargetAtTime(0, A.ctx.currentTime, 0.2); src.stop(A.ctx.currentTime + 1); }
       if (A && out) out.gain.setTargetAtTime(1, A.ctx.currentTime, 0.1);
       ring?.src.stop(); ring = null;
-      loops = []; lamps = []; follow = null; walkT = 0; last = null; hushed = false;
+      loops = []; lamps = []; baseHum = rumble = echoAt = null; dreadK = 0; follow = null; walkT = 0; last = null; hushed = false;
     },
   };
 }

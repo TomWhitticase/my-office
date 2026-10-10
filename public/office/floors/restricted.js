@@ -9,6 +9,7 @@ import { clamp, fit, FONT, LIFT, makeCanvas, MARKER, rng } from '../util.js';
 import { MONO } from '../painters.js';
 import { makeSound } from './restricted-sound.js';
 import { installStory } from './restricted-story.js';
+import { installCreature } from './restricted-creature.js';
 
 const N = -3, CODE = '1408';   // asked for every time: never remembered
 // The grid: cells of C metres, CH x CH to a chunk; walls on the cells' edges. Cell (i, j) is x GX + i C .. + C,
@@ -154,7 +155,7 @@ function build(ctx) {
   const lid = new THREE.Mesh(new THREE.PlaneGeometry(PLANE, PLANE).rotateX(Math.PI / 2), new THREE.MeshStandardMaterial({ map: ceil.tex, roughness: 0.95 }));
   ceil.tex.repeat.set(PLANE / 1.2, PLANE / 1.2); lid.position.y = H;
   root.add(floor, lid);
-  restr.planes = [floor, lid];
+  restr.planes = [floor, lid]; restr.ceilTex = ceil.tex;
   // Stains: one atlas, thirds for a wall's drips, a ring on a ceiling tile and a damp patch in the carpet.
   const st = makeCanvas(768, 256), sc = st.ctx;
   for (let k = 0; k < 26; k++) {   // drips from the top
@@ -222,7 +223,7 @@ function build(ctx) {
     list.push(b.translate(x, y, z));
   }
   function buildChunk(ci, cj) {
-    const walls = [], decor = [], stains = [], signs = [], lit = [], flick = [], cols = [], panels = [], hits = [], phones = [];
+    const walls = [], decor = [], stains = [], signs = [], lit = [], flick = [], cols = [], panels = [], hits = [], phones = [], doors = [], dead = [];
     const stainsAt = (i, j, cx, cz) => {   // a ring on the ceiling, or a damp patch in the carpet
       const r = h3(i, j, 10);
       if (r > 0.04 && r < 0.1) decal(stains, 1, cx + (h3(i, j, 14) - 0.5) * 1.6, H - 0.004, cz + (h3(i, j, 15) - 0.5) * 1.6, 0.8 + r * 10, 0.8 + r * 10, 'down');
@@ -252,6 +253,7 @@ function build(ctx) {
       const dw = t === WIDE ? 2.0 : 1.0, dh = t === WIDE ? 2.35 : 2.1;
       const d = t === WIDE ? a + C / 2 + (r - 0.5) * 0.6 : a + 0.9 + r * (C - 1.8);
       seg(a1, d - dw / 2); seg(d + dw / 2, b1); seg(d - dw / 2, d + dw / 2, dh, H);
+      doors.push(v ? { x: fixed, z: d, v, w: dw } : { x: d, z: fixed, v, w: dw });   // somewhere to peek round (restricted-creature.js)
       if (t === AJAR) {   // a door standing open, as if someone just went through
         const side = h3(i, j, 6) < 0.5 ? -1 : 1, th = 1.42, lw = dw - 0.04;
         const hinge = d - dw / 2 + 0.02, dx = v ? side * Math.sin(th) : Math.cos(th), dz = v ? Math.cos(th) : side * Math.sin(th);
@@ -279,7 +281,7 @@ function build(ctx) {
       const [pw, pd] = along ? [1.2, 0.6] : [0.6, 1.2];
       part(decor, pw + 0.08, 0.02, pd + 0.08, 0, H - 0.01, 0, '#b9b19a', 0, cx, cz);
       part(kind === 1 ? flick : lit, pw, 0.02, pd, 0, H - 0.016, 0, kind === 2 ? DEAD : LIT, 0, cx, cz);
-      if (kind !== 2) panels.push({ x: cx, z: cz, kind });
+      if (kind !== 2) panels.push({ x: cx, z: cz, kind }); else dead.push({ x: cx, z: cz });
       // The odd thing.
       if (i === -2 && j === 0) continue;
       const r = h3(i, j, 10), sides = [['v', i, j, X(i), 0], ['v', i + 1, j, X(i + 1), Math.PI], ['h', i, j, Z(j), 1], ['h', i, j + 1, Z(j + 1), 2]];
@@ -327,7 +329,7 @@ function build(ctx) {
     const stainMesh = add(stains, stainM);
     if (stainMesh) stainMesh.renderOrder = 1;
     root.add(grp);
-    return { ci, cj, grp, cols, panels, phones, hits: wallMesh ? [wallMesh, ...hits] : hits, flickM, seed: h3(ci, cj, 20) * 100, v: 1 };
+    return { ci, cj, grp, cols, panels, phones, doors, dead, hits: wallMesh ? [wallMesh, ...hits] : hits, flickM, seed: h3(ci, cj, 20) * 100, v: 1 };
   }
   function dropChunk(k) {
     const ch = restr.chunks.get(k);
@@ -394,6 +396,7 @@ function build(ctx) {
   restr.enter = (z) => {
     restr.z0 = z; root.position.z = z;
     story.enter();
+    creature.enter(story.st.visit);
     stream(LIFT.x - 3, 0, true); syncChunks();
     hud.classList.add('of-restricted');
   };
@@ -403,6 +406,7 @@ function build(ctx) {
     if (restr.carLight) restr.carLight.emissiveIntensity = 1.6;
     keypad.close();
     story.leave();
+    creature.leave();
     sound.stop();
   };
   restr.bound = (p) => {
@@ -415,11 +419,12 @@ function build(ctx) {
     placeLights(x, z);
     for (const m of restr.planes) m.position.set(Math.round(x / 4.8) * 4.8, m.position.y, Math.round(z / 4.8) * 4.8);
     for (const ch of restr.chunks.values()) {
-      const v = flicker(t, ch.seed);
+      let v = flicker(t, ch.seed);
+      if (creature.near(ch)) v = Math.min(v, Math.sin(t * 23 + ch.seed * 3) * Math.sin(t * 7.1) > 0.15 ? 0.05 : 1);   // something's near
       if (v !== ch.v && v < 1 && chunkDist(ch.ci, ch.cj, x, z) < 4) sound.buzz(ch, x, z);
       ch.v = v; ch.flickM.color.setScalar(0.1 + 0.9 * v);
     }
-    near.forEach((q, k) => { restr.look.lights[k][1] = 2.8 * (q.p.kind === 1 ? q.ch.v : 1); });
+    near.forEach((q, k) => { restr.look.lights[k][1] = 2.8 * (q.p.kind === 1 ? q.ch.v : 1) * creature.dim(q.p.x, q.p.z, t); });
     for (let k = near.length; k < NLIGHTS; k++) restr.look.lights[k][1] = 0;
     // The ride down: the car's light stutters, the panel loses its mind, and the dark comes and goes.
     const L = ctx.mine.L, riding = L?.state === 'travel' && ctx.inMyCar();
@@ -433,6 +438,7 @@ function build(ctx) {
       restr.carLight.emissiveIntensity = 1.6; blink.style.opacity = '0';
     }
     story.fx(dt, t, x, z, riding);
+    creature.fx(dt, t, x, z, riding, story.st.walked);
     sound.fx(dt, t, x, z, riding, near);
   };
   // The car panel on the way down: buttons that swap places and labels that don't say anything.
@@ -510,6 +516,7 @@ function build(ctx) {
   restr.grid = { C, CH, H, T, X: (i) => GX + i * C, Z: (j) => GZ + j * C, edgeType, SOLID, cellOk, h3 };
   restr.sync = syncChunks;
   const story = restr.story = installStory(ctx, restr, sound);
+  const creature = restr.creature = installCreature(ctx, restr, sound);
   const keypad = makeKeypad();
   ctx.onFrame(() => { if (keypad.el.classList.contains('on') && ctx.mode !== 'keypad') keypad.close(); }, 175);   // the view left under it
   function makeKeypad() {

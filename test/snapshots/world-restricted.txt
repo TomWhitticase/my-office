@@ -1,6 +1,6 @@
 Scene||||0 0 0 0 0 0 1 1 1||1||2|
 HemisphereLight||||0 1 0 0 0 0 1 1 1||1||0|
-Group||||0 0 0 0 0 0 1 1 1||1||12|
+Group||||0 0 0 0 0 0 1 1 1||1||16|
 PointLight||||0 0 0 0 0 0 1 1 1||1||0|
 PointLight||||0 0 0 0 0 0 1 1 1||1||0|
 PointLight||||0 0 0 0 0 0 1 1 1||1||0|
@@ -23,6 +23,17 @@ Mesh||CylinderGeometry:100|MeshStandardMaterial:e6e3dc::|17.975 1.04 0.85 0 0 1.
 Mesh||BoxGeometry:24|MeshStandardMaterial:ffffff::|17.97 1.1 0.85 0 0 0 1 1 1|hidden|1||0|action=liftcall,reach=2.5
 Mesh||PlaneGeometry:4|MeshBasicMaterial:ffffff:map:|18.42 1.32 0.717 0 3.142 0 1 1 1||1||0|action=liftpanel,floorAt(),reach=2.2
 Mesh||PlaneGeometry:4|MeshStandardMaterial:ffffff:map:t|15.8 1.65 1.517 0 3.142 0 1 1 1||1||0|
+Group||||0 0 0 0 0 0 1 1 1|hidden|1||5|
+Group||||-0.19 2 0 0 0 -0.06 1 1 1||1||1|
+Mesh||BufferGeometry:64|MeshBasicMaterial:020101::|0 0 0 0 0 0 1 1 1||1||0|
+Group||||0.19 2 0 0 0 0.06 1 1 1||1||1|
+Mesh||BufferGeometry:64|MeshBasicMaterial:020101::|0 0 0 0 0 0 1 1 1||1||0|
+Mesh||BufferGeometry:409|MeshBasicMaterial:020101::|0 0 0 0 0 0 1 1 1||1||0|
+Mesh||BufferGeometry:409|MeshBasicMaterial:000000::t|0 0 0 0 0 0 1 1 1||1||0|
+Mesh||PlaneGeometry:4|MeshBasicMaterial:ffffff:map:t|0 2.33 0.125 0 0 0 1 1 1||1||0|
+Mesh||BoxGeometry:24|MeshStandardMaterial:ffffff:map:|0 0 0 0 0 0 1 1 1|hidden|1||0|
+Mesh||PlaneGeometry:4|MeshBasicMaterial:000000::|0 0 0 0 0 0 1 1 1|hidden|1||0|
+Mesh||PlaneGeometry:4|MeshBasicMaterial:ffffff:map:t|0 2.33 0.125 1.071 0 0 1 1 1|hidden|1||0|
 Group|cctv:restricted-lift|||0 0 0 0 0 0 1 1 1||1||5|
 Group||||15.2 2.7 0 1.571 1.061 -1.571 1 1 1||1||1|
 Mesh||CylinderGeometry:76|MeshStandardMaterial:9ba1a7::|0 0 -0.01 1.571 0 0 1 1 1||8||0|
