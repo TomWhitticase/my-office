@@ -111,7 +111,11 @@ const server = http.createServer((req, res) => {
     if (req.method !== 'POST') return reply(405, { error: 'GET or POST' });
     if (deny(req, res)) return;
     let body = '', big = false;
-    req.on('data', (c) => { body += c; if (body.length > taskBoard.BOARD.LIM.req && !big) { big = true; reply(413, { error: 'too big' }); req.destroy(); } });
+    req.on('data', (c) => {   // too big: answered at once, the rest read and dropped, the connection closed after
+      if (big) return;
+      body += c;
+      if (body.length > taskBoard.BOARD.LIM.req) { big = true; body = ''; res.setHeader('connection', 'close'); reply(413, { error: 'too big' }); }
+    });
     req.on('end', () => {
       if (big) return;
       try { reply(200, taskBoard.changeBoard(JSON.parse(body || '{}'))); }
