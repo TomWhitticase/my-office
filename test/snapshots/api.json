@@ -1405,7 +1405,8 @@
     "office": 0,
     "meetSouth": 0,
     "meetNorth": 0,
-    "meetSmall": 0
+    "meetSmall": 0,
+    "meetHuddle": 0
    },
    "door": 0,
    "cameras": {}
@@ -3757,7 +3758,8 @@
       "office": 0,
       "meetSouth": 0,
       "meetNorth": 0,
-      "meetSmall": 0
+      "meetSmall": 0,
+      "meetHuddle": 0
      },
      "door": 0,
      "cameras": {}
@@ -4048,7 +4050,8 @@
     "office": 0,
     "meetSouth": 0,
     "meetNorth": 0,
-    "meetSmall": 0
+    "meetSmall": 0,
+    "meetHuddle": 0
    },
    "door": 1,
    "cameras": {}
@@ -4066,7 +4069,8 @@
    "office": 0,
    "meetSouth": 0,
    "meetNorth": 0,
-   "meetSmall": 0
+   "meetSmall": 0,
+   "meetHuddle": 0
   },
   "door": 1,
   "cameras": {}
@@ -4085,7 +4089,8 @@
     "office": 0,
     "meetSouth": 0,
     "meetNorth": 0,
-    "meetSmall": 0
+    "meetSmall": 0,
+    "meetHuddle": 0
    },
    "door": 0,
    "cameras": {}
@@ -4105,7 +4110,8 @@
     "office": 0,
     "meetSouth": 0,
     "meetNorth": 0,
-    "meetSmall": 0
+    "meetSmall": 0,
+    "meetHuddle": 0
    },
    "door": 0,
    "cameras": {
@@ -4132,7 +4138,8 @@
     "office": 0,
     "meetSouth": 0,
     "meetNorth": 0,
-    "meetSmall": 0
+    "meetSmall": 0,
+    "meetHuddle": 0
    },
    "door": 0,
    "cameras": {
@@ -4159,7 +4166,8 @@
     "office": 0,
     "meetSouth": 0,
     "meetNorth": 0,
-    "meetSmall": 0
+    "meetSmall": 0,
+    "meetHuddle": 0
    },
    "door": 0,
    "cameras": {
@@ -4186,7 +4194,8 @@
     "office": 0,
     "meetSouth": 0,
     "meetNorth": 0,
-    "meetSmall": 0
+    "meetSmall": 0,
+    "meetHuddle": 0
    },
    "door": 0,
    "cameras": {
@@ -4213,7 +4222,8 @@
     "office": 0,
     "meetSouth": 0,
     "meetNorth": 0,
-    "meetSmall": 0
+    "meetSmall": 0,
+    "meetHuddle": 0
    },
    "door": 0,
    "cameras": {
