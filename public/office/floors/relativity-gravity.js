@@ -127,9 +127,55 @@ export function makeWalker(boxes) {
     return false;
   }
 
+  // ----- stuck: can you get anywhere from here, and if not the nearest spot you can -----
+  // Tried, then put back: a few steps each way of eight (or a roll started): somewhere you can stand that isn't a trap.
+  const probeCam = new THREE.PerspectiveCamera();
+  function canMove() {
+    const save = { ...S };
+    let ok = false;
+    for (let a = 0; a < 8 && !ok; a++) {
+      Object.assign(S, save); S.roll = null; S.press = 0;
+      for (let n = 0; n < 4 && !ok; n++) { api.step(0.05, 1, 0, false, a * Math.PI / 4, 0, probeCam, 0); ok = !!S.roll || Math.hypot(S.x - save.x, S.y - save.y, S.z - save.z) > 0.3; }
+    }
+    Object.assign(S, save);
+    return ok;
+  }
+  // Standing at (x, y, z) in frame k (settled onto what's under you) is fine: on something, in nothing, and not a trap.
+  function fine(k, x, y, z, below = 1.2) {
+    const g = ground(k, x, y + 0.4, z);
+    if (g.at < 0 || g.top < y - below || hit(k, x, g.top, z) >= 0) return null;
+    const save = { ...S };
+    Object.assign(S, { k, x, y: g.top, z, supp: g.at, roll: null, press: 0 });
+    const ok = canMove();
+    Object.assign(S, save);
+    return ok ? { k, x, y: g.top, z } : null;
+  }
+  // The nearest fine spot in frame k round (x, y, z), out in rings to `far`; then (any gravity: none) null.
+  function nearestFine(k, x, y, z, far = 6) {
+    for (let r = 0; r <= far; r += 0.25) for (let i = 0, n = Math.max(1, Math.ceil(r * 10)); i < n; i++) {
+      const a = (i / n) * Math.PI * 2, q = fine(k, x + Math.cos(a) * r, y, z + Math.sin(a) * r);
+      if (q) return q;
+    }
+    return null;
+  }
+  // The nearest fine spot on a floor of frame k to a point in the world (gravity I's floors, when yours has nowhere).
+  function nearestFloor(k, wp) {
+    const [x, y, z] = toLocal(k, wp.toArray()), a = B[k], c = [];
+    for (let i = 0; i < N; i++) {
+      if (!(M[i] >> k & 1)) continue;
+      const o = i * 6, px = Math.min(Math.max(x, a[o] + R), a[o + 3] - R), pz = Math.min(Math.max(z, a[o + 2] + R), a[o + 5] - R);
+      c.push([Math.hypot(px - x, a[o + 4] - y, pz - z), px, a[o + 4], pz]);
+    }
+    c.sort((p, q) => p[0] - q[0]);
+    for (const [, px, py, pz] of c.slice(0, 120)) { const q = fine(k, px, py, pz, 0.05) || nearestFine(k, px, py, pz, 1.5); if (q) return q; }
+    return null;
+  }
+
   const qE = new THREE.Quaternion(), eul = new THREE.Euler(0, 0, 0, 'YXZ'), tmp = v3(), rt = new THREE.Quaternion();
-  return {
-    S, B, M, hit, ground,
+  const api = {
+    S, B, M, hit, ground, canMove, fine, nearestFine, nearestFloor,
+    /** Where you stand now is fine (on something, in nothing, not a trap). */
+    ok: () => !S.roll && S.supp >= 0 && hit(S.k, S.x, S.y, S.z) < 0 && canMove(),
     /** Box i there or not (a door, open): gone, it's moved out of everyone's way. */
     solid(i, on) {
       for (let k = 0; k < 3; k++) {
@@ -175,4 +221,5 @@ export function makeWalker(boxes) {
     /** Your feet in the world. */
     feet: () => new THREE.Vector3(...toWorld(S.k, [S.x, S.y, S.z])),
   };
+  return api;
 }

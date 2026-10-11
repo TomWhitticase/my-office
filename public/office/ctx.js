@@ -40,6 +40,7 @@
  * @property {(dt: number, keys: Set<string>) => void} [walk]   moves you (and the camera) itself instead of the usual walk
  * @property {() => any} [save]           what a reload should bring back here besides where you stand (systems/resume.js), or false: keep the last
  * @property {(s: any, p: any) => boolean | void} [restore]   after a reload, put that back; true if it's placed you itself
+ * @property {() => boolean} [unstick]     stuck (Backspace twice, systems/resume.js): out to the nearest spot you can walk from; true if it moved you
  * @property {(s: any) => Promise<boolean>} [prepare]   before arriving after a reload (a repo's tree to load)
  * @property {number} [home]              a carless floor: where your car waits (Relativity on B3, a repo in the archive)
  * @property {any} [sound]                its ambience for sounds.js

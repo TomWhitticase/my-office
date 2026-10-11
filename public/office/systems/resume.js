@@ -4,7 +4,11 @@
 // while you're about (and as the page goes); read once, the first time the page shows the office (main.js show), which
 // then fades in where you were instead of pulling back out of the monitor. Sitting at your desk, or at your computer,
 // saves just that. A spot that's no good now (something stands there) gives the nearest free one, then the lift lobby,
-// then your desk.
+// then your desk. Nor is a spot that's no good saved (inside something, or a trap: Relativity's F.save says so itself).
+//
+// Stuck anywhere: Backspace twice (within a second) on foot puts you on the nearest spot you can walk from (unstick):
+// a floor's own F.unstick() first (Relativity's: your gravity, then gravity I, then its door), else the nearest free spot
+// that isn't boxed in, the lift lobby, your desk.
 
 import { EYE, LIFT, REDUCED } from '../util.js';
 
@@ -20,6 +24,7 @@ export function install(ctx) {
     if (!F && player.seated && !player.seat) return { desk: 1 };
     const s = F?.save?.();
     if (s === false) return null;
+    if (ctx.mode === 'free' && !player.seated && !F?.walk && !F?.fly && !isFree(player.x, player.z)) return null;   // (inside something)
     return { f: F ? F.n : 48, car: mine.L ? lifts.indexOf(mine.L) : -1, cz: mine.L ? r2(mine.L.z) : 0, x: r2(player.x), z: r2(player.z),
       eye: r2(player.eye), yaw: r3(player.yaw), pitch: r3(player.pitch), seated: !!player.seat, ...(s ? { s } : {}) };
   }
@@ -38,11 +43,13 @@ export function install(ctx) {
   fade.style.cssText = 'position:absolute;inset:0;z-index:5;background:#000;opacity:0;pointer-events:none;transition:opacity .7s ease';
   container.appendChild(fade);
   const isFree = (x, z) => { const q = { x, z }; collide(q); return Math.hypot(q.x - x, q.z - z) < 0.05; };
-  function nearestFree(x, z) {   // in rings out to 6 m
-    if (isFree(x, z)) return { x, z };
+  // and somewhere you can walk off from: half a metre clear one way or another (not boxed in)
+  const roomy = (x, z) => [0, 1, 2, 3, 4, 5, 6, 7].some((i) => { const a = i * Math.PI / 4; return isFree(x + Math.cos(a) * 0.5, z + Math.sin(a) * 0.5); });
+  function nearestFree(x, z, ok = isFree) {   // in rings out to 6 m
+    if (ok(x, z)) return { x, z };
     for (let r = 0.3; r <= 6; r += 0.3) for (let i = 0, n = Math.ceil(r * 12); i < n; i++) {
       const a = (i / n) * Math.PI * 2, q = { x: x + Math.cos(a) * r, z: z + Math.sin(a) * r };
-      if (isFree(q.x, q.z)) return q;
+      if (ok(q.x, q.z)) return q;
     }
     return null;
   }
@@ -102,5 +109,28 @@ export function install(ctx) {
   }
   // At your computer (or the MacBook): that's where a reload finds you.
   const toDesk = () => write({ desk: 1 });
-  Object.assign(ctx, { resume, savePose: save, toDesk });
+
+  // ----- stuck: Backspace twice -----
+  /** Out to the nearest spot you can walk from: true if you were moved. */
+  function unstick() {
+    const F = ctx.away;
+    if (ctx.mode !== 'free' || player.seated || F?.fly) return false;
+    if (F?.unstick) { const moved = F.unstick(); if (moved) save(); return moved; }
+    const good = (x, z) => isFree(x, z) && roomy(x, z);
+    if (good(player.x, player.z)) return false;
+    const q = nearestFree(player.x, player.z, good) || (F && !F.carless && mine.L ? nearestFree(LIFT.x - 1.6, mine.L.z, good) : null);
+    if (q) Object.assign(player, { x: q.x, z: q.z });
+    else atDesk();
+    save();
+    return true;
+  }
+  let bsAt = -1e9;
+  ctx.key('Backspace', (e) => {
+    if (e.repeat) return true;
+    const now = performance.now(), twice = now - bsAt < 1000;
+    bsAt = twice ? -1e9 : now;
+    if (twice) ctx.toast(unstick() ? 'Unstuck: back on your feet nearby' : 'You can walk from here · <kbd>⌫</kbd> <kbd>⌫</kbd> if you’re ever stuck');
+    return true;
+  });
+  Object.assign(ctx, { resume, savePose: save, toDesk, unstick });
 }

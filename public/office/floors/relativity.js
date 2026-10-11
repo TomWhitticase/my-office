@@ -12,7 +12,7 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { clamp, ease, EYE, LIFT, makeCanvas, rng } from '../util.js';
 import { buildArch, L } from './relativity-arch.js';
-import { frameM, makeWalker } from './relativity-gravity.js';
+import { frameM, makeWalker, toWorld } from './relativity-gravity.js';
 import { makePeople } from './relativity-people.js';
 import { makeSound } from './relativity-sound.js';
 import { installDoor } from './relativity-door.js';
@@ -224,6 +224,7 @@ function build(ctx) {
     const r = walker.step(dt, f, s, keys.has('ShiftLeft') || keys.has('ShiftRight'), P.yaw, P.pitch, camera, clock);
     if (walker.S.rolls !== rolls) { rolls = walker.S.rolls; sound.roll(); }
     if (r) { P.yaw = r.yaw; P.pitch = r.pitch; }
+    stuckCheck(dt, f || s);
     const feet = walker.feet();
     rel.step = lastFeet && !walker.S.roll ? Math.min(0.5, feet.distanceTo(lastFeet)) : 0;
     lastFeet = feet;
@@ -234,11 +235,43 @@ function build(ctx) {
   // A reload in here (systems/resume.js): back in your gravity where you stood (yaw and pitch are in its frame), or at the
   // door you came in by if that's no longer somewhere to stand. Your car waits on B3.
   rel.home = -3;
-  rel.save = () => (walker.S.roll ? false : { k: walker.S.k, x: +walker.S.x.toFixed(2), y: +walker.S.y.toFixed(2), z: +walker.S.z.toFixed(2) });
-  rel.restore = (s, p) => {
+  // Stuck (keys held and you've not got 10 cm in 2 s, not rolling, and no way out of here either: walking into a wall
+  // isn't stuck) or inside something (a door shut on you): out to the
+  // nearest spot you can walk from in your gravity, else the nearest on gravity I's floors, else the door you came in by.
+  // Never saved like that (a reload, or the page going, would only put you back), and a saved spot that's no good now is
+  // sorted the same way on the way back in.
+  const stuck = { t: 0, at: new THREE.Vector3(), n: 0 };
+  function stuckCheck(dt, trying) {
     const W = walker.S;
-    if ([0, 1, 2].includes(s.k) && Number.isFinite(s.x + s.y + s.z)) rel.pose(s.k, s.x, s.y, s.z, p.yaw, p.pitch);
-    if (W.supp < 0 || Math.abs(W.y - s.y) > 0.5 || walker.hit(W.k, W.x, W.y, W.z) >= 0) rel.enter();
+    if (W.roll) { stuck.t = 0; return; }
+    if (walker.hit(W.k, W.x, W.y, W.z) >= 0) { unstick(); return; }
+    const feet = walker.feet();
+    if (!trying || feet.distanceTo(stuck.at) > 0.1) { stuck.at.copy(feet); stuck.t = 0; return; }
+    if ((stuck.t += dt) > 2) { if (walker.canMove()) stuck.t = 0; else unstick(); }
+  }
+  /** Out to the nearest spot you can walk from (see above): `true` if you moved. */
+  function unstick(said = true, at = walker.S) {
+    const W = walker.S, from = new THREE.Vector3(...toWorld(at.k ?? W.k, [at.x, at.y, at.z]));
+    stuck.t = 0;
+    const q = walker.nearestFine(at.k ?? W.k, at.x, at.y, at.z) || walker.nearestFloor(0, from);
+    if (q) walker.place(q.k, q.x, q.y, q.z); else rel.enter();
+    lastFeet = null; stuck.n++; stuck.at.copy(walker.feet());
+    const f = walker.feet(); Object.assign(ctx.player, { x: f.x, z: f.z });
+    if (said) ctx.toast?.('Unstuck: back on your feet nearby');
+    return true;
+  }
+  rel.stuck = stuck;
+  rel.unstick = (said = false) => (walker.ok() ? false : unstick(said));
+  rel.save = () => {
+    const W = walker.S;
+    if (W.roll || stuck.t > 0.5 || !walker.ok()) return false;   // (keep the last: never one that'd trap you)
+    return { k: W.k, x: +W.x.toFixed(2), y: +W.y.toFixed(2), z: +W.z.toFixed(2) };
+  };
+  rel.restore = (s, p) => {
+    const W = walker.S, good = [0, 1, 2].includes(s.k) && Number.isFinite(s.x + s.y + s.z);
+    if (good) rel.pose(s.k, s.x, s.y, s.z, p.yaw, p.pitch);
+    if (!good) rel.enter();
+    else if (Math.abs(W.y - s.y) > 0.5 || !walker.ok()) unstick(false, s);
     const f = walker.feet();
     Object.assign(ctx.player, { x: f.x, z: f.z });
     return true;
