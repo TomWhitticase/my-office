@@ -46,11 +46,21 @@ const CAMS = [
   { id: 'wellness-pool', n: 46, name: 'Pool hall', kind: 'flush', ceil: 3.02, p: [2, 2.98, 4.0], at: [-12, 0, 12] },
   { id: 'wellness-gym', n: 46, name: 'Gym', kind: 'flush', ceil: 3.02, p: [18, 2.98, 14.2], at: [9, 0.3, 6] },
   { id: 'wellness-hall', n: 46, name: 'Way through', kind: 'flush', ceil: 3.02, p: [6, 2.98, 0.6], at: [-10, 0.5, -0.4] },
+  // The city (world/city.js, the office's scene: the street is 175 m below us): on masts and roofs too far off to see,
+  // so no bodies, seen far (to the mountains);
+  // `trees` keeps the trees in (where they're the picture). The app shows them as their own group, City.
+  { id: 'city-street', n: 48, city: true, name: 'Street corner', kind: 'city', fov: 56, p: [108, -169.5, -38.5], at: [0, -148, -24], trees: true },
+  { id: 'city-bridge', n: 48, city: true, name: 'River bridge', kind: 'city', fov: 40, p: [-276, -160, -112], at: [-246, -173, -35], trees: true },
+  { id: 'city-park', n: 48, city: true, name: 'The park', kind: 'city', fov: 58, p: [262, -171.5, -262], at: [60, -140, -40], trees: true },
+  { id: 'city-rooftop', n: 48, city: true, name: 'Rooftop opposite', kind: 'city', fov: 44, p: [123, -93.5, 4], at: [0, -45, 0] },
+  { id: 'city-sea', n: 48, city: true, name: 'Sea · West shore', kind: 'city', fov: 60, p: [-4060, -158, 70], at: [-5200, -190, -30], sea: true },
+  { id: 'city-pass', n: 48, city: true, name: 'Mountain pass', kind: 'city', fov: 50, p: [-3180, -4, -60], at: [-3700, -60, 40] },
 ];
+const SEA_LAYER = 5;   // the sea past the mountains, for the shore's camera alone (the real one's built with the edge, world-edge.js)
 const LAYER = 3;   // the cameras' own bodies: the office's view sees them, the feeds don't (no lens in its own shot)
 const SLOT = 1;    // feeds refreshed per frame at most
 const FPS = { grid: 4, one: 12 };   // full screen; on the monitor, while the office is drawn too, a quarter of that
-const TILT = [-40, 25], ZOOM = 3, PAN = { dome: 170, flush: 170, wall: 70, pole: 120 };
+const TILT = [-40, 25], ZOOM = 3, PAN = { dome: 170, flush: 170, wall: 70, pole: 120, city: 60 };
 const FAR = 30;    // indoors: the city through the windows is the office's dearest part to draw, and blown out on CCTV anyway
 
 /** @param {import('../ctx.js').OfficeCtx} ctx */
@@ -102,6 +112,7 @@ function build(ctx) {
       part(g, new THREE.SphereGeometry(0.048, 18, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), glassM, p.x, y - 0.004, p.z);
       part(g, new THREE.SphereGeometry(0.005, 8, 6), ledM, p.x + 0.058, y - 0.004, p.z);
       part(head, new THREE.CylinderGeometry(0.015, 0.015, 0.03, 12), greyM, 0, 0, -0.008).rotation.x = Math.PI / 2;
+    } else if (c.kind === 'city') {   // (nothing to see from up here)
     } else {
       // Bullet: a white body with a sun shield, the lens's dark glass at the front, the LED under it.
       const body = part(head, new THREE.CylinderGeometry(0.045, 0.045, 0.22, 16), whiteM, 0, 0, -0.13);
@@ -122,7 +133,8 @@ function build(ctx) {
       }
     }
     // The feed's camera: wide, 16:9, a little in front of the glass.
-    const eye = new THREE.PerspectiveCamera(c.fov ?? (c.kind === 'dome' || c.kind === 'flush' ? 58 : 52), 16 / 9, 0.05, c.n === 50 ? 3000 : FAR);
+    const eye = new THREE.PerspectiveCamera(c.fov ?? (c.kind === 'dome' || c.kind === 'flush' ? 58 : 52), 16 / 9, c.city ? 0.5 : 0.05, c.city ? 9000 : c.n === 50 ? 3000 : FAR);
+    if (c.sea) eye.layers.enable(SEA_LAYER);
     eye.position.copy(at).sub(p).setLength(0.08).add(p);
     eye.quaternion.setFromRotationMatrix(m4.lookAt(eye.position, at, UP));
     eye.layers.enable(1); eye.layers.enable(ME_LAYER);   // the transparent things (see post.js), and you; not LAYER
@@ -131,6 +143,11 @@ function build(ctx) {
     const lim = { pan: c.pan ?? PAN[c.kind], tilt: TILT, zoom: ZOOM };
     return { ...c, F, g, head, eye, ledM, pivot, reach, yaw0, pitch0, fov0: eye.fov, lim, on: true, aim: '', lit: '', seen: 0 };
   });
+
+  // The shore camera's sea: from the mountains' outer foot to the sky, flat and dark (out there in person, it's the edge's).
+  const sea = new THREE.Mesh(new THREE.RingGeometry(4000, 5400, 96, 1).rotateX(-Math.PI / 2),
+    new THREE.MeshStandardMaterial({ color: '#2a4250', roughness: 0.25, metalness: 0.6 }));
+  sea.position.y = ctx.city.GROUND + 0.4; sea.layers.set(SEA_LAYER); world.add(sea);
 
   // ----- aiming, and on/off: office.cameras[id] = { on, pan, tilt, zoom }, from the server (or the app, at once) -----
   const D = THREE.MathUtils.DEG2RAD, dir = new THREE.Vector3(), lens = new THREE.Vector3(), tgt = new THREE.Vector3();
@@ -260,7 +277,7 @@ function build(ctx) {
     const auto = sc.matrixWorldAutoUpdate;
     if (fresh.has(sc) || (sc === scene && ctx.active && !ctx.away)) sc.matrixWorldAutoUpdate = false;
     fresh.add(sc);
-    const hide = [...ctx.city.trees, ...(cam.n === 50 ? below() : [])].filter((o) => o.visible);
+    const hide = [...(cam.trees ? [] : ctx.city.trees), ...(cam.n === 50 ? below() : []), ...(cam.sea && ctx.heli?.edge?.E?.shown ? [sea] : [])].filter((o) => o.visible);
     for (const o of hide) o.visible = false;
     renderer.render(sc, cam.eye);
     for (const o of hide) o.visible = true;
@@ -360,7 +377,7 @@ function build(ctx) {
     ctx.runFrame(dt, (now - t0) / 1000, now);
   }
 
-  const list = cams.map(({ id, name, n: fl, lim, dead }) => ({ id, name, floor: fl, where: floorOf(fl).title, lim, dead: !!dead }));
+  const list = cams.map(({ id, name, n: fl, city, lim, dead }) => ({ id, name, floor: city ? 'city' : fl, where: city ? 'City' : floorOf(fl).title, lim, dead: !!dead }));
   dash.cctv = { cams: list, want, stats };
   Object.assign(ctx, { cctv: { cams, want, resume, stats, into } });
 }
