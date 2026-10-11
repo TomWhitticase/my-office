@@ -200,6 +200,7 @@ export function installStory(ctx, restr, sound) {
       const cx = X(i) + C / 2, cz = Z(j) + C / 2, d = Math.hypot(cx - x, cz - z);
       if (d < dmin || d > dmax || !cellOk(i, j) || !chunkLoaded(i, j) || (j === 0 && i >= -3 && i <= -1) || h3(i, j, 10) < 0.03) continue;
       if (st.items.some((it) => it.i === i && it.j === j)) continue;
+      if (restr.paths && i === restr.paths.home.i && j === restr.paths.home.j) continue;   // the stone door's (relativity-door.js)
       const ws = beat.wall ? sides(i, j) : [0];
       if (!ws.length) continue;
       const ahead = ((cx - x) * fx + (cz - z) * fz) / d > 0.3 ? 0 : 1, score = ahead + h3(st.visit, n * 977 + i, j);

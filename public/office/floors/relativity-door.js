@@ -21,7 +21,7 @@ const PO = 0.01;   // B3's side of the doorway: a centimetre proud of the wallpa
 
 export function installDoor(ctx, rel) {
   const restr = ctx.restr, { C, T, X, Z, edgeType, SOLID, cellOk, h3, CH } = restr.grid;
-  const st = { R: rng(1), goal: Infinity, at: null, open: 0, want: 0, tries: 0, crossing: false };
+  const st = { R: rng(1), goal: Infinity, at: null, open: 0, want: 0, tries: 0, crossing: false, pinned: false };
   const random = Math.random;
 
   // ----- the door, made once (in a frame with the wall at z = 0 facing +z, the floor at y = 0) and moved where it's wanted -----
@@ -101,6 +101,10 @@ export function installDoor(ctx, rel) {
       if (!best || score < best.score) best = { i, j, k: ws[Math.floor(h3(st.visit, i, j * 7) * ws.length)], score };
     }
     if (!best) return false;
+    put(best);
+    return true;
+  }
+  function put(best) {
     const [px, pz, yaw] = frame(best.i, best.j, best.k);
     g.position.set(px, 0, pz); g.rotation.y = yaw; g.visible = true;
     if (!g.parent) restr.root.add(g);
@@ -110,8 +114,9 @@ export function installDoor(ctx, rel) {
     st.at = { i: best.i, j: best.j, x: px, z: pz, cols: [{ minX: mx - ex, maxX: mx + ex, minZ: mz - ez, maxZ: mz + ez }] };
     st.open = st.want = 0; swing(0);
     restr.sync();
-    return true;
   }
+  // Its home, where B3's worn carpet leads (restricted-paths.js): it's always there, whenever those rooms are about.
+  const home = restr.paths.home, atHome = () => st.at?.i === home.i && st.at?.j === home.j;
   function remove() {
     if (!st.at) return;
     st.at = null; g.visible = false;
@@ -217,7 +222,7 @@ export function installDoor(ctx, rel) {
     enter0(z);
     if (st.crossing) { restr.sync(); return; }
     st.visit = restr.story.st.visit; st.R = rng(st.visit * 131 + 9);
-    st.goal = (been() ? 60 : 140) + st.R() * 70; st.tries = 0; st.want = 0;
+    st.goal = (been() ? 60 : 140) + st.R() * 70; st.tries = 0; st.want = 0; st.pinned = false;
     remove();
   };
   restr.leave = () => { leave0(); if (!st.crossing) { remove(); st.want = 0; } };
@@ -225,6 +230,7 @@ export function installDoor(ctx, rel) {
     fx0(dt, t);
     const p = ctx.camera.position, x = p.x, z = p.z - restr.z0;
     if (st.at && !loaded(st.at.i, st.at.j)) { remove(); st.goal = restr.story.st.walked + 30; }   // gone with its rooms: further on
+    if (!atHome() && !st.pinned && loaded(home.i, home.j) && !open() && (!st.at || Math.hypot(st.at.x - x, st.at.z - z) > 12)) { remove(); put(home); }   // (not while you're looking at it)
     if (!st.at && restr.story.st.walked >= st.goal && t > st.tries) {
       st.tries = t + 0.5;
       Math.random = rng(st.visit * 7 + 3);
@@ -320,7 +326,7 @@ export function installDoor(ctx, rel) {
   }
   // For the tests and for looking: the door, now, in a wall just ahead; open (or shut) at once; through it.
   rel.door = {
-    force: () => { const p = ctx.camera.position; return place(p.x, p.z - restr.z0, 2, 9); }, st, g, exit, F, outPs,
+    force: () => { const p = ctx.camera.position; return (st.pinned = place(p.x, p.z - restr.z0, 2, 9)); }, st, g, exit, F, outPs,
     open(on = true) { st.want = on ? 1 : 0; st.open = st.want; swing(st.open); if (ctx.away === restr) restr.sync(); },
     through: () => { frames(); intoRel(0); },
   };
