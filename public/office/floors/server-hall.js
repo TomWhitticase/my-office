@@ -169,10 +169,11 @@ export function install(ctx) {
     walls.push([t, H - DH, DW * 2, SV.x1, (H + DH) / 2, 0, wallC]);
     wall(SV.x1, LIFT.x, -SV.vz - t / 2, -SV.vz - t / 2, ROOM.h); wall(SV.x1, LIFT.x, SV.vz + t / 2, SV.vz + t / 2, ROOM.h);
     for (const s of [-1, 1]) walls.push([0.1, ROOM.h, SV.vz - CAR.w / 2 - 0.3, LIFT.x + 0.05, ROOM.h / 2, s * (SV.vz + CAR.w / 2 + 0.3) / 2, '#77716a']);
-    for (const [x0, x1, z] of [[SV.x0, SV.x1, SV.z0 + 0.01], [SV.x0, SV.x1, SV.z1 - 0.01], [SV.x1 + 0.07, LIFT.x, -SV.vz + 0.01],
-      [SV.x1 + 0.07, LIFT.x, SV.vz - 0.01]]) walls.push([x1 - x0, 0.1, 0.02, (x0 + x1) / 2, 0.05, z, sk]);
+    // (the hall's run up to the partition, and off the floor's edge by 4 mm: the frames stand there)
+    for (const [x0, x1, z] of [[SV.x0, SV.x1 - t / 2, SV.z0 + 0.012], [SV.x0, SV.x1 - t / 2, SV.z1 - 0.012], [SV.x1 + 0.07, LIFT.x, -SV.vz + 0.01],
+      [SV.x1 + 0.07, LIFT.x, SV.vz - 0.01]]) walls.push([x1 - x0, 0.1, 0.016, (x0 + x1) / 2, 0.05, z, sk]);
     for (const [z0, z1] of [[SV.z0, -DW], [DW, SV.z1]]) walls.push([0.02, 0.1, z1 - z0, SV.x1 - 0.07, 0.05, (z0 + z1) / 2, sk]);
-    walls.push([0.02, 0.1, SV.z1 - SV.z0, SV.x0 + 0.01, 0.05, 0, sk]);
+    walls.push([0.016, 0.1, SV.z1 - SV.z0, SV.x0 + 0.012, 0.05, 0, sk]);
     root.add(mergedBoxes(walls, mat('#ffffff', { vertexColors: true, roughness: 0.85 })));
     srv.fixed.push({ minX: SV.x1 - 0.08, maxX: SV.x1 + 0.08, minZ: SV.z0, maxZ: -DW + 0.08 },
       { minX: SV.x1 - 0.08, maxX: SV.x1 + 0.08, minZ: DW - 0.08, maxZ: SV.z1 });
@@ -252,10 +253,11 @@ export function install(ctx) {
     // templates, each its own InstancedMesh, and its LEDs are copied into the room's at its place. The live racks
     // (A01-A03, B01-B03) have no door and get their own faces below.
     const live = new Set(['A0', 'A1', 'A2', 'B0', 'B1', 'B2']), O = { z: 0, f: 1 }, fz0 = RK.d / 2;
-    bodies.push([0.02, RK.h, RK.d, -RK.w / 2 + 0.01, RK.h / 2, 0, '#15171a'], [0.02, RK.h, RK.d, RK.w / 2 - 0.01, RK.h / 2, 0, '#15171a'],
-      [RK.w, 0.04, RK.d, 0, RK.h - 0.02, 0, '#15171a'], [RK.w, RK.base, RK.d, 0, RK.base / 2, 0, '#0c0d0f'],
+    // (the sides stand on the plinth and the top sits between them, so no two faces share a plane)
+    bodies.push([0.02, RK.h - RK.base, RK.d, -RK.w / 2 + 0.01, (RK.h + RK.base) / 2, 0, '#15171a'], [0.02, RK.h - RK.base, RK.d, RK.w / 2 - 0.01, (RK.h + RK.base) / 2, 0, '#15171a'],
+      [RK.w - 0.04, 0.04, RK.d, 0, RK.h - 0.02, 0, '#15171a'], [RK.w, RK.base, RK.d, 0, RK.base / 2, 0, '#0c0d0f'],
         [RK.w - 0.04, RK.h - 0.12, 0.01, 0, RK.h / 2, 0, '#0f1012']);
-    for (const s of [-1, 1]) bodies.push([0.016, RK.h - 0.12, 0.012, s * 0.232, RK.h / 2, fz0 - 0.035, '#9ca2aa']);   // front rails
+    for (const s of [-1, 1]) bodies.push([0.016, RK.h - 0.12, 0.012, s * 0.232, RK.h / 2, fz0 - 0.032, '#9ca2aa']);   // front rails, 4 mm proud of the faces
     for (let u = 1; u <= 42; u += 2) rears.push([0, unitY(u, 2), -(RK.d / 2 - 0.03), RK.fw, 2 * RK.U - 0.002, Math.PI, [0, 624, 512, 104]]);
     doors.push([0, RK.h / 2 + 0.03, fz0 + 0.01, RK.w - 0.03, RK.h - 0.1, 0, [0, 0, 64, 64]]);
     const TPL = [...Array(8)].map((_, k) => {
@@ -502,7 +504,7 @@ export function install(ctx) {
       const z = row.z, y = 2.45, xa = B.x0 - 0.2, xb = B.x1 + 0.2;
       for (const s of [-1, 1]) tray.push([xb - xa, 0.05, 0.012, (xa + xb) / 2, y, z + s * 0.15]);
       for (let x = xa; x < xb; x += 0.2) tray.push([0.008, 0.008, 0.3, x, y - 0.025, z]);
-      for (let x = xa + 0.6; x < xb; x += 1.8) rods.push([0.012, H - y, 0.012, x, (H + y) / 2, z - 0.15], [0.012, H - y, 0.012, x, (H + y) / 2, z + 0.15]);
+      for (let x = xa + 0.6; x < xb; x += 1.8) rods.push([0.012, H - y, 0.012, x, (H + y) / 2, z - 0.163], [0.012, H - y, 0.012, x, (H + y) / 2, z + 0.163]);   // beside the rails
       [['#2a6fd6', -0.08], ['#e3c23a', 0],
         ['#7a7f87', 0.08]].forEach(([col, dz], i) => cable.push([xb - xa, 0.035 + i * 0.01, 0.07, (xa + xb) / 2, y + 0.02, z + dz, col]));
       for (let i = 0; i < B.n; i += 2) cable.push([0.05, y - RK.h, 0.05, B.x(i), (y + RK.h) / 2, z - row.f * 0.3, i % 4 ? '#e3c23a' : '#2a6fd6']);
@@ -558,7 +560,7 @@ export function install(ctx) {
     const noc = srv.noc = makeScreen(root, 4.4, 2.475, 1280, 720, SV.x0 + 0.08, 1.65, 11.5); noc.mesh.rotation.y = Math.PI / 2;
     root.add(mergedBoxes([[0.06, 2.56, 4.5, SV.x0 + 0.04, 1.65, 11.5], [0.3, 0.3, 0.3, 4.7, H - 0.4, 0], [0.04, H - 3.55, 0.04, 4.7, (H + 3.55) / 2, 0],
       [0.12, 1.06, 1.86, 4.7, 3.0, 0]], mat('#0c0d0f', { roughness: 0.4 })));
-    for (const s of [-1, 1]) { const m = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.0125), noc.mesh.material); m.position.set(4.7 + s * 0.061, 3.0, 0);
+    for (const s of [-1, 1]) { const m = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.0125), noc.mesh.material); m.position.set(4.7 + s * 0.064, 3.0, 0);
       m.rotation.y = s * Math.PI / 2; root.add(m); }
     Object.assign(noc.mesh.userData, { action: 'info', reach: 12, info: () => '<b>NOC wall</b><div class="m">This machine, live</div>' });
     srv.units.push({ hit: noc.mesh });
@@ -605,10 +607,10 @@ export function install(ctx) {
       flats(mark, mat('#e3c23a', { roughness: 0.6 }), 1, 0.004);
       for (const z of [-15.6, -12.2]) {   // benches against the far wall
         const x = S.x0 + 0.45;
-        parts.push([0.85, 0.04, 2.2, x, 0.9, z, '#4b5563'], [0.86, 0.006, 2.1, x, 0.923, z, '#3767a6'], [0.04, 0.88, 0.04, x - 0.38, 0.44, z - 1.05, '#9aa0a8'],
+        parts.push([0.85, 0.04, 2.2, x, 0.9, z, '#4b5563'], [0.8, 0.006, 2.1, x + 0.01, 0.923, z, '#3767a6'], [0.04, 0.88, 0.04, x - 0.38, 0.44, z - 1.05, '#9aa0a8'],
           [0.04, 0.88, 0.04, x + 0.38, 0.44, z - 1.05, '#9aa0a8'],
           [0.04, 0.88, 0.04, x - 0.38, 0.44, z + 1.05, '#9aa0a8'], [0.04, 0.88, 0.04, x + 0.38, 0.44, z + 1.05, '#9aa0a8'],
-            [0.8, 0.02, 2.1, x, 0.25, z, '#6b7280'], [0.05, 0.7, 2.2, x - 0.42, 1.27, z, '#9aa0a8'],
+            [0.72, 0.02, 2.1, x, 0.25, z, '#6b7280'], [0.05, 0.7, 2.2, x - 0.42, 1.27, z, '#9aa0a8'],
           [0.03, 0.03, 2.1, x - 0.38, 1.55, z, '#4b5563']);
         srv.fixed.push({ minX: S.x0, maxX: x + 0.45, minZ: z - 1.1, maxZ: z + 1.1 });
       }
@@ -632,9 +634,10 @@ export function install(ctx) {
       for (const x of [-23.6, -21.4]) {
         for (const y of [0.15, 0.6, 1.05, 1.5, 1.95]) parts.push([1.9, 0.02, 0.5, x, y, S.z0 - 1.15, '#9aa0a8']);
         for (const sx of [-0.93, 0.93]) for (const sz of [-0.23, 0.23]) parts.push([0.025, 2, 0.025, x + sx, 1, S.z0 - 1.15 + sz, '#9aa0a8']);
-        for (const y of [0.16, 0.61, 1.06, 1.51]) for (let i = 0; i < 4;
-          i++) if (R() < 0.8) card.push([0.36 + R() * 0.1, 0.18 + R() * 0.2, 0.36, x - 0.7 + i * 0.46, y + 0.1 + R() * 0.02, S.z0 - 1.15,
-          R() < 0.3 ? '#2a2d32' : '#b08a5a']);
+        for (const y of [0.16, 0.61, 1.06, 1.51]) for (let i = 0; i < 4; i++) if (R() < 0.8) {   // standing on the shelf (y - 0.01 its top)
+          const w = 0.36 + R() * 0.1, h = 0.18 + R() * 0.2; R();
+          card.push([w, h, 0.36, x - 0.7 + i * 0.46, y + h / 2, S.z0 - 1.15, R() < 0.3 ? '#2a2d32' : '#b08a5a']);
+        }
         srv.fixed.push({ minX: x - 0.96, maxX: x + 0.96, minZ: S.z0 - 1.45, maxZ: S.z0 - 0.85 });
       }
       // boxed servers on a pallet, one box open
@@ -681,7 +684,7 @@ export function install(ctx) {
         new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: '#f4f7ff', emissiveIntensity: 1.6 })));
       srv.fixed.push({ minX: N.x0, maxX: N.x1 + 0.05, minZ: N.z0 - 0.05, maxZ: N.z0 + 0.05 },
         { minX: N.x1 - 0.05, maxX: N.x1 + 0.05, minZ: doorZ[1], maxZ: N.z1 }, { minX: N.x1 - 0.05, maxX: N.x1 + 0.05, minZ: N.z0, maxZ: doorZ[0] });
-      sign(1.4, 0.3, N.x1 + 0.03, 2.6, (doorZ[1] + N.z1) / 2 + 1.5, Math.PI / 2, 300,
+      sign(1.4, 0.3, N.x1 + 0.034, 2.6, (doorZ[1] + N.z1) / 2 + 1.5, Math.PI / 2, 300,
         (c, W, H) =>
         { c.fillStyle = '#1d2228'; c.fillRect(0, 0, W, H); lbl(c, 'NOC', 20, H * 0.72, `800 ${H * 0.6}px ${FONT}`, '#d97757');
         lbl(c, 'Network Operations', 120, H * 0.66, `500 ${H * 0.36}px ${FONT}`, '#e8eef6'); });
@@ -970,13 +973,13 @@ export function install(ctx) {
       const z = SV.vz, x = 16.2;
       root.add(mergedBoxes([[0.42, 0.56, 0.08, x, 1.45, z - 0.04, '#b3261e'], [0.22, 0.3, 0.06, x + 0.45, 1.3, z - 0.03, '#f2c230'],
         [0.14, 0.14, 0.05, x - 0.42, 1.35, z - 0.025, '#1f5fbf']], mat('#ffffff', { vertexColors: true, roughness: 0.5 })));
-      const fp = sign(0.36, 0.42, x, 1.47, z - 0.081, Math.PI, 500, (c, W, H) => {
+      const fp = sign(0.36, 0.42, x, 1.47, z - 0.084, Math.PI, 500, (c, W, H) => {
         c.fillStyle = '#e9e6df'; c.fillRect(0, 0, W, H); lbl(c, 'FM-200', W / 2, 34, `800 26px ${FONT}`, '#b3261e', 'center');
         lbl(c, 'EXTINGUISHING CONTROL', W / 2, 58, `600 12px ${FONT}`, '#333', 'center');
         c.fillStyle = '#071019'; c.fillRect(20, 70, W - 40, 50); lbl(c, 'SYSTEM HEALTHY · ARMED', W / 2, 101, `600 14px ${MONO}`, '#5dff9b', 'center');
         ['POWER', 'ARMED', 'FAULT', 'DISCHARGE', 'ALARM'].forEach((tx, i) => lbl(c, tx, 52, 146 + i * 13, `600 10px ${FONT}`, '#333'));
       });
-      const p = (px, py, col, fn) => led(fp.position.x - (px / 180 - 0.5) * 0.36, 1.47 + (0.5 - py / 210) * 0.42, z - 0.085, col, fn, Math.PI);
+      const p = (px, py, col, fn) => led(fp.position.x - (px / 180 - 0.5) * 0.36, 1.47 + (0.5 - py / 210) * 0.42, z - 0.088, col, fn, Math.PI);
       p(34, 142, LED.g); p(34, 155, LED.a); p(34, 168, LED.off); p(34, 181, LED.off); p(34, 194, LED.off);
       sign(0.2, 0.06, x + 0.45, 1.5, z - 0.061, Math.PI, 500,
         (c, W, H) =>
@@ -998,7 +1001,7 @@ export function install(ctx) {
       root.add(mergedBoxes(frame, mat('#8d949c', { metalness: 0.7, roughness: 0.35 })));
       const lw = DW * 2 - fw * 2 + 0.03, lh = DH - fw - 0.012 + 0.01, leaf = new THREE.Group();   // into the jambs and head a little: no light round it
       leaf.add(mergedBoxes([[0.05, lh, lw, 0, 0.012 + lh / 2, 0, '#7d848c'], [0.056, 0.5, 0.2, 0, 1.55, 0.18, '#22303d'],
-        [0.056, 0.02, 0.24, 0, 1.31, 0.18, '#5d636b'], [0.056, 0.02, 0.24, 0, 1.81, 0.18, '#5d636b']],
+        [0.064, 0.02, 0.24, 0, 1.29, 0.18, '#5d636b'], [0.064, 0.02, 0.24, 0, 1.81, 0.18, '#5d636b']],   // (trim above and below the panel, 4 mm proud)
         mat('#ffffff', { vertexColors: true, metalness: 0.6, roughness: 0.3 })));
       leaf.position.set(x, 0, 0); root.add(leaf);
       const pocket = DW * 2 - fw;   // how far it slides: fully behind the +z jamb, into the wall
