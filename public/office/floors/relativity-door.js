@@ -94,7 +94,7 @@ export function installDoor(ctx, rel) {
     let best = null;
     for (let i = i0 - 9; i <= i0 + 9; i++) for (let j = j0 - 9; j <= j0 + 9; j++) {
       const cx = X(i) + C / 2, cz = Z(j) + C / 2, d = Math.hypot(cx - x, cz - z);
-      if (d < dmin || d > dmax || !cellOk(i, j) || !loaded(i, j) || (j === 0 && i >= -3 && i <= -1) || h3(i, j, 10) < 0.03 || taken.has(`${i},${j}`)) continue;
+      if (d < dmin || d > dmax || !cellOk(i, j) || !loaded(i, j) || (j === 0 && i >= -3 && i <= -1) || h3(i, j, 10) < 0.03 || taken.has(`${i},${j}`) || restr.reserved?.has(`${i},${j}`)) continue;
       const ws = sides(i, j);
       if (!ws.length) continue;
       const score = (((cx - x) * fx + (cz - z) * fz) / d > 0.3 ? 0 : 1) + h3(st.visit, i * 31 + 5, j);
