@@ -34,7 +34,7 @@ function build(ctx) {
     for (const s of [-1, 1]) for (const dx of SIDE) {
       const x = CX + s * dx;
       UP.push([0.46, 0.05, 0.44, x, 0.45, z + 0.01, '#34405e'], [0.46, 0.34, 0.045, x, 0.75, z - 0.21, '#34405e']);
-      for (const lx of [-0.2, 0.2]) FR.push([0.025, 0.44, 0.025, x + lx, 0.22, z + 0.19], [0.025, 0.92, 0.025, x + lx, 0.46, z - 0.21]);
+      for (const lx of [-0.2, 0.2]) FR.push([0.025, 0.44, 0.025, x + lx, 0.22, z + 0.19], [0.025, 0.916, 0.025, x + lx, 0.458, z - 0.21]);   // (the back legs' tops 4 mm under the back's)
       FR.push([0.42, 0.02, 0.02, x, 0.1, z - 0.21]);
       const hit = new THREE.Mesh(hitGeo, hitM); hit.position.set(x, 0, z); hit.visible = false; world.add(hit);
       hit.userData.seat = addSeat(hit, 'Chair', 0, SEATED_EYE);

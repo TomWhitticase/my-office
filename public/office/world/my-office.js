@@ -41,8 +41,9 @@ export function install(ctx) {
     const railY = lerp(r.top - r.n * BL.stack - 0.02, r.bot, drop);
     _q.setFromEuler(_e.set(tilt, 0, 0));
     r.cells.forEach(([x, w], c) => {
-      _s.x = w;
+      _s.x = w - 0.004;   // (the rail's ends 2 mm in from the slats' stacked on it)
       r.rails.setMatrixAt(c, _m4.compose(_v.set(x, railY, 0), _q0, _s));
+      _s.x = w;
       for (let i = 0; i < r.n;
         i++) r.slats.setMatrixAt(c * r.n + i, _m4.compose(_v.set(x, Math.max(r.top - (i + 1) * BL.sp, railY + (r.n - i) * BL.stack), 0), _q, _s));
     });
@@ -202,7 +203,7 @@ export function installScreen(ctx) {
     if (pw !== cssPx.w || ph !== cssPx.h) { domScreen.style.width = pw + 'px'; domScreen.style.height = ph + 'px'; Object.assign(cssPx, { w: pw, h: ph }); }
     (lap ? laptop.pivot : centerMon.g).add(hole);
     hole.scale.set(s.w, s.h, 1);
-    if (lap) hole.position.set(0, laptop.LH - 0.004 - s.h / 2, 0.001); else hole.position.set(0, 0.12 + center.h / 2, 0.012);
+    if (lap) hole.position.set(0, laptop.LH - 0.004 - s.h / 2, 0.0024);   // (in front of the bezel, lounge.js) else hole.position.set(0, 0.12 + center.h / 2, 0.012);
     awayScr.mesh.visible = lap;
     centerMon.g.updateWorldMatrix(true, true);
     (lap ? awayScr.mesh : hole).getWorldPosition(screenWorld);
@@ -304,8 +305,8 @@ export function installDesk(ctx) {
     // Along the west glass: a tall bookcase, a rolling whiteboard, the coat stand by the door. Kept clear of the blind.
     bookshelf(6.38, -12.4, Math.PI / 2, 2.2, 2.2, 5);
     const wg = new THREE.Group(); wg.position.set(6.5, 0, -8.6); wg.rotation.y = Math.PI / 2; world.add(wg);
-    wg.add(mergedBoxes([[1.76, 1.02, 0.04, 0, 1.4, -0.01, '#b9bcc0'], [0.04, 1.85, 0.04, -0.86, 0.93, -0.03, '#8d9399'],
-      [0.04, 1.85, 0.04, 0.86, 0.93, -0.03, '#8d9399'],
+    wg.add(mergedBoxes([[1.76, 1.02, 0.04, 0, 1.4, -0.01, '#b9bcc0'], [0.04, 1.85, 0.04, -0.862, 0.93, -0.03, '#8d9399'],
+      [0.04, 1.85, 0.04, 0.862, 0.93, -0.03, '#8d9399'],
       [0.06, 0.04, 0.5, -0.86, 0.08, -0.03, '#5a5f66'], [0.06, 0.04, 0.5, 0.86, 0.08, -0.03, '#5a5f66'], [1.7, 0.03, 0.06, 0, 0.87, 0.03, '#b9bcc0']],
     mat('#ffffff', { vertexColors: true, roughness: 0.5, metalness: 0.3 })));
     markerBoard('office', 'whiteboard', makeScreen(wg, 1.7, 0.96, 768, 434, 0, 1.4, 0.012), (c) => {

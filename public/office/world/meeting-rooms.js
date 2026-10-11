@@ -125,8 +125,8 @@ export function install(ctx) {
     // North room: a rolling whiteboard by the east glass, facing the table; the huddle room's by its west glass.
     const rolling = (x, z, rotY, id, draw) => {
       const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rotY; world.add(g);
-      g.add(mergedBoxes([[1.36, 0.92, 0.04, 0, 1.4, -0.01, '#b9bcc0'], [0.04, 1.85, 0.04, -0.66, 0.93, -0.03, '#8d9399'],
-        [0.04, 1.85, 0.04, 0.66, 0.93, -0.03, '#8d9399'],
+      g.add(mergedBoxes([[1.36, 0.92, 0.04, 0, 1.4, -0.01, '#b9bcc0'], [0.04, 1.85, 0.04, -0.662, 0.93, -0.03, '#8d9399'],
+        [0.04, 1.85, 0.04, 0.662, 0.93, -0.03, '#8d9399'],
         [0.06, 0.04, 0.5, -0.66, 0.08, -0.03, '#5a5f66'], [0.06, 0.04, 0.5, 0.66, 0.08, -0.03, '#5a5f66'], [1.3, 0.03, 0.06, 0, 0.92, 0.03, '#b9bcc0']],
         mat('#ffffff', { vertexColors: true, roughness: 0.5, metalness: 0.3 })));
       markerBoard(id, 'meeting room whiteboard', makeScreen(g, 1.3, 0.86, 640, 424, 0, 1.4, 0.012), draw);

@@ -82,7 +82,7 @@ function shellWalls(put, ceilingM, accent) {
       seg(a, b, 0.45, 0.49, sillM, 0.3, 0.12);
       const n = Math.max(1, Math.round((b - a) / 2.5)), step = (b - a) / n;
       winRuns.push({ axis, fixed, a, b, n, step, inward, glass });
-      for (let q = 0; q <= n; q++) seg(a + q * step - 0.04, a + q * step + 0.04, 0.45, 3.05, frameM, 0.12);
+      for (let q = 0; q <= n; q++) seg(a + q * step - 0.04, a + q * step + 0.04, 0.49, 3.05, frameM, 0.12);   // mullions stand on the sill
       for (let q = 0; q < n;
         q++) panes.push({ axis, fixed, a: a + q * step + 0.04, b: a + (q + 1) * step - 0.04, inward,
         win: WIN.indexOf(winKey(axis, fixed, a + (q + 0.5) * step)) });
@@ -95,7 +95,7 @@ function shellWalls(put, ceilingM, accent) {
   wall('z', -20, -15, 15, [[-15, 2], [6.8, 10.9]]);   // solid from 10.9 north: the kitchen's tall units stand against it
   wall('z', 20, -15, 15, [[-15, -3.5], [2.5, 15]]);   // the lift core fills the stretch between my office and the meeting rooms
   wall('x', -15, -20, 6, [], accent ? mat('#2f463b', { roughness: 0.9 }) : wallM);          // green accent behind the desks
-  wall('x', -15, 6, 20, [], accent ? mat('#2b3650', { roughness: 0.9 }) : wallM);           // navy in my office
+  wall('x', -15, 6, 19.9, [], accent ? mat('#2b3650', { roughness: 0.9 }) : wallM);         // navy in my office (to the east wall's face)
   return { panes, winRuns, wallM, frameM, outerGlassM };
 }
 

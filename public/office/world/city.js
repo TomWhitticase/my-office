@@ -40,6 +40,7 @@ export function install(ctx) {
     const TINTS = ['#ffffff', '#e8dccb', '#cfd8e3', '#d9d2c5', '#bfc6cc', '#f0e6d8', '#a9b4c0', '#c9b8a6'];
     const addB = (w, h, d, x, z, tintHex, uo, vo) => {
       const g = new THREE.BoxGeometry(w, h, d);
+      g.setIndex([...g.index.array].filter((_, i) => Math.floor(i / 6) !== 3)); g.clearGroups();   // no bottom: it's in the ground, and the block's others share its plane
       g.translate(x, GROUND + h / 2, z);
       const uv = g.attributes.uv, col = new Float32Array(uv.count * 3), tint = new THREE.Color(tintHex);
       for (let f = 0; f < 6; f++) for (let k = 0; k < 4; k++) {
