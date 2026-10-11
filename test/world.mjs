@@ -1,6 +1,6 @@
 // World snapshots: what the office is built from, read out of the live page through window.__office. The collider map,
 // seats, desks and idle spots, every walking route checked against the colliders, the click actions in each scene, the
-// floor table, and a fingerprint of every object in every scene. Compared with test/snapshots/world.json, and
+// floor table, a fingerprint of every object in every scene, and no two surfaces sharing a plane (coplanar.mjs). Compared with test/snapshots/world.json, and
 // world-<scene>.txt (one line per object) so a mismatch can be diffed.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -102,6 +102,9 @@ export async function runWorld(browser, base, { record = false, log = console.lo
     else log(`  ✓ ${k}`);
   }
   for (const [n, s] of Object.entries(out.scenes)) if (want.scenes?.[n] && want.scenes[n].ordered !== s.ordered) log(`  · ${n}: same objects, built in a different order (diff test/snapshots/world-${n}.txt test/out/world-${n}.txt)`);
+  // Surfaces sharing a plane (z-fighting): every scene, cached per scene (test/coplanar.mjs).
+  const { runCoplanar } = await import('./coplanar.mjs');
+  failed += await runCoplanar(browser, base, log);
   return failed + (errors.length ? 1 : 0) + await runResume(browser, base, log);
 }
 

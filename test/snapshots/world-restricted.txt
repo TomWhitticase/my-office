@@ -16,7 +16,7 @@ Mesh||BufferGeometry:192|MeshStandardMaterial:ffffff::|0 0 0 0 0 0 1 1 1||1||0|
 Mesh||BufferGeometry:24|MeshStandardMaterial:dfe4e8::|0 0 0 0 0 0 1 1 1||1||0|
 Mesh||BufferGeometry:24|MeshStandardMaterial:ffffff::|0 0 0 0 0 0 1 1 1||1||0|
 Mesh||BoxGeometry:24|MeshStandardMaterial:ffffff:map:|18.13 1.1 -0.275 0 0 0 1 1 1||1||0|
-Mesh||BoxGeometry:24|MeshStandardMaterial:ffffff:map:|18.13 1.1 0.275 0 0 0 1 1 1||1||0|
+Mesh||BoxGeometry:24|MeshStandardMaterial:ffffff:map:|18.134 1.1 0.275 0 0 0 1 1 1||1||0|
 Mesh||PlaneGeometry:4|MeshBasicMaterial:ffffff:map:|17.955 2.5 0 0 -1.571 0 1 1 1||1||0|
 Mesh||CylinderGeometry:100|MeshStandardMaterial:e6e3dc::|17.975 1.16 0.85 0 0 1.571 1 1 1||1||0|
 Mesh||CylinderGeometry:100|MeshStandardMaterial:e6e3dc::|17.975 1.04 0.85 0 0 1.571 1 1 1||1||0|
