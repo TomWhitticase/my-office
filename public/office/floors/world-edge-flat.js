@@ -13,7 +13,7 @@ export function installFlat(ctx, bs, PLAN) {
   const root = bs.root, { FLAT } = PLAN, R = Math.random, hits = [], cols = [];
   const M = (o) => new THREE.MeshStandardMaterial({ roughness: 0.85, ...o });
   const info = (h, k) => ({ action: 'backstage', reach: 4, info: `<b>${h}</b>${k ? `<div class="k">${k}</div>` : ''}` });
-  const cx = FLAT.door - 0.2, tvZ = FLAT.z0 + 0.35, sofaZ = -9.9;
+  const cx = FLAT.door - 0.2, tvZ = FLAT.z0 + 0.35, sofaZ = FLAT.z0 + 2.5;
 
   // ----- the sofa (facing the TV, its back to the door), a coffee table, a lamp, a sideboard, closed blinds -----
   const sofa = [], fab = '#5d4a3c', fab2 = '#4c3c30';
@@ -21,18 +21,18 @@ export function installFlat(ctx, bs, PLAN) {
   sofa.push([0.95, 0.14, 0.62, cx - 0.48, 0.47, sofaZ - 0.06, '#66523f'], [0.95, 0.12, 0.62, cx + 0.48, 0.46, sofaZ - 0.06, '#614e3d']);   // cushions, one sunk
   sofa.push([1.1, 0.04, 0.6, cx, 0.42, tvZ + 2.0, '#4a3523'], ...[[-0.5, -0.25], [0.5, -0.25], [-0.5, 0.25], [0.5, 0.25]].map(([x, z]) => [0.04, 0.4, 0.04, cx + x, 0.2, tvZ + 2.0 + z, '#3a2a1c']));
   sofa.push([1.6, 0.55, 0.42, cx, 0.275, tvZ + 0.05, '#3b2c20']);   // the sideboard the TV's on
-  sofa.push([1.3, 0.8, 0.4, FLAT.x0 + 0.25, 0.4, -9.0, '#4a3a2c'], [1.3, 0.04, 0.4, FLAT.x0 + 0.25, 1.1, -9.0, '#4a3a2c']);   // a shelf, by the west wall (turned)
+  sofa.push([1.3, 0.8, 0.4, FLAT.x0 + 0.25, 0.4, FLAT.z0 + 3.4, '#4a3a2c'], [1.3, 0.04, 0.4, FLAT.x0 + 0.25, 1.1, FLAT.z0 + 3.4, '#4a3a2c']);   // a shelf, by the west wall (turned)
   const furn = mergedBoxes(sofa, M({ vertexColors: true }));
   root.add(furn);
   cols.push({ minX: cx - 1.16, maxX: cx + 1.16, minZ: sofaZ - 0.45, maxZ: sofaZ + 0.46 }, { minX: cx - 0.58, maxX: cx + 0.58, minZ: tvZ + 1.68, maxZ: tvZ + 2.32 },
-    { minX: cx - 0.82, maxX: cx + 0.82, minZ: FLAT.z0, maxZ: tvZ + 0.3 }, { minX: FLAT.x0, maxX: FLAT.x0 + 0.5, minZ: -9.7, maxZ: -8.3 });
+    { minX: cx - 0.82, maxX: cx + 0.82, minZ: FLAT.z0, maxZ: tvZ + 0.3 }, { minX: FLAT.x0, maxX: FLAT.x0 + 0.5, minZ: FLAT.z0 + 2.7, maxZ: FLAT.z0 + 4.1 });
   hits.push(ctx.hitBox(root, 2.3, 0.9, 0.9, cx, 0.45, sofaZ, info('A sofa', 'Sagging in the middle. They’ve been sitting there a long time.')));
   // a window with its blind down, the street's light leaking round it
   const blind = makeCanvas(128, 128), bc = blind.ctx;
   bc.fillStyle = '#2a2621'; bc.fillRect(0, 0, 128, 128); for (let y = 0; y < 128; y += 8) { bc.fillStyle = 'rgba(255,220,170,.06)'; bc.fillRect(0, y, 128, 2); }
   blind.tex.needsUpdate = true;
   const win = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 1.2), M({ map: blind.tex, emissive: '#ffcc88', emissiveIntensity: 0.02 }));
-  win.position.set(FLAT.x0 + 0.002, 1.45, -11.0); win.rotation.y = Math.PI / 2; root.add(win);
+  win.position.set(FLAT.x0 + 0.002, 1.45, FLAT.z0 + 1.4); win.rotation.y = Math.PI / 2; root.add(win);
   // the lamp: a tall shade in the corner, on low
   const lampM = M({ color: '#d9c49a', emissive: '#ffb860', emissiveIntensity: 0.6, side: THREE.DoubleSide });
   const shade = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.22, 0.28, 16, 1, true), lampM); shade.position.set(FLAT.x1 - 0.4, 1.45, FLAT.z0 + 0.45); root.add(shade);

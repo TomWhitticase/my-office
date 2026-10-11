@@ -1,24 +1,28 @@
-// BEHIND THE SKY (floors/world-edge.js): through the door at the top of the stairs, a short bare concrete service corridor
-// (strip lights, cable trays, an extinguisher, the stage's number stencilled on the wall) leads to the gallery: a dark
-// control room round a live model of the whole world (world-edge-model.js), with a curved bank of monitors showing it
-// live (world-edge-gallery.js) and an operator's console whose dials, switches and faders run the world: the time, the
-// weather, the office's lights and blinds (world-edge-console.js). Off the corridor, a cramped flat where two
-// people sit watching it on TV (world-edge-flat.js). The way out is a long bare concrete corridor from the gallery's back
-// (two turns, 54 m: dead and flickering tubes, trays, pipes, puddles, the gallery's glow behind you) to a plain fire door
-// marked EXIT, and it opens onto the restricted level (B3, restricted.js): the far wall of a dead end deep in its rooms, a
-// long walk from its lift, always the same place (found from B3's fixed layout, findExit), a plain steel door with a
-// handle from that side, easy to miss. It's there from the start: its own scene, a floor of its own (unlisted, carless),
-// built the first time you come near that door on B3 (or are let out past the city's edge, whichever's first). The sky
-// side (world-edge.js: the dome, the pier) is built only once it's needed: open the door in the sky from in here having
-// come in from B3, and the helicopter's out on the pier waiting for you, as if you'd flown it there.
-// Both doors are seamless (systems/portal.js): open, each shows the other side live, with its own light, and you walk
-// through without a cut. This side is laid out in B3's own space, so the exit door is the same place on both sides: B3's
-// wall, at the doorway, is this side's too. It's a door both ways: open or shut it from either side, come and go. The
-// helicopter waits on the pier while you're in here or on B3; leave B3 by its lift (or any way but this door) and it's put
-// away on its pad, and it's on the pier again whenever you open the sky door from in here.
-// Debug: ctx.heli.edge.backstage: .go(x, z, yaw, pitch) stands you in here (this side's own coordinates, the exit at the
-// gallery's back wall at the origin, the exit at PLAN.EXIT, B3 toward +z), .exit(open), .b3(x, z, yaw, pitch) stands you on
-// B3 relative to the exit (+z out into the dead end); .gallery/.flat/.model/.desk.
+// BEHIND THE SKY (floors/world-edge.js): the back of a set. The door in the sky opens off the end of a bare concrete
+// service corridor (strip lights, some dead, one flickering; cable trays, pipes and conduit along the walls; extinguishers,
+// stencils, puddles, fire doors, a cupboard, a WC that's engaged, an edit suite in session, a plant room), and the corridor
+// runs along the back of the gallery: through a sound lock (two sets of doors, ON AIR over them) and you're on its rear
+// walkway, looking down over the empty operators' chairs on their tiers, the director's console at the top (its dials,
+// switches and faders run the world: the time, the weather, the office's lights and blinds, world-edge-console.js), a live
+// model of the whole world glowing on a table in the pit (world-edge-model.js) and the monitor wall beyond, showing it all
+// live (world-edge-gallery.js). Stairs down the tiers' sides. Off the corridor, a cramped flat where two people sit
+// watching it on TV (world-edge-flat.js). The corridor's other way is long (two turns, 56 m) and ends at a plain fire door
+// marked EXIT just short of the plant room, which opens onto the restricted level (B3, restricted.js): the far wall of a
+// dead end deep in its rooms, a long walk from its lift, always the same place (found from B3's fixed layout, findExit), a
+// plain steel door with a handle from that side, easy to miss. It's there from the start: its own scene, a floor of its own
+// (unlisted, carless), built the first time you come near that door on B3 (or are let out past the city's edge, whichever's
+// first). The sky side (world-edge.js: the dome, the pier) is built only once it's needed: open the door in the sky from in
+// here having come in from B3, and the helicopter's out on the pier waiting for you, as if you'd flown it there.
+// Both those doors are seamless (systems/portal.js): open, each shows the other side live, with its own light, and you walk
+// through without a cut. They're just two more doors here, each off a corridor's side by a turn. This side is laid out in
+// B3's own space, so the exit door is the same place on both sides: B3's wall, at the doorway, is this side's too. It's a
+// door both ways: open or shut it from either side, come and go. The helicopter waits on the pier while you're in here or
+// on B3; leave B3 by its lift (or any way but this door) and it's put away on its pad, and it's on the pier again whenever
+// you open the sky door from in here.
+// Debug: ctx.heli.edge.backstage: .go(x, z, yaw, pitch) stands you in here (this side's own coordinates, PLAN: the monitor
+// wall toward -z, the corridors behind the gallery toward +z, the exit at PLAN.EXIT; yaw 0 faces -z), .exit(open),
+// .b3(x, z, yaw, pitch) stands you on B3 relative to the exit (+z out into the dead end); .doors (by name: .open(on));
+// .gallery/.flat/.model/.desk.
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -29,17 +33,33 @@ import { installFlat } from './world-edge-flat.js';
 import { installModel } from './world-edge-model.js';
 import { installConsole } from './world-edge-console.js';
 
-// The plan, in this side's own space: the exit's sill at the origin (B3 is +z of it), floors at y = 0.
+// The plan, in this side's own space: the walkway's and the corridors' floors at y = 0, the gallery stepping down from it.
 export const PLAN = {
   T: 0.2,
-  GAL: { x0: -6.6, x1: 7.4, z0: -13, z1: -0.2, h: 3.6 },        // the gallery
-  COR: { x0: -17.6, x1: -6.6, z0: -7.4, z1: -5.8, h: 2.65 },    // the service corridor, from the door in the sky (x0) in to the gallery
-  FLAT: { x0: -15.2, x1: -8.2, z0: -12.4, z1: -7.6, h: 2.45, door: -11.4 },   // the flat, its door on the corridor
-  EXIT: { w: 1.0, h: 2.1, x: 20, z: 34 },                         // the fire door, at the far end of the long corridor
-  // the long corridor from the gallery's back wall (a doorway at x = 0) to the exit: its middle line, 1.8 m wide
-  LONG: { w: 1.8, h: 2.6, path: [[0, -0.2], [0, 16], [20, 16], [20, 34]] },
-  TC: { x: 0, z: -6.6 },                                          // the model table's middle
+  GAL: { x0: -7.5, x1: 7.5, z0: -17, z1: -0.4, h: 3.6 },   // the gallery: the monitor wall along z0, the doors in from the back (z1)
+  PIT: -1.6,                                                // the pit's floor, in front of the tiers
+  TIERS: [[-8.6, -1.2], [-6.6, -0.8], [-4.6, -0.4]],        // each tier's front edge (z) and floor, front to back
+  REAR: -1.8,                                               // the top tier's back: a low partition, the walkway behind it (at 0)
+  AISLE: 5.9,                                               // the tiers are between ±AISLE; outside, stairs down either side
+  STEPS: [-2.2, -3.4, -4.6, -5.6, -6.6, -7.6, -8.6, -9.4], // the stairs' nosings (z), 0.2 m down each
+  LOCK: { x0: -5.9, x1: -3.3, z0: -0.2, z1: 2.0, h: 2.6, w: 1.6 },   // the sound lock, at the back's west corner: a vestibule, double doors each end
+  COR: { w: 1.8, h: 2.6 },                                  // the corridors: 1.8 m wide, their middle line:
+  ROUTE: [[-18.4, 8.0], [-18.4, 3.1], [24, 3.1], [24, 20], [40.9, 20]],   // from the stub by the sky door, along the back, round to the exit
+  SKYAT: { x: -19.3, z: 6.4 },                              // the door in the sky: its sill's middle, in the stub's west wall
+  FLAT: { x0: -14.9, x1: -7.9, z0: -2.8, z1: 2.0, h: 2.45, door: -11.1 },   // the flat, its door on the corridor
+  EXIT: { w: 1.0, h: 2.1, x: 38.8, z: 21.1 },               // the fire door onto B3, in the last leg's side, just short of its end
+  TC: { x: 0, z: -11.6, y: -1.6 },                          // the model table's middle, on the pit's floor
+  DIR: { x: 0, z: -3.9, y: -0.4 },                             // the director's console, at the top tier's middle
 };
+// How high the floor is at (x, z) (this side's own space): the tiers, the stairs, the pit; 0 everywhere else.
+export function floorAt(x, z) {
+  const { GAL, TIERS, AISLE, STEPS, PIT, REAR } = PLAN;
+  if (z >= REAR || z < GAL.z0 || Math.abs(x) > GAL.x1) return 0;
+  if (Math.abs(x) < AISLE) { for (let k = TIERS.length - 1; k >= 0; k--) if (z >= TIERS[k][0]) return TIERS[k][1]; return PIT; }
+  let y = 0;
+  for (const s of STEPS) if (z < s) y -= 0.2;
+  return Math.max(PIT, y);
+}
 
 // ----- where the exit is on B3: deep in, easy to miss, and always the same place -----
 // B3's layout is fixed by place (restricted.js h3), so walk it once from the lift (cells joined by anything but a solid
@@ -71,7 +91,7 @@ export function findExit(restr) {
 /** @param {any} ctx @param {any} edge */
 export function installBackstage(ctx, edge) {
   const { scene: office, camera, renderer, heli, roof, mine } = ctx;
-  const restr = ctx.restr, { T, GAL, COR, FLAT, EXIT, LONG } = PLAN, E = edge.E, sound = edge.sound;
+  const restr = ctx.restr, { T, GAL, PIT, TIERS, REAR, AISLE, STEPS, LOCK, COR, ROUTE, SKYAT, FLAT, EXIT } = PLAN, E = edge.E, sound = edge.sound;
   const S = new THREE.Scene(), root = new THREE.Group();
   S.background = new THREE.Color('#010101');
   S.environment = office.environment;
@@ -95,48 +115,147 @@ export function installBackstage(ctx, edge) {
     return { minX: Math.min(ax, bx), maxX: Math.max(ax, bx), minZ: Math.min(az, bz), maxZ: Math.max(az, bz) };
   };
   const place = (z) => { z0 = z; root.position.set(XD - (Q.x * cy + Q.z * sy), 0, ZF + z - (-Q.x * sy + Q.z * cy)); root.rotation.y = YAW; root.updateMatrixWorld(true); frames(); };
+  // B3's space to this side's own (the inverse of toB3)
+  const fromB3 = (x, z) => { const dx = x - XD, dz = z - ZF - z0; return [dx * cy - dz * sy + Q.x, dx * sy + dz * cy + Q.z]; };
 
   // ----- the rooms: concrete and paint, boxes merged by material -----
-  const lists = { conc: [], dark: [], flat: [], floorC: [], floorG: [], floorF: [], ceil: [], trim: [] };
+  const lists = { conc: [], dark: [], flat: [], floorC: [], floorG: [], floorF: [], ceil: [], trim: [], led: [] };
   const cols = [];   // this side's own space
-  // A wall from (x0, z0) to (x1, z1) (an axis-aligned box), y0..y1; solid to walk into if it starts at the floor.
+  // A wall from (x0, z0) to (x1, z1) (an axis-aligned box), y0..y1; solid to walk into if it starts at or under the floor.
   const wallBox = (list, x0, x1, za, zb, y0, y1, c) => {
     list.push([x1 - x0, y1 - y0, zb - za, (x0 + x1) / 2, (y0 + y1) / 2, (za + zb) / 2, c]);
     if (y0 <= 0.01) cols.push({ minX: x0, maxX: x1, minZ: za, maxZ: zb });
   };
-  // A wall with holes [a0, a1, top] along it (x for an east-west wall, z for a north-south one).
-  function wallWith(list, ns, fixed, a0, a1, h, holes, c) {
+  // A wall with holes [a0, a1, top] along it (z for a wall along z, ns; x for one along x), from y0 up to h.
+  function wallWith(list, ns, fixed, a0, a1, h, holes, c, y0 = 0) {
     let at = a0;
+    const piece = (b0, b1, ya, yb) => (ns ? wallBox(list, fixed - T / 2, fixed + T / 2, b0, b1, ya, yb, c) : wallBox(list, b0, b1, fixed - T / 2, fixed + T / 2, ya, yb, c));
     for (const [b0, b1, top] of [...holes].sort((p, q) => p[0] - q[0])) {
-      if (b0 > at) ns ? wallBox(list, fixed - T / 2, fixed + T / 2, at, b0, 0, h, c) : wallBox(list, at, b0, fixed - T / 2, fixed + T / 2, 0, h, c);
-      if (top < h) ns ? wallBox(list, fixed - T / 2, fixed + T / 2, b0, b1, top, h, c) : wallBox(list, b0, b1, fixed - T / 2, fixed + T / 2, top, h, c);
+      if (b0 > at) piece(at, b0, y0, h);
+      if (top < h) piece(b0, b1, top, h);
       at = b1;
     }
-    if (a1 > at) ns ? wallBox(list, fixed - T / 2, fixed + T / 2, at, a1, 0, h, c) : wallBox(list, at, a1, fixed - T / 2, fixed + T / 2, 0, h, c);
+    if (a1 > at) piece(at, a1, y0, h);
   }
-  const SKY = edge.DOOR;   // the door in the sky: its opening (0.92 x 2.07), in the corridor's west end
-  // the gallery: north wall with the exit, the corridor's opening in the west wall, a window over the set in the south wall
-  wallWith(lists.dark, false, GAL.z1 + T / 2, GAL.x0 - T, GAL.x1 + T, GAL.h, [[-LONG.w / 2, LONG.w / 2, 2.3]], '#2b2c2f');   // (the way out, at its back)
-  wallWith(lists.dark, true, GAL.x0 - T / 2, GAL.z0, GAL.z1, GAL.h, [[COR.z0, COR.z1, 2.6]], '#2b2c2f');
-  wallWith(lists.dark, true, GAL.x1 + T / 2, GAL.z0, GAL.z1, GAL.h, [], '#2b2c2f');
-  wallWith(lists.dark, false, GAL.z0 - T / 2, GAL.x0 - T, GAL.x1 + T, GAL.h, [[-4.5, 4.5, 2.75]], '#2b2c2f');
-  lists.dark.push([9, 1.0, T, 0, 0.5, GAL.z0 - T / 2, '#2b2c2f']);   // under the window
-  cols.push({ minX: -4.5, maxX: 4.5, minZ: GAL.z0 - T, maxZ: GAL.z0 });
-  // the corridor: the door in the sky at its west end, the flat's door in its south wall
-  wallWith(lists.conc, true, COR.x0 - T / 2, COR.z0 - T, COR.z1 + T, COR.h, [[-6.6 - SKY.w / 2, -6.6 + SKY.w / 2, SKY.h]], '#77746e');
-  wallWith(lists.conc, false, COR.z1 + T / 2, COR.x0 - T, COR.x1, COR.h, [], '#7a776f');
-  wallWith(lists.conc, false, COR.z0 - T / 2, COR.x0 - T, COR.x1, COR.h, [[FLAT.door - 0.45, FLAT.door + 0.45, 2.05]], '#7a776f');
+  const SKY = edge.DOOR;   // the door in the sky: its opening (0.92 x 2.07)
+
+  // ----- the gallery: the monitor wall at the front, the tiers, a window over the set in the east wall -----
+  const WIN = { z0: -14, z1: -6, y0: 0.9, y1: 2.5 };
+  wallBox(lists.dark, GAL.x0 - T, GAL.x1 + T, GAL.z0 - T, GAL.z0, PIT, GAL.h, '#2b2c2f');
+  wallBox(lists.dark, GAL.x0 - T, GAL.x0, GAL.z0, GAL.z1, PIT, GAL.h, '#2b2c2f');
+  wallBox(lists.dark, GAL.x1, GAL.x1 + T, GAL.z0, WIN.z0, PIT, GAL.h, '#2b2c2f');
+  wallBox(lists.dark, GAL.x1, GAL.x1 + T, WIN.z1, GAL.z1, PIT, GAL.h, '#2b2c2f');
+  wallBox(lists.dark, GAL.x1, GAL.x1 + T, WIN.z0, WIN.z1, PIT, WIN.y0, '#2b2c2f');
+  wallBox(lists.dark, GAL.x1, GAL.x1 + T, WIN.z0, WIN.z1, WIN.y1, GAL.h, '#2b2c2f');
+  const LX = (LOCK.x0 + LOCK.x1) / 2;
+  wallWith(lists.dark, false, GAL.z1 + T / 2, GAL.x0 - T, GAL.x1 + T, GAL.h, [[LX - LOCK.w / 2, LX + LOCK.w / 2, 2.2]], '#2b2c2f');   // the back, the sound lock's inner doors
+  // the floors: the pit, the tiers (their fronts are the risers), the stairs either side, the top and the walkway
+  const fl = (x0, x1, za, zb, y, c = '#151618') => lists.floorG.push([x1 - x0, y - PIT + 0.1, zb - za, (x0 + x1) / 2, (y + PIT - 0.1) / 2, (za + zb) / 2, c]);
+  fl(GAL.x0, GAL.x1, GAL.z0, TIERS[0][0], PIT);
+  TIERS.forEach(([zf, y], k) => fl(-AISLE, AISLE, zf, k < 2 ? TIERS[k + 1][0] : REAR, y, '#1b1c1f'));
+  fl(GAL.x0, GAL.x1, REAR, GAL.z1 + T, 0, '#1b1c1f');
+  for (const s of [-1, 1]) {
+    const xa = s > 0 ? AISLE : GAL.x0, xb = s > 0 ? GAL.x1 : -AISLE;
+    fl(xa, xb, STEPS[0], REAR, 0, '#222327');
+    STEPS.forEach((zs, k) => { if (k < STEPS.length - 1) fl(xa, xb, STEPS[k + 1], zs, -0.2 * (k + 1), '#222327'); });
+  }
+  for (const [zf] of TIERS) cols.push({ minX: -AISLE, maxX: AISLE, minZ: zf - 0.05, maxZ: zf + 0.05 });   // (the risers: a step up's a wall)
+  // the edges lit, as they are in the dark: each tier's nosing, each stair's
+  for (const [zf, y] of TIERS) lists.led.push([2 * AISLE, 0.012, 0.02, 0, y - 0.012, zf + 0.012]);
+  for (const s of [-1, 1]) STEPS.forEach((zs, k) => lists.led.push([GAL.x1 - AISLE - 0.1, 0.012, 0.02, s * (AISLE + GAL.x1) / 2, -0.2 * k - 0.012, zs + 0.012]));
+  // the low partition between the top tier and the walkway, a timber cap
+  wallBox(lists.dark, -AISLE, AISLE, REAR - 0.06, REAR + 0.06, TIERS[2][1], 1.0, '#26272a');
+  lists.trim.push([2 * AISLE + 0.04, 0.04, 0.2, 0, 1.02, REAR, '#4a3626']);
+  lists.ceil.push([GAL.x1 - GAL.x0 + 0.4, 0.1, GAL.z1 - GAL.z0 + 0.4, (GAL.x0 + GAL.x1) / 2, GAL.h + 0.05, (GAL.z0 + GAL.z1) / 2, '#0d0e10']);
+  // the sound lock: a little lobby between two sets of double doors, dark acoustic walls
+  wallBox(lists.dark, LOCK.x0 - T, LOCK.x0, LOCK.z0, LOCK.z1, 0, LOCK.h, '#2b2c2f');
+  wallBox(lists.dark, LOCK.x1, LOCK.x1 + T, LOCK.z0, LOCK.z1, 0, LOCK.h, '#2b2c2f');
+  lists.floorC.push([LOCK.x1 - LOCK.x0, 0.1, LOCK.z1 - LOCK.z0, LX, -0.05, (LOCK.z0 + LOCK.z1) / 2]);
+  lists.ceil.push([LOCK.x1 - LOCK.x0 + 0.4, 0.1, LOCK.z1 - LOCK.z0, LX, LOCK.h + 0.05, (LOCK.z0 + LOCK.z1) / 2, '#2a2b2e']);
   // the flat
   wallWith(lists.flat, true, FLAT.x0 - T / 2, FLAT.z0 - T, FLAT.z1, FLAT.h, [], '#8f8a6e');
   wallWith(lists.flat, true, FLAT.x1 + T / 2, FLAT.z0 - T, FLAT.z1, FLAT.h, [], '#8f8a6e');
   wallWith(lists.flat, false, FLAT.z0 - T / 2, FLAT.x0, FLAT.x1, FLAT.h, [], '#8f8a6e');
-  // floors and ceilings
-  lists.floorG.push([GAL.x1 - GAL.x0, 0.1, GAL.z1 - GAL.z0, (GAL.x0 + GAL.x1) / 2, -0.05, (GAL.z0 + GAL.z1) / 2]);
-  lists.floorC.push([COR.x1 - COR.x0 + 0.1, 0.1, COR.z1 - COR.z0, (COR.x0 + COR.x1) / 2, -0.05, (COR.z0 + COR.z1) / 2]);
   lists.floorF.push([FLAT.x1 - FLAT.x0, 0.1, FLAT.z1 - FLAT.z0 + 0.2, (FLAT.x0 + FLAT.x1) / 2, -0.05, (FLAT.z0 + FLAT.z1) / 2 + 0.1]);
-  lists.ceil.push([GAL.x1 - GAL.x0 + 0.4, 0.1, GAL.z1 - GAL.z0 + 0.4, (GAL.x0 + GAL.x1) / 2, GAL.h + 0.05, (GAL.z0 + GAL.z1) / 2, '#0d0e10'],
-    [COR.x1 - COR.x0 + 0.4, 0.1, COR.z1 - COR.z0 + 0.4, (COR.x0 + COR.x1) / 2, COR.h + 0.05, (COR.z0 + COR.z1) / 2, '#5f5d58'],
-    [FLAT.x1 - FLAT.x0 + 0.4, 0.1, FLAT.z1 - FLAT.z0 + 0.4, (FLAT.x0 + FLAT.x1) / 2, FLAT.h + 0.05, (FLAT.z0 + FLAT.z1) / 2, '#a19b86']);
+  lists.ceil.push([FLAT.x1 - FLAT.x0 + 0.4, 0.1, FLAT.z1 - FLAT.z0 + 0.4, (FLAT.x0 + FLAT.x1) / 2, FLAT.h + 0.05, (FLAT.z0 + FLAT.z1) / 2, '#a19b86']);
+
+  // ----- the corridors: one route, from the stub by the sky door along the gallery's back and round to the exit -----
+  // Its walls are its middle line offset either side (o > 0: to the left of the way along it, the +n side); the doors in
+  // them, by where they are. A cupboard off it.
+  const LW = COR.w / 2, RT = ROUTE, dirs = RT.slice(1).map((b, i) => [Math.sign(b[0] - RT[i][0]), Math.sign(b[1] - RT[i][1])]);
+  const nrm = (d) => [-d[1], d[0]];
+  const offsetLine = (o) => RT.map((p, i) => {
+    const n0 = nrm(dirs[Math.max(0, i - 1)]), n1 = nrm(dirs[Math.min(dirs.length - 1, i)]);
+    if (i === 0) return [p[0] + o * n1[0], p[1] + o * n1[1]];
+    if (i === RT.length - 1) return [p[0] + o * n0[0], p[1] + o * n0[1]];
+    return [p[0] + o * (n0[0] + n1[0]), p[1] + o * (n0[1] + n1[1])];
+  });
+  // The doors: in a wall along z (ns) or x, their middle at (x, z). kind: 'fire' (steel, wired glass, a push bar), 'wood',
+  // 'steel'; across a corridor (`across`: a frame and a transom, no wall); `pair` for double doors; locked ones rattle; auto
+  // ones swing open as you come up to them, and shut behind you.
+  const DOORS = [
+    { name: 'lockIn', x: LX, z: GAL.z1 + T / 2, ns: false, w: LOCK.w, h: 2.2, pair: true, kind: 'acoustic', auto: true, face: 1, title: 'Gallery 4', say: 'Swing doors: they open as you come to them' },
+    { name: 'lockOut', x: LX, z: 3.1 - LW - T / 2, ns: false, w: LOCK.w, h: 2.2, pair: true, kind: 'acoustic', auto: true, face: 1, title: 'Gallery 4', say: 'Swing doors: they open as you come to them' },
+    { name: 'fireW', x: -15.6, z: 3.1, ns: true, w: 1.6, pair: true, kind: 'fire', auto: true, across: true, title: 'Fire door', say: 'Fire door: keep shut' },
+    { name: 'fireE', x: 9.5, z: 3.1, ns: true, w: 1.6, pair: true, kind: 'fire', auto: true, across: true, title: 'Fire door', say: 'Fire door: keep shut' },
+    { name: 'fireS', x: 24, z: 12, ns: false, w: 1.6, pair: true, kind: 'fire', auto: true, across: true, title: 'Fire door', say: 'Fire door: keep shut' },
+    { name: 'wc', x: -1.6, z: 3.1 - LW - T / 2, ns: false, w: 0.85, kind: 'wood', locked: true, face: 1, title: 'WC', say: 'Engaged. Someone coughs.' },
+    { name: 'edit', x: 4.6, z: 3.1 - LW - T / 2, ns: false, w: 0.85, kind: 'wood', locked: true, face: 1, title: 'Edit 2', say: 'Locked. A red light over it: in session.' },
+    { name: 'store', x: -6.0, z: 3.1 + LW + T / 2, ns: false, w: 0.85, kind: 'wood', face: -1, title: 'Store', say: 'A store cupboard' },
+    { name: 'dock', x: -18.4, z: 8.0 + T / 2, ns: false, w: 1.3, kind: 'steel', locked: true, face: -1, title: 'Scene dock', say: 'Locked. Something big leans on it from the other side.' },
+    { name: 'riser', x: 24 + LW + T / 2, z: 7.5, ns: true, w: 0.8, kind: 'steel', locked: true, face: -1, title: 'Electrical riser', say: 'Locked. It hums.' },
+    { name: 'plant', x: 40.9 + T / 2, z: 20, ns: true, w: 1.2, kind: 'steel', locked: true, face: -1, title: 'Plant room', say: 'Locked. Authorised personnel only.' },
+  ];
+  const holes = [   // every opening in a corridor wall: the doors above, the flat's, and the two that go somewhere else
+    ...DOORS.filter((d) => !d.across), { x: FLAT.door, z: 3.1 - LW - T / 2, ns: false, w: 0.9, h: 2.05 },
+    { x: SKYAT.x - T / 2, z: SKYAT.z, ns: true, w: SKY.w, h: SKY.h }, { x: Q.x, z: Q.z - T / 2, ns: false, w: EXIT.w, h: EXIT.h },
+  ];
+  const holesOn = (ns, fixed, a0, a1) => holes.filter((d) => !!d.ns === ns && Math.abs((ns ? d.x : d.z) - fixed) < 0.15 && (ns ? d.z : d.x) > a0 && (ns ? d.z : d.x) < a1)
+    .map((d) => { const m = ns ? d.z : d.x; return [m - d.w / 2, m + d.w / 2, d.h ?? 2.1]; });
+  const corL = { walls: [], floor: [], ceil: [], fit: [], glow: [], pool: [], wet: [], pipe: [] };
+  for (const s of [1, -1]) {
+    const pts = offsetLine(s * (LW + T / 2));
+    for (let i = 0; i < pts.length - 1; i++) {
+      const [a, b] = [pts[i], pts[i + 1]], ns = Math.abs(a[0] - b[0]) < 1e-6, fixed = ns ? a[0] : a[1];
+      const a0 = Math.min(ns ? a[1] : a[0], ns ? b[1] : b[0]) - T / 2, a1 = Math.max(ns ? a[1] : a[0], ns ? b[1] : b[0]) + T / 2;
+      wallWith(corL.walls, ns, fixed, a0, a1, COR.h, holesOn(ns, fixed, a0, a1), s > 0 ? '#77746e' : '#7a776f');
+    }
+  }
+  {   // the two ends
+    const [p0, p1] = [RT[0], RT[RT.length - 1]];
+    wallWith(corL.walls, false, p0[1] + T / 2, p0[0] - LW - T, p0[0] + LW + T, COR.h, holesOn(false, p0[1] + T / 2, -1e9, 1e9), '#77746e');
+    wallWith(corL.walls, true, p1[0] + T / 2, p1[1] - LW - T, p1[1] + LW + T, COR.h, holesOn(true, p1[0] + T / 2, -1e9, 1e9), '#77746e');
+  }
+  const rects = [];   // the corridors' floor, each leg to the corners
+  for (let i = 0; i < dirs.length; i++) {
+    const a = RT[i], b = RT[i + 1], ea = i > 0 ? LW : 0, eb = i < dirs.length - 1 ? LW : 0, d = dirs[i];
+    const xa = a[0] - d[0] * ea, za = a[1] - d[1] * ea, xb = b[0] + d[0] * eb, zb = b[1] + d[1] * eb;
+    rects.push([Math.min(xa, xb) - (d[0] ? 0 : LW), Math.max(xa, xb) + (d[0] ? 0 : LW), Math.min(za, zb) - (d[1] ? 0 : LW), Math.max(za, zb) + (d[1] ? 0 : LW)]);
+  }
+  for (const [x0, x1, za, zb] of rects) {
+    corL.floor.push([x1 - x0, 0.1, zb - za, (x0 + x1) / 2, -0.05, (za + zb) / 2]);
+    corL.ceil.push([x1 - x0 + 0.4, 0.1, zb - za + 0.4, (x0 + x1) / 2, COR.h + 0.05, (za + zb) / 2, '#5f5d58']);
+  }
+  // the store: a cupboard off the corridor, shelves of tape boxes and gaffer, a mop in a bucket
+  const ST = { x0: -6.9, x1: -5.1, z0: 3.1 + LW + T, z1: 5.5 };
+  wallWith(corL.walls, true, ST.x0 - T / 2, ST.z0, ST.z1 + T, COR.h, [], '#8a877f');
+  wallWith(corL.walls, true, ST.x1 + T / 2, ST.z0, ST.z1 + T, COR.h, [], '#8a877f');
+  wallWith(corL.walls, false, ST.z1 + T / 2, ST.x0 - T, ST.x1 + T, COR.h, [], '#8a877f');
+  corL.floor.push([ST.x1 - ST.x0, 0.1, ST.z1 - ST.z0, (ST.x0 + ST.x1) / 2, -0.05, (ST.z0 + ST.z1) / 2]);
+  corL.ceil.push([ST.x1 - ST.x0 + 0.4, 0.1, ST.z1 - ST.z0 + 0.4, (ST.x0 + ST.x1) / 2, COR.h + 0.05, (ST.z0 + ST.z1) / 2, '#6a6862']);
+  {
+    const sh = [];
+    for (const y of [0.35, 0.85, 1.35, 1.85]) {
+      sh.push([0.4, 0.03, ST.z1 - ST.z0 - 0.1, ST.x0 + 0.22, y, (ST.z0 + ST.z1) / 2 + 0.03, '#7b6a50'], [0.4, 0.03, ST.z1 - ST.z0 - 0.1, ST.x1 - 0.22, y, (ST.z0 + ST.z1) / 2 + 0.03, '#7b6a50']);
+      for (let k = 0; k < 5; k++) for (const sx of [ST.x0 + 0.22, ST.x1 - 0.22]) if (Math.random() < 0.75) {
+        const w = 0.18 + Math.random() * 0.14, h = 0.12 + Math.random() * 0.25;
+        sh.push([0.3, h, w, sx, y + 0.015 + h / 2, ST.z0 + 0.25 + k * 0.33, ['#2a2b2e', '#6b5a42', '#1c3b6e', '#c9c3b2', '#3a3a3a'][(Math.random() * 5) | 0]]);
+      }
+    }
+    sh.push([0.3, 0.28, 0.3, (ST.x0 + ST.x1) / 2, 0.14, ST.z1 - 0.3, '#c8a21a'], [0.025, 1.2, 0.025, (ST.x0 + ST.x1) / 2 + 0.05, 0.75, ST.z1 - 0.28, '#8a6a40']);   // the bucket, the mop
+    corL.fit.push(...sh);
+    cols.push({ minX: ST.x0, maxX: ST.x0 + 0.45, minZ: ST.z0, maxZ: ST.z1 }, { minX: ST.x1 - 0.45, maxX: ST.x1, minZ: ST.z0, maxZ: ST.z1 });
+  }
 
   // Textures: concrete (a soft mottle), the gallery's acoustic slats, the flat's tired wallpaper and carpet, painted floors.
   const R = Math.random;
@@ -154,147 +273,216 @@ export function installBackstage(ctx, edge) {
   const floorT = tex(512, 512, (c, w, h) => { mottle(c, w, h, '#fff', 700, 0.06); }, 4);
   const M = (o) => new THREE.MeshStandardMaterial({ roughness: 0.9, ...o });
   const concM = M({ vertexColors: true, map: concT }), darkM = M({ vertexColors: true, map: slatT, roughness: 0.95 }), flatM = M({ vertexColors: true, map: paperT });
+  const LIT = new THREE.Color('#eef4ff').multiplyScalar(2.2);
   const meshes = [
-    mergedBoxes(lists.conc, concM), mergedBoxes(lists.dark, darkM), mergedBoxes(lists.flat, flatM),
-    mergedBoxes(lists.floorC, M({ color: '#4a4b4d', map: floorT, roughness: 0.75 })), mergedBoxes(lists.floorG, M({ color: '#151618', map: floorT, roughness: 0.6, metalness: 0.2 })),
+    mergedBoxes(lists.dark, darkM), mergedBoxes(lists.flat, flatM),
+    mergedBoxes(lists.floorC, M({ color: '#4a4b4d', map: floorT, roughness: 0.75 })), mergedBoxes(lists.floorG, M({ vertexColors: true, map: floorT, roughness: 0.6, metalness: 0.2 })),
     mergedBoxes(lists.floorF, M({ color: '#5b4a3a', map: carpetT, roughness: 1 })), mergedBoxes(lists.ceil, M({ vertexColors: true })),
+    mergedBoxes(lists.trim, M({ vertexColors: true, roughness: 0.5 })), mergedBoxes(lists.led, new THREE.MeshBasicMaterial({ color: new THREE.Color(0.35, 0.55, 1.0) })),
   ];
   for (const m of meshes) { m.castShadow = false; root.add(m); }
 
-  // ----- the corridor's fittings: strip lights, cable trays, an extinguisher, stencils -----
-  const LIT = new THREE.Color('#eef4ff').multiplyScalar(2.2);
-  const fit = [], glow = [];
-  for (let x = COR.x0 + 1.6; x < COR.x1; x += 3.2) {
-    fit.push([0.08, 0.05, 1.3, x, COR.h - 0.03, -6.6, '#8c8f93']);
-    glow.push([0.05, 0.02, 1.22, x, COR.h - 0.065, -6.6]);
-  }
-  for (let x = COR.x0 + 0.2; x < COR.x1; x += 2.4) fit.push([2.3, 0.02, 0.32, x + 1.15, COR.h - 0.32, COR.z1 - 0.2, '#6d7175']);   // the tray
-  for (let x = COR.x0 + 0.5; x < COR.x1; x += 1.2) fit.push([0.03, 0.3, 0.03, x, COR.h - 0.17, COR.z1 - 0.04, '#5d6165']);       // its hangers
-  for (let k = 0; k < 7; k++) fit.push([COR.x1 - COR.x0 - 0.3, 0.035, 0.035, (COR.x0 + COR.x1) / 2, COR.h - 0.29, COR.z1 - 0.08 - k * 0.04, ['#1d1f22', '#2c2f33', '#7a2a24', '#1d1f22', '#2a4a7a', '#1d1f22', '#d8c24a'][k]]);
-  fit.push([COR.x1 - COR.x0, 0.12, 0.012, (COR.x0 + COR.x1) / 2, 0.06, COR.z1 - 0.006, '#2a2b2d'], [COR.x1 - COR.x0, 0.12, 0.012, (COR.x0 + COR.x1) / 2, 0.06, COR.z0 + 0.006, '#2a2b2d']);   // kick plates
-  // the extinguisher on its bracket, its sign above
-  const ext = new THREE.Group(); ext.position.set(-12.8, 0, COR.z1 - 0.12); root.add(ext);
   const red = M({ color: '#a8231c', roughness: 0.45 }), black = M({ color: '#151515', roughness: 0.6 });
   const cyl = (g, r, h, m, x, y, z) => { const o = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 18), m); o.position.set(x, y, z); g.add(o); return o; };
-  cyl(ext, 0.085, 0.5, red, 0, 0.62, 0); cyl(ext, 0.05, 0.05, black, 0, 0.9, 0); cyl(ext, 0.012, 0.12, black, 0.05, 0.93, 0).rotation.z = 1.2;
-  fit.push([0.2, 0.04, 0.06, -12.8, 0.42, COR.z1 - 0.06, '#3a3c3f']);
-  const tubes = mergedBoxes(fit, M({ vertexColors: true, roughness: 0.6, metalness: 0.3 })), tubeGlow = mergedBoxes(glow, new THREE.MeshBasicMaterial({ color: LIT }));
-  root.add(tubes, tubeGlow);
-  const decal = (w, h, draw, x, y, z, ry) => {
+  const decal = (w, h, draw, x, y, z, ry, parent = root) => {
     const c = makeCanvas(Math.round(w * 400), Math.round(h * 400)); draw(c.ctx, c.W, c.H); c.tex.needsUpdate = true;
     const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: c.tex, transparent: true, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -2 }));
-    m.position.set(x, y, z); m.rotation.y = ry; root.add(m); return m;
+    m.position.set(x, y, z); m.rotation.y = ry; parent.add(m); return m;
   };
   const stencil = (c, txt, size, col) => {
     c.font = `800 ${size}px "Arial Black", Impact, ${FONT}`; c.fillStyle = col; c.textBaseline = 'middle'; c.fillText(txt, 8, c.canvas.height / 2);
     c.globalCompositeOperation = 'destination-out'; for (let k = 0; k < 900; k++) { c.fillStyle = `rgba(0,0,0,${R() * 0.5})`; c.fillRect(R() * c.canvas.width, R() * c.canvas.height, 2, 2); }
     c.globalCompositeOperation = 'source-over';
   };
-  decal(1.6, 0.5, (c) => stencil(c, 'STAGE 4', 150, 'rgba(232,226,210,.9)'), -16.0, 1.75, COR.z1 - 0.002, Math.PI);
-  decal(1.4, 0.3, (c) => stencil(c, 'GALLERY →', 92, 'rgba(232,226,210,.8)'), -8.6, 1.55, COR.z1 - 0.002, Math.PI);
-  decal(0.26, 0.26, (c, w, h) => { c.fillStyle = '#b2241b'; c.fillRect(0, 0, w, h); c.fillStyle = '#fff'; c.font = `700 ${w * 0.14}px ${FONT}`; c.textAlign = 'center'; c.fillText('FIRE', w / 2, h * 0.42); c.fillText('EXTINGUISHER', w / 2, h * 0.62); },
-    -12.8, 1.4, COR.z1 - 0.003, Math.PI);
-  // a red lamp by the gallery's way in: on while it's live (it always is)
-  const onAir = decal(0.44, 0.16, (c, w, h) => { c.fillStyle = '#1a0605'; c.fillRect(0, 0, w, h); c.fillStyle = '#ff3a2a'; c.font = `800 ${h * 0.62}px ${FONT}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('ON AIR', w / 2, h / 2 + 3); },
-    -6.95, 2.35, COR.z1 - 0.012, Math.PI);
-  onAir.material = new THREE.MeshBasicMaterial({ map: onAir.material.map, color: new THREE.Color(1.3, 1.3, 1.3) });
-
   const point = (c, i, d, x, y, z) => { const l = new THREE.PointLight(c, i, d, 1.6); l.position.set(x, y, z); root.add(l); return l; };
-  // ----- the long corridor out: from the gallery's back to the exit, bare concrete, two turns -----
-  const LW = LONG.w / 2, [, [, zA], [xB]] = LONG.path, zEnd = Q.z - T;   // (the path: north from the gallery, east, north to the exit)
-  const longL = { walls: [], floor: [], ceil: [], fit: [], glow: [], pool: [], pipe: [], wet: [] };
-  wallWith(longL.walls, true, -LW - T / 2, GAL.z1 + T, zA + LW + T, LONG.h, [], '#77746e');
-  wallWith(longL.walls, true, LW + T / 2, GAL.z1 + T, zA - LW, LONG.h, [], '#7a776f');
-  wallWith(longL.walls, false, zA + LW + T / 2, -LW - T, xB - LW, LONG.h, [], '#77746e');
-  wallWith(longL.walls, false, zA - LW - T / 2, LW, xB + LW + T, LONG.h, [], '#7a776f');
-  wallWith(longL.walls, true, xB - LW - T / 2, zA + LW, zEnd, LONG.h, [], '#7a776f');
-  wallWith(longL.walls, true, xB + LW + T / 2, zA - LW - T, zEnd, LONG.h, [], '#77746e');
-  wallWith(longL.walls, false, Q.z - T / 2, xB - LW - T, xB + LW + T, LONG.h, [[Q.x - EXIT.w / 2, Q.x + EXIT.w / 2, EXIT.h]], '#77746e');
-  const rects = [[-LW, LW, GAL.z1, zA + LW], [LW, xB + LW, zA - LW, zA + LW], [xB - LW, xB + LW, zA + LW, zEnd]];
-  for (const [x0, x1, za, zb] of rects) {
-    longL.floor.push([x1 - x0, 0.1, zb - za, (x0 + x1) / 2, -0.05, (za + zb) / 2]);
-    longL.ceil.push([x1 - x0 + 0.4, 0.1, zb - za + 0.4, (x0 + x1) / 2, LONG.h + 0.05, (za + zb) / 2, '#5f5d58']);
+
+  // ----- the corridors' fittings: every run along a wall, round the corners with an elbow, above your head -----
+  // A run o to the left of the route's middle line (its wall side), at height y: round (pipes, conduit: straight lengths
+  // and a bend at each corner) or flat (the tray, its cables: lengths meeting square at the corners).
+  const tint = (g, c) => { const col = new THREE.Color(c), n = g.attributes.position.count, a = new Float32Array(n * 3); for (let i = 0; i < n; i++) col.toArray(a, i * 3); g.setAttribute('color', new THREE.BufferAttribute(a, 3)); return g; };
+  const pipeGeos = [];
+  function roundRun(o, y, r, c, bend = 0.3) {
+    const pts = offsetLine(o).map(([x, z]) => new THREE.Vector3(x, y, z));
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i], b = pts[i + 1], d = b.clone().sub(a), len = d.length(); d.normalize();
+      const s0 = i > 0 ? bend : 0, s1 = i < pts.length - 2 ? bend : 0, l = len - s0 - s1;
+      const g = new THREE.CylinderGeometry(r, r, l, 10, 1, true);
+      g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d));
+      const m = a.clone().addScaledVector(d, s0 + l / 2); g.translate(m.x, m.y, m.z);
+      pipeGeos.push(tint(g, c));
+      if (i < pts.length - 2) {   // the elbow round the next corner
+        const dn = pts[i + 2].clone().sub(b).normalize();
+        const curve = new THREE.QuadraticBezierCurve3(b.clone().addScaledVector(d, -bend), b.clone(), b.clone().addScaledVector(dn, bend));
+        pipeGeos.push(tint(new THREE.TubeGeometry(curve, 8, r, 10, false), c));
+        pipeGeos.push(tint(new THREE.CylinderGeometry(r * 1.25, r * 1.25, 0.05, 10).applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d)).translate(...b.clone().addScaledVector(d, -bend).toArray()), c));   // its collars
+        pipeGeos.push(tint(new THREE.CylinderGeometry(r * 1.25, r * 1.25, 0.05, 10).applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dn)).translate(...b.clone().addScaledVector(dn, bend).toArray()), c));
+      }
+    }
   }
-  // Along each leg (a straight run from a to b, `side` the wall to the right as you walk out): tubes every 4 m down the
-  // middle (every fifth dead, one flickering), a cable tray and its cables on one wall, two pipes and a conduit on the other.
-  const legs = [[[0, GAL.z1 + 0.4], [0, zA]], [[0, zA], [xB, zA]], [[xB, zA], [xB, zEnd - 0.3]]];
+  function flatRun(o, y, w, h, c, list = corL.fit) {
+    const pts = offsetLine(o);
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i], b = pts[i + 1], ns = Math.abs(a[0] - b[0]) < 1e-6, e0 = i > 0 ? w / 2 : 0, e1 = i < pts.length - 2 ? w / 2 : 0;
+      const lo = Math.min(ns ? a[1] : a[0], ns ? b[1] : b[0]), hi = Math.max(ns ? a[1] : a[0], ns ? b[1] : b[0]);
+      const sa = (ns ? a[1] < b[1] : a[0] < b[0]) ? e0 : e1, sb = sa === e0 ? e1 : e0, l = hi - lo + sa + sb, mid = (lo - sa + hi + sb) / 2;
+      list.push(ns ? [w, h, l, a[0], y, mid, c] : [l, h, w, mid, y, a[1], c]);
+    }
+  }
+  const TRAY = COR.h - 0.18;
+  flatRun(LW - 0.2, TRAY, 0.32, 0.02, '#6d7175');   // the tray along the left-hand wall, its cables on it
+  ['#1d1f22', '#2c2f33', '#7a2a24', '#1d1f22', '#2a4a7a', '#d8c24a'].forEach((c, k) => flatRun(LW - 0.08 - k * 0.045, TRAY + 0.028, 0.035, 0.035, c));
+  roundRun(-(LW - 0.1), COR.h - 0.13, 0.055, '#4f5357');   // two pipes along the right-hand wall, lagged and bare
+  roundRun(-(LW - 0.27), COR.h - 0.12, 0.035, '#8a7a5a');
+  roundRun(-(LW - 0.02), COR.h - 0.04, 0.0125, '#9a9ea2', 0.15);   // and a conduit, tucked up in the wall's top corner
+  {   // the tray's hangers, the pipes' clips: every so often along each leg
+    for (const [o, y, h, c] of [[LW - 0.2, COR.h - 0.09, 0.18, '#5d6165'], [-(LW - 0.1), COR.h - 0.035, 0.07, '#3d4044'], [-(LW - 0.27), COR.h - 0.04, 0.08, '#3d4044']]) {
+      const pts = offsetLine(o);
+      for (let i = 0; i < dirs.length; i++) {
+        const d = dirs[i], len = Math.abs(pts[i + 1][0] - pts[i][0]) + Math.abs(pts[i + 1][1] - pts[i][1]);
+        for (let u = 0.6; u < len - 0.4; u += 1.2) corL.fit.push([0.025, h, 0.025, pts[i][0] + d[0] * u, y, pts[i][1] + d[1] * u, c]);
+      }
+    }
+  }
+  // the strip lights: down the middle every 4 m (every fifth dead, one that flickers), not where a door hangs across
   let tube = 0;
   const flick = { glow: [], pool: [] };
-  let longFlicker = (t) => {};
-  for (const [a, b] of legs) {
-    const dx = Math.sign(b[0] - a[0]), dz = Math.sign(b[1] - a[1]), len = Math.abs(b[0] - a[0]) + Math.abs(b[1] - a[1]);
-    const rx = -dz, rz = dx, along = (d, o, y, w, h, l, c, list = longL.fit) => {   // a box d along the leg, o to the right
-      const x = a[0] + dx * d + rx * o, z = a[1] + dz * d + rz * o;
-      list.push(c ? [dx ? l : w, h, dx ? w : l, x, y, z, c] : [dx ? l : w, h, dx ? w : l, x, y, z]);
-    };
-    for (let d = 2; d < len - 0.5; d += 4, tube++) {
-      const dead = tube % 5 === 3, flicker = tube === 6;
-      along(d, 0, LONG.h - 0.03, 0.09, 0.05, 1.3, '#8c8f93');
-      if (!dead) {
-        along(d, 0, LONG.h - 0.065, 0.05, 0.02, 1.22, null, flicker ? flick.glow : longL.glow);
-        along(d, 0, 0.004, 2.2, 0.002, 3.4, null, flicker ? flick.pool : longL.pool);
-      } else along(d, 0, LONG.h - 0.065, 0.05, 0.02, 1.22, '#3a3c3e');   // a dead tube, grey
+  const across = DOORS.filter((d) => d.across);
+  for (let i = 0; i < dirs.length; i++) {
+    const a = RT[i], d = dirs[i], len = Math.abs(RT[i + 1][0] - a[0]) + Math.abs(RT[i + 1][1] - a[1]);
+    for (let u = 2; u < len - 0.5; u += 4) {
+      const x = a[0] + d[0] * u, z = a[1] + d[1] * u;
+      if (across.some((q) => Math.hypot(q.x - x, q.z - z) < 1)) continue;
+      const dead = tube % 5 === 3, flicker = tube === 7, w = d[0] ? [1.3, 0.09] : [0.09, 1.3];
+      tube++;
+      corL.fit.push([w[0], 0.05, w[1], x, COR.h - 0.03, z, '#8c8f93']);
+      if (dead) { corL.fit.push([w[0] * 0.94, 0.02, w[1] * 0.94, x, COR.h - 0.065, z, '#3a3c3e']); continue; }
+      (flicker ? flick.glow : corL.glow).push([w[0] * 0.94, 0.02, w[1] * 0.94, x, COR.h - 0.065, z]);
+      (flicker ? flick.pool : corL.pool).push([d[0] ? 3.4 : 1.7, 0.002, d[0] ? 1.7 : 3.4, x, 0.004, z]);
     }
-    for (let d = 0.3; d < len; d += 2.4) along(Math.min(d + 1.15, len - 1.2), LW - 0.2, LONG.h - 0.32, 0.32, 0.02, 2.3, '#6d7175');   // the tray
-    for (let k = 0; k < 6; k++) along(len / 2, LW - 0.08 - k * 0.045, LONG.h - 0.29, 0.035, 0.035, len, ['#1d1f22', '#2c2f33', '#7a2a24', '#1d1f22', '#2a4a7a', '#d8c24a'][k]);
-    along(len / 2, -LW + 0.12, LONG.h - 0.14, 0.11, 0.11, len, '#4f5357', longL.pipe);   // pipes, lagged and bare
-    along(len / 2, -LW + 0.28, LONG.h - 0.12, 0.07, 0.07, len, '#8a7a5a', longL.pipe);
-    along(len / 2, -LW + 0.02, 1.25, 0.025, 0.025, len, '#9a9ea2');   // conduit at hand height
-    for (let d = 3; d < len - 1; d += 6) along(d, -LW + 0.04, 1.25, 0.06, 0.12, 0.12, '#9a9ea2');   // and its boxes
-    along(len / 2, LW - 0.006, 0.06, 0.012, 0.12, len, '#2a2b2d'); along(len / 2, -LW + 0.006, 0.06, 0.012, 0.12, len, '#2a2b2d');   // kick plates
-    along(len * 0.55, -LW + 0.02, 2.0, 0.04, 0.32, 0.6, '#3d4044');   // a vent grille
-    for (let k = 0; k < 5; k++) along(len * 0.55, -LW + 0.05, 1.88 + k * 0.06, 0.02, 0.012, 0.56, '#1a1b1d');
   }
-  // puddles under a leaking joint or two
-  for (const [x, z, r, sx] of [[0.3, 6.5, 0.55, 1.6], [-0.2, 12.2, 0.35, 1.2], [9.5, zA + 0.2, 0.7, 1.9], [14.2, zA - 0.3, 0.3, 1], [xB + 0.2, 24, 0.5, 1.5], [xB - 0.3, 30.5, 0.4, 2.1]]) {
+  // vents, low on the walls here and there; puddles under a leaking joint or two
+  for (const [x, z, ns] of [[-18.4 + LW - 0.02, 5.0, true], [-9.0, 3.1 + LW - 0.02, false], [14.5, 3.1 + LW - 0.02, false], [24 - LW + 0.02, 16.5, true], [31, 20 - LW + 0.02, false]]) {
+    corL.fit.push(ns ? [0.04, 0.32, 0.6, x, 0.35, z, '#3d4044'] : [0.6, 0.32, 0.04, x, 0.35, z, '#3d4044']);
+    for (let k = 0; k < 5; k++) corL.fit.push(ns ? [0.05, 0.012, 0.56, x, 0.23 + k * 0.06, z, '#1a1b1d'] : [0.56, 0.012, 0.05, x, 0.23 + k * 0.06, z, '#1a1b1d']);
+  }
+  for (const [x, z, r, sx] of [[-12.5, 3.3, 0.5, 1.7], [3.0, 2.8, 0.35, 1.2], [13.2, 3.3, 0.6, 1.9], [24.2, 6.5, 0.45, 1.5], [23.8, 15.5, 0.3, 1], [29.5, 20.2, 0.55, 2.0], [36.2, 19.8, 0.35, 1.4]]) {
     const g = new THREE.CircleGeometry(r, 18), pp = g.attributes.position;
     for (let i = 1; i < pp.count; i++) { const k = 0.75 + R() * 0.45; pp.setXY(i, pp.getX(i) * k * sx, pp.getY(i) * k); }
-    longL.wet.push(g.rotateX(-Math.PI / 2).translate(x, 0.006, z));
+    corL.wet.push(g.rotateX(-Math.PI / 2).translate(x, 0.006, z));
   }
+  let corFlicker = (t) => {};
   {
-    const vM = M({ vertexColors: true, map: concT });
-    const parts = [mergedBoxes(longL.walls, vM), mergedBoxes(longL.floor, M({ color: '#4a4b4d', map: floorT, roughness: 0.75 })), mergedBoxes(longL.ceil, M({ vertexColors: true })),
-      mergedBoxes(longL.fit, M({ vertexColors: true, roughness: 0.6, metalness: 0.3 })), mergedBoxes(longL.pipe, M({ vertexColors: true, roughness: 0.5, metalness: 0.5 }))];
+    const parts = [mergedBoxes(corL.walls, concM), mergedBoxes(corL.floor, M({ color: '#4a4b4d', map: floorT, roughness: 0.75 })), mergedBoxes(corL.ceil, M({ vertexColors: true })),
+      mergedBoxes(corL.fit, M({ vertexColors: true, roughness: 0.6, metalness: 0.3 })), new THREE.Mesh(mergeGeometries(pipeGeos), M({ vertexColors: true, roughness: 0.5, metalness: 0.5 }))];
     for (const m of parts) { m.castShadow = false; root.add(m); }
-    root.add(mergedBoxes(longL.glow, new THREE.MeshBasicMaterial({ color: LIT })));
+    root.add(mergedBoxes(corL.glow, new THREE.MeshBasicMaterial({ color: LIT })));
     // the light each tube throws on the floor, and the wet
     const poolT = tex(128, 128, (c, w, h) => { const g = c.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2); g.addColorStop(0, 'rgba(255,255,255,.55)'); g.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = g; c.fillRect(0, 0, w, h); });
     const poolM = new THREE.MeshBasicMaterial({ map: poolT, color: new THREE.Color('#cfdcff').multiplyScalar(0.25), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
-    const pools = mergedBoxes(longL.pool, poolM); pools.layers.set(1); root.add(pools);
+    const pools = mergedBoxes(corL.pool, poolM); pools.layers.set(1); root.add(pools);
     const wetM = M({ color: '#08090a', roughness: 0.3, metalness: 0, envMapIntensity: 0.04, polygonOffset: true, polygonOffsetFactor: -2 });
-    root.add(new THREE.Mesh(mergeGeometries(longL.wet), wetM));
+    root.add(new THREE.Mesh(mergeGeometries(corL.wet), wetM));
     // the one that flickers
     const fG = mergedBoxes(flick.glow, new THREE.MeshBasicMaterial({ color: LIT })), fP = mergedBoxes(flick.pool, poolM.clone()); fP.layers.set(1);
     root.add(fG, fP);
-    const fl = new THREE.PointLight('#e6eeff', 2.2, 9, 1.6); fl.position.copy(new THREE.Box3().setFromObject(fG).getCenter(new THREE.Vector3())).setY(LONG.h - 0.3); root.add(fl);
-    longFlicker = (t) => {
+    const fl2 = new THREE.PointLight('#e6eeff', 2.2, 9, 1.6); fl2.position.copy(new THREE.Box3().setFromObject(fG).getCenter(new THREE.Vector3())).setY(COR.h - 0.3); root.add(fl2);
+    corFlicker = (t) => {
       const on = Math.sin(t * 13.1) + Math.sin(t * 31.7) * 0.6 + Math.sin(t * 2.3) > 0.4 || (t % 7) < 3.5;
-      fG.material.color.copy(LIT).multiplyScalar(on ? 1 : 0.08); fP.visible = on; fl.intensity = on ? 2.2 : 0.05;
+      fG.material.color.copy(LIT).multiplyScalar(on ? 1 : 0.08); fP.visible = on; fl2.intensity = on ? 2.2 : 0.05;
     };
   }
-  // the light: a tube's worth over each leg's other half, and the gallery's blue glow at its far end
-  point('#e6eeff', 3.4, 11, 0, LONG.h - 0.3, 5); point('#e6eeff', 3.0, 11, 7, LONG.h - 0.3, zA); point('#e6eeff', 3.2, 11, xB, LONG.h - 0.3, 27);
-  point('#7f9cff', 1.6, 7, 0, 2, GAL.z1 + 1.2);
-  // two extinguishers, stencils
-  for (const [x, z, ry] of [[-LW + 0.12, 9, Math.PI / 2], [xB + LW - 0.12, 20.5, -Math.PI / 2]]) {
+  // the light: a tube's worth here and there (the rest only glow), the sound lock's, and the gallery's blue at its doors
+  for (const [x, z] of [[-18.4, 5.4], [-12, 3.1], [2, 3.1], [16, 3.1], [24, 8], [24, 19.2], [37.4, 20]]) point('#e6eeff', 3.2, 11, x, COR.h - 0.3, z);
+  point('#7f9cff', 1.2, 5, LX, 2.2, 0.9);
+  // the gallery's own: dim downlights over the tiers and the walkway (the wall's glow and the desks' screens do the rest)
+  for (const [z, i, tz] of [[-6.4, 36, -7.4], [-1.6, 12, -2.6]]) {
+    const l = new THREE.SpotLight('#c9d6ff', i, 10, 1.15, 0.8, 1.4); l.position.set(0, GAL.h - 0.1, z); l.target.position.set(0, -1, tz); root.add(l, l.target);
+  }
+  // extinguishers on their brackets, their signs; stencils
+  for (const [x, z, ry] of [[-14.2, 3.1 + LW - 0.12, Math.PI], [7.4, 3.1 + LW - 0.12, Math.PI], [24 - LW + 0.12, 14.2, Math.PI / 2], [39.8, 20 - LW + 0.12, 0]]) {
     const e2 = new THREE.Group(); e2.position.set(x, 0, z); e2.rotation.y = ry; root.add(e2);
     cyl(e2, 0.085, 0.5, red, 0, 0.62, 0); cyl(e2, 0.05, 0.05, black, 0, 0.9, 0); cyl(e2, 0.012, 0.12, black, 0.05, 0.93, 0).rotation.z = 1.2;
     decal(0.26, 0.26, (c, w, h) => { c.fillStyle = '#b2241b'; c.fillRect(0, 0, w, h); c.fillStyle = '#fff'; c.font = `700 ${w * 0.14}px ${FONT}`; c.textAlign = 'center'; c.fillText('FIRE', w / 2, h * 0.42); c.fillText('EXTINGUISHER', w / 2, h * 0.62); },
-      x + (ry > 0 ? -0.1 : 0.1), 1.4, z, ry);
+      0, 1.4, -0.1, 0, e2);
   }
-  decal(1.6, 0.5, (c) => stencil(c, 'STAGE 4', 150, 'rgba(232,226,210,.9)'), 9, 1.7, zA + LW - 0.003, Math.PI);
-  decal(1.4, 0.3, (c) => stencil(c, 'EXIT →', 92, 'rgba(232,226,210,.8)'), 4.2, 1.5, zA + LW - 0.003, Math.PI);
-  decal(1.5, 0.3, (c) => stencil(c, '← GALLERY', 92, 'rgba(232,226,210,.8)'), xB + LW - 0.003, 1.5, 22, -Math.PI / 2);
-  decal(1.2, 0.42, (c) => stencil(c, 'S4-B', 130, 'rgba(232,226,210,.75)'), -LW + 0.003, 1.8, 3.5, Math.PI / 2);
+  decal(1.6, 0.5, (c) => stencil(c, 'STAGE 4', 150, 'rgba(232,226,210,.9)'), 0.2, 1.75, 3.1 + LW - 0.003, Math.PI);
+  decal(1.5, 0.3, (c) => stencil(c, '← STAGE DOOR', 86, 'rgba(232,226,210,.8)'), -8.6, 1.5, 3.1 + LW - 0.003, Math.PI);
+  decal(1.7, 0.3, (c) => stencil(c, 'LOADING BAY →', 86, 'rgba(232,226,210,.8)'), 12.4, 1.5, 3.1 + LW - 0.003, Math.PI);
+  decal(1.5, 0.3, (c) => stencil(c, '← GALLERY', 92, 'rgba(232,226,210,.8)'), 24 + LW - 0.003, 1.5, 15, -Math.PI / 2);
+  decal(1.2, 0.42, (c) => stencil(c, 'S4-B', 130, 'rgba(232,226,210,.75)'), 24 - LW + 0.003, 1.8, 5.2, Math.PI / 2);
+  decal(1.2, 0.42, (c) => stencil(c, 'S4-A', 130, 'rgba(232,226,210,.75)'), -18.4 + LW - 0.003, 1.8, SKYAT.z + 0.3, -Math.PI / 2);   // (across from the sky door)
+  decal(1.5, 0.3, (c) => stencil(c, '← GALLERY', 92, 'rgba(232,226,210,.8)'), -18.4 + LW - 0.003, 1.45, SKYAT.z - 0.2, -Math.PI / 2);
+  decal(1.2, 0.42, (c) => stencil(c, 'S4-C', 130, 'rgba(232,226,210,.75)'), 27.5, 1.8, 20 - LW + 0.003, 0);
 
-  // ----- lights: the corridor's tubes, (the gallery and flat light themselves) -----
-  point('#e6eeff', 3.2, 9, -14.8, COR.h - 0.3, -6.6); point('#e6eeff', 3.2, 9, -9.2, COR.h - 0.3, -6.6);
-  point('#ff4030', 0.25, 2.5, -7.1, 2.3, -6.0);
+  // ----- the doors: frames, leaves that swing, signs -----
+  const frameG = [], doors = [];
+  const doorM = { fire: M({ color: '#5d6266', roughness: 0.5, metalness: 0.5 }), wood: M({ color: '#8a6d4c', roughness: 0.55 }), steel: M({ color: '#4f5458', roughness: 0.55, metalness: 0.4 }),
+    acoustic: M({ color: '#2e3034', roughness: 0.7 }) };
+  const glassM = M({ color: '#0c1014', roughness: 0.1, metalness: 0.6 }), chrome = M({ color: '#b9bdc1', metalness: 0.8, roughness: 0.3 });
+  const signM = (draw, w, h) => { const c = makeCanvas(Math.round(w * 500), Math.round(h * 500)); draw(c.ctx, c.W, c.H); c.tex.needsUpdate = true; return c.tex; };
+  const fireSignM = M({ roughness: 0.5, map: signM((c, w, h) => {
+    c.fillStyle = '#1f4fa8'; c.beginPath(); c.arc(w / 2, h / 2, w / 2 - 2, 0, 7); c.fill(); c.fillStyle = '#fff'; c.font = `700 ${h * 0.15}px ${FONT}`; c.textAlign = 'center'; c.textBaseline = 'middle';
+    ['FIRE DOOR', 'KEEP SHUT'].forEach((l, i) => c.fillText(l, w / 2, h * (0.42 + i * 0.19)));
+  }, 0.36, 0.36) });
+  const plate = (txt, bg = '#f2f0ea', fg = '#1d1d1d') => (c, w, h) => { c.fillStyle = bg; c.fillRect(0, 0, w, h); c.fillStyle = fg; c.font = `700 ${h * 0.5}px ${FONT}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(txt, w / 2, h / 2 + 2); };
+  for (const d of DOORS) {
+    const g = new THREE.Group(); g.position.set(d.x, 0, d.z); g.rotation.y = d.ns ? Math.PI / 2 : 0; root.add(g); g.updateMatrix();   // local x along the wall, z across it
+    const h = d.h ?? 2.1, w = d.w, m = doorM[d.kind], deep = d.across ? 0.12 : T + 0.02;
+    const fb = (bw, bh, bd, x, y, z) => frameG.push(new THREE.BoxGeometry(bw, bh, bd).translate(x, y, z).applyMatrix4(g.matrix));
+    fb(0.06, h + 0.06, deep, -w / 2 - 0.03, (h + 0.06) / 2, 0); fb(0.06, h + 0.06, deep, w / 2 + 0.03, (h + 0.06) / 2, 0); fb(w + 0.12, 0.06, deep, 0, h + 0.03, 0);
+    if (d.across) {   // a door across the corridor: posts to the walls, a transom over it to the ceiling, its cables and pipes through
+      const side = (COR.w - w - 0.12) / 2;
+      if (side > 0.01) { fb(side, h + 0.06, 0.1, -COR.w / 2 + side / 2, (h + 0.06) / 2, 0); fb(side, h + 0.06, 0.1, COR.w / 2 - side / 2, (h + 0.06) / 2, 0); }
+      fb(COR.w, COR.h - h - 0.06, 0.1, 0, (COR.h + h + 0.06) / 2, 0);
+      const cb = d.ns ? { minX: d.x - 0.06, maxX: d.x + 0.06, minZ: d.z - LW, maxZ: d.z - w / 2 } : { minX: d.x - LW, maxX: d.x - w / 2, minZ: d.z - 0.06, maxZ: d.z + 0.06 };
+      cols.push(cb, d.ns ? { ...cb, minZ: d.z + w / 2, maxZ: d.z + LW } : { ...cb, minX: d.x + w / 2, maxX: d.x + LW });
+    }
+    const leaves = (d.pair ? [-1, 1] : [-1]).map((s) => {
+      const lw = (d.pair ? w / 2 : w) - 0.015, hinge = new THREE.Group(); hinge.position.set(s * (w / 2 - 0.005), 0.01, 0); g.add(hinge);
+      const leaf = new THREE.Mesh(new THREE.BoxGeometry(lw, h - 0.02, 0.05).translate(-s * lw / 2, (h - 0.02) / 2, 0), m); hinge.add(leaf);
+      const fx = -s * lw / 2;   // the leaf's middle, across
+      if (d.kind === 'fire' || d.kind === 'acoustic') {   // a vision panel
+        const gl = new THREE.Mesh(new THREE.BoxGeometry(Math.min(0.3, lw * 0.4), 0.7, 0.056), glassM); gl.position.set(fx, 1.45, 0); hinge.add(gl);
+      }
+      if (d.kind === 'fire') {   // a push bar one side, a pull handle the other; the round blue sign
+        for (const sz of [1, -1]) { const b = new THREE.Mesh(new THREE.BoxGeometry(lw * 0.7, 0.05, 0.05), chrome); b.position.set(fx, 1.0, sz * 0.055); hinge.add(b); }
+        const sg = new THREE.Mesh(new THREE.CircleGeometry(0.09, 24), fireSignM); sg.position.set(fx, 1.6 - 0.45, 0.027); hinge.add(sg);
+        const sg2 = sg.clone(); sg2.position.z = -0.027; sg2.rotation.y = Math.PI; hinge.add(sg2);
+      } else if (d.kind === 'acoustic') {
+        for (const sz of [1, -1]) { const b = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.12, 0.02), chrome); b.position.set(fx + s * lw * 0.3, 1.1, sz * 0.035); hinge.add(b); }   // push plates
+      } else {
+        for (const sz of [1, -1]) { const b = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.025, 0.05), chrome); b.position.set(-s * (lw - 0.1), 1.0, sz * 0.05); hinge.add(b); }   // lever handles
+      }
+      return { hinge, s, leaf };
+    });
+    const D = { ...d, g, leaves, k: 0, want: 0, swing: 1, held: false, rattle: 0, hit: null };
+    D.hit = ctx.hitBox(g, w, h, 0.3, 0, h / 2, 0, { action: 'stage-door', reach: 2.6 }); D.hit.userData.door = D;
+    // its sign, both sides (or the corridor's side), a lamp over some
+    if (!d.across && d.kind !== 'acoustic') {
+      const tx = signM(plate(d.title.toUpperCase()), 0.36, 0.1);
+      const sp = new THREE.Mesh(new THREE.PlaneGeometry(0.36, 0.1), M({ map: tx, roughness: 0.5 })); sp.position.set(d.locked ? 0 : (d.w / 2 + 0.3) * d.face, 1.62, d.face * (T / 2 + 0.003)); if (d.face < 0) sp.rotation.y = Math.PI; g.add(sp);
+    }
+    doors.push(D);
+  }
+  root.add(Object.assign(new THREE.Mesh(mergeGeometries(frameG.map((b) => b.toNonIndexed())), M({ color: '#3e4246', metalness: 0.5, roughness: 0.5 })), { castShadow: false }));
+  const doorBy = Object.fromEntries(doors.map((d) => [d.name, d]));
+  // the sound lock's signs: ON AIR over the outer doors (lit: it always is), GALLERY 4 by them, QUIET PLEASE in the lobby
+  const lamp = (txt, w, h, col, bg, x, y, z, ry) => {
+    const m = decal(w, h, (c, W2, H2) => { c.fillStyle = bg; c.fillRect(0, 0, W2, H2); c.fillStyle = col; c.font = `800 ${H2 * 0.6}px ${FONT}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(txt, W2 / 2, H2 / 2 + 3); }, x, y, z, ry);
+    m.material = new THREE.MeshBasicMaterial({ map: m.material.map, color: new THREE.Color(1.3, 1.3, 1.3) }); return m;
+  };
+  lamp('ON AIR', 0.5, 0.16, '#ff3a2a', '#1a0605', LX, 2.34, 3.1 - LW + 0.012, 0);
+  lamp('IN SESSION', 0.4, 0.1, '#ff3a2a', '#1a0605', doorBy.edit.x, 2.28, 3.1 - LW + 0.012, 0);
+  lamp('ENGAGED', 0.24, 0.07, '#ff3a2a', '#1a0605', doorBy.wc.x + 0.28, 1.0, 3.1 - LW + 0.012, 0);
+  decal(0.7, 0.2, plate('GALLERY 4', '#1c1d20', '#e9e6dc'), LX + 1.3, 1.62, 3.1 - LW + 0.003, 0);
+  decal(0.6, 0.16, plate('QUIET PLEASE', '#1c1d20', '#e9e6dc'), LOCK.x1 - 0.003, 1.65, 0.9, -Math.PI / 2);
+  decal(0.6, 0.16, plate('ON AIR · NO ENTRY', '#3a0b08', '#ffd6cf'), LX, 2.4, GAL.z1 + T + 0.003, 0);
+  point('#ff4030', 0.25, 2.5, LX, 2.3, 3.1 - LW + 0.4);
 
   // ----- the door in the sky, from behind: the back of a set (battens, ply), the leaf a copy of the sky's -----
   const back = [];
-  for (const z of [-6.6 - SKY.w / 2 - 0.05, -6.6 + SKY.w / 2 + 0.05]) back.push([0.06, COR.h, 0.1, COR.x0 + 0.03, COR.h / 2, z, '#6b5a43']);
-  back.push([0.06, 0.1, SKY.w + 0.2, COR.x0 + 0.03, SKY.h + 0.05, -6.6, '#6b5a43']);
+  for (const z of [SKYAT.z - SKY.w / 2 - 0.05, SKYAT.z + SKY.w / 2 + 0.05]) back.push([0.06, COR.h, 0.1, SKYAT.x + 0.03, COR.h / 2, z, '#6b5a43']);
+  back.push([0.06, 0.1, SKY.w + 0.2, SKYAT.x + 0.03, SKY.h + 0.05, SKYAT.z, '#6b5a43']);
   root.add(mergedBoxes(back, M({ vertexColors: true, roughness: 0.8 })));
   const skyHinge = new THREE.Group(); skyHinge.matrixAutoUpdate = false; S.add(skyHinge);   // in the world: set from the sky door's own each frame
   const plyT = tex(128, 256, (c, w, h) => { c.fillStyle = '#c9a77a'; c.fillRect(0, 0, w, h); for (let k = 0; k < 40; k++) { c.strokeStyle = `rgba(110,80,40,${R() * 0.25})`; c.lineWidth = 1 + R() * 2; c.beginPath(); const y = R() * h; c.moveTo(0, y); c.bezierCurveTo(w / 3, y + 9, w * 0.66, y - 9, w, y + R() * 6); c.stroke(); } });
@@ -317,15 +505,15 @@ export function installBackstage(ctx, edge) {
   const hinge0 = new THREE.Matrix4().makeTranslation(-edge.R + 0.018, edge.LT + 0.01 + LH / 2, -LW2 / 2);
   // what the security camera in here sees through it, open (a portal has nothing to show a feed)
   const skyGlow = new THREE.Mesh(new THREE.PlaneGeometry(SKY.w, SKY.h), new THREE.MeshBasicMaterial({ color: new THREE.Color(1.6, 2.0, 2.6) }));
-  skyGlow.rotation.y = Math.PI / 2; skyGlow.position.set(COR.x0 - 0.02, SKY.h / 2, -6.6); skyGlow.visible = false; root.add(skyGlow);
+  skyGlow.rotation.y = Math.PI / 2; skyGlow.position.set(SKYAT.x - 0.02, SKY.h / 2, SKYAT.z); skyGlow.visible = false; root.add(skyGlow);
 
-  // ----- the exit: a steel fire door in the gallery's north wall, push bar this side, a lit sign over it -----
+  // ----- the exit: a steel fire door in the corridor's side, push bar this side, a lit sign over it -----
   const exitLeafG = (withBar) => {
-    const g = new THREE.Group(), steel = M({ color: '#5d6266', roughness: 0.5, metalness: 0.5 });
+    const g = new THREE.Group(), steel = doorM.fire;
     const leaf = new THREE.Mesh(new THREE.BoxGeometry(EXIT.w - 0.02, EXIT.h - 0.02, 0.05), steel);
     leaf.position.set((EXIT.w - 0.02) / 2, (EXIT.h - 0.02) / 2, 0); g.add(leaf);
     if (withBar) {
-      const b = new THREE.Mesh(new THREE.BoxGeometry(EXIT.w * 0.72, 0.06, 0.06), M({ color: '#b9bdc1', metalness: 0.8, roughness: 0.3 }));
+      const b = new THREE.Mesh(new THREE.BoxGeometry(EXIT.w * 0.72, 0.06, 0.06), chrome);
       b.position.set(EXIT.w / 2, 1.0, -0.06); g.add(b);
       for (const x of [0.16, EXIT.w - 0.16]) { const k = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.1, 0.06), b.material); k.position.set(x, 1.0, -0.035); g.add(k); }
     }
@@ -341,16 +529,16 @@ export function installBackstage(ctx, edge) {
   const inLeaf = exitLeafG(true), inHinge = new THREE.Group(); inHinge.position.set(-EXIT.w / 2 + 0.01, 0.01, -0.03); inHinge.add(inLeaf.g); exitG.add(inHinge);
   const exitHit = ctx.hitBox(inLeaf.g, EXIT.w, EXIT.h, 0.2, EXIT.w / 2, EXIT.h / 2, -0.05, { action: 'edge-exit', reach: 2.6 });
   const exitSign = decal(0.42, 0.16, (c, w, h) => { c.fillStyle = '#0e7a3a'; c.fillRect(0, 0, w, h); c.fillStyle = '#eaffef'; c.font = `800 ${h * 0.66}px ${FONT}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('EXIT', w / 2, h / 2 + 3); },
-    0, EXIT.h + 0.32, -T - 0.034, Math.PI);
+    0, EXIT.h + 0.17, -T - 0.034, Math.PI);
   exitG.add(exitSign);
   exitSign.material = new THREE.MeshBasicMaterial({ map: exitSign.material.map, color: new THREE.Color(1.15, 1.15, 1.15) });
-  const signBox = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.2, 0.05), M({ color: '#d9dcd5' })); signBox.position.set(0, EXIT.h + 0.32, -T - 0.005); exitG.add(signBox);
-  point('#5cff9a', 0.35, 3, Q.x, EXIT.h + 0.25, Q.z - T - 0.4);
+  const signBox = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.2, 0.05), M({ color: '#d9dcd5' })); signBox.position.set(0, EXIT.h + 0.17, -T - 0.005); exitG.add(signBox);
+  point('#5cff9a', 0.35, 3, Q.x, EXIT.h + 0.15, Q.z - T - 0.4);
   // and on B3: the same door from its side (frame, leaf, a plain handle), there from now on
   const b3 = new THREE.Group(); b3.position.set(XD, 0, ZF); b3.rotation.y = YAW;
   exitFrame(b3, 0.012, 0.024);
   const outLeaf = exitLeafG(false), outHinge = new THREE.Group(); outHinge.position.set(-EXIT.w / 2 + 0.01, 0.01, 0.03); outHinge.add(outLeaf.g); b3.add(outHinge);
-  const handle = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.025, 0.05), M({ color: '#b9bdc1', metalness: 0.8, roughness: 0.3 }));
+  const handle = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.025, 0.05), chrome);
   handle.position.set(EXIT.w - 0.12, 1.0, 0.05); outLeaf.g.add(handle);
   const outHit = ctx.hitBox(outLeaf.g, EXIT.w, EXIT.h, 0.12, EXIT.w / 2, EXIT.h / 2, 0.03, { action: 'edge-exit', reach: 2.6 });
   restr.root.add(b3);
@@ -376,13 +564,56 @@ export function installBackstage(ctx, edge) {
       : `<b>EXIT</b><div class="k">${X.want ? 'Click to shut it' : 'Push the bar to open it'}</div>`),
     click: () => { exitDoor(!X.want); return true; },
   });
+  const v3 = new THREE.Vector3();
+  const at3 = (x, z, y = 1) => { const [bx, bz] = toB3(x, z); return v3.set(bx, y, bz); };
   function exitDoor(on) {
     if (!!X.want === on) return;
     X.want = on ? 1 : 0;
-    sound.bar(v3.set(...[toB3(Q.x, Q.z)].map(([x, z]) => [x, 1, z])[0]));
-    if (!on) setTimeout(() => sound.clunk(v3.set(...[toB3(Q.x, Q.z)].map(([x, z]) => [x, 1, z])[0])), 900);
+    sound.bar(at3(Q.x, Q.z));
+    if (!on) setTimeout(() => sound.clunk(at3(Q.x, Q.z)), 900);
   }
-  const v3 = new THREE.Vector3();
+
+  // ----- the ordinary doors: click to open or shut (the swing doors open as you come to them); locked ones rattle -----
+  ctx.action('stage-door', {
+    hover: (h) => {
+      const d = h.door;
+      return `<b>${d.title}</b><div class="m">${d.say}</div>${d.locked ? '' : `<div class="k">Click to ${d.want ? 'shut' : 'open'} it</div>`}`;
+    },
+    click: (h) => { doorClick(h.door); return true; },
+  });
+  function doorClick(d) {
+    if (d.locked) {
+      d.rattle = 1;
+      for (const ms of [0, 110, 260]) setTimeout(() => ctx.sfx.cabinet?.('latch', at3(d.x, d.z), 0.35), ms);
+      return;
+    }
+    openDoor(d, !d.want); d.held = d.want;
+  }
+  function openDoor(d, on) {
+    if (!!d.want === !!on) return;
+    if (on && d.k < 0.05) {   // swinging away from you
+      const [px, pz] = fromB3(P.x, P.z), side = d.ns ? px - d.x : pz - d.z;
+      d.swing = side > 0 ? -1 : 1;
+    }
+    d.want = on ? 1 : 0;
+    if (d.kind === 'fire') { if (on) sound.bar(at3(d.x, d.z)); else setTimeout(() => sound.clunk(at3(d.x, d.z)), 1100); }
+    else ctx.sfx.cabinet?.('latch', at3(d.x, d.z), 0.2);
+  }
+  // each frame: the swing doors open as you come to them and shut behind you; the leaves where they are
+  function doorsFx(dt, t) {
+    const [px, pz] = fromB3(P.x, P.z);
+    for (const d of doors) {
+      const dist = Math.hypot(px - d.x, pz - d.z);
+      if (d.auto && bs.on) {
+        if (dist < 1.7 && !d.want && !d.shutBy) openDoor(d, true);
+        if (dist > 3) { d.shutBy = false; if (d.want && !d.held) openDoor(d, false); }
+      }
+      d.k = damp(d.k, d.want, d.want ? 3 : 1.8, dt);
+      d.rattle = Math.max(0, d.rattle - dt * 2.5);
+      const a = 1.5 * sstep(0, 1, d.k) * d.swing, r = d.rattle ? Math.sin(t * 70) * 0.012 * d.rattle : 0;
+      for (const L of d.leaves) L.hinge.rotation.y = L.s < 0 ? -a + r : a - r;
+    }
+  }
 
   // ----- the rooms' contents -----
   const gallery = installGallery(ctx, bs, PLAN);
@@ -397,7 +628,7 @@ export function installBackstage(ctx, edge) {
   function frames() {
     // the door in the sky: in the world (edge.frame, +z west into here) and here (its sill, +z east, in from it)
     F.sky.copy(edge.frame); F.skyOut.copy(F.sky).multiply(flip);
-    F.skyIn.makeBasis(new THREE.Vector3(0, 0, -1), new THREE.Vector3(0, 1, 0), new THREE.Vector3(1, 0, 0)).setPosition(COR.x0, 0, -6.6).premultiply(root.matrixWorld);
+    F.skyIn.makeBasis(new THREE.Vector3(0, 0, -1), new THREE.Vector3(0, 1, 0), new THREE.Vector3(1, 0, 0)).setPosition(SKYAT.x, 0, SKYAT.z).premultiply(root.matrixWorld);
     F.skyBack.copy(F.skyIn).multiply(flip);
     toBack.copy(F.skyIn).multiply(new THREE.Matrix4().copy(F.sky).invert());   // the world's space to here
     toOff.copy(toBack).invert();
@@ -439,7 +670,7 @@ export function installBackstage(ctx, edge) {
     camera.updateMatrixWorld();
     last.copy(camera.position); lastAway = to;
   }
-  // where B3's rooms are built round for the look through the exit: you, or (further back down the corridor) just inside it
+  // where B3's rooms are built round for the look through the exit: you, or (further off down the corridor) just inside it
   const viewAt = () => { const [dx, dz] = toB3(Q.x, Q.z - 1); return Math.hypot(P.x - dx, P.z - dz) < 8 ? [P.x, P.z] : [dx, dz]; };
   const yawOf = (m) => { const e = m.elements; return Math.atan2(e[8], e[10]); };
   ctx.onFrame((dt, t) => {
@@ -488,7 +719,7 @@ export function installBackstage(ctx, edge) {
   function inside(dt, t, through) {
     if (insideAt === t) return;
     insideAt = t;
-    gallery.fx(dt, t); flat.fx(dt, t); model.fx(dt, t); desk.fx(dt, t);
+    gallery.fx(dt, t); flat.fx(dt, t); model.fx(dt, t); desk.fx(dt, t); doorsFx(dt, t);
     if (through && model.shadow.shadow) { model.shadow.shadow = false; renderer.shadowMap.needsUpdate = true; }
   }
 
@@ -497,18 +728,25 @@ export function installBackstage(ctx, edge) {
   restr.leave = () => { restrLeave(); if (!heli.stay && heli.S.free) heli.stow(); };
 
   // ----- the floor -----
-  bs.hits = [skyHit, exitHit, ...gallery.hits, ...flat.hits, ...model.hits, ...desk.hits];
+  bs.hits = [skyHit, exitHit, ...doors.map((d) => d.hit), ...gallery.hits, ...flat.hits, ...model.hits, ...desk.hits];
   bs.enter = () => {
     place(mine.L?.z ?? restr.z0);
     bs.colliders = [...cols, ...gallery.cols, ...flat.cols, ...model.cols, ...desk.cols].map((b) => boxB3(b));
-    bound = boxB3({ minX: COR.x0 - 0.3, maxX: Math.max(GAL.x1, Q.x + LONG.w), minZ: GAL.z0, maxZ: Q.z + 0.4 });
+    bound = boxB3({ minX: SKYAT.x - 0.3, maxX: RT[RT.length - 1][0] + 0.3, minZ: GAL.z0, maxZ: Q.z + 0.4 });
     shut();
   };
   // The doors as solid as they are: shut, a door's a wall.
-  const doorCols = { sky: { minX: COR.x0 - T, maxX: COR.x0 + 0.05, minZ: -6.6 - SKY.w / 2, maxZ: -6.6 + SKY.w / 2 }, exit: atDoor({ minX: -EXIT.w / 2, maxX: EXIT.w / 2, minZ: -T, maxZ: 0.05 }) };
+  const doorCols = { sky: { minX: SKYAT.x - T, maxX: SKYAT.x + 0.05, minZ: SKYAT.z - SKY.w / 2, maxZ: SKYAT.z + SKY.w / 2 }, exit: atDoor({ minX: -EXIT.w / 2, maxX: EXIT.w / 2, minZ: -T, maxZ: 0.05 }) };
+  for (const d of doors) {
+    const t2 = d.across ? 0.06 : T / 2 + 0.03;
+    doorCols[d.name] = d.ns ? { minX: d.x - t2, maxX: d.x + t2, minZ: d.z - d.w / 2, maxZ: d.z + d.w / 2 } : { minX: d.x - d.w / 2, maxX: d.x + d.w / 2, minZ: d.z - t2, maxZ: d.z + t2 };
+  }
   function shut() {
     const n = bs.colliders.filter((b) => !b.door);
-    for (const [k, b] of Object.entries(doorCols)) if ((k === 'sky' ? E.open : X.open) < 0.5) n.push({ ...boxB3(b), door: true });
+    for (const [k, b] of Object.entries(doorCols)) {
+      const open = k === 'sky' ? E.open : k === 'exit' ? X.open : doorBy[k].k;
+      if (open < 0.5) n.push({ ...boxB3(b), door: true });
+    }
     bs.colliders = n;
   }
   bs.leave = () => {
@@ -519,17 +757,17 @@ export function installBackstage(ctx, edge) {
   };
   let bound = null;
   bs.bound = (p) => { p.x = clamp(p.x, bound.minX, bound.maxX); p.z = clamp(p.z, bound.minZ, bound.maxZ); };
-  // B3's space to this side's own (the inverse of toB3)
-  const fromB3 = (x, z) => { const dx = x - XD, dz = z - ZF - z0; return [dx * cy - dz * sy + Q.x, dx * sy + dz * cy + Q.z]; };
-  bs.ground = () => 0;
+  bs.ground = (x, z) => { const [lx, lz] = fromB3(x, z); return floorAt(lx, lz); };
   bs.save = () => false;   // a reload in here puts you back where it last saved you: out on the pier (systems/resume.js)
   const tvAt = new THREE.Vector3();
-  bs.fx = (dt, t) => { shut(); longFlicker(t); sound.backstage(1, flat.tv.screen.getWorldPosition(tvAt)); };
+  bs.fx = (dt, t) => { shut(); corFlicker(t); sound.backstage(1, flat.tv.screen.getWorldPosition(tvAt)); };
   bs.map = () => {
     const c = ctx.mapCtx, W = 440, MH = 330, K = 9, [px, pz] = fromB3(P.x, P.z), sx = (x) => W / 2 + (x - px) * K, sz = (z) => MH / 2 + (z - pz) * K;
     c.clearRect(0, 0, W, MH);
     c.fillStyle = 'rgba(255,255,255,.14)';
-    for (const r of [GAL, COR, FLAT, ...rects.map(([x0, x1, z0, z1]) => ({ x0, x1, z0, z1 }))]) c.fillRect(sx(r.x0), sz(r.z0), (r.x1 - r.x0) * K, (r.z1 - r.z0) * K);
+    for (const r of [GAL, LOCK, FLAT, ST, ...rects.map(([x0, x1, z0, z1]) => ({ x0, x1, z0, z1 }))]) c.fillRect(sx(r.x0), sz(r.z0), (r.x1 - r.x0) * K, (r.z1 - r.z0) * K);
+    c.fillStyle = 'rgba(255,255,255,.1)';
+    for (const [zf] of TIERS) c.fillRect(sx(-AISLE), sz(zf), 2 * AISLE * K, 2);
     c.save(); c.translate(W / 2, MH / 2); c.rotate(-(P.yaw - YAW));
     c.fillStyle = '#fff'; c.beginPath(); c.moveTo(0, -14); c.lineTo(9, 10); c.lineTo(0, 5); c.lineTo(-9, 10); c.closePath(); c.fill(); c.restore();
   };
@@ -548,15 +786,15 @@ export function installBackstage(ctx, edge) {
     here: () => bs.on || restr.on,
     // Where a point in here would be, out in the world (the camera's, for the sea and wind through the open door); returns
     // how far it is from the sky door.
-    toOffice(p) { const [x, z] = fromB3(p.x, p.z), d = Math.hypot(x - COR.x0, z + 6.6); if (bs.on) p.applyMatrix4(toOff); return d; },
+    toOffice(p) { const [x, z] = fromB3(p.x, p.z), d = Math.hypot(x - SKYAT.x, z - SKYAT.z); if (bs.on) p.applyMatrix4(toOff); return d; },
     debug: {
       bs, X, skyLeaf,
       go(x, z, yaw = 0, pitch = 0) {
         if (!ctx.mine.L) return false;
         if (ctx.away !== bs) { heli.stay = true; ctx.setFloor(bs); heli.stay = false; }
-        const [wx, wz] = toB3(x, z);
-        Object.assign(P, { x: wx, z: wz, yaw: yaw + YAW, pitch, fy: 0, seated: false, seat: null, eye: 1.65 });
-        ctx.setCam({ x: P.x, y: 1.65, z: P.z, yaw: P.yaw, pitch }); lastAway = null;
+        const [wx, wz] = toB3(x, z), fy = floorAt(x, z);
+        Object.assign(P, { x: wx, z: wz, yaw: yaw + YAW, pitch, fy, seated: false, seat: null, eye: 1.65 });
+        ctx.setCam({ x: P.x, y: 1.65 + fy, z: P.z, yaw: P.yaw, pitch }); lastAway = null;
         return true;
       },
       b3(x, z, yaw = 0, pitch = 0) {
@@ -568,7 +806,8 @@ export function installBackstage(ctx, edge) {
         return true;
       },
       exit(open = true) { exitDoor(open); X.open = X.want; },
-      gallery, flat, model, desk, spot, XD, ZF, YAW, get z0() { return z0; },
+      doors: Object.fromEntries(doors.map((d) => [d.name, { d, open: (on = true) => { openDoor(d, on); d.held = on; d.k = d.want; }, rattle: () => doorClick(d) }])),
+      gallery, flat, model, desk, spot, XD, ZF, YAW, get z0() { return z0; }, toB3: (x, z) => toB3(x, z), where: () => [...fromB3(P.x, P.z), P.fy],
     },
   };
 }

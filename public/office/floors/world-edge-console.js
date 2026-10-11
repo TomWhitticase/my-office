@@ -1,5 +1,5 @@
-// The operator's console in the gallery behind the sky (world-edge-backstage.js): a standing desk of three angled
-// panels on the near side of the model table, facing it and the monitor bank beyond, each control a thing you take hold
+// The director's console in the gallery behind the sky (world-edge-backstage.js): a standing desk of three angled
+// panels at the middle of the top tier, facing down over the model table to the monitor wall, each control a thing you take hold
 // of, with its name engraved by it and a lit readout on the bridge behind:
 //   TIME: a big 24-hour dial (the time of day: scrub it and the sky, the sun and its shadows, the office's lights and the
 //     table's model follow), LIVE (back on the real clock), and the TIME SPEED switch, HOLD · LIVE · ×1 · ×120 · ×1200 ·
@@ -20,13 +20,13 @@ const PX = 1024;   // canvas pixels a metre on the panels
 const MONO = 'ui-monospace, Menlo, monospace';
 
 export function installConsole(ctx, bs, PLAN) {
-  const { renderer } = ctx, root = bs.root, { TC } = PLAN;
+  const { renderer } = ctx, root = bs.root, { DIR } = PLAN;
   const hits = [], cols = [], ctls = [];
   const M = (o) => new THREE.MeshStandardMaterial({ roughness: 0.6, ...o });
   const placed = (o, p, sc) => { o.position.set(...p); if (sc) o.scale.set(...sc); return o; };
-  const CX = TC.x - 3.3, CZ = TC.z;   // its middle; the operator stands on the -x side, facing +x (the table)
-  const con = new THREE.Group(); con.position.set(CX, 0, CZ); con.rotation.y = -Math.PI / 2; root.add(con);   // local +z: toward you, +x: your right
-  cols.push({ minX: CX - 0.75, maxX: CX + 0.42, minZ: CZ - 1.75, maxZ: CZ + 1.75 });
+  const CX = DIR.x, CZ = DIR.z;   // its middle; the director stands behind it (+z), facing the monitor wall (-z)
+  const con = new THREE.Group(); con.position.set(CX, DIR.y, CZ); root.add(con);   // local +z: toward you, +x: your right
+  cols.push({ minX: CX - 1.75, maxX: CX + 1.75, minZ: CZ - 0.42, maxZ: CZ + 0.75 });
 
   // ----- the desk: three panels, the wings turned in toward you -----
   const bodyM = M({ color: '#2a2c31', roughness: 0.5, metalness: 0.3 }), trimM = M({ color: '#111214', roughness: 0.4, metalness: 0.5 });
@@ -37,9 +37,9 @@ export function installConsole(ctx, bs, PLAN) {
     g.add(new THREE.Mesh(mergeGeometries(body.map((b) => b.toNonIndexed())), bodyM));
     const top = new THREE.Group(); top.position.set(0, 0.99, 0); top.rotation.x = 0.3; g.add(top);   // the sloped panel, back edge up
     const lip = new THREE.Mesh(new THREE.BoxGeometry(1.04, 0.035, 0.72), trimM); lip.position.y = -0.02; top.add(lip);
-    const bridge = new THREE.Group(); bridge.position.set(0, 1.27, -0.4); bridge.rotation.x = -0.3; g.add(bridge);   // the readouts' bridge
+    const bridge = new THREE.Group(); bridge.position.set(0, 1.375, -0.4); bridge.rotation.x = -0.3; g.add(bridge);   // the readouts' bridge
     bridge.add(new THREE.Mesh(new THREE.BoxGeometry(1.03, 0.22, 0.08).translate(0, 0, -0.045), trimM));
-    g.add(placed(new THREE.Mesh(new THREE.BoxGeometry(1.03, 0.42, 0.05), bodyM), [0, 1.03, -0.35]));
+    g.add(placed(new THREE.Mesh(new THREE.BoxGeometry(1.03, 0.5, 0.05), bodyM), [0, 1.04, -0.35]));   // (its top under the bridge's foot: nothing in front of the readouts)
     // the panel's face: engraved legends and scales (painted below), faintly backlit
     const face = makeCanvas(PX, Math.round(0.7 * PX)), fm = new THREE.MeshStandardMaterial({ map: face.tex, emissiveMap: face.tex, emissive: '#ffffff', emissiveIntensity: 0.4, roughness: 0.55, metalness: 0.35 });
     const faceM = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.7).rotateX(-Math.PI / 2), fm); faceM.position.y = 0.0; top.add(faceM);
@@ -273,7 +273,7 @@ export function installConsole(ctx, bs, PLAN) {
 
   // a task light over it
   const task = new THREE.SpotLight('#ffe2b8', 16, 4.5, 0.8, 0.6, 1.5);
-  task.position.set(CX - 0.5, 3.2, CZ); task.target.position.set(CX - 0.1, 1, CZ); root.add(task, task.target);
+  task.position.set(CX, DIR.y + 3.2, CZ + 0.5); task.target.position.set(CX, DIR.y + 1, CZ + 0.1); root.add(task, task.target);
 
   // ----- taking hold: the mouse turns or slides what you're holding, not the view -----
   let held = null, swallowAt = 0;
