@@ -25,8 +25,8 @@ function build(ctx) {
   // The counter: a dark plinth, vertical timber slats on the customer side, a thick oak top with a lip and a steel
   // footrail, and a warm strip under the lip.
   const slatM = mat('#a87447', { roughness: 0.6 }), darkM = mat('#2b2d30', { roughness: 0.6 }), steelM = mat('#c9cdd2', { metalness: 0.85, roughness: 0.3 });
-  const slats = [];
-  for (let z = Z0 + 0.05; z < Z1 - 0.02; z += 0.11) slats.push([0.03, 0.9, 0.09, CX + 0.31, 0.53, z + 0.045, `hsl(26,${38 + R() * 8}%,${44 + R() * 8}%)`]);
+  const slats = [];   // (2 mm short of the plinth's and the end panels' tops and feet: not in their planes)
+  for (let z = Z0 + 0.05; z < Z1 - 0.02; z += 0.11) slats.push([0.03, 0.896, 0.09, CX + 0.31, 0.53, z + 0.045, `hsl(26,${38 + R() * 8}%,${44 + R() * 8}%)`]);
   slats.push([0.64, 0.9, 0.04, CX + 0.01, 0.53, Z0 - 0.02, '#9a6a40'], [0.64, 0.9, 0.04, CX + 0.01, 0.53, Z1 + 0.02, '#9a6a40']);
   G.add(mergedBoxes(slats, mat('#ffffff', { vertexColors: true, roughness: 0.6 })));
   G.add(mergedBoxes([[0.6, 0.9, L, CX, 0.53, ZM], [0.66, 0.08, L + 0.04, CX, 0.04, ZM]], darkM));
@@ -63,7 +63,7 @@ function build(ctx) {
   const SHELF = [1.42, 1.86];
   for (const y of SHELF) frame.push([0.3, 0.03, L - 0.2, BACK, y, ZM]);
   G.add(mergedBoxes(frame, mat('#1e1f21', { metalness: 0.5, roughness: 0.45 })));
-  for (const y of SHELF) box(G, 0.02, 0.012, L - 0.3, '', BACK + 0.13, y - 0.025, ZM, { material: glowMat(1.4, '#ffd9a0'), shadow: false });
+  for (const y of SHELF) box(G, 0.02, 0.012, L - 0.3, '', BACK + 0.128, y - 0.025, ZM, { material: glowMat(1.4, '#ffd9a0'), shadow: false });
   // Bottles: one lathe shape, instanced in a row on the fridge and on each shelf, in a spread of glass colours and heights.
   const prof = [[0, 0], [0.036, 0], [0.038, 0.01], [0.038, 0.19], [0.032, 0.22], [0.013, 0.26], [0.012, 0.31], [0.014, 0.315], [0, 0.315]]
     .map(([r, y]) => new THREE.Vector2(r, y));
