@@ -299,6 +299,19 @@ export const POSES = [
     await stand(o, -10, z + 6, { x: -20, y: 1.6, z: z - 9 });
     await o.step(60);   // out of the car's light into the strip lights'
   }],
+  ['restricted-path', async (o) => {   // the last stretch of the worn way to the stone door (restricted-paths.js): just about there
+    await from('restricted', o);
+    const p = await o.eval(() => {
+      const r = window.__office.ctx.restr, q = r.paths.routes[1].map((x) => x.p);
+      let n = q.length - 1, d = 0;
+      while (n > 0 && d < 8) { d += Math.hypot(q[n][0] - q[n - 1][0], q[n][1] - q[n - 1][1]); n--; }
+      r.stream(q[n][0], q[n][1], true);
+      const [tx, tz] = q[Math.min(q.length - 1, n + 20)];
+      return { x: q[n][0], z: q[n][1] + r.z0, tx, tz: tz + r.z0 };
+    });
+    await stand(o, p.x, p.z, { x: p.tx, y: 0.2, z: p.tz });
+    await o.step(30);
+  }],
   ['restricted-desk', async (o) => {   // Hale's desk, put in front of you (it's found by walking, normally), the coffee still steaming
     await from('restricted', o);
     await o.eval(() => window.__office.ctx.restr.story.force('desk'));

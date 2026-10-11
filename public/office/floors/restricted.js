@@ -10,6 +10,7 @@ import { MONO } from '../painters.js';
 import { makeSound } from './restricted-sound.js';
 import { installStory } from './restricted-story.js';
 import { installCreature } from './restricted-creature.js';
+import { wornPaths, wear } from './restricted-paths.js';
 
 const N = -3, CODE = '1408';   // asked for every time: never remembered
 // The grid: cells of C metres, CH x CH to a chunk; walls on the cells' edges. Cell (i, j) is x GX + i C .. + C,
@@ -420,6 +421,7 @@ function build(ctx) {
   function seen(x, z, t, heard, all = false) {
     stream(x, z, all);
     placeLights(x, z);
+    worn.at(restr.z0);
     for (const m of restr.planes) m.position.set(Math.round(x / 4.8) * 4.8, m.position.y, Math.round(z / 4.8) * 4.8);
     for (const ch of restr.chunks.values()) {
       let v = flicker(t, ch.seed);
@@ -529,6 +531,9 @@ function build(ctx) {
   const sound = restr.audio = makeSound(ctx, restr);   // (relativity-door.js plays its bleed through the stone door)
   restr.grid = { C, CH, H, T, X: (i) => GX + i * C, Z: (j) => GZ + j * C, edgeType, SOLID, cellOk, h3 };
   restr.sync = syncChunks;
+  // The worn ways in the carpet, from the lift to the doors nobody mentions (restricted-paths.js); paths.home is where the
+  // stone door into Relativity stands (relativity-door.js).
+  const paths = restr.paths = wornPaths(restr, [LIFT.x - 0.4, 0]), worn = restr.worn = wear(floor.material, paths);
   // A reload down here (systems/resume.js): the same rooms round where you were (they're fixed by place, not by visit), and no keypad.
   restr.restore = (s, p) => { stream(p.x, p.z - restr.z0, true); syncChunks(); };
   const story = restr.story = installStory(ctx, restr, sound);
