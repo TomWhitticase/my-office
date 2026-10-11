@@ -237,8 +237,9 @@ export function installDesk(ctx) {
   sofa(19.3, -9, -Math.PI / 2, 2.4, '#3d3a36');
   plant(18.9, -14.3, 1.2); plant(6.6, -14.3);
 
-  // The one under the neon is a door (world/secret-room.js): a book near its right-hand end, at eye height, comes out of the merge.
-  const secretShelf = bookshelf(8.6, -14.7, 0, 2.4, 2.2, 5, (b, row) => row === 3 && b[1] > b[0] && b[3] > 0.55 && b[3] < 1.0);
+  // The one under the neon is a door: world/secret-room.js takes this out and builds it again in three sections (built
+  // here still, so what's built after it draws the same random numbers).
+  const secretShelf = bookshelf(8.6, -14.7, 0, 2.4, 2.2, 5);
   art(10.52, 1.82, -14.92, 0, 0.84, 1.12);   // between the bookshelf and the TV (the task board has the wall right of it), the clock above it
   smallPlant(world, 16.6, 1.1, -3.0);
   pendant(13, -10.6, { drop: 0.85, light: 12, shade: '#d97757' });

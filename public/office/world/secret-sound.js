@@ -1,13 +1,13 @@
-// The secret door's sounds (world/secret-room.js) and the den's: the latch behind the book, the bookcase's heavy wooden
-// rumble on its hinge and the thud as it shuts, the hatch, the ladder's stiles sliding up, a clank for each rung, the
-// lever, the safe's dial and its door, the lamp's pull chain, and a record on the turntable (a slow jazz loop under the
+// The secret door's sounds (world/secret-room.js) and the den's: the latch behind the book, the bookcase's bay backing into
+// the wall with a thud and its heavy rumbling slide, the hatch, the ladder's stiles sliding up, a clank for each rung, the
+// lever, the safe's dial and its door, the lamp's pull chain, the fire (catching, crackling, put out), and a record on the turntable (a slow jazz loop under the
 // crackle). All synthesised here (nothing until the first one's wanted), through the office's own audio (sounds.js
 // `audio`), so its volume and M apply. Positions are the office's own (x, y, z).
 
 const TAU = Math.PI * 2;
 
 export function makeSound(ctx) {
-  let A = null, B = null, out = null, record = null;
+  let A = null, B = null, out = null, record = null, fire = null;
   const rnd = (a, b) => a + Math.random() * (b - a), nz = () => Math.random() * 2 - 1;
   const pick = (a) => a[Math.floor(Math.random() * a.length)];
 
@@ -31,16 +31,16 @@ export function makeSound(ctx) {
     return make(0.5, (t) => { const n = nz(); return click(n * Math.exp(-t / 0.004)) * 0.8 + body(n * Math.exp(-Math.max(0, t - 0.05) / 0.04) * (t > 0.05)) * 3
       + lo(n * Math.exp(-Math.max(0, t - 0.05) / 0.08) * (t > 0.05)) * 4; });
   }
-  function rumble() {   // a loaded bookcase turning on its hinge: a low grinding rumble, the wood groaning, a creak or two
-    const grind = biq('lp', 110, 0.8), groan = biq('bp', 240, 6), creak = biq('bp', 900, 9), D = 2.8;
-    const creaks = [0.5, 1.3, 2.1].map((c) => c + rnd(-0.15, 0.15));
+  function rumble() {   // a loaded bookcase bay sliding on its runners: a low grinding rumble, the wood groaning, a creak or two
+    const grind = biq('lp', 110, 0.8), groan = biq('bp', 240, 6), creak = biq('bp', 900, 9), D = 2.1;
+    const creaks = [0.4, 1.0, 1.6].map((c) => c + rnd(-0.12, 0.12));
     return make(D, (t) => {
       const e = Math.min(1, t / 0.35, (D - t) / 0.4), n = nz(), w = 0.6 + 0.4 * Math.sin(TAU * 1.7 * t) * Math.sin(TAU * 0.6 * t + 1);
       let c = 0; for (const k of creaks) c += Math.exp(-((t - k) ** 2) / 0.006) * (0.5 + 0.5 * Math.sin(TAU * 31 * t));
       return grind(n) * 5 * e * w + groan(n * e) * 0.5 + creak(n * c) * 1.4 + Math.sin(TAU * 46 * t) * e * 0.12;
     });
   }
-  function thud(heavy) {   // the bookcase home against the wall (heavy), or the hatch dropping onto its stops
+  function thud(heavy) {   // the bay home in the wall or back in line (heavy), or the hatch dropping onto its stops
     const lo = biq('lp', heavy ? 140 : 260, 0.8), knock = biq('bp', heavy ? 320 : 700, 3);
     return make(heavy ? 0.9 : 0.5, (t) => { const n = nz(), e = Math.exp(-t / (heavy ? 0.07 : 0.035));
       return lo(n * e) * 6 + knock(n * e) * 1.5 + Math.sin(TAU * (heavy ? 52 : 95) * t) * Math.exp(-t / 0.12) * (heavy ? 0.7 : 0.4); });
@@ -77,6 +77,22 @@ export function makeSound(ctx) {
   function chain() {   // the lamp's pull chain: a rattle and a click
     const bp = biq('bp', 4200, 2), cl = biq('bp', 2000, 4);
     return make(0.25, (t) => { const n = nz(); return bp(n * Math.exp(-t / 0.05) * (0.5 + 0.5 * Math.sin(TAU * 60 * t))) * 0.5 + cl(n * (t > 0.12 ? Math.exp(-(t - 0.12) / 0.004) : 0)) * 1.5; });
+  }
+  // The fire, 6 s looped: a soft roar under it, crackles in little clusters, now and then a pop or a hiss.
+  function crackle() {
+    const roar = biq('lp', 220, 0.7), crack = biq('bp', 2600, 1.5), pop = biq('bp', 700, 2), hiss = biq('hp', 4000, 0.7), D = 6;
+    const ev = []; for (let t = 0; t < D - 0.1; t += rnd(0.03, 0.35)) ev.push([t, Math.random() < 0.12 ? 1 : 0, rnd(0.3, 1)]);
+    let j = 0, e = 0, ep = 0;
+    return make(D, (t) => {
+      while (j < ev.length && ev[j][0] <= t) { if (ev[j][1]) ep += ev[j][2]; else e += ev[j][2]; j++; }
+      e *= 0.9965; ep *= 0.9985;
+      const n = nz(), sw = 0.75 + 0.25 * Math.sin(TAU * t / D) * Math.sin(TAU * 3 * t / D + 1);
+      return roar(n) * 1.6 * sw + crack(n * e) * 1.1 + pop(n * ep) * 1.8 + hiss(n) * 0.02 * sw;
+    }, 0.8);
+  }
+  function whoosh(out) {   // a fire catching (rising), or put out (a hiss dying away)
+    const lp = biq('lp', out ? 3000 : 500, 0.7), D = out ? 1.1 : 0.9;
+    return make(D, (t) => { const n = nz(), u = t / D; return lp(n) * (out ? Math.exp(-u * 4) : Math.sin(Math.PI * Math.min(1, u * 1.4)) * (0.3 + u)); });
   }
   // A record: four bars of slow jazz (an electric piano's chords, a walking bass, brushes) under vinyl crackle, 12 s,
   // looped. Whole bars, so it loops without a seam.
@@ -117,14 +133,14 @@ export function makeSound(ctx) {
   function build() {
     const n = (k, f) => Array.from({ length: k }, f);
     return { clunk: clunk(), rumble: rumble(), thud: thud(true), hatch: thud(false), slide: slide(), rung: n(5, rung), lever: lever(), dial: dial(),
-      creak: creak(), clang: clang(), chain: chain() };
+      creak: creak(), clang: clang(), chain: chain(), ignite: whoosh(false), douse: whoosh(true) };
   }
 
   // ----- playback -----
   function ready() {
     const a = ctx.sfx.audio;
     if (!a || a.ctx.state !== 'running') return false;
-    if (A?.ctx !== a.ctx) { A = a; B = null; record = null; out = A.ctx.createGain(); out.connect(A.master); }
+    if (A?.ctx !== a.ctx) { A = a; B = null; record = null; fire = null; out = A.ctx.createGain(); out.connect(A.master); }
     if (!B) B = build();
     return true;
   }
@@ -145,6 +161,19 @@ export function makeSound(ctx) {
   return {
     clunk: one('clunk', 0.5), rumble: one('rumble', 0.7), thud: one('thud', 0.6), hatch: one('hatch', 0.35), slide: one('slide', 0.25),
     rung: one('rung', 0.22), lever: one('lever', 0.4), dial: one('dial', 0.35), creak: one('creak', 0.3), clang: one('clang', 0.4), chain: one('chain', 0.3),
+    ignite: one('ignite', 0.35), douse: one('douse', 0.3),
+    // The fire's crackle at p, at a level 0 to 1 (0: stopped). Called each frame the den's shown; cheap when unchanged.
+    fire(level, p) {
+      if (!(level > 0.01)) { if (fire) { const f = fire; fire = null; f.g.gain.setTargetAtTime(0, A.ctx.currentTime, 0.15); f.src.stop(A.ctx.currentTime + 0.8); } return; }
+      if (!ready()) return;
+      if (!fire) {
+        const src = A.ctx.createBufferSource(), g = A.ctx.createGain();
+        src.buffer = B.fire ||= crackle(); src.loop = true; g.gain.value = 0;
+        src.connect(g).connect(panner(p.x, p.y, p.z, 1.5, 1.3));
+        src.start(0, Math.random() * src.buffer.duration); fire = { src, g, level: -1 };
+      }
+      if (Math.abs(fire.level - level) > 0.02) { fire.level = level; fire.g.gain.setTargetAtTime(0.4 * level, A.ctx.currentTime, 0.3); }
+    },
     // The record: on (fading in from the turntable at p) or off (the needle lifted).
     record(on, p) {
       if (!ready()) return;
