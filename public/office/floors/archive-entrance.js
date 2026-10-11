@@ -118,8 +118,9 @@ function build(ctx) {
     const ceil = mesh(new THREE.PlaneGeometry(L, HW * 2), M('#1c120b', { roughness: 0.7 }), cx, H - 0.01, 0);   // under the shell's roof
     ceil.rotation.x = Math.PI / 2;
     const beams = [];
-    for (let x = X0 + 2.2; x < X1 - 0.5; x += 2.2) beams.push([0.24, 0.26, HW * 2, x, H - 0.13, 0, '#2c1a0e']);
-    for (const z of [-1.2, 1.2]) beams.push([L, 0.2, 0.2, cx, H - 0.1, z, '#2c1a0e']);
+    // (their tops just under the ceiling and each run's a little lower than what it crosses; the long ones short of the walls)
+    for (let x = X0 + 2.2; x < X1 - 0.5; x += 2.2) beams.push([0.24, 0.244, HW * 2 - 0.01, x, H - 0.016 - 0.122, 0, '#2c1a0e']);
+    for (const z of [-1.2, 1.2]) beams.push([L - 0.01, 0.18, 0.2, cx, H - 0.02 - 0.09, z, '#2c1a0e']);
     add(mergedBoxes(beams, woodM));
     // The wallpaper: the long walls, the lift's wall round the shaft, and the vault's wall round the door's frame.
     const sw = CAR.w / 2 + 0.3, P = [];
@@ -137,30 +138,40 @@ function build(ctx) {
     // Panelling to the dado on every wall, a brass picture rail, a cornice at the top. `run` gives a wall's box at
     // (a: along it, w: its length, h, d: out from the wall, y).
     const wood = [], brass = [];
-    const N = (a, w, h, d, y, c) => [w, h, d, a, y, -HW + d / 2, c], So = (a, w, h, d, y, c) => [w, h, d, a, y, HW - d / 2, c];
-    const E = (a, w, h, d, y, c) => [d, h, w, X1 - d / 2, y, a, c], Wv = (a, w, h, d, y, c) => [d, h, w, X0 + d / 2, y, a, c];
-    function wainscot(a0, a1, run) {
-      const n = Math.max(1, Math.round((a1 - a0) / 0.9)), pw = (a1 - a0) / n, mid = (a0 + a1) / 2;
-      wood.push(run(mid, a1 - a0, 1.1, 0.03, 0.55, '#3a2214'), run(mid, a1 - a0, 0.15, 0.05, 0.075, '#1f120a'), run(mid, a1 - a0, 0.07, 0.07, 1.12, '#5a3620'));
-      for (let i = 0; i < n; i++) wood.push(run(a0 + pw * (i + 0.5), pw - 0.18, 0.72, 0.045, 0.6, '#4a2c1a'));
-      brass.push(run(mid, a1 - a0, 0.025, 0.035, 2.9, ''));
-      wood.push(run(mid, a1 - a0, 0.2, 0.16, H - 0.1, '#2c1a0e'));
+    // `b`: how far behind the wall's face its back is, a different depth for each piece that overlaps another (behind the
+    // wallpaper, in front of the shell), so no two backs share a plane.
+    const N = (a, w, h, d, y, c, b = 0) => [w, h, d + b, a, y, -HW + (d - b) / 2, c], So = (a, w, h, d, y, c, b = 0) => [w, h, d + b, a, y, HW - (d - b) / 2, c];
+    const E = (a, w, h, d, y, c, b = 0) => [d + b, h, w, X1 - (d - b) / 2, y, a, c], Wv = (a, w, h, d, y, c, b = 0) => [d + b, h, w, X0 + (d - b) / 2, y, a, c];
+    // t0/t1: that end meets a long wall's run in a corner, so each piece stops 2 mm short of that wall's piece (its depth);
+    // otherwise each piece's end is twice as far past the end as its back is behind the wall (b), so no two ends share a plane.
+    function wainscot(a0, a1, run, t0 = false, t1 = false) {
+      const n = Math.max(1, Math.round((a1 - a0) / 0.9)), pw = (a1 - a0) / n;
+      const along = (d, h, y, c, b = 0) => {
+        const p = a0 + (t0 ? d + 0.002 : -2 * b), q = a1 - (t1 ? d + 0.002 : -2 * b);
+        return run((p + q) / 2, q - p, h, d, y, c, b);
+      };
+      wood.push(along(0.03, 1.1, 0.55, '#3a2214'), along(0.05, 0.15, 0.075, '#1f120a', 0.004), along(0.07, 0.07, 1.12, '#5a3620', 0.008));
+      for (let i = 0; i < n; i++) wood.push(run(a0 + pw * (i + 0.5), pw - 0.18, 0.72, 0.045, 0.6, '#4a2c1a', -0.004));
+      brass.push(along(0.035, 0.025, 2.9, '', 0.012));
+      wood.push(along(0.16, 0.184, H - 0.012 - 0.092, '#2c1a0e', 0.016));   // the cornice, its top just under the ceiling, its foot off the beams'
     }
-    wainscot(X0, X1, N); wainscot(X0, 10.85, So); wainscot(17.55, X1, So);
-    wainscot(-HW, -sw - 0.08, E); wainscot(sw + 0.08, HW, E);
-    wainscot(-HW, -VAULT.ring - 0.05, Wv); wainscot(VAULT.ring + 0.05, HW, Wv);
-    wood.push(So(14.2, 6.7, 0.2, 0.16, H - 0.1, '#2c1a0e'), So(14.2, 6.7, 0.025, 0.035, 2.9, '#c9a25a'));   // over the catalogue
+    // (each run 5 mm short of the corner: its end inside the other wall's, not in the plane of its back)
+    wainscot(X0 + 0.005, X1 - 0.005, N); wainscot(X0 + 0.005, 10.85, So); wainscot(17.55, X1 - 0.005, So);
+    wainscot(-HW, -sw - 0.08, E, true); wainscot(sw + 0.08, HW, E, false, true);
+    wainscot(-HW, -VAULT.ring - 0.05, Wv, true); wainscot(VAULT.ring + 0.05, HW, Wv, false, true);
+    wood.push(So(14.2, 6.7 - 0.064, 0.184, 0.16, H - 0.012 - 0.092, '#2c1a0e', 0.016), So(14.2, 6.7 - 0.048, 0.025, 0.035, 2.9, '#c9a25a', 0.012));   // (up to the runs' ends, not over them)   // over the catalogue
     // A brass architrave round the lift's stone face.
-    for (const s of [-1, 1]) brass.push(E(s * (sw + 0.04), 0.08, ROOM.h + 0.08, 0.05, (ROOM.h + 0.08) / 2, ''));
-    brass.push(E(0, sw * 2 + 0.16, 0.08, 0.05, ROOM.h + 0.04, ''));
+    for (const s of [-1, 1]) brass.push(E(s * (sw + 0.04), 0.08, ROOM.h + 0.08, 0.054, (ROOM.h + 0.08) / 2, '', 0.02));   // (4 mm prouder than the skirting it stands on)
+    brass.push(E(0, sw * 2 + 0.16 - 0.002, 0.08, 0.054, ROOM.h + 0.042, '', 0.024));   // (the head between the jambs' outer faces, 4 mm prouder)
     add(mergedBoxes(wood, woodM));
     add(mergedBoxes(brass.map((b) => b.slice(0, 6)), brassM));
 
     // The shell outside: a plain pale block standing in the void, the lift's shaft inside it. Fogged like the rest of the void.
     // Its inside faces stand a few cm back from the hall's own wallpaper and ceiling (o), so they never show through.
     const out = mat('#e2e0db', { roughness: 0.9 }), x0 = X0 - VT, z1 = HW + T, o = 0.04, t = T - o;
-    add(mergedBoxes([[XE - x0, H + T, t, (x0 + XE) / 2, (H + T) / 2, -z1 + t / 2], [XE - x0, H + T, t, (x0 + XE) / 2, (H + T) / 2, z1 - t / 2],
-      [t, H + T, z1 * 2, XE - t / 2, (H + T) / 2, 0], [XE - x0, t, z1 * 2, (x0 + XE) / 2, H + T - t / 2, 0]], out));
+    const xs = X0 - o;   // from the vault's wall on (it's a slab of its own, below): not inside it
+    add(mergedBoxes([[XE - xs, H + T, t, (xs + XE) / 2, (H + T) / 2, -z1 + t / 2], [XE - xs, H + T, t, (xs + XE) / 2, (H + T) / 2, z1 - t / 2],
+      [t, H + T, z1 * 2 - t * 2, XE - t / 2, (H + T) / 2, 0], [XE - xs - t, t, z1 * 2 - t * 2, (xs + XE - t) / 2, H + T - t / 2, 0]], out));
     // The vault's wall: a slab with the round bore through it, steel inside the bore.
     const ws = new THREE.Shape().moveTo(-z1, 0).lineTo(z1, 0).lineTo(z1, H + T).lineTo(-z1, H + T).closePath();
     ws.holes.push(new THREE.Path().absarc(0, VAULT.y, VAULT.ring, 0, Math.PI * 2, true));   // the collar fills it
@@ -280,12 +291,16 @@ function build(ctx) {
       if (pull) out.push([CAT.dw - 0.02, CAT.dh - 0.025, pull, x, y - 0.004, CAT.z - pull / 2, '#6b4428'], [CAT.dw - 0.04, 0.02, pull - 0.01, x, y + 0.03, CAT.z - pull / 2, '#efe6d0']);
     }
     inside.add(fronts, pulls);
-    const L = CAT.x1 - CAT.x0, cx = (CAT.x0 + CAT.x1) / 2, carcass = [[L, CAT.rows * CAT.dh, 0.43, cx, CAT.y0 + CAT.rows * CAT.dh / 2, HW - 0.235, '#120a05'],
+    // (the carcass between its end panels; the panels 2 mm over it top and bottom)
+    const L = CAT.x1 - CAT.x0, cx = (CAT.x0 + CAT.x1) / 2, carcass = [[L - 0.1, CAT.rows * CAT.dh, 0.43, cx, CAT.y0 + CAT.rows * CAT.dh / 2, HW - 0.235, '#120a05'],
       [L + 0.06, 0.16, 0.47, cx, 0.08, HW - 0.235, '#1f120a'], [L + 0.1, 0.1, 0.52, cx, CAT.y0 + CAT.rows * CAT.dh + 0.07, HW - 0.26, '#3a2214'], ...out];
-    for (let s = 0; s <= 4; s++) carcass.push([0.05, CAT.rows * CAT.dh, 0.47, CAT.x0 + 0.025 + s * (CAT.cols * CAT.dw + 0.05), CAT.y0 + CAT.rows * CAT.dh / 2, HW - 0.235, '#3a2214']);
+    for (let s = 0; s <= 4; s++) carcass.push([0.05, CAT.rows * CAT.dh + 0.004, 0.47, CAT.x0 + 0.025 + s * (CAT.cols * CAT.dw + 0.05), CAT.y0 + CAT.rows * CAT.dh / 2, HW - 0.235, '#3a2214']);
     // Box files stacked on top.
+    const files = [];
     for (let k = 0; k < 9; k++) { const x = CAT.x0 + 0.3 + R() * (L - 0.6), w = 0.3 + R() * 0.12, h = 0.24 + R() * 0.12;
       if (Math.abs(x - 13.85) < 0.45) continue;   // the tube's sender
+      if (files.some(([a, b]) => x + w / 2 > a && x - w / 2 < b)) continue;   // not through one already there
+      files.push([x - w / 2, x + w / 2]);
       carcass.push([w, h, 0.36, x, CAT.y0 + CAT.rows * CAT.dh + 0.12 + h / 2, HW - 0.24, ['#7a6448', '#8c7556', '#5f5040', '#6d5b45'][k % 4]]); }
     add(mergedBoxes(carcass, woodM));
     const plaque = tex(512, 64, (c, W, h) => {
@@ -372,9 +387,10 @@ function build(ctx) {
     // The chair nobody's sitting in, and the pigeonholes.
     add(mergedBoxes([[0.46, 0.05, 0.44, 13.3, 0.47, -3.12, '#4a2c1a'], [0.46, 0.5, 0.05, 13.3, 0.78, -3.36, '#4a2c1a'],
       ...[[-1, -1], [-1, 1], [1, -1], [1, 1]].map(([a, b]) => [0.04, 0.46, 0.04, 13.3 + a * 0.2, 0.23, -3.12 + b * 0.19, '#2c1a0e'])], woodM));
-    const holes = [[2.4, 1.0, 0.3, 12.7, 1.85, -HW + 0.15, '#1a0f07']];
-    for (let i = 0; i <= 8; i++) holes.push([0.025, 1.0, 0.3, 11.5 + i * 0.3, 1.85, -HW + 0.15, '#4a2c1a']);
-    for (let j = 0; j <= 4; j++) holes.push([2.4, 0.025, 0.3, 12.7, 1.35 + j * 0.25, -HW + 0.15, '#4a2c1a']);
+    // a thin dark back, the dividers standing on it, the shelves 4 mm back from the dividers' fronts
+    const holes = [[2.38, 0.99, 0.02, 12.7, 1.85, -HW + 0.01, '#1a0f07']];
+    for (let i = 0; i <= 8; i++) holes.push([0.025, 1.0, 0.28, 11.5 + i * 0.3, 1.85, -HW + 0.16, '#4a2c1a']);
+    for (let j = 0; j <= 4; j++) holes.push([2.4, 0.025, 0.276, 12.7, 1.35 + j * 0.25, -HW + 0.16, '#4a2c1a']);
     for (let i = 0; i < 8; i++) for (let j = 0; j < 4; j++) if (R() < 0.6) holes.push([0.2, 0.04 + R() * 0.12, 0.24, 11.65 + i * 0.3, 1.38 + j * 0.25 + 0.04, -HW + 0.17, R() < 0.5 ? '#e8dfc8' : '#d8c8a0']);
     add(mergedBoxes(holes, woodM));
   }

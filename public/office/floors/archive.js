@@ -64,23 +64,25 @@ export function install(ctx) {
       chromeM = mat('#d7dade', { metalness: 1, roughness: 0.18 });
     const cab = arch.cabinet = new THREE.Group(), W = 0.47, H = 1.32, D = 0.62, base = 0.08, gap = 0.008, dh = (H - base - 0.012 - gap * 5) / 4;
     cab.position.set(ARCH.x, 0, ARCH.z); cab.rotation.y = Math.PI / 2;   // fronts face the lift
-    cab.add(mergedBoxes([[0.012, H - base, D, -W / 2 + 0.006, base + (H - base) / 2, 0], [0.012, H - base, D, W / 2 - 0.006, base + (H - base) / 2, 0],
-      [W, 0.012, D, 0, H - 0.006, 0], [W, H - base, 0.012, 0, base + (H - base) / 2, -D / 2 + 0.006]], bodyM));
+    // (the sides under the top, the back between the sides: no two faces in one plane)
+    const sh = H - base - 0.012;
+    cab.add(mergedBoxes([[0.012, sh, D, -W / 2 + 0.006, base + sh / 2, 0], [0.012, sh, D, W / 2 - 0.006, base + sh / 2, 0],
+      [W, 0.012, D, 0, H - 0.006, 0], [W - 0.024, sh, 0.012, 0, base + sh / 2, -D / 2 + 0.006]], bodyM));
     cab.add(mergedBoxes([[W - 0.03, 0.075, D - 0.05, 0, 0.0375, -0.01, '#2d2f2c'],
       [W - 0.024, H - base - 0.012, 0.004, 0, base + (H - base) / 2, D / 2 - 0.024, '#1e1f1d']], mat('#ffffff', { vertexColors: true, roughness: 0.7 })));
     ['A – F', 'G – L', 'M – R', 'S – Z'].reverse().forEach((t, i) => {
       const g = new THREE.Group(), fz = D / 2 - 0.011;
       g.position.set(0, base + gap + i * (dh + gap) + dh / 2, 0);
       g.add(mergedBoxes([[W - 0.024 - gap, dh, 0.02, 0, 0, fz]], bodyM));
-      g.add(mergedBoxes([[0.15, 0.016, 0.014, 0, -0.035, fz + 0.03], [0.012, 0.016, 0.03, -0.068, -0.035, fz + 0.016],
-        [0.012, 0.016, 0.03, 0.068, -0.035, fz + 0.016],
+      g.add(mergedBoxes([[0.15, 0.016, 0.014, 0, -0.035, fz + 0.03], [0.012, 0.012, 0.03, -0.068, -0.035, fz + 0.016],
+        [0.012, 0.012, 0.03, 0.068, -0.035, fz + 0.016],   // (the posts slimmer than the bar they hold)
         [0.104, 0.054, 0.003, 0, 0.07, fz + 0.011]], chromeM));
       const card = makeCanvas(192, 96);
       card.ctx.fillStyle = '#f1ead9'; card.ctx.fillRect(0, 0, 192, 96); card.ctx.fillStyle = '#2b2a28'; card.ctx.font = `600 40px "Courier New", ${MONO}`;
       card.ctx.textAlign = 'center'; card.ctx.fillText(t, 96, 62);
       card.tex.needsUpdate = true;
       const lab = new THREE.Mesh(new THREE.PlaneGeometry(0.09, 0.044), new THREE.MeshStandardMaterial({ map: card.tex, roughness: 0.9 }));
-      lab.position.set(0, 0.07, fz + 0.0128); g.add(lab);
+      lab.position.set(0, 0.07, fz + 0.0145); g.add(lab);   // 2 mm proud of its holder
       if (i === 3) { const lock = cyl(g, 0.011, 0.011, 0.012, '', W / 2 - 0.06, dh / 2 - 0.035, fz + 0.014, { material: chromeM, seg: 20 });
         lock.rotation.x = Math.PI / 2; }
       cab.add(g); arch.drawers.push({ g, label: t, open: 0 });
