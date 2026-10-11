@@ -210,7 +210,7 @@ export const POSES = [
     await from('heli-cockpit', o);
     await o.eval(() => { window.dash.setView('desktop', 'cctv'); });   // not awaited: the fly-in needs frames
     await stepUntil(o, () => document.body.dataset.view === 'desktop', 200);
-    await stepUntil(o, () => document.querySelectorAll('.cc-tile canvas[data-live]').length === 17, 200);
+    await stepUntil(o, () => document.querySelectorAll('.cc-tile canvas[data-live]').length === 23, 200);
     await o.step(4); await o.idle();
   }],
   ['archive-hall', async (o) => {   // down to the archive's entrance hall at dusk, the vault shut
