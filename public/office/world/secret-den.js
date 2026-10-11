@@ -61,14 +61,25 @@ export function buildDen(ctx, api) {
     t.tex.wrapS = THREE.RepeatWrapping; t.tex.needsUpdate = true;
     return t.tex;
   })();
-  const wall = (len, x, z, ry) => {
+  // (hole: [u0, u1, v0, v1], along the wall from its middle and up from the floor: an opening, the panelling's pattern unbroken round it)
+  const wall = (len, x, z, ry, hole) => {
     const tex = panel.clone(); tex.repeat.set(len / 1.2, 1); tex.needsUpdate = true;
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(len, H), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.6 }));
+    let g = new THREE.PlaneGeometry(len, H);
+    if (hole) {
+      const v2 = (a) => a.map(([u, v]) => new THREE.Vector2(u, v)), sh = new THREE.Shape(v2([[-len / 2, -H / 2], [len / 2, -H / 2], [len / 2, H / 2], [-len / 2, H / 2]]));
+      const [u0, u1, v0, v1] = hole;
+      sh.holes.push(new THREE.Path(v2([[u0, v0 - H / 2], [u0, v1 - H / 2], [u1, v1 - H / 2], [u1, v0 - H / 2]])));
+      g = new THREE.ShapeGeometry(sh);
+      const pa = g.attributes.position, uv = g.attributes.uv;
+      for (let i = 0; i < pa.count; i++) uv.setXY(i, pa.getX(i) / len + 0.5, pa.getY(i) / H + 0.5);
+    }
+    const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: tex, roughness: 0.6 }));
     m.position.set(x, Y(H / 2), z); m.rotation.y = ry; m.castShadow = m.receiveShadow = true;
     return add(m);
   };
   const W = DEN.x1 - DEN.x0, D = DEN.z1 - DEN.z0, cx = (DEN.x0 + DEN.x1) / 2, cz = (DEN.z0 + DEN.z1) / 2;
-  wall(W, cx, DEN.z0, 0); wall(W, cx, DEN.z1, Math.PI); wall(D, DEN.x0, cz, Math.PI / 2); wall(D, DEN.x1, cz, -Math.PI / 2);
+  const VT = api.vent;   // the duct's vent, low in the east wall (world/secret-duct.js)
+  wall(W, cx, DEN.z0, 0); wall(W, cx, DEN.z1, Math.PI); wall(D, DEN.x0, cz, Math.PI / 2); wall(D, DEN.x1, cz, -Math.PI / 2, [VT.z0 - cz, VT.z1 - cz, VT.y0, VT.y1]);
   {
     const tex = woodTexture(); tex.repeat.set(W / 3, D / 3);
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(W, D), new THREE.MeshStandardMaterial({ map: tex, color: '#5e3c26', roughness: 0.55 }));
@@ -87,7 +98,9 @@ export function buildDen(ctx, api) {
   const trim = [];
   for (const [w, d, x, z] of [[W, 0.03, cx, DEN.z0 + 0.015], [W, 0.03, cx, DEN.z1 - 0.015], [0.03, D, DEN.x0 + 0.015, cz], [0.03, D, DEN.x1 - 0.015, cz]]) {
     const o = d < 0.1 ? 0 : 0.003;   // (the runs along x and along z meet at the corners: never in one plane)
-    trim.push(B(w, 0.16 - o, d, '#2a180d', x, 0.08 - o / 2, z), B(w, 0.12 - o, d * 2, '#3a2414', x, H - 0.06 - o / 2, z));
+    trim.push(B(w, 0.12 - o, d * 2, '#3a2414', x, H - 0.06 - o / 2, z));
+    if (x !== DEN.x1 - 0.015) { trim.push(B(w, 0.16 - o, d, '#2a180d', x, 0.08 - o / 2, z)); continue; }
+    for (const [za, zb] of [[DEN.z0, VT.z0 - 0.07], [VT.z1 + 0.07, DEN.z1]]) trim.push(B(w, 0.16 - o, zb - za, '#2a180d', x, 0.08 - o / 2, (za + zb) / 2));   // (round the vent's frame)
   }
   for (const x of [6.55, 10.6]) trim.push(B(0.18, 0.2, D, '#2a1a10', x, H - 0.1, cz));
   for (const [w, d, x, z] of [[HOLE.x1 - HOLE.x0 + 0.1, 0.05, (HOLE.x0 + HOLE.x1) / 2, HOLE.z1 + 0.025], [0.05, HOLE.z1 - HOLE.z0, HOLE.x0 - 0.025, (HOLE.z0 + HOLE.z1) / 2],
@@ -360,7 +373,7 @@ export function buildDen(ctx, api) {
     }
     // The fire: it moves only while you're below; its crackle comes from the hearth (and fades with distance).
     FP.k = damp(FP.k, FP.on ? 1 : 0, FP.on ? 1.2 : 2.5, dt);
-    api.snd().fire(S.at === 'office' ? 0 : FP.k, { x: FP.x, y: Y(0.3), z: FP.face - 0.2 });
+    api.snd().fire(S.at === 'office' || ctx.away ? 0 : FP.k, { x: FP.x, y: Y(0.3), z: FP.face - 0.2 });
     if (S.at !== 'office') {
       FP.flick = 0.84 + 0.08 * Math.sin(t * 13.1) + 0.06 * Math.sin(t * 7.3 + 1) + 0.05 * Math.sin(t * 23.7 + 2);
       fireU.t.value = t; fireU.k.value = FP.k;
@@ -419,5 +432,5 @@ export function buildDen(ctx, api) {
     c.font = '600 13px system-ui'; c.fillText('Ladder', sx(HOLE.x0) - 4, sz(HOLE.z1) + 16);
   }
 
-  return { g: G, colliders, lights, seat, leverAt, fx, map, stopAll };
+  return { g: G, colliders, lights, seat, leverAt, fx, map, stopAll, vc, merge, part };
 }

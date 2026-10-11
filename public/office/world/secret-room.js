@@ -24,6 +24,7 @@ import * as THREE from 'three';
 import { angDiff, clamp, colliders, damp, ease, EYE, hash, lerp, makeCanvas, mat, mergedBoxes, rng, sstep } from '../util.js';
 import { buildDen, merge, part } from './secret-den.js';
 import { makeSound } from './secret-sound.js';
+import { installDuct, VENT } from './secret-duct.js';
 
 export const DY = -3.8, CEIL = -1.2;   // the den's floor (47's, a storey down) and its ceiling (a void and the slab above)
 export const HOLE = { x0: 7.925, x1: 8.775, z0: -14.88, z1: -14.1 };   // the shaft, from 48's boards down into the den (in off 47's slab edge and louvres)
@@ -54,8 +55,8 @@ function own(fn) { const random = Math.random; Math.random = seeds; try { return
 /** @param {import('../ctx.js').OfficeCtx} ctx */
 function build(ctx) {
   const { world, secretShelf: shelf, officeFloor, officeCarpet, FLOORS, scene, camera, lamps, renderer, hemi, sun } = ctx;
-  const S = { T: 0, dir: 0, at: 'office', fy: 0, tw: null, hold: false, found: localStorage.officeSecret === '1', built: false, holed: false, skip: false, k: 0 };
-  let den = null, shaftG = null, hatch = null, lid = null, stiles = null, snd = null;
+  const S = { T: 0, dir: 0, at: 'office', fy: 0, tw: null, hold: false, found: localStorage.officeSecret === '1', built: false, holed: false, skip: false, k: 0, ek: 0 };
+  let duct = null, den = null, shaftG = null, hatch = null, lid = null, stiles = null, snd = null;
 
   // ----- the bookcase -----
   // installDesk's (furniture.js) comes out; this one goes in its place, the same size, wood and palette, in three
@@ -209,6 +210,7 @@ function build(ctx) {
     own(() => {
       buildShaft();
       den = buildDen(ctx, api);
+      duct.buildOffice(den);
       inDen.colliders = den.colliders;
     });
   }
@@ -251,7 +253,7 @@ function build(ctx) {
   // ----- climbing -----
   // ctx.below while you're under 48's boards (or on the ladder): what player.js collides you with, and your floor height.
   const onLadder = { colliders: [], ground: () => S.fy }, inDen = { colliders: [], ground: () => DY };
-  Object.defineProperty(ctx, 'below', { get: () => (S.at === 'office' ? null : S.at === 'den' ? inDen : onLadder), enumerable: true });
+  Object.defineProperty(ctx, 'below', { get: () => (S.at === 'office' ? null : S.at === 'den' ? inDen : S.at === 'duct' ? duct.below : onLadder), enumerable: true });
   const me = () => ctx.player;   // (player.js is installed later)
   function grab() {
     const p = me(), fromDen = S.at === 'den';
@@ -270,6 +272,7 @@ function build(ctx) {
   let lastRung = 0;
   const rungAt = () => (S.fy - DY) / LADDER.rung;
   function climb(dt, keys) {
+    if (S.at === 'duct') return duct.crawl(dt, keys);   // (crawling: world/secret-duct.js)
     if (S.at !== 'grab' && S.at !== 'ladder' && S.at !== 'off') return false;
     const p = me(), v = (keys.has('KeyW') || keys.has('ArrowUp') ? 1 : 0) - (keys.has('KeyS') || keys.has('ArrowDown') ? 1 : 0);
     if (!v) S.hold = false;
@@ -307,7 +310,7 @@ function build(ctx) {
   function reset() {   // somewhere else entirely (your desk from the menu, a teleport, a floor): back on 48's boards
     S.at = 'office'; S.tw = null; S.fy = 0;
     const p = me(); if (p) p.fy = 0;
-    den?.stopAll();
+    den?.stopAll(); duct.reset();
     camera.rotation.z = 0;
   }
   // Walking into the ladder (or the hole it's in) facing it takes hold of it.
@@ -346,7 +349,7 @@ function build(ctx) {
     hemi.intensity *= lerp(1, 0.14, k); hemi.color.lerp(WARM, 0.5 * k); hemi.groundColor.lerp(DUSK, 0.6 * k);
     scene.environmentIntensity = lerp(scene.environmentIntensity, 0.06, k);
     sun.intensity *= 1 - k; ctx.raysStrength *= 1 - k;   // (the rays pass would streak the den's bulbs toward the sun)
-    renderer.toneMappingExposure = lerp(ctx.officeExposure, 1.45, k);
+    renderer.toneMappingExposure = lerp(lerp(ctx.officeExposure, 1.45, k), 1.0, S.ek);   // (in the duct, the backstage's: its far half's there)
   }
   // Under the boards nothing of the office, the city or the sky can show but through the shaft's opening at the top: while
   // that's out of view, your view's renders draw only the den and the shaft (the cameras' feeds draw everything).
@@ -355,7 +358,7 @@ function build(ctx) {
   const opening = new THREE.Box3(new THREE.Vector3(HOLE.x0, -0.05, HOLE.z0), new THREE.Vector3(HOLE.x1, 0.05, HOLE.z1));
   function findOverhead() {
     overN = world.children.length + scene.children.length;
-    overhead = [...world.children, ...scene.children].filter((o) => o !== world && o !== shaftG && o !== den.g && !o.isLight);
+    overhead = [...world.children, ...scene.children].filter((o) => o !== world && o !== shaftG && o !== den.g && o !== duct.officeG && !o.userData.secret && !o.isLight);
   }
   const inView = (box) => frustum.intersectsBox(box);   // (this frame's view: set before the den's fx)
   function viewNow() { camera.updateMatrixWorld(); frustum.setFromProjectionMatrix(M4.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)); }
@@ -371,6 +374,7 @@ function build(ctx) {
   ctx.onFrame((dt) => { if (S.dir) step(dt); }, 62);
   ctx.onFrame(() => {
     if (S.at === 'office') return;
+    if (S.at === 'duct') { if (duct.lost()) reset(); return; }
     const p = me();
     const lost = S.at === 'den' ? !inside(p.x, p.z) || Math.abs((p.fy || 0) - DY) > 0.5 : Math.hypot(p.x - LADDER.x, p.z - LADDER.hang) > 1.25 || Math.abs((p.fy || 0) - S.fy) > 0.3;
     if (ctx.away || lost) reset();   // (put back on the boards: the menu, a teleport, the tests' poses)
@@ -382,7 +386,7 @@ function build(ctx) {
     den.g.visible = S.at !== 'office' || (S.T > OPEN_AT && near < 6 && !ctx.away);
     viewNow();
     if (den.g.visible) den.fx(dt, t, S);   // (the cameras' feeds first: they're of the office, lit as the office)
-    S.k = S.at === 'office' ? 0 : sstep(-1.2, -2.8, S.at === 'den' ? DY : S.fy);
+    S.k = S.at === 'office' ? 0 : sstep(-1.2, -2.8, S.at === 'den' || S.at === 'duct' ? DY : S.fy);
     light(S.k);
     S.skip = S.at !== 'office' && c.y < -0.05 && !inView(opening);
     if (S.skip && world.children.length + scene.children.length !== overN) findOverhead();
@@ -403,11 +407,12 @@ function build(ctx) {
 
   // ----- a reload (resume.js: 48's own save and restore) -----
   const OFFICE = FLOORS.find((F) => F.n === 48), r2 = (v) => Math.round(v * 100) / 100;
-  OFFICE.save = () => (S.tw || (S.dir && S.at !== 'office') ? false : S.at === 'ladder' ? { den: 'ladder', fy: r2(S.fy) } : S.at === 'den' ? { den: 1 } : null);
+  OFFICE.save = () => (S.tw || (S.dir && S.at !== 'office') ? false : S.at === 'ladder' ? { den: 'ladder', fy: r2(S.fy) } : S.at === 'den' ? { den: 1 } : S.at === 'duct' ? duct.save() : null);
   OFFICE.restore = (s, p) => {
     if (!s.den) return false;
     ensure(); S.T = T_END; S.dir = 0;
     const pl = me();
+    if (s.den === 'duct') { apply(); duct.restore(s); return true; }
     if (s.den === 'ladder') {
       S.at = 'ladder'; S.fy = clamp(+s.fy || 0, DY, 0); apply();
       Object.assign(pl, { x: LADDER.x, z: LADDER.hang, fy: S.fy, eye: EYE });
@@ -424,7 +429,13 @@ function build(ctx) {
   };
 
   // ----- what the den needs from here, and the debug hooks -----
-  const api = { S, toggle, inView, snd: () => snd, DY, CEIL, HOLE, DEN, LADDER, openK: () => slideK(S.T) };
+  const api = { S, toggle, inView, snd: () => snd, DY, CEIL, HOLE, DEN, LADDER, openK: () => slideK(S.T), vent: VENT, ensure,
+    hideOverhead() {   // (for a look into the office from behind the sky, through the duct: just the den's end of it)
+      if (world.children.length + scene.children.length !== overN) findOverhead();
+      const hid = overhead.filter((o) => o.visible); for (const o of hid) o.visible = false;
+      return () => { for (const o of hid) o.visible = true; };
+    } };
+  duct = installDuct(ctx, api);
   function openNow() { ensure(); S.T = T_END; S.dir = 0; S.found = true; apply(); }
   ctx.secret = {
     S,
@@ -441,5 +452,6 @@ function build(ctx) {
       Object.assign(me(), { x, z, fy: DY, eye: EYE, yaw, pitch, seated: false, seat: null });
     },
     get room() { return den; },   // the den's parts (secret-den.js)
+    ...duct.debug,   // the duct (secret-duct.js): .vent(open), .duct(x, z, yaw, pitch), .corridor(x, z, yaw, pitch), .grille(off)
   };
 }
