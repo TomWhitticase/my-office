@@ -217,7 +217,7 @@ function build(ctx) {
   const T = 0.12, HH = ROOM.h;
   const WALLS = [
     ['x', 3.5, -20, 20, 'glass', [[-1.2, 0.6], [13.6, 15.2]]],      // the pool hall and the gym, onto the way through
-    ['z', 6, 3.5, 8, 'fluted', [[4.6, 6.2]]], ['z', 6, 8, 15, 'slat'],   // gym | pool hall
+    ['z', 6, 3.5, 8, 'fluted', [[4.6, 6.2]]], ['z', 6, 8, 14.9, 'slat'],   // gym | pool hall
     ['z', -10.5, 0.8, 3.5, 'fluted'], ['z', -10.5, -3.5, -2.2, 'fluted'],   // the lounge, screened off
     ['x', -3.5, -20, -8, 'glass', [[-12.6, -11.2]]], ['x', -3.5, -8, 4, 'stone', [[-1.3, 0.3]]], ['x', -3.5, 4, 18, 'stone', [[6.4, 8.0]]],
     ['z', -8, -15, -3.5, 'stone', [[-12.8, -11.4]]],                    // yoga and the jacuzzi | the hall past the changing rooms
@@ -274,7 +274,7 @@ function build(ctx) {
       }
       // A cove of warm light along the top of the solid ones, both sides.
       if (!glassy) for (const s of [-1, 1]) for (const [a, b] of segs) {
-        const g = axis === 'x' ? new THREE.BoxGeometry(b - a, 0.03, 0.05) : new THREE.BoxGeometry(0.05, 0.03, b - a);
+        const g = axis === 'x' ? new THREE.BoxGeometry(b - a - 0.004, 0.03, 0.05) : new THREE.BoxGeometry(0.05, 0.03, b - a - 0.004);   // (2 mm short each end)
         g.translate(axis === 'x' ? (a + b) / 2 : fixed + s * (T / 2 + 0.03), HH - 0.33, axis === 'x' ? fixed + s * (T / 2 + 0.03) : (a + b) / 2); k.geo(M.cove, g);
       }
     }
@@ -284,16 +284,16 @@ function build(ctx) {
   // Columns where 48's stand, clad in travertine with a brass shadow gap at the foot.
   {
     const k = kit();
-    for (const [x, z] of [[4, -8], [4, 8], [-9, 0.5 - 2.6]]) { k.box(M.stoneWall, 0.56, ROOM.h, 0.56, x, ROOM.h / 2, z); k.box(M.brass, 0.6, 0.04, 0.6, x, 0.02, z); solid(x, z, 0.56, 0.56); }
+    for (const [x, z] of [[4, 8], [-9, 0.5 - 2.6]]) { k.box(M.stoneWall, 0.56, ROOM.h, 0.56, x, ROOM.h / 2, z); k.box(M.brass, 0.6, 0.04, 0.6, x, 0.02, z); solid(x, z, 0.56, 0.56); }
     // The one at (4, -8) is wrapped into the spa's wall as a thick pier, from the spa doorway's north side to the corner of
     // the changing rooms, so it stands beside the doorway rather than in it. The doorway: a dark steel frame (jambs and a
     // head under the stone header), the sliding glass door running into the pier.
     const PZ0 = -8.6, PZ1 = -7.0, PT = 0.62, D0 = -10.65, DH = 2.25;
     { const g = new THREE.BoxGeometry(PT, ROOM.h, PZ1 - PZ0); g.translate(4, ROOM.h / 2, (PZ0 + PZ1) / 2); k.geo(M.stoneWall, uvWorld(g, 2.4, 'wall')); }
-    k.box(M.brass, PT + 0.04, 0.04, PZ1 - PZ0, 4, 0.02, (PZ0 + PZ1) / 2);
+    k.box(M.brass, PT + 0.04, 0.04, PZ1 - PZ0 + 0.04, 4, 0.02, (PZ0 + PZ1) / 2);
     for (const s of [-1, 1]) k.box(M.cove, 0.05, 0.03, PZ1 - PZ0, 4 + s * (PT / 2 + 0.03), ROOM.h - 0.33, (PZ0 + PZ1) / 2);
     solid(4, (PZ0 + PZ1) / 2, PT, PZ1 - PZ0);
-    k.box(M.black, PT, 0.08, PZ0 - D0 + 0.1, 4, DH + 0.04, (D0 + PZ0) / 2);   // the head, as deep as the pier
+    k.box(M.black, PT - 0.004, 0.08, PZ0 - D0 + 0.1, 4, DH + 0.036, (D0 + PZ0) / 2);   // the head, as deep as the pier, 4 mm under the header
     k.box(M.black, PT, DH, 0.05, 4, DH / 2, PZ0 - 0.025);                   // the pier's jamb
     k.box(M.black, T + 0.06, DH, 0.05, 4, DH / 2, D0 + 0.025);              // the south jamb
     k.flush(G);
@@ -329,10 +329,10 @@ function build(ctx) {
     const leaves = split ? [leafOf(w / 2, w / 4 - 0.1), leafOf(w / 2, -w / 4 + 0.1)] : [leafOf(w, w / 2 - 0.12)];
     const k = kit();
     if (lining) {
-      for (const s of [-1, 1]) k.box(M.black, 0.05, DH, lining, s * (w / 2 - 0.025), DH / 2, 0);
-      k.box(M.black, w, 0.08, lining, 0, DH + 0.04, 0);
+      for (const s of [-1, 1]) k.box(M.black, 0.05, DH, lining, s * (w / 2 - 0.027), DH / 2, 0);   // (2 mm in from the wall's ends)
+      k.box(M.black, w - 0.004, 0.08, lining, 0, DH + 0.036, 0);   // 4 mm under the header, its ends inside the jambs
     }
-    if (off) k.box(M.black, w * 2 + 0.1, 0.06, 0.05, split ? 0 : -w / 2, DH + 0.03, off);
+    if (off) k.box(M.black, w * 2 + 0.1, 0.06, 0.05, split ? 0 : -w / 2, DH + 0.034, off);   // (its foot 4 mm up the header's face)
     k.flush(g, false);
     G.add(g);
     const d = { name, g, leaves, w, split, k: 0, at: { x: g.position.x, z: g.position.z } };
@@ -412,7 +412,7 @@ function build(ctx) {
     k.box(M.cove, 6.4, 0.02, 0.04, 13.8, 2.64, -3.38);
     for (const x of [11.25, 16.35]) for (let y = 0.5; y < 2.3; y += 0.42) k.box(M.oak, 1.1, 0.035, 0.36, x, y, -3.25);
     // A monitor and an orchid on the desk, a brass bell.
-    k.box(M.black, 0.5, 0.32, 0.02, 14.6, 1.33, DZ - 0.25); k.box(M.black, 0.04, 0.2, 0.04, 14.6, 1.15, DZ - 0.26);
+    k.box(M.black, 0.5, 0.32, 0.02, 14.6, 1.33, DZ - 0.25); k.box(M.black, 0.04, 0.2, 0.04, 14.6, 1.16, DZ - 0.26);   // (its foot in the desk, not level with its underside)
     k.cyl(M.brass, 0.05, 0.06, 0.05, 12.6, 1.125, DZ + 0.05, 16);
     k.cyl(M.linen, 0.07, 0.06, 0.12, 13.1, 1.16, DZ - 0.05, 16);
     k.flush(G);

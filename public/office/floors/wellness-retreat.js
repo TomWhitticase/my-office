@@ -30,7 +30,7 @@ export function installRetreat(ctx, W) {
     k.geo(M.stone, uvWorld(g, 2.4));
     // The riser and the two steps down to the room.
     const mz = (DECK.z0 + DECK.z1) / 2, d = DECK.z1 - DECK.z0;
-    k.box(M.stoneWall, 0.04, DECK.top, d, DECK.x1, DECK.top / 2, mz);
+    k.box(M.stoneWall, 0.04, DECK.top, d - 0.004, DECK.x1 + 0.022, DECK.top / 2, mz);   // (beside the deck's edge, its back and ends just inside the steps')
     for (let i = 0; i < 2; i++) {
       const h = DECK.top * (2 - i) / 3, x = DECK.x1 + STEP * (i + 0.5);
       k.box(M.stone, STEP, h, d, x, h / 2, mz);

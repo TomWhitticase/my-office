@@ -174,8 +174,8 @@ export function installSpa(ctx, W) {
     solid(stove.x, stove.z, 0.9, 0.85);
     // Bucket and ladle on the lower bench's end.
     const bk = { x: 16.5, z: -11.5 };   // the bucket, on the lower bench's end
-    k.cyl(M.cedar, 0.12, 0.1, 0.2, bk.x, 0.61, bk.z, 16); k.cyl(M.brass, 0.125, 0.125, 0.02, bk.x, 0.7, bk.z, 16);
-    k.cyl(M.cedar, 0.012, 0.012, 0.55, bk.x + 0.12, 0.86, bk.z, 6, 0, -0.6); k.cyl(M.brass, 0.04, 0.03, 0.04, bk.x, 0.69, bk.z, 10);
+    k.cyl(M.cedar, 0.12, 0.1, 0.2, bk.x, 0.61, bk.z, 16); k.cyl(M.brass, 0.125, 0.125, 0.02, bk.x, 0.702, bk.z, 16);   // (the rim 2 mm over the staves' top)
+    k.cyl(M.cedar, 0.012, 0.012, 0.55, bk.x + 0.12, 0.86, bk.z, 6, 0, -0.6); k.cyl(M.brass, 0.04, 0.03, 0.04, bk.x, 0.688, bk.z, 10);
     W.hits.push(ctx.hitBox(G, 0.45, 0.6, 0.4, bk.x, 0.8, bk.z, { action: 'wellness-ladle', reach: 2.6 }));
     // Seats: two on each tier, facing the window.
     for (const [x, y, z] of [[SA.x0 + 0.42, 1.35, -13.6], [SA.x0 + 0.42, 1.35, -12.0], [SA.x0 + 0.95, 0.95, -13.9], [SA.x0 + 0.95, 0.95, -12.4]]) {
@@ -251,8 +251,9 @@ export function installSpa(ctx, W) {
   const steamRoom = { fog: 0.35, puff: 0, next: 4, inside: false, dense: 0.7, open: false };
   W.steam = steamRoom;
   {
-    tiled(0.04, 3.3, ST.z1 - ST.z0, ST.x1 - 0.08, 1.65, (ST.z0 + ST.z1) / 2); tiled(ST.x1 - ST.x0, 3.3, 0.04, (ST.x0 + ST.x1) / 2, 1.65, ST.z0 + 0.12);
-    k.box(mat('#252b2a', { roughness: 0.6 }), ST.x1 - ST.x0, 0.06, ST.z1 - ST.z0, (ST.x0 + ST.x1) / 2, 2.55, (ST.z0 + ST.z1) / 2);   // dark, for the stars
+    // (the skins 4 mm under the ceiling: off the beams' tops)
+    tiled(0.04, 3.296, ST.z1 - ST.z0 - 0.004, ST.x1 - 0.08, 1.648, (ST.z0 + ST.z1) / 2); tiled(ST.x1 - ST.x0, 3.296, 0.04, (ST.x0 + ST.x1) / 2, 1.648, ST.z0 + 0.12);
+    k.box(mat('#252b2a', { roughness: 0.6 }), ST.x1 - ST.x0 - 0.008, 0.06, ST.z1 - ST.z0 - 0.008, (ST.x0 + ST.x1) / 2, 2.55, (ST.z0 + ST.z1) / 2);   // dark, for the stars (its edges inside the walls, off the skins' ends)
     tiled(ST.x1 - ST.x0 - 0.2, 0.45, 0.55, (ST.x0 + ST.x1) / 2, 0.225, ST.z0 + 0.42); tiled(0.55, 0.45, 2.9, ST.x0 + 0.37, 0.225, -12.3);
     tiled(ST.x1 - ST.x0 - 0.2, 0.5, 0.06, (ST.x0 + ST.x1) / 2, 0.7, ST.z0 + 0.16);
     k.box(slateM, ST.x1 - ST.x0 - 0.1, 0.02, ST.z1 - ST.z0 - 0.1, (ST.x0 + ST.x1) / 2, 0.01, (ST.z0 + ST.z1) / 2);
@@ -305,7 +306,7 @@ export function installSpa(ctx, W) {
     const { x, z, w, d } = PL, t = 0.14;
     for (const [bw, bd, bx, bz] of [[w, t, x, z - d / 2], [w, t, x, z + d / 2], [t, d, x - w / 2, z], [t, d, x + w / 2, z]]) k.box(M.stoneWall, bw, plungeTop, bd, bx, plungeTop / 2, bz);
     k.box(M.stone, w + 0.14, 0.04, t + 0.1, x, plungeTop + 0.02, z + d / 2); k.box(M.stone, w + 0.14, 0.04, t + 0.1, x, plungeTop + 0.02, z - d / 2);
-    k.box(M.stone, t + 0.1, 0.04, d, x - w / 2, plungeTop + 0.02, z); k.box(M.stone, t + 0.1, 0.04, d, x + w / 2, plungeTop + 0.02, z);
+    k.box(M.stone, t + 0.1, 0.04, d - t - 0.1, x - w / 2, plungeTop + 0.02, z); k.box(M.stone, t + 0.1, 0.04, d - t - 0.1, x + w / 2, plungeTop + 0.02, z);   // (between the long ones, not under them)
     const inner = causticMaterial({ color: '#5f9497', roughness: 0.3 }, { ...W.U, waterY: { value: W.Y + plungeTop - 0.06 } });
     // Its floor just over the room's (which would show through one sunk below it), tiled like the walls.
     k.box(inner, w - t, 0.02, d - t, x, 0.02, z);
@@ -351,8 +352,8 @@ export function installSpa(ctx, W) {
   // Three ceiling heads in a bay behind the fluted screen, a slate floor with a linear drain. Click one to run it.
   const SH = { x: 5.2, zs: [-14.1, -12.95, -11.8] }, showers = [];
   {
-    k.box(slateM, 2.3, 0.02, 3.7, 5.2, 0.012, -13.05); k.box(M.black, 0.08, 0.021, 3.5, 4.35, 0.013, -13.05);
-    tiled(2.3, 3.3, 0.04, 5.2, 1.65, -14.84);
+    k.box(slateM, 2.296, 0.02, 3.7, 5.2, 0.012, -13.05); k.box(M.black, 0.08, 0.0185, 3.5, 4.35, 0.01525, -13.05);
+    tiled(2.3, 3.296, 0.04, 5.2, 1.648, -14.84);
     const rainM = new THREE.ShaderMaterial({ uniforms: { time: W.U.time, on: { value: 0 } }, transparent: true, depthWrite: false, side: THREE.DoubleSide,
       vertexShader: 'varying vec3 vL; void main() { vL = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
       fragmentShader: `uniform float time, on; varying vec3 vL;

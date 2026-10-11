@@ -65,11 +65,13 @@ export function installPool(ctx, W) {
   const lineM = causticMaterial({ color: '#16242e', roughness: 0.3 }, U);
   W.causticMaterial = (p) => causticMaterial(p, U);
   {
-    const k = kit(), { x0, x1, z0, z1 } = POOL, D = WATER - FLOOR;
+    const k = kit(), { x0, x1, z0, z1 } = POOL;
     const wall = (w, h, d, x, y, z) => { const g = new THREE.BoxGeometry(w, h, d); g.translate(x, y, z); k.geo(tileM, uvWorld(g, 1.6, 'wall')); };
     { const g = new THREE.PlaneGeometry(x1 - x0, z1 - z0); g.rotateX(-Math.PI / 2); g.translate((x0 + x1) / 2, FLOOR, (z0 + z1) / 2); k.geo(tileM, uvWorld(g, 1.6)); }
-    wall(x1 - x0, D + 0.03, 0.1, (x0 + x1) / 2, (FLOOR + 0) / 2, z0 - 0.05); wall(x1 - x0, D + 0.03, 0.1, (x0 + x1) / 2, (FLOOR + 0) / 2, z1 + 0.05);
-    wall(0.1, D + 0.03, z1 - z0, x0 - 0.05, (FLOOR + 0) / 2, (z0 + z1) / 2); wall(0.1, D + 0.03, z1 - z0, x1 + 0.05, (FLOOR + 0) / 2, (z0 + z1) / 2);
+    // (their tops 3 mm under the deck: the floor and the coping are what you see there)
+    const wh = -0.003 - (FLOOR - 0.015), wy = (-0.003 + FLOOR - 0.015) / 2;
+    wall(x1 - x0, wh, 0.1, (x0 + x1) / 2, wy, z0 - 0.05); wall(x1 - x0, wh, 0.1, (x0 + x1) / 2, wy, z1 + 0.05);
+    wall(0.1, wh, z1 - z0, x0 - 0.05, wy, (z0 + z1) / 2); wall(0.1, wh, z1 - z0, x1 + 0.05, wy, (z0 + z1) / 2);
     // The steps: four treads down westward in the south-east corner.
     for (let i = 0; i < 4; i++) {
       const a = STEPS.x1 - 0.55 * (i + 1), b = STEPS.x1 - 0.55 * i, top = -0.3 * (i + 1);
@@ -201,7 +203,7 @@ export function installPool(ctx, W) {
     // The towel stack: a teak shelf of folded towels against the gym wall by the glass, past the steps (not in the way to
     // them: you walk west onto the steps from the strip east of the pool).
     const TX = 5.66, TZ = 13.9;
-    k.box(M.oak, 0.5, 0.04, 1.2, TX, 0.45, TZ); k.box(M.oak, 0.5, 0.04, 1.2, TX, 0.9, TZ);
+    k.box(M.oak, 0.496, 0.04, 1.2, TX, 0.45, TZ); k.box(M.oak, 0.496, 0.04, 1.2, TX, 0.9, TZ);   // (2 mm in from the ends' sides)
     for (const z of [TZ - 0.55, TZ + 0.55]) k.box(M.oak, 0.5, 1.0, 0.04, TX, 0.5, z);
     for (let y = 0; y < 3; y++) for (let i = 0; i < 3; i++) { k.box(M.towel, 0.4, 0.1, 0.32, TX, 0.52 + y * 0.1, TZ - 0.42 + i * 0.36); if (y < 2) k.box(M.towel, 0.4, 0.1, 0.32, TX, 0.97 + y * 0.1, TZ - 0.42 + i * 0.36); }
     solid(TX, TZ, 0.55, 1.2);

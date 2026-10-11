@@ -173,7 +173,7 @@ export function installGym(ctx, W) {
 
   // ----- free weights -----
   // The mirror along the solid north wall, black-framed; the dumbbell rack under it, 2.5 to 25 kg; kettlebells below.
-  k.box(M.mirror, 9.4, 2.3, 0.02, 11, 1.35, 14.87); k.box(M.black, 9.5, 0.04, 0.04, 11, 2.52, 14.86); k.box(M.black, 9.5, 0.04, 0.04, 11, 0.19, 14.86);
+  k.box(M.mirror, 9.4, 2.3, 0.02, 11, 1.35, 14.87); k.box(M.black, 9.5, 0.04, 0.036, 11, 2.52, 14.858); k.box(M.black, 9.5, 0.04, 0.036, 11, 0.19, 14.858);   // (their backs off the mirror's)
   const PAIRS = [2.5, 5, 7.5, 10, 12.5, 15, 17.5, 20, 22.5, 25], RACK = { x0: 8.2, x1: 13.0, z: 14.3 };
   for (const x of [RACK.x0 - 0.1, (RACK.x0 + RACK.x1) / 2, RACK.x1 + 0.1]) { k.box(M.black, 0.06, 0.8, 0.06, x, 0.4, RACK.z + 0.2); k.box(M.black, 0.06, 0.6, 0.06, x, 0.3, RACK.z - 0.2); }
   k.box(M.black, RACK.x1 - RACK.x0 + 0.3, 0.04, 0.34, (RACK.x0 + RACK.x1) / 2, 0.66, RACK.z, 0, -0.25);
