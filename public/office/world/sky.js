@@ -22,18 +22,23 @@ export function install(ctx) {
   const moonLight = new THREE.DirectionalLight('#9fb4ff', 0);
   scene.add(hemi, sun, sun.target, moonLight, moonLight.target);
   const lamps = [];   // { light, base } or { mat, eBase }: dimmed by day, full in the evening
+  // The weather (world/weather.js sets it, eased): grey takes the colour out of the sky, dark the light; sun is how much
+  // of the sun the cloud hides; fog thickens the haze (0 as it always was, 1 a few hundred metres); flash is lightning.
+  const wx = { grey: 0, dark: 0, sun: 0, fog: 0, flash: 0 };
+  let envWx = 0;
 
   const skyU = {
     top: { value: new THREE.Color() }, horizon: { value: new THREE.Color() }, horizonSun: { value: new THREE.Color() }, ground: { value: new THREE.Color() },
     cloudLit: { value: new THREE.Color() }, cloudDark: { value: new THREE.Color() },
     sunCol: { value: new THREE.Color() }, sunDir: { value: new THREE.Vector3(0, 1, 0) }, moonDir: { value: new THREE.Vector3(0, -1, 0) },
     night: { value: 0 }, time: { value: 0 }, cover: { value: 0.5 },   // cover: how much of the sky is cloud (0.5 as it always was)
+    drift: { value: new THREE.Vector2() }, haze: { value: 0 },   // haze: fog hiding the sky (world/weather.js)   // how far the wind has blown the cloud beyond its usual drift (world/weather.js)
   };
   const sky = new THREE.Mesh(new THREE.SphereGeometry(100, 48, 24), new THREE.ShaderMaterial({
     uniforms: skyU, side: THREE.BackSide, depthWrite: false,
     vertexShader: `varying vec3 vDir;
       void main() { vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); gl_Position.z = gl_Position.w; }`,
-    fragmentShader: `uniform vec3 top, horizon, horizonSun, ground, cloudLit, cloudDark, sunCol, sunDir, moonDir; uniform float night, time, cover; varying vec3 vDir;
+    fragmentShader: `uniform vec3 top, horizon, horizonSun, ground, cloudLit, cloudDark, sunCol, sunDir, moonDir; uniform float night, time, cover, haze; uniform vec2 drift; varying vec3 vDir;
       float hash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
       float h2(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
       float n2(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -61,14 +66,15 @@ export function install(ctx) {
           col = mix(col, vec3(0.95, 0.93, 0.86) * (0.06 + 1.4 * lit), smoothstep(1.0, 0.9, r) * smoothstep(-0.02, 0.03, moonDir.y));
         }
         col += vec3(0.6, 0.65, 0.8) * pow(max(mc, 0.0), 200.0) * 0.25 * night;
+        col = mix(col, hor, haze);
         // Clouds: a drifting fbm layer, lit from the sun side (orange-pink undersides at sunset).
         if (h > 0.01) {
-          vec2 uv = d.xz / (h + 0.06) * 0.9 + vec2(time * 0.006, time * 0.003);
+          vec2 uv = d.xz / (h + 0.06) * 0.9 + vec2(time * 0.006, time * 0.003) + drift;
           float c = smoothstep(1.0 - cover, 1.28 - cover, fbm(uv)) * smoothstep(0.01, 0.16, h);
           float lit = pow(sd, 3.0);
           vec3 cc = mix(cloudDark, cloudLit, 0.35 + 0.65 * (toward * 0.6 + lit * 0.4));
           cc += sunCol * pow(sd, 12.0) * 0.8;
-          col = mix(col, cc, c * 0.9);
+          col = mix(col, cc, c * 0.9 * (1.0 - haze));
         }
         gl_FragColor = vec4(col, 1.0);
         #include <tonemapping_fragment>
@@ -95,7 +101,7 @@ export function install(ctx) {
   const SUN_RED = new THREE.Color('#ff4a12'), SUN_GOLD = new THREE.Color('#ffa040'), SUN_HIGH = new THREE.Color('#fff4e4');
   const HEMI = { daySky: new THREE.Color('#e3ecf7'), dayGnd: new THREE.Color('#b39b80'), nightSky: new THREE.Color('#2c3555'),
     nightGnd: new THREE.Color('#4a3a2a'), sunset: new THREE.Color('#ff9a66'), sunsetGnd: new THREE.Color('#7a4a3a') };
-  const C = { sun: new THREE.Color() };
+  const C = { sun: new THREE.Color() }, GREY = new THREE.Color();
   const LAT = (dash.config?.lat ?? 51.5) * Math.PI / 180, LON = dash.config?.lon ?? -0.13;
   const J2000 = Date.UTC(2000, 0, 1, 12);
   const RAD = Math.PI / 180;
@@ -130,6 +136,10 @@ export function install(ctx) {
     while (i < SKY_KEYS.length - 2 && el > SKY_KEYS[i + 1][0]) i++;
     const a = SKY_KEYS[i], b = SKY_KEYS[i + 1], k = clamp((el - a[0]) / (b[0] - a[0]), 0, 1);
     for (let c = 0; c < 6; c++) SKY_C[c].lerpColors(a[c + 1], b[c + 1], k);
+    if (wx.grey + wx.dark + wx.flash > 0) for (const c of SKY_C) {
+      const l = c.r * 0.3 + c.g * 0.55 + c.b * 0.15;
+      c.lerp(GREY.setRGB(l, l, l * 1.04), wx.grey).multiplyScalar(1 - wx.dark).addScalar(wx.flash * 0.5);
+    }
     const [top, hor, horSun, gnd, cLit, cDark] = SKY_C;
     const night = 1 - sstep(-10, -2, el), dl = sstep(-4, 12, el), sunset = sstep(-6, -0.5, el) * (1 - sstep(8, 20, el));
     // The sun drops behind the mountain ridge a little before the true horizon.
@@ -140,15 +150,16 @@ export function install(ctx) {
     skyU.top.value.copy(top); skyU.horizon.value.copy(hor); skyU.horizonSun.value.copy(horSun); skyU.ground.value.copy(gnd);
     skyU.cloudLit.value.copy(cLit); skyU.cloudDark.value.copy(cDark);
     skyU.sunDir.value.copy(sunDir); skyU.moonDir.value.copy(moonDir);
-    skyU.sunCol.value.copy(C.sun).multiplyScalar(sstep(-4, 1, el));
-    skyU.night.value = night; skyU.time.value = t;
-    sun.position.copy(sunDir).multiplyScalar(90); sun.color.copy(C.sun); sun.intensity = 4.2 * sstep(-1.5, 2.5, el) * sunVis;
+    skyU.sunCol.value.copy(C.sun).multiplyScalar(sstep(-4, 1, el) * (1 - wx.sun));
+    skyU.night.value = night; skyU.time.value = t; skyU.haze.value = 0.97 * wx.fog;
+    sun.position.copy(sunDir).multiplyScalar(90); sun.color.copy(C.sun); sun.intensity = 4.2 * sstep(-1.5, 2.5, el) * sunVis * (1 - wx.sun);
     moonLight.position.copy(moonDir).multiplyScalar(90); moonLight.intensity = 0.4 * night * sstep(-2, 8, mel);
-    hemi.intensity = lerp(0.2, 0.9, dl) + 0.12 * sunset;
+    hemi.intensity = (lerp(0.2, 0.9, dl) + 0.12 * sunset) * (1 - 0.45 * wx.dark) + 2.5 * wx.flash;
     hemi.color.lerpColors(HEMI.nightSky, HEMI.daySky, dl).lerp(HEMI.sunset, sunset * 0.6);
     hemi.groundColor.lerpColors(HEMI.nightGnd, HEMI.dayGnd, dl).lerp(HEMI.sunsetGnd, sunset * 0.5);
     scene.environmentIntensity = lerp(0.1, 0.42, dl);
     scene.fog.color.copy(hor).lerp(horSun, 0.3); scene.background.copy(scene.fog.color);
+    scene.fog.density = 0.0008 + 0.0172 * wx.fog; ctx.city.lowCloud.fogD.value = scene.fog.density;
     renderer.toneMappingExposure = officeExposure = lerp(1.12, 1.0, dl) + 0.06 * sunset;
     // Lamps follow the Admin tab: 'auto' keeps them off in daylight (the windows light the office) and fades them up from
     // dusk as the sun drops below ~12°; 'on'/'off' override that. Eased so switching doesn't snap.
@@ -161,13 +172,16 @@ export function install(ctx) {
     ctx.ceilingM.emissiveIntensity = 0.04 + 0.2 * dl;
     ctx.city.mat.emissiveIntensity = 0.04 + 1.25 * night;
     ctx.city.ground.emissiveIntensity = 0.02 + 1.1 * night;
+    ctx.city.bridge.lampM.emissiveIntensity = 3 * night;
     ctx.city.av.emissiveIntensity = Math.sin(t * 2.4) > 0.55 ? 4 : 0.15;
     
     ctx.shaftU.uLight.value.copy(sunDir).negate(); ctx.shaftU.color.value.copy(C.sun);
-    ctx.shaftU.strength.value = sunVis * sstep(-1, 2, el) * (0.25 + 0.75 * (1 - sstep(8, 30, el)));
+    ctx.shaftU.strength.value = sunVis * sstep(-1, 2, el) * (0.25 + 0.75 * (1 - sstep(8, 30, el))) * (1 - wx.sun);
     ctx.shaftU.time.value = t;
-    raysStrength = sunVis * sstep(-2, 2, el) * (0.45 + 0.9 * sunset);
-    if (Math.abs(el - lastEnvEl) > 0.8 || performance.now() - lastEnvAt > 60000) {
+    raysStrength = sunVis * sstep(-2, 2, el) * (0.45 + 0.9 * sunset) * (1 - wx.sun);
+    const wk = wx.grey + wx.dark + wx.sun;
+    if (Math.abs(el - lastEnvEl) > 0.8 || Math.abs(wk - envWx) > 0.08 || performance.now() - lastEnvAt > 60000) {
+      envWx = wk;
       lastEnvEl = el; lastEnvAt = performance.now();
       envRT?.dispose();
       envRT = pmrem.fromScene(skyScene, 0, 0.1, 500);
@@ -176,7 +190,8 @@ export function install(ctx) {
   }
 
   // 'live' is the real clock; a number runs the office's own clock that many times real time from wherever it is now, so
-  // ×1 keeps a sped-up evening going at real speed instead of jumping back to now.
+  // ×1 keeps a sped-up evening going at real speed instead of jumping back to now, and 0 holds it (the control room's
+  // TIME SPEED switch, world-edge-console.js; the HUD has no button for it).
   const SPEEDS = ['live', 1, 120, 1200, 7200];
   const timeEl = hud.querySelector('.of-time'), clockEl = hud.querySelector('.of-clock');
   const clockState = { mode: 'live', speed: 1, simBase: Date.now(), realBase: Date.now() };
@@ -201,14 +216,14 @@ export function install(ctx) {
     const m = saved.startsWith('x') ? +saved.slice(1) : saved === '1' ? 'live' : speedOf(saved);
     let at;
     try { const [sim, real] = JSON.parse(localStorage.officeTimeAt); if (m !== 'live' && Number.isFinite(sim + real)) at = sim + (Date.now() - real) * m; } catch {}
-    setSpeed(SPEEDS.includes(m) ? m : 'live', at);
+    setSpeed(SPEEDS.includes(m) || m === 0 ? m : 'live', at);
   }
   let clockText = '';
   function updateClock(date) {
     const txt = `${daylight > 0.5 ? '☀︎' : '☾'}  ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ${date.toLocaleDateString([], { weekday: 'short' })}`;
     if (txt !== clockText) clockEl.textContent = clockText = txt;
   }
-  Object.assign(ctx, { clockState, lamps, skyU, RAD, hemi, sun, SPEEDS, sunDir, simNow, sky });
+  Object.assign(ctx, { clockState, lamps, skyU, RAD, hemi, sun, SPEEDS, sunDir, simNow, sky, skyWeather: wx });
   Object.defineProperty(ctx, 'daylight', { get: () => daylight, set: (v) => { daylight = v; }, enumerable: true });
   Object.defineProperty(ctx, 'officeExposure', { get: () => officeExposure, set: (v) => { officeExposure = v; }, enumerable: true });
   Object.defineProperty(ctx, 'raysStrength', { get: () => raysStrength, set: (v) => { raysStrength = v; }, enumerable: true });

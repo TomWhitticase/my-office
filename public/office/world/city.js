@@ -163,6 +163,36 @@ export function install(ctx) {
     ponds.forEach(([x, z, r], i) =>
       { dummy.position.set(x, GROUND + 0.45, z); dummy.scale.set(r, 1, r); dummy.updateMatrix(); pondMesh.setMatrixAt(i, dummy.matrix); });
     world.add(pondMesh);
+    // A bridge over the river on the street just south of us: a shallow concrete arch on two piers, parapets, lamps
+    // (the city's security camera on it: systems/cctv.js). Built under its own seed, so nothing made after it shifts.
+    const bridge = (() => {
+      const random = Math.random;
+      Math.random = rng(3535);
+      try {
+        const BZ = -35, cx = riverX(BZ), HALF = RIVER_W + 6, W = 16, RISE = 4.2, N = 16, bg = [], lampG = [];
+        const yAt = (x) => RISE * (1 - ((x - cx) / HALF) ** 2);
+        const seg = (x0, x1, h, w, dy, dz) => {
+          const y0 = yAt(x0), y1 = yAt(x1), len = Math.hypot(x1 - x0, y1 - y0);
+          bg.push(new THREE.BoxGeometry(len, h, w).rotateZ(Math.atan2(y1 - y0, x1 - x0)).translate((x0 + x1) / 2, GROUND + (y0 + y1) / 2 + dy, BZ + dz));
+        };
+        for (let i = 0; i < N; i++) {
+          const x0 = cx - HALF + (2 * HALF * i) / N, x1 = x0 + (2 * HALF) / N;
+          seg(x0, x1, 1.1, W, -0.45, 0);   // the deck
+          for (const s of [-1, 1]) seg(x0, x1, 1.0, 0.35, 0.5, s * (W / 2 - 0.18));   // the parapets
+          if (i % 4 === 2) for (const s of [-1, 1]) {   // a lamp each side
+            const y = GROUND + yAt(x0) + 0.5;
+            bg.push(new THREE.BoxGeometry(0.16, 6, 0.16).translate(x0, y + 3, BZ + s * (W / 2 - 0.18)));
+            lampG.push(new THREE.BoxGeometry(0.9, 0.18, 0.4).translate(x0, y + 6, BZ + s * (W / 2 - 0.7)));
+          }
+        }
+        for (const s of [-1, 1]) bg.push(new THREE.BoxGeometry(5, RISE + 3, W - 2).translate(cx + s * HALF * 0.42, GROUND - 3 + (RISE + 3) / 2, BZ));   // the piers
+        const m = new THREE.Mesh(mergeGeometries(bg.map((g) => g.toNonIndexed())), new THREE.MeshStandardMaterial({ color: '#9a958c', roughness: 0.85 }));
+        const lampM = new THREE.MeshStandardMaterial({ color: '#333', emissive: '#ffcf8a', emissiveIntensity: 0 });
+        m.add(new THREE.Mesh(mergeGeometries(lampG.map((g) => g.toNonIndexed())), lampM));
+        world.add(m);
+        return { x: cx, z: BZ, lampM };
+      } finally { Math.random = random; }
+    })();
 
     // Trees: autumn palette, it being October.
     const TREE_COLS = ['#3f7a3a', '#4f8a3c', '#2f6b3a', '#5d9440', '#d08a2a', '#c4572a', '#e0b23a', '#a23a2a', '#b8742a'].map((c) => new THREE.Color(c));
@@ -188,6 +218,9 @@ export function install(ctx) {
       crowns.setMatrixAt(i, dummy.matrix);
       crowns.setColorAt(i, TREE_COLS[R() < 0.55 ? Math.floor(R() * 4) : 4 + Math.floor(R() * 5)]);
     });
+    // none on the bridge (the riverside rows run under it)
+    const none = new THREE.Matrix4().makeScale(0, 0, 0);
+    trees.forEach(([x, z], i) => { if (Math.abs(z - bridge.z) < 11 && Math.abs(x - bridge.x) < 56) { trunks.setMatrixAt(i, none); crowns.setMatrixAt(i, none); } });
     world.add(trunks, crowns);
 
     // Mountains on the far horizon: a ring of ridged fbm terrain, tallest to the north, lower in the west so sunsets clear them.
@@ -230,7 +263,7 @@ export function install(ctx) {
       sh.fragmentShader = sh.fragmentShader.replace('#include <fog_fragment>',
         `#ifdef USE_FOG
           float fogFactor = 1.0 - exp(-fogDensity * fogDensity * vFogDepth * vFogDepth * 0.11);
-          gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, fogFactor * 0.9);
+          gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, fogFactor * (0.9 + 0.1 * smoothstep(0.002, 0.006, fogDensity)));   // (all of it in a fog)
         #endif`);
     };
     world.add(new THREE.Mesh(mg, mtnMat));
@@ -258,20 +291,20 @@ export function install(ctx) {
     cg.setAttribute('position', new THREE.Float32BufferAttribute(cpos, 3));
     cg.setAttribute('k', new THREE.Float32BufferAttribute(ck, 1));
     cg.setIndex(cidx);
-    const cloudU = { lit: skyU.cloudLit, dark: skyU.cloudDark, sunCol: skyU.sunCol, sunDir: skyU.sunDir, night: skyU.night, time: skyU.time,
+    const cloudU = { lit: skyU.cloudLit, dark: skyU.cloudDark, sunCol: skyU.sunCol, sunDir: skyU.sunDir, night: skyU.night, time: skyU.time, cover: skyU.cover, drift: skyU.drift,
       fogCol: { value: scene.fog.color }, fogD: { value: scene.fog.density }, glow: { value: new THREE.Color('#ff9a52') } };
     const clouds = new THREE.Mesh(cg, new THREE.ShaderMaterial({
       uniforms: cloudU, transparent: true, depthWrite: false,
       vertexShader: `attribute float k; varying float vK; varying vec3 vW;
         void main() { vK = k; vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
-      fragmentShader: `uniform vec3 lit, dark, sunCol, sunDir, fogCol, glow; uniform float night, time, fogD; varying float vK; varying vec3 vW;
+      fragmentShader: `uniform vec3 lit, dark, sunCol, sunDir, fogCol, glow; uniform float night, time, fogD, cover; uniform vec2 drift; varying float vK; varying vec3 vW;
         float h2(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
         float n2(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
           return mix(mix(h2(i), h2(i + vec2(1, 0)), f.x), mix(h2(i + vec2(0, 1)), h2(i + vec2(1, 1)), f.x), f.y); }
         float fbm(vec2 p) { float v = 0.0, a = 0.5; for (int i = 0; i < 4; i++) { v += a * n2(p); p = p * 2.07 + 1.3; a *= 0.5; } return v; }
         void main() {
-          vec2 p = vW.xz * 0.004 + vec2(time * 0.006, time * 0.0025);
-          float n = (fbm(p + vec2(vK * 0.07, 0.0)) - 0.42) * 2.4 + (n2(p * 0.15 + 1.5) - 0.5) * 1.1;   // ~half cover
+          vec2 p = vW.xz * 0.004 + vec2(time * 0.006, time * 0.0025) + drift * 3.0;
+          float n = (fbm(p + vec2(vK * 0.07, 0.0)) - 0.42) * 2.4 + (n2(p * 0.15 + 1.5) - 0.5) * 1.1 + (cover - 0.5) * 1.6;   // ~half cover
           // Thickest mid-stack: the top and bottom slices only show where the cloud is dense, which rounds the puffs.
           float a = smoothstep(0.0, 0.3, n - abs(vK - 0.4) * 0.5);
           float r = length(vW.xz);
@@ -294,7 +327,7 @@ export function install(ctx) {
     return {
       mat: cityMat, ground: groundMat, av: avMat, mtn: mtnMat, ridge: ridgeDeg, boxes, GROUND,
       riverX, RIVER_W, parks, ponds,   // where the water and grass are, for walking about down there (helicopter.js)
-      mtnY,
+      mtnY, bridge, lowCloud: cloudU,
       trees: [trunks, crowns],   // 1.4M triangles, never culled (one instanced mesh): the security cameras leave them out
       setEnv(tex) { for (const m of [cityMat, waterMat]) { if (!m.envMap) m.needsUpdate = true; m.envMap = tex; } },
     };
