@@ -71,6 +71,13 @@ export function installDoor(ctx, rel) {
   const floorFlags = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.8).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ map: flags.tex, transparent: true, depthWrite: false,
     roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -2 }));
   floorFlags.position.set(0, 0.004, 0.85); g.add(floorFlags);
+  // The flags, the daylight on them and under the leaf give it away while it's shut; open, they go (from inside, past the
+  // threshold, they'd read as the hall's floor carrying on into B3).
+  const swing = (k) => {
+    hinge.rotation.y = -1.62 * k;
+    const u = 1 - sstep(0, 0.6, k);
+    floorFlags.material.opacity = spill.material.opacity = u; floorFlags.visible = spill.visible = u > 0; strip.visible = k < 0.05;
+  };
   const hit = ctx.hitBox(g, W + 0.3, SPRING + W / 2 + 0.2, 0.3, 0, (SPRING + W / 2) / 2, 0.15, { action: 'reldoor', reach: 3 });
   g.visible = false;
 
@@ -101,7 +108,7 @@ export function installDoor(ctx, rel) {
     const c = Math.cos(yaw), s = Math.sin(yaw), ex = Math.abs(c) * (W / 2 + 0.6) + Math.abs(s) * 0.12, ez = Math.abs(s) * (W / 2 + 0.6) + Math.abs(c) * 0.12;
     const mx = px + s * 0.1, mz = pz + c * 0.1;
     st.at = { i: best.i, j: best.j, x: px, z: pz, cols: [{ minX: mx - ex, maxX: mx + ex, minZ: mz - ez, maxZ: mz + ez }] };
-    st.open = st.want = 0; hinge.rotation.y = 0;
+    st.open = st.want = 0; swing(0);
     restr.sync();
     return true;
   }
@@ -154,7 +161,7 @@ export function installDoor(ctx, rel) {
     for (let i = 0; i < a.length; i += 9) if (!(a[i + 2] < -0.999 && a[i + 5] < -0.999 && a[i + 8] < -0.999)) keep.push(...a.subarray(i, i + 9));
     return new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(keep, 3));
   })();
-  const portal = (sc) => { const p = makePortal(ctx, { w: W, h: H }); p.mesh.geometry.dispose(); p.mesh.geometry = archG; sc.add(p.mesh); return p; };
+  const portal = (sc) => { const p = makePortal(ctx, { w: W, h: H, arch: true }); p.mesh.geometry.dispose(); p.mesh.geometry = archG; sc.add(p.mesh); return p; };
   const inP = portal(restr.scene), outPs = exits.map(() => portal(rel.scene));
   rel.look.aoSkip1 = true;   // (no ambient occlusion over the panes)
 
@@ -288,7 +295,7 @@ export function installDoor(ctx, rel) {
     }
     // the leaf on B3: opening over a second or so, shutting a little slower; open, a way through B3's wall
     if (side === 'b3' || !side) st.open = clamp(st.open + (st.want ? dt / 1.1 : -dt / 1.6), 0, 1);
-    hinge.rotation.y = -1.62 * sstep(0, 1, st.open);
+    swing(sstep(0, 1, st.open));
     if (open() !== wasCut) { wasCut = open(); if (st.at && A === restr) restr.sync(); }
     blend(u);
     // each side heard through the other: in quickly as you come up to it, out slowly once you're through (its own comes in)
@@ -313,8 +320,8 @@ export function installDoor(ctx, rel) {
   }
   // For the tests and for looking: the door, now, in a wall just ahead; open (or shut) at once; through it.
   rel.door = {
-    force: () => { const p = ctx.camera.position; return place(p.x, p.z - restr.z0, 2, 9); }, st, g, exit,
-    open(on = true) { st.want = on ? 1 : 0; st.open = st.want; hinge.rotation.y = -1.62 * st.open; if (ctx.away === restr) restr.sync(); },
+    force: () => { const p = ctx.camera.position; return place(p.x, p.z - restr.z0, 2, 9); }, st, g, exit, F, outPs,
+    open(on = true) { st.want = on ? 1 : 0; st.open = st.want; swing(st.open); if (ctx.away === restr) restr.sync(); },
     through: () => { frames(); intoRel(0); },
   };
 }

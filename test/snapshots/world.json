@@ -6298,38 +6298,38 @@
    "sorted": "4918b7c3"
   },
   "restricted": {
-   "objects": 53,
+   "objects": 54,
    "types": {
     "Scene": 1,
     "HemisphereLight": 1,
     "Group": 9,
     "PointLight": 6,
-    "Mesh": 34,
+    "Mesh": 35,
     "PerspectiveCamera": 2
    },
    "actions": {
     "liftcall": 1,
     "liftpanel": 1
    },
-   "ordered": "8a954eff",
-   "sorted": "817e934b"
+   "ordered": "dffb8346",
+   "sorted": "34c218da"
   },
   "relativity": {
-   "objects": 44,
+   "objects": 47,
    "types": {
     "Scene": 1,
     "HemisphereLight": 1,
     "DirectionalLight": 2,
     "Group": 10,
-    "Mesh": 30
+    "Mesh": 33
    },
    "actions": {
     "relexit": 3,
     "relsky": 3,
     "relfig": 1
    },
-   "ordered": "4bc9fe67",
-   "sorted": "c150b9e3"
+   "ordered": "75586ecc",
+   "sorted": "7df9afd2"
   }
  }
 }

@@ -10,6 +10,7 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { sstep } from '../util.js';
+import { maskAO } from './portal.js';
 
 /** @param {import('../ctx.js').OfficeCtx} ctx */
 export function install(ctx) {
@@ -28,6 +29,7 @@ export function install(ctx) {
   gtao.updateGtaoMaterial({ radius: 0.6, distanceExponent: 1.4, thickness: 1, scale: 1.1, samples: 12 });
   const gtaoRender = gtao.render.bind(gtao);
   gtao.render = (...a) => { camera.layers.disable(1); gtaoRender(...a); camera.layers.enable(1); };
+  maskAO(gtao);   // (the sky's door: systems/portal.js)
   composer.addPass(gtao);
   // Screen-space light rays: radial blur of the brightest pixels toward the sun's screen position.
   const rays = new ShaderPass({
