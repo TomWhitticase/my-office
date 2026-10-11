@@ -112,6 +112,10 @@ const RESUME = {
     () => { const w = window.__office, S = w.ctx.rel.walker.S; return w.away?.n === -4 && S.k === 1 && Math.hypot(S.x - 4, S.z + 1) < 0.05 && w.mode === 'free'; }],
   restricted: [{ f: -3, car: 0, cz: -0.5, x: -40, z: 29.5, eye: 1.65, yaw: 0.5, pitch: 0 },
     () => { const w = window.__office; return w.away?.n === -3 && Math.hypot(w.player.x + 40, w.player.z - 29.5) < 0.05 && w.mode === 'free'; }],
+  // saved inside a stair's tread in the third gravity (as a door shutting on you, or an old save, could leave it): out to
+  // somewhere you can walk from, close by, not back in it
+  'relativity, stuck': [{ f: -4, car: 0, cz: -0.5, x: 0, z: 0, eye: 1.65, yaw: 0, pitch: 0, s: { k: 2, x: -0.093, y: -5.82, z: -0.573 } },
+    () => { const w = window.__office, r = w.ctx.rel, S = r.walker.S; return w.away?.n === -4 && w.mode === 'free' && r.walker.ok() && S.k === 2 && Math.hypot(S.x + 0.093, S.y + 5.82, S.z + 0.573) < 6; }],
   helicopter: [{ f: 50, car: 0, cz: -0.5, x: 19, z: -0.5, eye: 1.65, yaw: 0, pitch: 0, s: { x: 120, y: 90, z: -60, yaw: 0.7, landed: false, aboard: true, out: false, free: false } },
     () => { const w = window.__office, S = w.heli.S; return w.away?.n === 50 && w.mode === 'heli' && S.aboard && !S.landed && S.rpm === 1 && Math.hypot(S.pos.x - 120, S.pos.y - 90, S.pos.z + 60) < 1; }],
 };
@@ -126,6 +130,48 @@ async function runResume(browser, base, log) {
     } finally { await o.ctx.close(); }
     if (ok && !errors.length) log(`  ✓ reload: back in ${name}`);
     else { failed++; log(`  ✗ reload: not back in ${name}${errors.length ? ` (${errors.join('; ')})` : ''}`); }
+  }
+  return failed + await runStuck(browser, base, log, T0);
+}
+
+// Stuck in Relativity (floors/relativity.js stuckCheck, systems/resume.js unstick): put inside that tread with W held, a
+// couple of seconds sees you out; the page going while you're in it doesn't save it; Backspace twice gets you out at once.
+async function runStuck(browser, base, log, T0) {
+  const pose = RESUME.relativity[0], errors = [];
+  const o = await openOffice(browser, base, { errors, storage: { officePose: JSON.stringify({ ...pose, at: T0 }) } });
+  const results = {};
+  try {
+    for (let i = 0; i < 40; i++) { await o.step(1, 100); if (await o.eval(RESUME.relativity[1])) break; }
+    const trap = () => o.eval(() => { const r = window.__office.ctx.rel; Object.assign(r.walker.S, { k: 2, x: -0.093, y: -5.82, z: -0.573, supp: 517, roll: null }); r.stuck.t = 0; return r.walker.ok(); });
+    // the detector
+    results.trapped = !(await trap());
+    await o.eval(() => { window.__office.ctx.rel.stuck.n = 0; window.__office.keys.add('KeyW'); });
+    for (let i = 0; i < 30; i++) await o.step(1, 100);
+    results.detector = await o.eval(() => { const r = window.__office.ctx.rel; window.__office.keys.delete('KeyW'); return r.stuck.n > 0 && r.walker.ok(); });
+    // and standing on nothing (in nothing, so it's the 2 s of getting nowhere that tells): out onto a floor
+    await o.eval(() => { const r = window.__office.ctx.rel; Object.assign(r.walker.S, { k: 0, x: 0, y: -60, z: 0, supp: -1, roll: null }); r.stuck.t = 0; r.stuck.n = 0; window.__office.keys.add('KeyW'); });
+    for (let i = 0; i < 10; i++) await o.step(1, 100);
+    const early = await o.eval(() => window.__office.ctx.rel.stuck.n);   // (half a second in: not yet; a frame's 50 ms at most)
+    for (let i = 0; i < 40; i++) await o.step(1, 100);
+    results.nowhere = early === 0 && await o.eval(() => { const r = window.__office.ctx.rel; window.__office.keys.delete('KeyW'); return r.stuck.n > 0 && r.walker.ok(); });
+    // never saved like that, not even as the page goes
+    await trap();
+    results.save = await o.eval(() => {
+      const r = window.__office.ctx.rel, before = localStorage.officePose;
+      dispatchEvent(new Event('pagehide'));
+      return r.save() === false && localStorage.officePose === before;
+    });
+    // Backspace twice
+    await trap();
+    results.escape = await o.eval(() => {
+      for (let i = 0; i < 2; i++) document.dispatchEvent(new KeyboardEvent('keydown', { code: 'Backspace', key: 'Backspace' }));
+      return window.__office.ctx.rel.walker.ok();
+    });
+  } finally { await o.ctx.close(); }
+  let failed = 0;
+  for (const [k, what] of [['trapped', 'the trap is one'], ['detector', 'held keys in it get you out'], ['nowhere', 'on nothing, 2 s of getting nowhere gets you out'], ['save', 'it isn\'t saved, even on pagehide'], ['escape', 'Backspace twice gets you out']]) {
+    if (results[k] && !errors.length) log(`  ✓ stuck: ${what}`);
+    else { failed++; log(`  ✗ stuck: ${what}${errors.length ? ` (${errors.join('; ')})` : ''}`); }
   }
   return failed;
 }
