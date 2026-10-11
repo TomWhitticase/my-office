@@ -145,7 +145,8 @@ export function buildDen(ctx, api) {
     feeds.push({ rt, scr });
   }
   // The wingback turned to the fire; a side table at its elbow; a reading lamp behind.
-  const CH = { x: 10.95, z: -9.75, ry: -1.15 };
+  // (a metre in from the room's corner, clear of the way from the ladder to the fire and of the east wall)
+  const CH = { x: 10.2, z: -10.45, ry: Math.atan2(9.0 - 10.2, -8.85 + 10.45) };
   const chair = new THREE.Group(); chair.position.set(CH.x, DY, CH.z); chair.rotation.y = CH.ry; G.add(chair);
   {
     const L = [], c = '#5b2219', P = (g, x, y, z, rx = 0, rz = 0) => L.push(part(g, c, x, y, z, rx, 0, rz));
@@ -159,14 +160,15 @@ export function buildDen(ctx, api) {
   }
   const seat = { name: 'Armchair', x: CH.x + Math.sin(CH.ry) * 0.05, z: CH.z + Math.cos(CH.ry) * 0.05, rotY: CH.ry, eye: 1.08, floor: 'den', obj: chair };
   solid(CH.x - 0.5, CH.x + 0.5, CH.z - 0.5, CH.z + 0.5);
-  const st = { x: CH.x - 0.42 * 0.8, z: CH.z - 0.91 * 0.8 };   // (at its left hand)
+  const st = { x: CH.x + Math.cos(CH.ry) * 0.75, z: CH.z - Math.sin(CH.ry) * 0.75 };   // (at its left hand)
   wood.push(C(0.24, 0.24, 0.03, '#3b2416', st.x, 0.58, st.z, 24), C(0.025, 0.03, 0.56, '#3b2416', st.x, 0.29, st.z), C(0.16, 0.18, 0.03, '#3b2416', st.x, 0.015, st.z, 20));
   dark.push(B(0.16, 0.035, 0.22, '#2f4a5e', st.x - 0.05, 0.613, st.z, 0.4));
   solid(st.x - 0.25, st.x + 0.25, st.z - 0.25, st.z + 0.25);
-  brass.push(C(0.15, 0.17, 0.03, '#2a2420', 12.22, 0.015, -9.0, 20), C(0.012, 0.012, 1.4, '#b8913f', 12.22, 0.72, -9.0));
+  const RL = { x: CH.x - Math.sin(CH.ry) * 0.7 + Math.cos(CH.ry) * 0.3, z: CH.z - Math.cos(CH.ry) * 0.7 - Math.sin(CH.ry) * 0.3 };   // (behind it, over its shoulder)
+  brass.push(C(0.15, 0.17, 0.03, '#2a2420', RL.x, 0.015, RL.z, 20), C(0.012, 0.012, 1.4, '#b8913f', RL.x, 0.72, RL.z));
   const fabricM = new THREE.MeshStandardMaterial({ color: '#e9d8b8', emissive: '#ffcf8a', emissiveIntensity: 0.55, roughness: 0.9, side: THREE.DoubleSide });
-  { const s = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.22, 0.28, 24, 1, true), fabricM); s.position.set(12.22, Y(1.5), -9.0); add(s); }
-  solid(12.0, 12.45, -9.25, -8.75);
+  { const s = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.22, 0.28, 24, 1, true), fabricM); s.position.set(RL.x, Y(1.5), RL.z); add(s); }
+  solid(RL.x - 0.2, RL.x + 0.2, RL.z - 0.2, RL.z + 0.2);
 
   // The whisky cabinet on the east wall: a cupboard, a glass-fronted case of bottles, a decanter and a tumbler.
   const cab = { x: 12.33, z: -12.75, fill: 0, to: 0 };
@@ -341,7 +343,7 @@ export function buildDen(ctx, api) {
   // ----- each frame while it's shown -----
   const lights = [
     { p: new THREE.Vector3(5.8, Y(0.98), -12.05), color: '#ffd29a', distance: 6, level: () => 3.0 * lamp.k },
-    { p: new THREE.Vector3(12.22, Y(1.45), -9.0), color: '#ffc88a', distance: 8, level: () => 4.2 },
+    { p: new THREE.Vector3(RL.x, Y(1.45), RL.z), color: '#ffc88a', distance: 8, level: () => 4.2 },
     { p: new THREE.Vector3(FP.x, Y(0.8), FP.face - 0.8), color: '#ff9848', distance: 8, level: () => 2.8 * FP.k * FP.flick },   // the fire
     { p: new THREE.Vector3(9.1, Y(2.2), DEN.z0 + 0.3), color: '#ffd8a6', distance: 6, level: () => 1.8 },
   ];
