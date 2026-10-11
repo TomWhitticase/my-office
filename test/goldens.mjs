@@ -185,47 +185,52 @@ export const POSES = [
     });
     await o.step(40);
   }],
-  // Behind the sky (floors/world-edge-backstage.js, its own coordinates: the exit at the origin, B3 toward +z).
-  ['edge-gallery', async (o) => {   // the gallery: the mixing desk and the bank of live monitors
+  // Behind the sky (floors/world-edge-backstage.js, its own coordinates, PLAN: the monitor wall toward -z, yaw 0 facing it).
+  ['edge-gallery', async (o) => {   // in from the sound lock, on the rear walkway: the empty tiers, the table in the pit, the monitor wall
     await from('edge-door', o);
-    await o.eval(() => window.__office.heli.edge.backstage.go(1.4, -6.6, -Math.PI / 2, -0.16));
+    await o.eval(() => window.__office.heli.edge.backstage.go(-4.6, -0.9, -0.42, -0.24));
     await o.step(50);
   }],
-  ['edge-console', async (o) => {   // at the operator's console, looking down at it: time, weather, building, the table beyond
+  ['edge-console', async (o) => {   // at the director's console on the top tier, looking down at it: time, weather, building, the table and the wall beyond
     await from('edge-door', o);
-    await o.eval(() => window.__office.heli.edge.backstage.go(-4.35, -6.6, -Math.PI / 2, -0.5));
+    await o.eval(() => window.__office.heli.edge.backstage.go(0, -2.55, 0, -0.48));
     await o.step(40);
   }],
-  ['edge-bank', async (o) => {   // the monitor bank straight on: the city's cameras along the top, the status screen and the clock in the middle
+  ['edge-bank', async (o) => {   // the monitor wall's middle up close from the pit: the status screen and the clock, the pier's and the gallery's own feeds
     await from('edge-door', o);
-    await o.eval(() => window.__office.heli.edge.backstage.go(2.1, -6.6, -Math.PI / 2, 0.2));
+    await o.eval(() => window.__office.heli.edge.backstage.go(0, -13.75, 0, 0.28));
     await o.step(50);
   }],
-  ['edge-table', async (o) => {   // the model of the world on its table, your building opened up into its floors
+  ['edge-table', async (o) => {   // the model of the world on its table in the pit, its sun on its arm over it, your building opened up into its floors
     await from('edge-door', o);
-    await o.eval(() => { const b = window.__office.heli.edge.backstage; b.go(-2.2, -8.6, -2.42, -0.42); b.model.open(true); });
+    await o.eval(() => { const b = window.__office.heli.edge.backstage; b.go(-1.4, -7.4, -0.3, -0.3); b.model.open(true); });
     await o.step(60);
   }],
   ['edge-flat', async (o) => {   // in the flat's doorway: the two of them on the sofa, you on their TV
     await from('edge-door', o);
-    await o.eval(() => window.__office.heli.edge.backstage.go(-11.4, -7.1, 0, -0.12));
+    await o.eval(() => window.__office.heli.edge.backstage.go(-11.1, 2.5, 0, -0.12));
     await o.step(40);
   }],
-  ['edge-exit', async (o) => {   // the fire door marked EXIT open from the gallery: B3 through it, in its own light
+  ['edge-exit', async (o) => {   // the fire door marked EXIT open off the corridor's last leg: B3 through it, in its own light
     await from('edge-door', o);
-    await o.eval(() => { const b = window.__office.heli.edge.backstage; b.go(20, 31.2, Math.PI, 0); b.exit(true); });
+    await o.eval(() => { const b = window.__office.heli.edge.backstage; b.go(36.6, 19.4, -2.2, 0); b.exit(true); });
     await o.step(30);
   }],
   ['edge-exit-b3', async (o) => {   // never flown: down to B3 by lift, to the dead end deep in, the door open on the long corridor
     await arrive(o);
     await o.eval(() => window.__office.goFloor(-3));
     await o.step(40);
-    await o.eval(() => { const b = window.__office.heli.edge.back(); b.b3(0, 3.2, 0, -0.04); b.exit(true); });
+    await o.eval(() => { const b = window.__office.heli.edge.back(); b.b3(1.0, 2.6, 0.42, -0.04); b.exit(true); });
     await o.step(40);
   }],
-  ['edge-corridor', async (o) => {   // in the long corridor, looking back down its first leg to the gallery's glow
+  ['edge-corridor', async (o) => {   // in the long corridor's last leg, back to a corner: the pipes, the conduit and the tray round it on the walls
     await from('edge-door', o);
-    await o.eval(() => window.__office.heli.edge.backstage.go(0, 13, 0, 0));
+    await o.eval(() => window.__office.heli.edge.backstage.go(27.6, 20, Math.PI / 2, 0.05));
+    await o.step(40);
+  }],
+  ['edge-stub', async (o) => {   // round the corner from the gallery's corridor: the door in the sky open off the stub's side, the scene dock at its end
+    await from('edge-door', o);
+    await o.eval(() => window.__office.heli.edge.backstage.go(-18.4, 3.6, Math.PI, 0));
     await o.step(40);
   }],
   ['security-app', async (o) => {   // out of the helicopter to your desktop full screen, the Security app's feeds at dusk
