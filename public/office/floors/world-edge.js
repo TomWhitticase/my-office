@@ -281,7 +281,7 @@ export function install(ctx) {
 
   // ----- debug and test hooks -----
   const edge = heli.edge = {
-    E, sound, paintMaterial, DOOR, U,
+    E, sound, paintMaterial, DOOR, U, pier,
     // The doorway's frame in the world: its sill's middle, +z the way in (west), +y up (see systems/portal.js).
     frame: new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 1, 0), new THREE.Vector3(-1, 0, 0)).setPosition(-R + 0.009, LT, 0),
     openDoor,

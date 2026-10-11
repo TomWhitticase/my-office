@@ -668,6 +668,9 @@ function build(ctx) {
   roof.cctv.stage = () => { const undo = stage0(), was = g.visible; g.visible = true; return () => { g.visible = was; undo(); }; };
 
   // far: the world past the city's edge, set by floors/world-edge.js: { ground(x, z), wet(x, z), wall(pos, vel) → how hard you hit it }.
+  // Parked on `on` (one of the solids, landed there already) with you on foot by it, from wherever you've come
+  // (world-edge-backstage.js: round to the pier the long way, it's waiting there).
+  function waitOn(on) { Object.assign(S, { aboard: false, cam: 'out' }); g.visible = true; goOut(on); }
   // stay: set while you go off the roof floor and leave it where it is (see roof.leave); stow() puts it away then.
-  ctx.heli = { S, body, keys: K, board, getOut, goHome, park, surface, addSolid, place, stow, far: null, stay: false, get eye() { return eyePose(); } };
+  ctx.heli = { S, body, keys: K, board, getOut, goHome, park, surface, addSolid, place, stow, waitOn, far: null, stay: false, get eye() { return eyePose(); } };
 }

@@ -2,13 +2,15 @@
 // (strip lights, cable trays, an extinguisher, the stage's number stencilled on the wall) leads to the gallery: a dark
 // control room round a live model of the whole world (world-edge-model.js), with a curved bank of monitors showing it
 // live and a mixing desk whose faders really work (world-edge-gallery.js). Off the corridor, a cramped flat where two
-// people sit watching it on TV (world-edge-flat.js). The way out is a plain fire door marked EXIT, and it opens onto a
-// corridor of the restricted level (B3, restricted.js), a few rooms from its lift.
+// people sit watching it on TV (world-edge-flat.js). The way out is a plain fire door marked EXIT, and it opens onto the
+// restricted level (B3, restricted.js): the far wall of a dead end deep in its rooms, a long walk from its lift, always the
+// same place (found from B3's fixed layout), a plain steel door with a handle from that side, easy to miss.
 // Its own scene, a floor of its own (unlisted, carless), built with the edge the first time you're let out past the city.
 // Both doors are seamless (systems/portal.js): open, each shows the other side live, with its own light, and you walk
 // through without a cut. This side is laid out in B3's own space, so the exit door is the same place on both sides: B3's
-// wall, at the doorway, is this side's too. Behind you, the fire door shuts on its closer once you're well out on B3, and
-// there's no handle on that side; the helicopter's put away then (as it is if you leave any other way).
+// wall, at the doorway, is this side's too. It's a door both ways: open or shut it from either side, come and go. The
+// helicopter waits on the pier while you're in here or on B3; leave B3 by its lift (or any way but this door) and it's put
+// away on its pad, and come back in from B3 later and it's on the pier again, for the way out through the sky.
 // Debug: ctx.heli.edge.backstage: .go(x, z, yaw, pitch) stands you in here (this side's own coordinates, the exit at the
 // origin, B3 toward +z), .exit(open), .b3(x, z, yaw, pitch) stands you on B3 by the exit; .gallery/.flat/.model.
 
@@ -43,13 +45,38 @@ export function installBackstage(ctx, edge) {
   S.add(bs.hemi); S.environmentIntensity = bs.look.env;
   ctx.addFloor(bs);
 
-  // ----- where the exit is on B3: a solid stretch of the lift corridor's south wall, a few rooms west of the lift -----
-  const G = restr.grid;
-  let ci = -4;
-  for (let i = -4; i >= -14; i--) if (G.edgeType('h', i, 0) === G.SOLID && G.h3(i, 0, 10) >= 0.03) { ci = i; break; }
-  const XD = G.X(ci) + G.C / 2, ZF = G.Z(0) + G.T / 2;   // B3's own space: the middle of the doorway, on the wall's corridor face
+  // ----- where the exit is on B3: deep in, easy to miss, and always the same place -----
+  // B3's layout is fixed by place (restricted.js h3), so walk it once from the lift (cells joined by anything but a solid
+  // wall) and take the first dead end (one way in) at least 22 cells' walk away (70 m or so), with nothing else on its
+  // walls; the door goes in its far wall, facing back the way you'd come. This side is laid out about that doorway,
+  // turned to face the same way (its +z, out onto B3, is into the dead end).
+  const G = restr.grid, key = (i, j) => `${i},${j}`;
+  const ways = (i, j) => [[i - 1, j, G.edgeType('v', i, j), 'w'], [i + 1, j, G.edgeType('v', i + 1, j), 'e'], [i, j - 1, G.edgeType('h', i, j), 's'], [i, j + 1, G.edgeType('h', i, j + 1), 'n']];
+  let spot = null;
+  {
+    const dist = new Map([[key(-1, 0), 0]]), q = [[-1, 0]];
+    for (let h = 0; h < q.length && !spot; h++) {
+      const [i, j] = q[h], d = dist.get(key(i, j)), open = ways(i, j).filter(([, , t]) => t !== G.SOLID);
+      if (d >= 22 && open.length === 1 && G.h3(i, j, 10) >= 0.03) {
+        const far = { w: 'e', e: 'w', s: 'n', n: 's' }[open[0][3]];
+        if (ways(i, j).find((w) => w[3] === far)[2] === G.SOLID) spot = { i, j, side: far, d };
+      }
+      for (const [ni, nj, t] of open) if (G.cellOk(ni, nj) && !dist.has(key(ni, nj))) { dist.set(key(ni, nj), d + 1); q.push([ni, nj]); }
+    }
+  }
+  spot ||= { i: -4, j: 0, side: 's', d: 3 };   // (never: the layout always has one)
+  const cx0 = G.X(spot.i) + G.C / 2, cz0 = G.Z(spot.j) + G.C / 2, H2 = G.C / 2 - G.T / 2;
+  // the doorway's middle on the wall's face (B3's own space, the car at z = 0), and which way is out of it (this side's +z)
+  const [XD, ZF, YAW] = { s: [cx0, cz0 - H2, 0], n: [cx0, cz0 + H2, Math.PI], w: [cx0 - H2, cz0, Math.PI / 2], e: [cx0 + H2, cz0, -Math.PI / 2] }[spot.side];
+  const cy = Math.cos(YAW), sy = Math.sin(YAW);
   let z0 = 0;
-  const place = (z) => { z0 = z; root.position.set(XD, 0, ZF + z); root.updateMatrixWorld(true); frames(); };
+  // this side's own space to B3's (z0: the car's; 0 for B3's root, which is already moved by it); a box's bounds likewise
+  const toB3 = (x, z, zz = z0) => [XD + x * cy + z * sy, ZF + zz - x * sy + z * cy];
+  const boxB3 = (b, zz = z0) => {
+    const [ax, az] = toB3(b.minX, b.minZ, zz), [bx, bz] = toB3(b.maxX, b.maxZ, zz);
+    return { minX: Math.min(ax, bx), maxX: Math.max(ax, bx), minZ: Math.min(az, bz), maxZ: Math.max(az, bz) };
+  };
+  const place = (z) => { z0 = z; root.position.set(XD, 0, ZF + z); root.rotation.y = YAW; root.updateMatrixWorld(true); frames(); };
 
   // ----- the rooms: concrete and paint, boxes merged by material -----
   const lists = { conc: [], dark: [], flat: [], floorC: [], floorG: [], floorF: [], ceil: [], trim: [] };
@@ -203,38 +230,41 @@ export function installBackstage(ctx, edge) {
   exitSign.material = new THREE.MeshBasicMaterial({ map: exitSign.material.map, color: new THREE.Color(1.15, 1.15, 1.15) });
   const signBox = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.2, 0.05), M({ color: '#d9dcd5' })); signBox.position.set(0, EXIT.h + 0.32, -T - 0.005); root.add(signBox);
   point('#5cff9a', 0.35, 3, 0, EXIT.h + 0.25, -T - 0.4);
-  // and on B3: the same door from the corridor (frame, leaf, no handle), there from now on
-  const b3 = new THREE.Group(); b3.position.set(XD, 0, ZF);
+  // and on B3: the same door from its side (frame, leaf, a plain handle), there from now on
+  const b3 = new THREE.Group(); b3.position.set(XD, 0, ZF); b3.rotation.y = YAW;
   exitFrame(b3, 0.012, 0.024);
   const outLeaf = exitLeafG(false), outHinge = new THREE.Group(); outHinge.position.set(-EXIT.w / 2 + 0.01, 0.01, 0.03); outHinge.add(outLeaf.g); b3.add(outHinge);
+  const handle = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.025, 0.05), M({ color: '#b9bdc1', metalness: 0.8, roughness: 0.3 }));
+  handle.position.set(EXIT.w - 0.12, 1.0, 0.05); outLeaf.g.add(handle);
   const outHit = ctx.hitBox(outLeaf.g, EXIT.w, EXIT.h, 0.12, EXIT.w / 2, EXIT.h / 2, 0.03, { action: 'edge-exit', reach: 2.6 });
   restr.root.add(b3);
-  const X = { open: 0, want: 0, out: false, shutAt: 0, cut: false, seen: false };   // out: you've gone through onto B3 (it shuts behind you)
-  const GAP = { minX: XD - EXIT.w / 2, maxX: XD + EXIT.w / 2 };
+  const X = { open: 0, want: 0, cut: false, seen: false };
   restr.extras.push({
-    cols: () => (X.open > 0.05 ? [{ minX: XD - EXIT.w / 2 - 0.03, maxX: XD - EXIT.w / 2 + 0.05, minZ: ZF, maxZ: ZF + EXIT.w }] : []),   // the leaf, swung open
+    cols: () => (X.open > 0.05 ? [boxB3({ minX: -EXIT.w / 2 - 0.03, maxX: -EXIT.w / 2 + 0.05, minZ: 0, maxZ: EXIT.w }, 0)] : []),   // the leaf, swung open
     hits: () => [outHit],
-    cut(list) {   // open, the doorway's a way through B3's wall
+    cut(list) {   // open, the doorway's a way through B3's wall: the wall's boxes there split either side of it
       if (X.open < 0.5) return;
-      const zA = ZF - G.T - 0.02 + z0, zB = ZF + 0.02 + z0;
+      const gap = boxB3({ minX: -EXIT.w / 2, maxX: EXIT.w / 2, minZ: -G.T - 0.02, maxZ: 0.02 }), alongX = Math.abs(cy) > 0.5;
+      const [lo, hi, a, b2] = alongX ? ['minX', 'maxX', 'minZ', 'maxZ'] : ['minZ', 'maxZ', 'minX', 'maxX'];
       for (let k = list.length - 1; k >= 0; k--) {
         const b = list[k];
-        if (b.maxX <= GAP.minX || b.minX >= GAP.maxX || b.maxZ <= zA || b.minZ >= zB) continue;
+        if (b[hi] <= gap[lo] || b[lo] >= gap[hi] || b[b2] <= gap[a] || b[a] >= gap[b2]) continue;
         list.splice(k, 1);
-        if (b.minX < GAP.minX) list.push({ ...b, maxX: GAP.minX });
-        if (b.maxX > GAP.maxX) list.push({ ...b, minX: GAP.maxX });
+        if (b[lo] < gap[lo]) list.push({ ...b, [hi]: gap[lo] });
+        if (b[hi] > gap[hi]) list.push({ ...b, [lo]: gap[hi] });
       }
     },
   });
   ctx.action('edge-exit', {
-    hover: () => (ctx.away === restr ? `<b>A plain steel door</b><div class="k">${X.open > 0.5 ? 'Open' : 'No handle on this side'}</div>`
-      : `<b>EXIT</b><div class="k">${X.want ? 'Open' : 'Push the bar to open it'}</div>`),
-    click: () => { if (ctx.away === bs) exitDoor(!X.want); return true; },
+    hover: () => (ctx.away === restr ? `<b>A steel door</b><div class="k">Click to ${X.want ? 'shut' : 'open'} it</div>`
+      : `<b>EXIT</b><div class="k">${X.want ? 'Click to shut it' : 'Push the bar to open it'}</div>`),
+    click: () => { exitDoor(!X.want); return true; },
   });
   function exitDoor(on) {
     if (!!X.want === on) return;
-    X.want = on ? 1 : 0; X.out = false;
-    sound.bar(v3.set(XD, 1, ZF + z0));
+    X.want = on ? 1 : 0;
+    sound.bar(v3.set(...[toB3(0, 0)].map(([x, z]) => [x, 1, z])[0]));
+    if (!on) setTimeout(() => sound.clunk(v3.set(...[toB3(0, 0)].map(([x, z]) => [x, 1, z])[0])), 900);
   }
   const v3 = new THREE.Vector3();
 
@@ -283,7 +313,12 @@ export function installBackstage(ctx, edge) {
     const fromY = ctx.away?.y || 0;
     cam.copy(camera.position).applyMatrix4(map);
     const dy = cam.y - camera.position.y;
+    if (to === restr) restr.arriveAt = { x: cam.x, z: cam.z - z0 };   // (its rooms built round the doorway, not the lift)
+    const from = ctx.away;
     heli.stay = true; ctx.setFloor(to); heli.stay = false;
+    // In from B3 with the helicopter put away (you left by the lift since): it's back on the pier, waiting, for the way out
+    // through the sky.
+    if (to === bs && from === restr && !heli.S.free) { edge.land(); heli.waitOn(edge.pier); }
     if (to.out !== undefined) to.out = 1;   // (no fading in from the car's light: you didn't come by lift)
     if (mine.L && !to.carless) { mine.L.floor = to.n; mine.L.dir = 0; }   // your car waits for you here, as if you'd come by it
     P.x = cam.x; P.z = cam.z; P.yaw += dyaw; P.fy = (P.fy || 0) + fromY + dy - (to.y || 0);
@@ -303,8 +338,8 @@ export function installBackstage(ctx, edge) {
     camera.updateMatrixWorld();
     if (lastAway !== A) { last.copy(camera.position); lastAway = A; }
     if (at === 'pier' && mine.L && mine.L.z !== z0) place(mine.L.z);   // (your car's z: B3's rooms, and so this side, are laid out about it)
-    // the exit's leaf: opening over a second, shutting slower on its closer
-    X.open = damp(X.open, X.want, X.want ? 2.2 : 1.4, dt);
+    // the exit's leaf: opening over a second, shutting a little slower
+    X.open = damp(X.open, X.want, X.want ? 2.2 : 1.6, dt);
     inHinge.rotation.y = outHinge.rotation.y = -1.62 * sstep(0, 1, X.open);
     const wasCut = X.cut; X.cut = X.open > 0.5;
     if (X.cut !== wasCut) restr.sync();
@@ -320,12 +355,10 @@ export function installBackstage(ctx, edge) {
       outP.draw({ here: F.exit, there: F.exit, scene: restr.scene, k: restr.look.exposure / bs.look.exposure, open: exitOpen,
         prepare: () => { restr.view(P.x, P.z - z0, t, z0, !X.seen); X.seen = true; return lit(restr)(); } });
       if (skyOpen && E.open > 0.5 && skyBackP.crossed(F.skyBack, last, camera.position) > 0) cross(roof, toOff, -yawOf(toBack));
-      else if (exitOpen && X.open > 0.5 && outP.crossed(F.exit, last, camera.position) > 0) { cross(restr, new THREE.Matrix4(), 0); X.out = true; X.shutAt = 0; }
-    } else {   // on B3: the way back in, while it's open; it shuts behind you once you're a few steps off
-      const d = Math.hypot(P.x - XD, P.z - ZF - z0);
-      if (X.out && X.want && d > 2.8) X.shutAt += dt; else X.shutAt = 0;
-      if (X.shutAt > 1.2) { X.want = 0; sound.clunk(v3.set(XD, 1, ZF + z0)); }
-      if (X.out && !X.want && X.open < 0.01) { X.out = false; restr.sync(); heli.stow(); }   // shut: that's that
+      else if (exitOpen && X.open > 0.5 && outP.crossed(F.exit, last, camera.position) > 0) cross(restr, new THREE.Matrix4(), 0);
+    } else {   // on B3: the way back in, while it's open (and the door itself only near enough to matter: it's in a wall that's only built near you)
+      const [dx, dz] = toB3(0, 0);
+      b3.visible = Math.hypot(P.x - dx, P.z - dz) < 40;
       outBackP.draw({ here: F.exitBack, there: F.exitBack, scene: S, k: bs.look.exposure / restr.look.exposure, open: exitOpen, prepare: () => { inside(dt, t, true); return lit(bs)(); } });
       if (exitOpen && X.open > 0.5 && outBackP.crossed(F.exitBack, last, camera.position) > 0) cross(bs, new THREE.Matrix4(), 0);
     }
@@ -343,18 +376,23 @@ export function installBackstage(ctx, edge) {
     if (through && model.shadow.shadow) { model.shadow.shadow = false; renderer.shadowMap.needsUpdate = true; }
   }
 
+  // Off B3 any way but back in here (the lift, the stone door): the helicopter's put away, as leaving the roof does.
+  const restrLeave = restr.leave;
+  restr.leave = () => { restrLeave(); if (!heli.stay && heli.S.free) heli.stow(); };
+
   // ----- the floor -----
   bs.hits = [skyHit, exitHit, ...gallery.hits, ...flat.hits, ...model.hits];
   bs.enter = () => {
     place(mine.L?.z ?? restr.z0);
-    bs.colliders = [...cols, ...gallery.cols, ...flat.cols, ...model.cols].map((b) => ({ minX: b.minX + XD, maxX: b.maxX + XD, minZ: b.minZ + ZF + z0, maxZ: b.maxZ + ZF + z0 }));
+    bs.colliders = [...cols, ...gallery.cols, ...flat.cols, ...model.cols].map((b) => boxB3(b));
+    bound = boxB3({ minX: COR.x0 - 0.3, maxX: GAL.x1, minZ: GAL.z0, maxZ: 0.4 });
     shut();
   };
   // The doors as solid as they are: shut, a door's a wall.
   const doorCols = { sky: { minX: COR.x0 - T, maxX: COR.x0 + 0.05, minZ: -6.6 - SKY.w / 2, maxZ: -6.6 + SKY.w / 2 }, exit: { minX: -EXIT.w / 2, maxX: EXIT.w / 2, minZ: -T, maxZ: 0.05 } };
   function shut() {
     const n = bs.colliders.filter((b) => !b.door);
-    for (const [k, b] of Object.entries(doorCols)) if ((k === 'sky' ? E.open : X.open) < 0.5) n.push({ minX: b.minX + XD, maxX: b.maxX + XD, minZ: b.minZ + ZF + z0, maxZ: b.maxZ + ZF + z0, door: true });
+    for (const [k, b] of Object.entries(doorCols)) if ((k === 'sky' ? E.open : X.open) < 0.5) n.push({ ...boxB3(b), door: true });
     bs.colliders = n;
   }
   bs.leave = () => {
@@ -363,18 +401,20 @@ export function installBackstage(ctx, edge) {
     // Left any way but through a door (the 3D view closing, a reload's reset): the helicopter's put away
     if (!heli.stay && lastAway === bs && ctx.away !== roof && ctx.away !== restr) heli.stow();
   };
-  const bound = { x0: COR.x0 - 0.3 + XD, x1: GAL.x1 + XD };
-  bs.bound = (p) => { p.x = clamp(p.x, bound.x0, bound.x1); p.z = clamp(p.z, GAL.z0 + ZF + z0, 0.4 + ZF + z0); };
+  let bound = null;
+  bs.bound = (p) => { p.x = clamp(p.x, bound.minX, bound.maxX); p.z = clamp(p.z, bound.minZ, bound.maxZ); };
+  // B3's space to this side's own (the inverse of toB3)
+  const fromB3 = (x, z) => { const dx = x - XD, dz = z - ZF - z0; return [dx * cy - dz * sy, dx * sy + dz * cy]; };
   bs.ground = () => 0;
   bs.save = () => false;   // a reload in here puts you back where it last saved you: out on the pier (systems/resume.js)
   const tvAt = new THREE.Vector3();
   bs.fx = (dt, t) => { shut(); sound.backstage(1, flat.tv.screen.getWorldPosition(tvAt)); };
   bs.map = () => {
-    const c = ctx.mapCtx, W = 440, MH = 330, K = 9, px = P.x - XD, pz = P.z - ZF - z0, sx = (x) => W / 2 + (x - px) * K, sz = (z) => MH / 2 + (z - pz) * K;
+    const c = ctx.mapCtx, W = 440, MH = 330, K = 9, [px, pz] = fromB3(P.x, P.z), sx = (x) => W / 2 + (x - px) * K, sz = (z) => MH / 2 + (z - pz) * K;
     c.clearRect(0, 0, W, MH);
     c.fillStyle = 'rgba(255,255,255,.14)';
     for (const r of [GAL, COR, FLAT]) c.fillRect(sx(r.x0), sz(r.z0), (r.x1 - r.x0) * K, (r.z1 - r.z0) * K);
-    c.save(); c.translate(W / 2, MH / 2); c.rotate(-P.yaw);
+    c.save(); c.translate(W / 2, MH / 2); c.rotate(-(P.yaw - YAW));
     c.fillStyle = '#fff'; c.beginPath(); c.moveTo(0, -14); c.lineTo(9, 10); c.lineTo(0, 5); c.lineTo(-9, 10); c.closePath(); c.fill(); c.restore();
   };
   // On its own security camera (the gallery's, world-edge-gallery.js): no portals, the open sky door a bright blank.
@@ -389,28 +429,30 @@ export function installBackstage(ctx, edge) {
 
   return {
     bs, gallery, flat, model, X,
-    here: () => bs.on || (restr.on && (X.out || X.open > 0.01)),
+    here: () => bs.on || restr.on,
     // Where a point in here would be, out in the world (the camera's, for the sea and wind through the open door); returns
     // how far it is from the sky door.
-    toOffice(p) { const d = Math.hypot(p.x - (COR.x0 + XD), p.z - (-6.6 + ZF + z0)); if (bs.on) p.applyMatrix4(toOff); return d; },
+    toOffice(p) { const [x, z] = fromB3(p.x, p.z), d = Math.hypot(x - COR.x0, z + 6.6); if (bs.on) p.applyMatrix4(toOff); return d; },
     debug: {
       bs, X, skyLeaf,
       go(x, z, yaw = 0, pitch = 0) {
         if (!ctx.mine.L) return false;
         if (ctx.away !== bs) { heli.stay = true; ctx.setFloor(bs); heli.stay = false; }
-        Object.assign(P, { x: x + XD, z: z + ZF + z0, yaw, pitch, fy: 0, seated: false, seat: null, eye: 1.65 });
-        ctx.setCam({ x: P.x, y: 1.65, z: P.z, yaw, pitch }); lastAway = null;
+        const [wx, wz] = toB3(x, z);
+        Object.assign(P, { x: wx, z: wz, yaw: yaw + YAW, pitch, fy: 0, seated: false, seat: null, eye: 1.65 });
+        ctx.setCam({ x: P.x, y: 1.65, z: P.z, yaw: P.yaw, pitch }); lastAway = null;
         return true;
       },
       b3(x, z, yaw = 0, pitch = 0) {
         if (!ctx.mine.L) return false;
-        if (ctx.away !== restr) { heli.stay = true; ctx.setFloor(restr); heli.stay = false; restr.out = 1; }
-        Object.assign(P, { x: x + XD, z: z + ZF + z0, yaw, pitch, fy: 0, seated: false, seat: null, eye: 1.65 });
-        ctx.setCam({ x: P.x, y: 1.65, z: P.z, yaw, pitch }); lastAway = null;
+        const [wx, wz] = toB3(x, z, mine.L.z);
+        if (ctx.away !== restr) { restr.arriveAt = { x: wx, z: wz - mine.L.z }; heli.stay = true; ctx.setFloor(restr); heli.stay = false; restr.out = 1; }
+        Object.assign(P, { x: wx, z: wz, yaw: yaw + YAW, pitch, fy: 0, seated: false, seat: null, eye: 1.65 });
+        ctx.setCam({ x: P.x, y: 1.65, z: P.z, yaw: P.yaw, pitch }); lastAway = null;
         return true;
       },
       exit(open = true) { exitDoor(open); X.open = X.want; },
-      gallery, flat, model, XD, ZF, get z0() { return z0; },
+      gallery, flat, model, spot, XD, ZF, YAW, get z0() { return z0; },
     },
   };
 }

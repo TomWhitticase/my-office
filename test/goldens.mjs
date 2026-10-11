@@ -201,7 +201,7 @@ export const POSES = [
     await o.eval(() => { const b = window.__office.heli.edge.backstage; b.go(0, -2.8, Math.PI, 0); b.exit(true); });
     await o.step(30);
   }],
-  ['edge-exit-b3', async (o) => {   // and from B3's corridor: the gallery and its table through the open door
+  ['edge-exit-b3', async (o) => {   // and from B3, at the end of its dead end deep in: the gallery and its table through the open door
     await from('edge-door', o);
     await o.eval(() => { const b = window.__office.heli.edge.backstage; b.exit(true); b.b3(0, 2.6, 0, -0.05); });
     await o.step(30);
