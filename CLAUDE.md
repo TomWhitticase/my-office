@@ -70,6 +70,16 @@ Things built while installing must not depend on a part installed later: put the
 2. Register whatever it does each frame, can be clicked, or shows on the map, as above.
 3. Import it in `main.js` and call it after the parts it uses (furniture helpers are installed early).
 
+### Surfaces never share a plane (no z-fighting)
+
+Two visible faces on the same plane, facing the same way, where they overlap, flicker between each other as you move. Every room, floor and piece of furniture follows this:
+
+- **No two visible faces on one plane where they overlap.** A frame sits a little proud of its wall, a sign a little off its wall, a lining a little inside; a box sitting on or in another stops short of the other's faces (a cushion between the arms, not to their outer faces; a jamb up to the head, not through it); pieces that cross at a corner stop a few mm short of each other.
+- **Offsets:** about 3-5 mm for small things near you (frames, signs, trim, decals); about 1-2 cm for big or far surfaces (wall linings, slabs, floors: depth precision falls off with distance). Under 1 mm doesn't count. Or cut the hole instead: an opening is cut so the wall doesn't run on behind its frame.
+- **Don't lean on `polygonOffset`** except for a true decal on a surface.
+- **Prefer removing a hidden duplicate face** to offsetting it (a box's bottom in the ground, a wall's run into another wall).
+- **The check:** the world suite's `coplanar` test (`node test/run.mjs world`, `test/coplanar.mjs`) scans every scene (the office, each floor, the den, the world's edge, Relativity, behind the sky) for overlapping same-plane faces from different meshes or materials, and fails on any not in its `ALLOW` list (each with a reason). Faces that can't be seen are skipped: back-to-back pairs, a face pressed against one facing it (a wall's top on the ceiling), undersides on a floor, two that don't write depth, and two that draw identically. `test/out/coplanar.txt` lists every hit, biggest first, with where it is; `COPLANAR_WHERE=1` adds the file and line that built each mesh.
+
 ### Adding a floor
 
 1. Make `public/office/floors/<floor>.js` exporting `install(ctx)`. A floor is an object `{ n, label, title, scene, colliders, hits, look, enter(z), bound(p), map(), fx?(dt, t), leave?(), pick?(ray), ground?(x, z) }` (see `systems/lifts.js`): its own `THREE.Scene` lit by `look` (exposure, hemisphere, env, bloom/grade scale, extra lights), or `y` instead of a scene for one that's part of the office scene (the roof).

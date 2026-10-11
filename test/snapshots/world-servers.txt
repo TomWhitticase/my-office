@@ -117,8 +117,8 @@ Mesh||BufferGeometry:36|MeshStandardMaterial:ffffff:map:|0 0 0 0 0 0 1 1 1||1||0
 Mesh||BufferGeometry:36|MeshBasicMaterial:ffffff:map:|0 0 0 0 0 0 1 1 1||1||0|
 Mesh||PlaneGeometry:4|MeshBasicMaterial:ffffff:map:|-25.92 1.65 11.5 0 1.571 0 1 1 1||1||0|action=info,info(),reach=12
 Mesh||BufferGeometry:96|MeshStandardMaterial:0c0d0f::|0 0 0 0 0 0 1 1 1||1||0|
-Mesh||PlaneGeometry:4|MeshBasicMaterial:ffffff:map:|4.639 3 0 0 -1.571 0 1 1 1||1||0|
-Mesh||PlaneGeometry:4|MeshBasicMaterial:ffffff:map:|4.761 3 0 0 1.571 0 1 1 1||1||0|
+Mesh||PlaneGeometry:4|MeshBasicMaterial:ffffff:map:|4.636 3 0 0 -1.571 0 1 1 1||1||0|
+Mesh||PlaneGeometry:4|MeshBasicMaterial:ffffff:map:|4.764 3 0 0 1.571 0 1 1 1||1||0|
 Group||||4.2 0 -2.6 0 2.2 0 1 1 1||1||11|
 Mesh||BufferGeometry:168|MeshStandardMaterial:5d636b::|0 0 0 0 0 0 1 1 1||1||0|
 Mesh||CylinderGeometry:64|MeshStandardMaterial:111111::|-0.23 0.03 -0.18 0 0 1.571 1 1 1||1||0|
@@ -147,7 +147,7 @@ Mesh||BufferGeometry:24|MeshStandardMaterial:2a2e35::|0 0 0 0 0 0 1 1 1||1||0|
 Mesh||BufferGeometry:4|MeshStandardMaterial:3a3f47::|0 0 0 0 0 0 1 1 1||1||0|
 Mesh||BufferGeometry:4|MeshStandardMaterial:4a4f57::|0 0 0 0 0 0 1 1 1||1||0|
 Mesh||BufferGeometry:48|MeshStandardMaterial:ffffff::|0 0 0 0 0 0 1 1 1||1||0|
-Mesh||PlaneGeometry:4|MeshStandardMaterial:ffffff:map:|-16.97 2.6 13.9 0 1.571 0 1 1 1||1||0|
+Mesh||PlaneGeometry:4|MeshStandardMaterial:ffffff:map:|-16.966 2.6 13.9 0 1.571 0 1 1 1||1||0|
 Mesh||BufferGeometry:192|MeshStandardMaterial:ffffff::|0 0 0 0 0 0 1 1 1||1||0|
 Mesh||PlaneGeometry:4|MeshBasicMaterial:ffffff:map:|-22.86 1.18 10.5 0 -1.571 0 1 1 1||1||0|
 Mesh||PlaneGeometry:4|MeshBasicMaterial:ffffff:map:|-22.86 1.18 11.5 0 -1.571 0 1 1 1||1||0|
@@ -279,7 +279,7 @@ Mesh||PlaneGeometry:4|MeshStandardMaterial:ffffff:map:|14.57 2.55 0 0 1.571 0 1 
 Mesh||PlaneGeometry:4|MeshStandardMaterial:ffffff:map:|14.57 1.5 -1.1 0 1.571 0 1 1 1||1||0|
 Mesh||PlaneGeometry:4|MeshStandardMaterial:ffffff:map:|14.57 1.5 1.1 0 1.571 0 1 1 1||1||0|
 Mesh||BufferGeometry:72|MeshStandardMaterial:ffffff::|0 0 0 0 0 0 1 1 1||1||0|
-Mesh||PlaneGeometry:4|MeshStandardMaterial:ffffff:map:|16.2 1.47 2.119 0 3.142 0 1 1 1||1||0|
+Mesh||PlaneGeometry:4|MeshStandardMaterial:ffffff:map:|16.2 1.47 2.116 0 3.142 0 1 1 1||1||0|
 Mesh||PlaneGeometry:4|MeshStandardMaterial:ffffff:map:|16.65 1.5 2.139 0 3.142 0 1 1 1||1||0|
 Mesh||CylinderGeometry:124|MeshStandardMaterial:e9e6df::|16.2 2.6 2.17 1.571 0 0 1 1 1||1||0|
 Mesh||BoxGeometry:24|MeshStandardMaterial:ffffff::|16.2 1.45 2.14 0 0 0 1 1 1|hidden|1||0|action=info,info(),reach=3
@@ -297,7 +297,7 @@ Mesh||BufferGeometry:192|MeshStandardMaterial:ffffff::|0 0 0 0 0 0 1 1 1||1||0|
 Mesh||BufferGeometry:24|MeshStandardMaterial:dfe4e8::|0 0 0 0 0 0 1 1 1||1||0|
 Mesh||BufferGeometry:24|MeshStandardMaterial:ffffff::|0 0 0 0 0 0 1 1 1||1||0|
 Mesh||BoxGeometry:24|MeshStandardMaterial:ffffff:map:|18.13 1.1 -0.275 0 0 0 1 1 1||1||0|
-Mesh||BoxGeometry:24|MeshStandardMaterial:ffffff:map:|18.13 1.1 0.275 0 0 0 1 1 1||1||0|
+Mesh||BoxGeometry:24|MeshStandardMaterial:ffffff:map:|18.134 1.1 0.275 0 0 0 1 1 1||1||0|
 Mesh||PlaneGeometry:4|MeshBasicMaterial:ffffff:map:|17.955 2.5 0 0 -1.571 0 1 1 1||1||0|
 Mesh||CylinderGeometry:100|MeshStandardMaterial:e6e3dc::|17.975 1.16 0.85 0 0 1.571 1 1 1||1||0|
 Mesh||CylinderGeometry:100|MeshStandardMaterial:e6e3dc::|17.975 1.04 0.85 0 0 1.571 1 1 1||1||0|
