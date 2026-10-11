@@ -9,7 +9,7 @@ const TAU = Math.PI * 2;
 
 export function makeSound(ctx) {
   const { camera } = ctx;
-  let A = null, B = null, out = null, verb = null, loops = [], stepAcc = 0, lastP = null, ghostAt = 0, figAt = 0, echo = null;
+  let A = null, B = null, out = null, verb = null, loops = [], stepAcc = 0, lastP = null, ghostAt = 0, figAt = 0, echo = null, bleedL = null;
   const rnd = (a, b) => a + Math.random() * (b - a), nz = () => Math.random() * 2 - 1;
   const pick = (a) => a[Math.floor(Math.random() * a.length)];
 
@@ -51,7 +51,7 @@ export function makeSound(ctx) {
   function ready() {
     const a = ctx.sfx.audio;
     if (!a || a.ctx.state !== 'running') return false;
-    if (A?.ctx !== a.ctx) { A = a; B = null; loops = []; out = verb = null; }
+    if (A?.ctx !== a.ctx) { A = a; B = null; loops = []; out = verb = bleedL = null; }
     if (!B) B = build();
     if (!out) {
       out = A.ctx.createGain(); out.connect(A.master);
@@ -121,6 +121,22 @@ export function makeSound(ctx) {
     roll() { if (ready()) shot(B.whoosh, null, 0.08, { rate: rnd(0.8, 1), send: 0.8 }); },
     door(p) { if (ready()) shot(B.creak, p || null, 0.12, { rate: rnd(0.85, 1.05), send: 0.8 }); },
     glimpse(p) { if (ready()) shot(pick(B.step), p, 0.12, { send: 1, lp: 2400 }); },
+    // Heard through the open stone door from B3 (relativity-door.js): the hall's drone and air at v (0 to 1), its own loops.
+    bleed(v) {
+      if (!ready() || (!bleedL && v < 0.002)) return;
+      const now = A.ctx.currentTime;
+      if (!bleedL) {
+        const g = A.ctx.createGain(); g.gain.value = 0; g.connect(A.master);
+        bleedL = { g, srcs: [[B.drone, 0.05, 400], [B.air, 0.012, 0]].map(([buf, gain, lp]) => {
+          const src = A.ctx.createBufferSource(), sg = A.ctx.createGain(); src.buffer = buf; src.loop = true; sg.gain.value = gain;
+          let head = src;
+          if (lp) { const f = A.ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = lp; src.connect(f); head = f; }
+          head.connect(sg).connect(g); src.start(); return src;
+        }) };
+      }
+      bleedL.g.gain.setTargetAtTime(v, now, 0.3);
+      if (v < 0.002) { for (const src of bleedL.srcs) src.stop(now + 1.5); bleedL = null; }
+    },
     stop() {
       if (A) for (const { src, g } of loops) { g.gain.setTargetAtTime(0, A.ctx.currentTime, 0.3); src.stop(A.ctx.currentTime + 1.5); }
       loops = []; lastP = null; echo = null;

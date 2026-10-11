@@ -6246,8 +6246,8 @@
     "lightpanel": 5,
     "rosie": 57
    },
-   "ordered": "e37d1b60",
-   "sorted": "b5c763bc"
+   "ordered": "4f9a8020",
+   "sorted": "31bf3dee"
   },
   "servers": {
    "objects": 383,
@@ -6298,38 +6298,38 @@
    "sorted": "4918b7c3"
   },
   "restricted": {
-   "objects": 52,
+   "objects": 53,
    "types": {
     "Scene": 1,
     "HemisphereLight": 1,
     "Group": 9,
     "PointLight": 6,
-    "Mesh": 33,
+    "Mesh": 34,
     "PerspectiveCamera": 2
    },
    "actions": {
     "liftcall": 1,
     "liftpanel": 1
    },
-   "ordered": "6473153a",
-   "sorted": "6e7c2d8e"
+   "ordered": "8a954eff",
+   "sorted": "817e934b"
   },
   "relativity": {
-   "objects": 41,
+   "objects": 44,
    "types": {
     "Scene": 1,
     "HemisphereLight": 1,
     "DirectionalLight": 2,
     "Group": 10,
-    "Mesh": 27
+    "Mesh": 30
    },
    "actions": {
     "relexit": 3,
     "relsky": 3,
     "relfig": 1
    },
-   "ordered": "532dfa5",
-   "sorted": "502b700d"
+   "ordered": "4bc9fe67",
+   "sorted": "c150b9e3"
   }
  }
 }

@@ -1311,7 +1311,7 @@ Mesh||CylinderGeometry:76|MeshStandardMaterial:3b2c22::|6.6 0.44 -14.3 0 0 0 1 1
 Group||||8.6 0 -14.7 0 0 0 1 1 1||1||2|
 Mesh||BufferGeometry:216|MeshStandardMaterial:7a5232::|0 0 0 0 0 0 1 1 1||1||0|
 Mesh||BufferGeometry:4272|MeshStandardMaterial:ffffff::|0 0 0 0 0 0 1 1 1||1||0|
-Group||||10.52 1.98 -14.92 0 0 0 1 1 1||1||2|
+Group||||10.52 1.82 -14.92 0 0 0 1 1 1||1||2|
 Mesh||BoxGeometry:24|MeshStandardMaterial:1c1a18::|0 0 0 0 0 0 1 1 1||1||0|
 Mesh||PlaneGeometry:4|MeshStandardMaterial:ffffff:map:|0 0 0.022 0 0 0 1 1 1||1||0|
 Mesh||CylinderGeometry:100|MeshStandardMaterial:d9cfc0::|16.6 1.15 -3 0 0 0 1 1 1||1||0|
@@ -1962,7 +1962,7 @@ Mesh||BoxGeometry:24|MeshStandardMaterial:1c1c1e::|0 0.068 0 0 0 0 1 1 1||1||0|
 Group||||0 0 0.066 0 0 0 1 1 1||1||1|
 Mesh||BoxGeometry:24|MeshStandardMaterial:d0402b::|0 0.074 0 0 0 0 1 1 1||1||0|
 Mesh||CylinderGeometry:76|MeshStandardMaterial:d0402b::|0 0 0.068 1.571 0 0 1 1 1||1||0|
-Group||||10.55 2.35 -14.9 0 0 0 1 1 1||1||6|
+Group||||10.52 2.75 -14.9 0 0 0 1 1 1||1||6|
 Mesh||CylinderGeometry:244|MeshStandardMaterial:2a2b2e::|0 0 0.025 1.571 0 0 1 1 1||1||0|
 Mesh||CircleGeometry:42|MeshStandardMaterial:ffffff:map:|0 0 0.051 0 0 0 1 1 1||1||0|
 Group||||0 0 0.056 0 0 0 1 1 1||1||1|

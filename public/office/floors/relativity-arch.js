@@ -18,6 +18,7 @@ import { frameM, toWorld } from './relativity-gravity.js';
 export const L = 15;
 // The shared stair, in its upper gravity's frame: steps x xa..xa+W, from the foot corner (y yf, z zf) up n steps of h
 // (rise = run) toward +z; T, how deep its stepped underside is; the landings' slab (T1), depth (D) and extra width (EXT).
+export const DOOR = { w: 1.1, s: 1.7 };   // the way out: as wide as B3's stone door, springing as high
 export const S = { xa: -3, W: 3, yf: -9, zf: -4.2, n: 16, h: 0.3, T: 0.42, T1: 0.5, D: 2.4, EXT: 3.3 };
 S.yt = S.yf + S.n * S.h; S.zt = S.zf + S.n * S.h;
 const RAIL = 1.0, TILE = 1.2;
@@ -233,9 +234,11 @@ export function buildArch(R) {
     // the way back out: a wall on the floor with a door in it, and figures' places
     begin(`door${k}`);
     const dz = 9;
-    arches(k, 'x', dz, 5, 13, -L, 5, 0.6, [{ c: 9, w: 1.4, s: 2.0, door: true }, { c: 6.4, w: 0.9, s: 2.4 }, { c: 11.6, w: 0.9, s: 2.4 }]);
-    box(k, 8.3, -L, dz, 9.7, -L + 2.7, dz + 0.6, { show: false });
-    doors.push({ k, hinge: [8.3, -L, dz + 0.3], w: 1.4, s: 2.0, along: 'x', at: [9, -L, dz - 1.1], yaw: 0.87 });
+    // (the doorway's the stone door's on B3, to the centimetre: you walk from one into the other, relativity-door.js)
+    arches(k, 'x', dz, 5, 13, -L, 5, 0.6, [{ c: 9, w: DOOR.w, s: DOOR.s, door: true }, { c: 6.4, w: 0.9, s: 2.4 }, { c: 11.6, w: 0.9, s: 2.4 }]);
+    const shut = boxes.length;   // what stops you while it's shut
+    box(k, 9 - DOOR.w / 2, -L, dz, 9 + DOOR.w / 2, -L + DOOR.s + DOOR.w / 2, dz + 0.6, { show: false });
+    doors.push({ k, hinge: [9 - DOOR.w / 2, -L, dz + 0.3], w: DOOR.w, s: DOOR.s, along: 'x', at: [9, -L, dz - 1.1], yaw: 0.87, sill: [9, -L, dz], shut });
     box(k, 4.8, -L + 5, dz - 0.1, 13.2, -L + 5.3, dz + 0.7, { solid: false, kind: 'pale', tint: PALE });
     begin(`table${k}`);   // a long table and its benches
     box(k, 2.6, -L + 0.72, 1.6, 5.4, -L + 0.8, 2.6, { kind: 'wood', tint: '#7d6a55', solid: false });
