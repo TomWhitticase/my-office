@@ -19,7 +19,7 @@ export function installHall(ctx, W) {
   // x -8..-4.6, z -11.2..-3.5: the loungers' heads to the west wall, an aisle down the east side from the door to the fire.
   const QR = { x0: -8, x1: -4.6, z0: -11.2, z1: -3.5 };
   {
-    k.box(mat('#8c7b69', { roughness: 1 }), 2.3, 0.01, 7.2, -6.75, 0.006, -7.4);   // a wool rug under the loungers
+    k.box(mat('#8c7b69', { roughness: 1 }), 2.296, 0.01, 7.2, -6.748, 0.006, -7.4);   // a wool rug under the loungers
     const LZ = [-10.5, -8.95, -7.4, -5.85, -4.3];
     for (const z of LZ) {
       const g = new THREE.Group(); g.position.set(-6.95, 0, z); g.rotation.y = Math.PI / 2; G.add(g);   // head to the west wall
@@ -41,12 +41,12 @@ export function installHall(ctx, W) {
     }
     // The chimney breast on the east wall, a long fire set low in it behind glass, a brass surround.
     const BX0 = -5.01, BZ0 = -6.5, BZ1 = -4.3;
-    panel(M.stoneWall, QR.x1 - 0.06 - BX0, 3.3, BZ1 - BZ0, (BX0 + QR.x1 - 0.06) / 2, 1.65, (BZ0 + BZ1) / 2, 2.4);
+    panel(M.stoneWall, QR.x1 - 0.06 - BX0, 3.296, BZ1 - BZ0, (BX0 + QR.x1 - 0.06) / 2, 1.648, (BZ0 + BZ1) / 2, 2.4);   // (up to 4 mm under the ceiling, off the beams' tops)
     k.box(M.black, 0.02, 0.5, 1.7, BX0 - 0.005, 0.72, (BZ0 + BZ1) / 2);
     for (const [w, h, y, dz] of [[1.78, 0.04, 0.99, 0], [1.78, 0.04, 0.45, 0]]) k.box(M.brass, 0.03, h, w, BX0 - 0.012, y, (BZ0 + BZ1) / 2 + dz);
     for (const s of [-1, 1]) k.box(M.brass, 0.03, 0.58, 0.04, BX0 - 0.012, 0.72, (BZ0 + BZ1) / 2 + s * 0.87);
     k.box(M.stone, 0.45, 0.06, BZ1 - BZ0 + 0.2, BX0 - 0.2, 0.03, (BZ0 + BZ1) / 2);   // the hearth
-    k.box(mat('#3a3330', { roughness: 0.9 }), 0.012, 0.08, 1.6, BX0 - 0.01, 0.52, (BZ0 + BZ1) / 2);   // the stones the flames come up through
+    k.box(mat('#3a3330', { roughness: 0.9 }), 0.012, 0.08, 1.6, BX0 - 0.024, 0.52, (BZ0 + BZ1) / 2);   // the stones the flames come up through
     solid((BX0 + QR.x1) / 2 - 0.1, (BZ0 + BZ1) / 2, QR.x1 - BX0 + 0.25, BZ1 - BZ0);
     const fireM = new THREE.ShaderMaterial({
       uniforms: { time: W.U.time }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
@@ -117,9 +117,9 @@ export function installHall(ctx, W) {
   // Four tiled bays on the south glass (x -8..0, partitions at -6, -4, -2 in WALLS), slate floor and a linear drain.
   const SZ = -14.84, bays = [];
   {
-    panel(W.paleTileM, 7.88, 3.3, 0.04, -4, 1.65, SZ);
+    panel(W.paleTileM, 7.88, 3.296, 0.04, -4, 1.648, SZ);
     k.box(mat('#3b3f42', { roughness: 0.55 }), 7.88, 0.02, 1.8, -4, 0.012, (SZ + -13.05) / 2);
-    k.box(M.black, 7.9, 0.021, 0.08, -4, 0.013, -13.2);
+    k.box(M.black, 7.9, 0.0185, 0.08, -4, 0.01525, -13.2);   // (its foot 4 mm above the slate's underside, its top 2.5 mm proud)
     for (const [name, x] of [['RAIN', -7], ['MIST', -5], ['DRENCH', -3], ['ICE', -1]]) W.plaque(name, x, 2.55, SZ + 0.03, 0);
     const rain = (x, z, r, warm) => {
       const m = W.rainM.clone(); m.uniforms.time = W.U.time;
