@@ -6199,19 +6199,19 @@
  ],
  "scenes": {
   "office": {
-   "objects": 3332,
+   "objects": 3355,
    "types": {
     "Scene": 1,
     "HemisphereLight": 1,
     "DirectionalLight": 2,
     "Object3D": 2,
-    "Mesh": 2876,
-    "Group": 527,
+    "Mesh": 2879,
+    "Group": 539,
     "PointLight": 16,
     "Sprite": 9,
-    "LineSegments": 1,
-    "PerspectiveCamera": 13,
-    "Points": 1
+    "LineSegments": 2,
+    "PerspectiveCamera": 19,
+    "Points": 2
    },
    "actions": {
     "blinds": 48,
@@ -6246,8 +6246,8 @@
     "lightpanel": 5,
     "rosie": 57
    },
-   "ordered": "4f9a8020",
-   "sorted": "31bf3dee"
+   "ordered": "643d328d",
+   "sorted": "a1baa4f"
   },
   "servers": {
    "objects": 383,

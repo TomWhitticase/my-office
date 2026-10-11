@@ -134,6 +134,11 @@ export const POSES = [
     await stand(o, 12, 0.4, { x: -4, y: 1.0, z: 6 });
     await o.step(3);
   }],
+  ['roof-rain', async (o) => {   // the roof in the rain (world/weather.js), the sky grey, streaks round you
+    await from('roof', o);
+    await o.eval(() => window.__office.weather.set({ kind: 'rain' }));
+    await o.step(300);
+  }],
   ['dusk', async (o) => {
     await arrive(o);
     await dusk(o);
@@ -184,6 +189,16 @@ export const POSES = [
   ['edge-gallery', async (o) => {   // the gallery: the mixing desk and the bank of live monitors
     await from('edge-door', o);
     await o.eval(() => window.__office.heli.edge.backstage.go(1.4, -6.6, -Math.PI / 2, -0.16));
+    await o.step(50);
+  }],
+  ['edge-console', async (o) => {   // at the operator's console, looking down at it: time, weather, building, the table beyond
+    await from('edge-door', o);
+    await o.eval(() => window.__office.heli.edge.backstage.go(-4.35, -6.6, -Math.PI / 2, -0.5));
+    await o.step(40);
+  }],
+  ['edge-bank', async (o) => {   // the monitor bank straight on: the city's cameras along the top, the status screen and the clock in the middle
+    await from('edge-door', o);
+    await o.eval(() => window.__office.heli.edge.backstage.go(2.1, -6.6, -Math.PI / 2, 0.2));
     await o.step(50);
   }],
   ['edge-table', async (o) => {   // the model of the world on its table, your building opened up into its floors
