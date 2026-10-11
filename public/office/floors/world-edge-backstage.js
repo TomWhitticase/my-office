@@ -1,7 +1,8 @@
 // BEHIND THE SKY (floors/world-edge.js): through the door at the top of the stairs, a short bare concrete service corridor
 // (strip lights, cable trays, an extinguisher, the stage's number stencilled on the wall) leads to the gallery: a dark
 // control room round a live model of the whole world (world-edge-model.js), with a curved bank of monitors showing it
-// live and a mixing desk whose faders really work (world-edge-gallery.js). Off the corridor, a cramped flat where two
+// live (world-edge-gallery.js) and an operator's console whose dials, switches and faders run the world: the time, the
+// weather, the office's lights and blinds (world-edge-console.js). Off the corridor, a cramped flat where two
 // people sit watching it on TV (world-edge-flat.js). The way out is a plain fire door marked EXIT, and it opens onto the
 // restricted level (B3, restricted.js): the far wall of a dead end deep in its rooms, a long walk from its lift, always the
 // same place (found from B3's fixed layout), a plain steel door with a handle from that side, easy to miss.
@@ -20,6 +21,7 @@ import { makePortal } from '../systems/portal.js';
 import { installGallery } from './world-edge-gallery.js';
 import { installFlat } from './world-edge-flat.js';
 import { installModel } from './world-edge-model.js';
+import { installConsole } from './world-edge-console.js';
 
 // The plan, in this side's own space: the exit's sill at the origin (B3 is +z of it), floors at y = 0.
 export const PLAN = {
@@ -272,6 +274,7 @@ export function installBackstage(ctx, edge) {
   const gallery = installGallery(ctx, bs, PLAN);
   const flat = installFlat(ctx, bs, PLAN);
   const model = installModel(ctx, bs, PLAN, edge);
+  const desk = installConsole(ctx, bs, PLAN);
 
   // ----- the doors' frames, and the two portals -----
   const flip = new THREE.Matrix4().makeRotationY(Math.PI);
@@ -372,7 +375,7 @@ export function installBackstage(ctx, edge) {
   function inside(dt, t, through) {
     if (insideAt === t) return;
     insideAt = t;
-    gallery.fx(dt, t); flat.fx(dt, t); model.fx(dt, t);
+    gallery.fx(dt, t); flat.fx(dt, t); model.fx(dt, t); desk.fx(dt, t);
     if (through && model.shadow.shadow) { model.shadow.shadow = false; renderer.shadowMap.needsUpdate = true; }
   }
 
@@ -381,10 +384,10 @@ export function installBackstage(ctx, edge) {
   restr.leave = () => { restrLeave(); if (!heli.stay && heli.S.free) heli.stow(); };
 
   // ----- the floor -----
-  bs.hits = [skyHit, exitHit, ...gallery.hits, ...flat.hits, ...model.hits];
+  bs.hits = [skyHit, exitHit, ...gallery.hits, ...flat.hits, ...model.hits, ...desk.hits];
   bs.enter = () => {
     place(mine.L?.z ?? restr.z0);
-    bs.colliders = [...cols, ...gallery.cols, ...flat.cols, ...model.cols].map((b) => boxB3(b));
+    bs.colliders = [...cols, ...gallery.cols, ...flat.cols, ...model.cols, ...desk.cols].map((b) => boxB3(b));
     bound = boxB3({ minX: COR.x0 - 0.3, maxX: GAL.x1, minZ: GAL.z0, maxZ: 0.4 });
     shut();
   };
@@ -452,7 +455,7 @@ export function installBackstage(ctx, edge) {
         return true;
       },
       exit(open = true) { exitDoor(open); X.open = X.want; },
-      gallery, flat, model, spot, XD, ZF, YAW, get z0() { return z0; },
+      gallery, flat, model, desk, spot, XD, ZF, YAW, get z0() { return z0; },
     },
   };
 }

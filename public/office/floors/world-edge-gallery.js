@@ -1,15 +1,15 @@
 // The gallery behind the sky (world-edge-backstage.js): a dark control room. A curved bank of monitors wraps round the
 // model table (world-edge-model.js), each showing a live feed of the world: the office's own security cameras
 // (systems/cctv.js, the same pictures as the Security app), one on the pier where the helicopter waits, and one of this
-// gallery's way in, where you'll see yourself come in; and a clock. In front of them, a mixing desk whose labelled faders
-// work: SUN sets the time of day (the sky's clock, ×1 from there; LIVE puts it back on the real one), WEATHER the cloud,
-// LIGHTS the office's lights (the Admin app's setting, AUTO back to following daylight). An empty chair, a headset, a mug
-// of cold coffee. Feeds are drawn only while you're in here and the bank is in view, one a frame at most, a few times a
-// second each, at 256 x 144.
+// gallery's way in, where you'll see yourself come in; the city's own cameras along the top; a clock, and a status
+// screen of what the console (world-edge-console.js, across the table) has set. Each screen faces the table square on:
+// turned to it, then leant toward it by its height. In front of them, a mixing desk (for show), an empty chair, a
+// headset, a mug of cold coffee. Feeds are drawn only while you're in here and the bank is in view, one a frame at most,
+// a few times a second each, at 256 x 144.
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { clamp, dash, FONT, makeCanvas, MARKER, ME_LAYER } from '../util.js';
+import { dash, FONT, makeCanvas, MARKER, ME_LAYER } from '../util.js';
 
 const FW = 256, FH = 144, FPS = 3;
 
@@ -25,7 +25,7 @@ export function installGallery(ctx, bs, PLAN) {
   };
   const info = (h, k) => ({ action: 'backstage', reach: 4, info: `<b>${h}</b>${k ? `<div class="k">${k}</div>` : ''}` });
 
-  // ----- the monitor bank: 7 columns of 2 on an arc round the table, a cabinet under, a fascia over -----
+  // ----- the monitor bank: 7 columns of 3 on an arc round the table, a cabinet under, a fascia over -----
   const RB = 5.4, COLS = 7, SPAN = 1.32 / RB, A0 = -SPAN * (COLS - 1) / 2;
   const pier = { F: { cctv: null }, eye: new THREE.PerspectiveCamera(50, 16 / 9, 0.1, 3000), n: 0, name: 'Pier' };
   const door = { F: bs, eye: new THREE.PerspectiveCamera(46, 16 / 9, 0.1, 60), n: 0, name: 'Stage door' };
@@ -35,8 +35,10 @@ export function installGallery(ctx, bs, PLAN) {
   const E = ctx.heli.edge;
   pier.eye.position.set(-E.R + 16, E.PT + 8, E.PIER.u0 - 8); pier.eye.lookAt(-E.R + 5, E.PT + 1.5, (E.PIER.u0 + E.PIER.u1) / 2 + 3); pier.eye.updateMatrixWorld();
   const byId = new Map((ctx.cctv?.cams || []).map((c) => [c.id, c]));
-  const SLOTS = [['roof-terrace', 'roof-helipad', 'lobby', 'clock', 'meeting', 'wellness-gym', 'hall-noc'],
+  const SLOTS = [['city-street', 'city-bridge', 'city-park', 'status', 'city-rooftop', 'city-sea', 'city-pass'],
+    ['roof-terrace', 'roof-helipad', 'lobby', 'clock', 'meeting', 'wellness-gym', 'hall-noc'],
     ['desks-se', 'breakroom', 'my-office', 'pier', 'door', 'lounge', 'wellness-pool']];
+  const ROWS = [2.86, 2.12, 1.38], EYE_AT = [1.65, RB - 1.9];   // each row's height; leant toward an eye this high, this far in
   const screens = [];
   const screenM = (tex) => new THREE.ShaderMaterial({
     uniforms: { map: { value: tex }, k: { value: 1.7 }, on: { value: 0 } },
@@ -48,36 +50,36 @@ export function installGallery(ctx, bs, PLAN) {
         gl_FragColor = vec4(c * k, 1.0);
       }`,
   });
-  const labels = makeCanvas(1024, 128), lc = labels.ctx;   // each screen's caption, burnt into its corner: a 256 x 32 cell each
+  const labels = makeCanvas(1024, 256), lc = labels.ctx;   // each screen's caption, burnt into its corner: a 256 x 32 cell each
   const cab = [], bez = [], labelGeos = [];
   let n = 0;
-  for (let row = 0; row < 2; row++) for (let col = 0; col < COLS; col++) {
-    const a = A0 + col * SPAN, id = SLOTS[row][col], y = row ? 1.38 : 2.12, p = at(RB, a, y), yaw = faceIn(a);
-    const cam = id === 'pier' ? pier : id === 'door' ? door : byId.get(id);
-    const name = id === 'clock' ? 'Clock' : cam ? (cam.name.split(' · ').pop()) : id;
+  for (let row = 0; row < ROWS.length; row++) for (let col = 0; col < COLS; col++) {
+    const a = A0 + col * SPAN, id = SLOTS[row][col], y = ROWS[row], p = at(RB, a, y), yaw = faceIn(a);
+    const tilt = Math.atan2(y - EYE_AT[0], EYE_AT[1]);   // top toward the table (+x about its own axis, after the turn)
+    const cam = id === 'pier' ? pier : id === 'door' ? door : byId.get(id), still = id === 'clock' || id === 'status';
+    const name = id === 'clock' ? 'Clock' : id === 'status' ? 'Status' : cam ? (cam.city ? cam.name : cam.name.split(' · ').pop()) : id;
     const rt = new THREE.WebGLRenderTarget(FW, FH, { depthBuffer: false });
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.675), screenM(rt.texture));
-    mesh.position.copy(p); mesh.rotation.y = yaw; root.add(mesh);
-    if (row === 0) mesh.rotation.x = -0.08;
-    bez.push(new THREE.BoxGeometry(1.27, 0.74, 0.08).translate(0, 0, -0.045).rotateX(row ? 0 : -0.08).rotateY(yaw).translate(p.x, p.y, p.z));
+    mesh.position.copy(p); mesh.rotation.set(tilt, yaw, 0, 'YXZ'); root.add(mesh);   // (turned, then leant: no roll)
+    bez.push(new THREE.BoxGeometry(1.27, 0.74, 0.08).translate(0, 0, -0.045).rotateX(tilt).rotateY(yaw).translate(p.x, p.y, p.z));
     // its label: a slot of the shared strip
     const u = n % 4, v = Math.floor(n / 4), lx = u * 256, ly = v * 32;
     lc.fillStyle = 'rgba(0,0,0,.6)'; lc.fillRect(lx, ly, 256, 32);
-    if (id !== 'clock') {
+    if (!still) {
       lc.fillStyle = '#e0352b'; lc.beginPath(); lc.arc(lx + 14, ly + 16, 5, 0, 7); lc.fill();
       lc.fillStyle = '#e8ecf2'; lc.font = `600 17px ui-monospace, Menlo, monospace`; lc.fillText(`${String(n + 1).padStart(2, '0')} ${name.toUpperCase()}`.slice(0, 22), lx + 26, ly + 22);
     }
     const lg = new THREE.PlaneGeometry(0.44, 0.055), U = lg.attributes.uv;
-    for (let k = 0; k < U.count; k++) U.setXY(k, (u + U.getX(k)) / 4, 1 - (v + 1 - U.getY(k)) / 4);
-    if (id !== 'clock') labelGeos.push(lg.translate(-0.35, -0.29, 0.004).rotateX(row ? 0 : -0.08).rotateY(yaw).translate(p.x, p.y, p.z));
+    for (let k = 0; k < U.count; k++) U.setXY(k, (u + U.getX(k)) / 4, 1 - (v + 1 - U.getY(k)) / 8);
+    if (!still) labelGeos.push(lg.translate(-0.35, -0.29, 0.004).rotateX(tilt).rotateY(yaw).translate(p.x, p.y, p.z));
     screens.push({ id, cam, rt, mesh, at: -1, name });
-    hits.push(Object.assign(mesh, { userData: info(name, id === 'clock' ? '' : id === 'pier' || id === 'door' ? 'Live' : 'Live · the same camera as the Security app') }));
+    hits.push(Object.assign(mesh, { userData: info(name, still ? '' : id === 'pier' || id === 'door' ? 'Live' : 'Live · the same camera as the Security app') }));
     n++;
   }
   for (let col = 0; col < COLS; col++) {   // the cabinet under each column, and the fascia over
     const a = A0 + col * SPAN, yaw = faceIn(a), p = at(RB + 0.15, a);
     cab.push(new THREE.BoxGeometry(1.3, 1.0, 0.6).translate(0, 0.5, 0).rotateY(yaw).translate(p.x, 0, p.z));
-    cab.push(new THREE.BoxGeometry(1.3, 0.3, 0.5).translate(0, 2.65, -0.05).rotateY(yaw).translate(p.x, 0, p.z));
+    cab.push(new THREE.BoxGeometry(1.3, 0.22, 0.5).translate(0, 3.38, -0.05).rotateY(yaw).translate(p.x, 0, p.z));
     aabb(p.x, p.z, 1.3, 0.6, yaw);
   }
   const mergeAll = (list) => mergeGeometries(list.map((g) => (g.index ? g.toNonIndexed() : g)));
@@ -97,8 +99,27 @@ export function installGallery(ctx, bs, PLAN) {
     c.fillStyle = '#ffb02e'; c.font = `700 52px ui-monospace, Menlo, monospace`; c.textAlign = 'center'; c.fillText(txt, FW / 2, 86);
     c.font = `600 16px ${FONT}`; c.fillStyle = '#b07a20'; c.fillText(d.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase(), FW / 2, 118);
     c.fillStyle = ctx.clockState.mode === 'live' ? '#e0352b' : '#6a6a6a'; c.beginPath(); c.arc(22, 22, 7, 0, 7); c.fill();
-    c.font = `700 14px ${FONT}`; c.textAlign = 'left'; c.fillText(ctx.clockState.mode === 'live' ? 'LIVE' : `×${ctx.clockState.speed}`, 36, 27);
+    c.font = `700 14px ${FONT}`; c.textAlign = 'left'; c.fillText(ctx.clockState.mode === 'live' ? 'LIVE' : ctx.clockState.speed < 0.01 ? 'HELD' : `×${ctx.clockState.speed}`, 36, 27);
     clock.tex.needsUpdate = true;
+  }
+  // the status screen: what the console has set, in the clock's amber
+  const status = makeCanvas(FW, FH), statusS = screens.find((s) => s.id === 'status');
+  statusS.mesh.material.uniforms.map.value = status.tex; statusS.mesh.material.uniforms.on.value = 1;
+  let statusText = '';
+  function paintStatus() {
+    const cs = ctx.clockState, W = ctx.weather?.state, o = dash.office || {}, bl = Object.values(o.blinds || {});
+    const lines = [['TIME', cs.mode === 'live' ? 'LIVE' : cs.speed < 0.01 ? 'HELD' : `×${cs.speed}`],
+      ['SKY', W ? `${ctx.weather.KINDS[W.kind].label.toUpperCase()} ${Math.round(W.cover * 100)}%` : '-'],
+      ['WIND', W ? `${Math.round(W.wind * 60)} KN` : '-'],
+      ['LIGHTS', o.lights === 'off' ? 'OFF' : `${(o.lights || 'auto').toUpperCase()} ${Math.round((o.brightness ?? 1) * 100)}%`],
+      ['BLINDS', !bl.length || bl.every((b) => !b) ? 'UP' : bl.every((b) => b === 1) ? 'CLOSED' : bl.every((b) => b === 0.5) ? 'SLATS' : 'MIXED']];
+    const txt = JSON.stringify(lines);
+    if (txt === statusText) return;
+    statusText = txt;
+    const c = status.ctx; c.fillStyle = '#060504'; c.fillRect(0, 0, FW, FH);
+    c.font = `700 19px ui-monospace, Menlo, monospace`; c.textBaseline = 'middle';
+    lines.forEach(([k, v], i) => { c.fillStyle = '#b07a20'; c.textAlign = 'left'; c.fillText(k, 16, 20 + i * 26); c.fillStyle = '#ffb02e'; c.textAlign = 'right'; c.fillText(v, FW - 16, 20 + i * 26); });
+    status.tex.needsUpdate = true;
   }
   // the bank's glow on the room
   for (const a of [-0.7, 0, 0.7]) { const l = new THREE.PointLight('#9fbcff', 2.2, 8, 1.6), p = at(RB - 1.2, a, 1.9); l.position.copy(p); root.add(l); }
@@ -106,7 +127,6 @@ export function installGallery(ctx, bs, PLAN) {
   // ----- the mixing desk: five sloped segments on an inner arc, channel strips, a meter bridge -----
   const RD = 3.4, SEGS = 5, SS = 1.08 / RD, D0 = -SS * (SEGS - 1) / 2, SLOPE = 0.16;
   const deskG = [], capG = [], knobG = [], slotG = [];
-  const faders = [];
   const meters = makeCanvas(512, 64);
   const tops = [];
   for (let k = 0; k < SEGS; k++) {
@@ -123,21 +143,21 @@ export function installGallery(ctx, bs, PLAN) {
     top.parent.updateMatrix(); top.updateMatrix();
     const m = new THREE.Matrix4().multiplyMatrices(top.parent.matrix, top.matrix);
     for (let c = 0; c < 8; c++) {
-      const x = -0.44 + c * 0.125, live = k === 2 && c >= 2 && c <= 4;
+      const x = -0.44 + c * 0.125;
       slotG.push(new THREE.BoxGeometry(0.012, 0.004, 0.3).translate(x, 0.034, 0.17).applyMatrix4(m));
       for (let r = 0; r < 4; r++) knobG.push(new THREE.CylinderGeometry(0.014, 0.016, 0.02, 10).translate(x, 0.04, -0.06 - r * 0.07).applyMatrix4(m));
-      if (!live) capG.push(new THREE.BoxGeometry(0.03, 0.024, 0.04).translate(x, 0.046, 0.3 - R() * 0.26).applyMatrix4(m));
+      capG.push(new THREE.BoxGeometry(0.03, 0.024, 0.04).translate(x, 0.046, 0.3 - R() * 0.26).applyMatrix4(m));
     }
   });
   root.add(new THREE.Mesh(mergeAll(deskG), M({ color: '#23252a', roughness: 0.55, metalness: 0.25 })));
   root.add(new THREE.Mesh(mergeAll(slotG), M({ color: '#050505', roughness: 0.9 })));
   root.add(new THREE.Mesh(mergeAll(knobG), M({ color: '#3b3f45', roughness: 0.4, metalness: 0.5 })));
   root.add(new THREE.Mesh(mergeAll(capG), M({ color: '#cfd2d6', roughness: 0.4 })));
-  // the scribble strip under the live faders, and the meters on the bridge
+  // the scribble strip, and the meters on the bridge
   const mid = tops[2];
   const strip = makeCanvas(512, 64), sc = strip.ctx;
   sc.fillStyle = '#e9e4d2'; sc.fillRect(0, 0, 512, 64); sc.fillStyle = '#1b1b1b'; sc.font = `700 26px ${MARKER}`; sc.textAlign = 'center';
-  [['SUN', 2], ['WEATHER', 3], ['LIGHTS', 4]].forEach(([t, c]) => sc.fillText(t, (c + 0.5) * 64, 42));
+  ['AMB', 'AMB', 'VOX', 'VOX', 'FX', 'CROWD', 'RAIN', 'TALK'].forEach((t, c) => sc.fillText(t, (c + 0.5) * 64, 42));
   strip.tex.needsUpdate = true;
   const stripM = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.07).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ map: strip.tex, roughness: 0.9 }));
   stripM.position.set(0, 0.0345, 0.36); mid.add(stripM);
@@ -152,48 +172,6 @@ export function installGallery(ctx, bs, PLAN) {
     }
     meters.tex.needsUpdate = true;
   }
-  // The three that work: a cap that moves, and the slot as something to click along (drawerAt: the value where you point).
-  const capM = M({ color: '#f4f1e8', roughness: 0.35, emissive: '#ffb347', emissiveIntensity: 0.08 });
-  const fader = (c, name, get, set, say) => {
-    const x = -0.44 + c * 0.125, cap = new THREE.Mesh(new THREE.BoxGeometry(0.034, 0.03, 0.044), capM);
-    cap.position.set(x, 0.048, 0.3); mid.add(cap);
-    const hit = ctx.hitBox(mid, 0.1, 0.08, 0.36, x, 0.05, 0.17, { action: 'edge-fader', reach: 2.8 });
-    const f = { name, get, set, say, cap, hit, x };
-    hit.userData.fader = f;
-    hit.userData.drawerAt = (pt) => { const v = mid.worldToLocal(pt.clone()); return { f, v: clamp((0.32 - v.z) / 0.3, 0, 1) }; };
-    faders.push(f); hits.push(hit);
-    return f;
-  };
-  const day = () => { const d = new Date(ctx.simNow()); return (d.getHours() + d.getMinutes() / 60) / 24; };
-  const hhmm = (v) => { const m = Math.round(v * 24 * 60) % 1440; return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
-  const cover = ctx.skyU.cover;
-  const lightsNow = () => { const o = dash.office || {}; return o.lights === 'off' ? 0 : (o.brightness ?? 1) * (o.lights === 'on' ? 1 : 1 - ctx.daylight); };
-  fader(2, 'SUN', day, (v) => { const d = new Date(ctx.simNow()); d.setHours(0, 0, 0, 0); ctx.setSpeed(1, d.getTime() + v * 864e5); },
-    (v) => `The time of day · ${hhmm(day())}${ctx.clockState.mode === 'live' ? ' (live)' : ''}<br>Click to set it to ${hhmm(v)}`);
-  fader(3, 'WEATHER', () => (cover.value - 0.2) / 0.8, (v) => { cover.value = 0.2 + 0.8 * v; },
-    (v) => `The cloud · ${['clear', 'fair', 'cloudy', 'overcast'][Math.min(3, Math.floor((cover.value - 0.2) / 0.8 * 4))]}<br>Click to make it ${['clear', 'fair', 'cloudy', 'overcast'][Math.min(3, Math.floor(v * 4))]}`);
-  fader(4, 'LIGHTS', lightsNow, (v) => dash.putOffice(v < 0.04 ? { lights: 'off' } : { lights: 'on', brightness: Math.round(v * 20) / 20 }),
-    (v) => `The office's lights · ${{ auto: 'auto', on: 'on', off: 'off' }[dash.office?.lights] || 'auto'}${dash.office?.lights === 'off' ? '' : ` ${Math.round((dash.office?.brightness ?? 1) * 100)}%`}<br>Click to set ${v < 0.04 ? 'them off' : `${Math.round(v * 20) * 5}%`}`);
-  // LIVE (the sun back on the real clock) and AUTO (the lights back on daylight): lit buttons by their faders
-  const button = (c, label, on, press) => {
-    const m = new THREE.MeshStandardMaterial({ color: '#2a2a2a', emissive: '#ff5a3a', emissiveIntensity: 0 });
-    const b = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.02, 0.03), m); b.position.set(-0.44 + c * 0.125, 0.045, 0.43); mid.add(b);
-    const hit = ctx.hitBox(mid, 0.08, 0.06, 0.06, -0.44 + c * 0.125, 0.05, 0.43, { action: 'edge-button', reach: 2.8 });
-    hit.userData.button = { label, on, press, m }; hits.push(hit);
-    return hit.userData.button;
-  };
-  const buttons = [button(2, 'LIVE', () => ctx.clockState.mode === 'live', () => ctx.setSpeed('live')),
-    button(4, 'AUTO', () => (dash.office?.lights || 'auto') === 'auto', () => dash.putOffice({ lights: 'auto' }))];
-  ctx.action('edge-fader', {
-    hover: (h) => (h.drawer ? `<b>${h.drawer.f.name}</b><div class="m">${h.drawer.f.say(h.drawer.v)}</div>` : ''),
-    click: (h) => { if (h.drawer) { h.drawer.f.set(h.drawer.v); ctx.sfx.cabinet?.('latch', mid.localToWorld(new THREE.Vector3(h.drawer.f.x, 0.05, 0.2)), 0.12); } return true; },
-  });
-  // (hover gives the button through `board`: any key the hover passes along will do)
-  for (const h of hits) if (h.userData.button) h.userData.board = h.userData.button;
-  ctx.action('edge-button', {
-    hover: (h) => `<b>${h.board.label}</b><div class="k">${h.board.on() ? 'On' : 'Click to switch it on'}</div>`,
-    click: (h) => { if (!h.board.on()) h.board.press(); return true; },
-  });
   ctx.action('backstage', { hover: (h) => h.info || '', click: () => true });
 
   // ----- an empty chair, a headset, a mug, a clipboard, a gooseneck lamp -----
@@ -251,11 +229,10 @@ export function installGallery(ctx, bs, PLAN) {
   // ----- each frame while you're in here (or looking in) -----
   const frustum = new THREE.Frustum(), pv = new THREE.Matrix4(), bankC = new THREE.Vector3(), sphere = new THREE.Sphere();
   let meterAt = 0;
-  const capMove = (f) => { const v = clamp(f.get(), 0, 1); f.cap.position.z = 0.3 - v * 0.26; };
+  let statusAt = -1;
   function fx(dt, t) {
     paintClock();
-    for (const f of faders) capMove(f);
-    for (const b of buttons) b.m.emissiveIntensity = b.on() ? 1.6 : 0;
+    if (t - statusAt > 0.5) { statusAt = t; paintStatus(); }
     if (t - meterAt > 0.12) { meterAt = t; paintMeters(t); }
     // the feeds: only from in here, only with the bank in view, the most overdue first, one a frame
     if (!bs.on || !ctx.cctv?.into) return;
@@ -269,5 +246,5 @@ export function installGallery(ctx, bs, PLAN) {
     ctx.cctv.into(due.cam, due.rt, t);
     due.mesh.material.uniforms.on.value = 1;
   }
-  return { fx, hits, cols, screens, faders, buttons, pier, door, at: (id) => screens.find((s) => s.id === id) };
+  return { fx, hits, cols, screens, pier, door, at: (id) => screens.find((s) => s.id === id) };
 }

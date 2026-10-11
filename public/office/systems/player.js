@@ -159,6 +159,7 @@ export function install(ctx) {
   });
   document.addEventListener('mousemove', (e) => {
     if (!locked || mode !== 'free') return;
+    if (ctx.grab?.(e.movementX, e.movementY)) return;   // holding a control (the console behind the sky): it turns, not you
     player.yaw -= e.movementX * 0.0022;
     player.pitch = clamp(player.pitch - e.movementY * 0.0022, -1.4, 1.4);
   });

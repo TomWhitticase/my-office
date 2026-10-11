@@ -168,7 +168,7 @@ export function mountDesktop() {
     .xp-win[data-app="cctv"] .xp-body { overflow: hidden; }
     .xp-cctv { height: 100%; display: flex; flex-direction: column; background: #0a0c0b; color: #e8efe9; font: 11px/1.2 Tahoma, Verdana, "Segoe UI", sans-serif; user-select: none; }
     .cc-bar { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 4px 6px; background: #ece9d8; color: #000; border-bottom: 1px solid #aca899; }
-    .cc-bar button { padding: 2px 9px; border: 1px solid #003c74; border-radius: 3px; background: linear-gradient(#fff, #ecebe6 85%, #d6d0c5); color: #000; cursor: pointer; font: inherit; }
+    .cc-bar button { padding: 2px 5px; border: 1px solid #003c74; border-radius: 3px; background: linear-gradient(#fff, #ecebe6 85%, #d6d0c5); color: #000; cursor: pointer; font: inherit; }
     .cc-bar button:hover { box-shadow: inset 0 0 0 1px #f8b636; }
     .cc-bar button[aria-pressed="true"] { background: linear-gradient(#d6d0c5, #e3e0d6); box-shadow: inset 1px 1px 2px rgba(0,0,0,.25); }
     .cc-bar small { color: #555; }
