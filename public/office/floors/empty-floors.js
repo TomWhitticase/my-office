@@ -89,9 +89,9 @@ function build(ctx) {
         if (n === 45 && (m === ceilingM || m === beamM)) { if (!lid.has(m)) lid.set(m, []); lid.get(m).push([w, h, d, x, y + y0, z]); }
         else add(m, [w, h, d, x, y + y0, z]);
       }, ceilingM, false);
-      add(bareM, [40, 0.02, 30, 0, y0 + 0.01, 0]);
+      add(bareM, [39.8, 0.02, 29.8, 0, y0 + 0.015, 0]);   // (inside the walls, 5 mm up: the core and columns stand in it, not on its underside)
       for (const [x, z] of cols) add(colM, [0.5, ROOM.h, 0.5, x, y0 + ROOM.h / 2, z]);
-      add(coreM, [CORE.x1 - LIFT.x, ROOM.h, CORE.z1 - CORE.z0, (LIFT.x + CORE.x1) / 2, y0 + ROOM.h / 2, (CORE.z0 + CORE.z1) / 2]);
+      add(coreM, [CORE.x1 - 0.1 - LIFT.x, ROOM.h + 0.1, CORE.z1 - CORE.z0, (LIFT.x + CORE.x1 - 0.1) / 2, y0 + ROOM.h / 2 + 0.05, (CORE.z0 + CORE.z1) / 2]);   // up to the wall, and into the ceiling past the beams' tops
       // 45's panels with its ceiling: the pool's basin reaches down past them too.
       for (const [w, h, d, x, y, z] of panels) {
         if (n !== 45) { add(panelM, [w, h, d, x, y + y0, z]); continue; }
@@ -102,7 +102,7 @@ function build(ctx) {
     const y47 = -STOREY;
     ring(louvreM, y47 + H / 2, H, 0.2, 0);
     for (let y = y47 + 0.15; y < y47 + H - 0.1; y += 0.16) ring(louvreM, y, 0.03, 0.08, 0.13);
-    for (const n of [47, 46, ...EMPTY]) ring(slabM, (n - 48) * STOREY + (H + STOREY) / 2, STOREY - H);   // 46's own shell is wellness.js's
+    for (const n of [47, 46, ...EMPTY]) ring(slabM, (n - 48) * STOREY + (H + STOREY) / 2, STOREY - H - 0.01);   // 46's own shell is wellness.js's (5 mm short of each floor: not in its plane)
     for (const [m, list] of byM) {
       const mesh = mergedBoxes(list, m);
       mesh.castShadow = !m.transparent && m !== panelM;
@@ -138,7 +138,7 @@ function build(ctx) {
     }
     const tape = [];
     for (const [x0, x1, z0, z1] of [[9.5, LIFT.x - 0.05, -1.6, 0.9], [9.0, 15.5, 0.4, 2.6]])
-      tape.push([x1 - x0, 0.003, 0.05, (x0 + x1) / 2, 0.01, z0], [x1 - x0, 0.003, 0.05, (x0 + x1) / 2, 0.01, z1], [0.05, 0.003, z1 - z0, x0, 0.01, (z0 + z1) / 2]);
+      tape.push([x1 - x0, 0.003, 0.05, (x0 + x1) / 2, 0.012, z0], [x1 - x0, 0.003, 0.05, (x0 + x1) / 2, 0.012, z1], [0.05, 0.003, z1 - z0, x0, 0.012, (z0 + z1) / 2]);   // (over the lift's threshold, not level with it)
     G.add(mergedBoxes(tape, mat('#c9b25a', { roughness: 0.6 })));
   }
 

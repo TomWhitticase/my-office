@@ -60,20 +60,25 @@ export function install(ctx) {
     const stone = [], steel = [], car = [], mirror = [], glow = [], cars = [];
     for (let k = 0; k < edges.length; k += 2) {
       const a = edges[k], b = edges[k + 1], len = b - a, mid = (a + b) / 2;
-      stone.push([0.1, ROOM.h, len, fx, ROOM.h / 2, mid, '#77716a'], [0.02, 0.1, len, LIFT.x - 0.01, 0.05, mid, '#3b3835']);
-      for (let y = 0.9; y < ROOM.h; y += 0.9) stone.push([0.012, 0.006, len, LIFT.x - 0.001, y, mid, '#5d5852']);   // panel joints
+      // the skirting from jamb to jamb (k > 0: a doorway's at a; before the last: one's at b), its back in the stone
+      const sa = a + (k > 0 ? 0.08 : 0.002), sb = b - (k + 2 < edges.length ? 0.08 : 0.002);
+      stone.push([0.1, ROOM.h + 0.05, len, fx, (ROOM.h + 0.05) / 2, mid, '#77716a'],   // (up into the ceiling's slab)
+        [0.03, 0.1, sb - sa, LIFT.x + 0.005, 0.05, (sa + sb) / 2, '#3b3835']);
+      for (let y = 0.9; y < ROOM.h; y += 0.9) stone.push([0.012, 0.006, len - 0.004, LIFT.x - 0.001, y, mid, '#5d5852']);   // panel joints
     }
-    stone.push([CORE.x1 - LIFT.x, ROOM.h, 0.06, (LIFT.x + CORE.x1) / 2, ROOM.h / 2, CORE.z0 + 0.03, '#77716a'],
-      [CORE.x1 - LIFT.x, ROOM.h, 0.06, (LIFT.x + CORE.x1) / 2, ROOM.h / 2, CORE.z1 - 0.03, '#77716a']);
+    stone.push([CORE.x1 - LIFT.x - 0.1, ROOM.h + 0.05, 0.06, (LIFT.x + 0.1 + CORE.x1) / 2, (ROOM.h + 0.05) / 2, CORE.z0 + 0.03, '#77716a'],   // (behind the face)
+      [CORE.x1 - LIFT.x - 0.1, ROOM.h + 0.05, 0.06, (LIFT.x + 0.1 + CORE.x1) / 2, (ROOM.h + 0.05) / 2, CORE.z1 - 0.03, '#77716a']);
     for (const z of zs) {
-      stone.push([0.1, ROOM.h - DOOR.h, DOOR.w, fx, (ROOM.h + DOOR.h) / 2, z, '#77716a']);
+      stone.push([0.1, ROOM.h + 0.05 - DOOR.h, DOOR.w, fx, (ROOM.h + 0.05 + DOOR.h) / 2, z, '#77716a']);
       // Surround: jambs, head, threshold and the indicator housing.
-      for (const s of [-1, 1]) steel.push([0.05, DOOR.h + 0.08, 0.08, LIFT.x - 0.02, (DOOR.h + 0.08) / 2, z + s * (DOOR.w / 2 + 0.04)]);
-      steel.push([0.05, 0.08, DOOR.w + 0.16, LIFT.x - 0.02, DOOR.h + 0.04, z], [0.34, 0.012, DOOR.w, fx + 0.02, 0.006, z],
+      // (up to the stone's face, not into it, and the jambs up to the head and just off the floor: no faces in another's plane)
+      for (const s of [-1, 1]) steel.push([0.045, DOOR.h - 0.002, 0.08, LIFT.x - 0.0225, DOOR.h / 2 + 0.001, z + s * (DOOR.w / 2 + 0.04)]);
+      steel.push([0.045, 0.08, DOOR.w + 0.16, LIFT.x - 0.0225, DOOR.h + 0.04, z], [0.34, 0.012, DOOR.w, fx + 0.02, 0.006, z],
         [0.04, 0.26, 0.56, LIFT.x - 0.02, 2.5, z]);
       // Car: floor, ceiling, steel sides, wood back with a mirror over it, handrails.
-      car.push([CAR.d, 0.02, CAR.w, cx, 0.01, z, '#2c2b2a'], [CAR.d, 0.04, CAR.w, cx, CAR.h, z, '#232426'],
-        [0.04, CAR.h, CAR.w, back, CAR.h / 2, z, '#8a6446']);
+      // (floor and ceiling between the walls, the back between the sides; the floor's underside 3 mm down, under the threshold's)
+      car.push([CAR.d - 0.02, 0.023, CAR.w - 0.04, cx - 0.01, 0.0085, z, '#2c2b2a'], [CAR.d - 0.02, 0.04, CAR.w - 0.04, cx - 0.01, CAR.h, z, '#232426'],
+        [0.04, CAR.h, CAR.w - 0.08, back, CAR.h / 2, z, '#8a6446']);
       for (const s of [-1, 1]) car.push([CAR.d, CAR.h, 0.04, cx, CAR.h / 2, z + s * CAR.w / 2, '#aeb4ba'],
         [CAR.d - 0.3, 0.035, 0.035, cx + 0.1, 0.95, z + s * (CAR.w / 2 - 0.06), '#dfe2e5']);
       car.push([0.035, 0.035, CAR.w - 0.2, back - 0.06, 0.95, z, '#dfe2e5']);
@@ -81,9 +86,9 @@ export function install(ctx) {
       mirror.push([0.01, 1.05, CAR.w - 0.3, back - 0.025, 1.65, z]);
       glow.push([CAR.d - 0.5, 0.01, CAR.w - 0.45, cx, CAR.h - 0.025, z]);
       // Two leaves meeting in the middle; they slide apart into the wall.
-      // behind the stone face, so they slide into the wall
+      // behind the stone face, so they slide into the wall; where they lap, one 4 mm behind the other
       const leaves = [-1,
-        1].map((s) => box(parent, 0.03, DOOR.h, DOOR.w / 2 + 0.01, '', LIFT.x + 0.13, DOOR.h / 2, z + s * DOOR.w / 4, { material: steelM, shadow: false }));
+        1].map((s) => box(parent, 0.03, DOOR.h, DOOR.w / 2 + 0.01, '', LIFT.x + 0.13 + (s > 0 ? 0.004 : 0), DOOR.h / 2, z + s * DOOR.w / 4, { material: steelM, shadow: false }));
       const ind = makeScreen(parent, 0.48, 0.2, 192, 80, LIFT.x - 0.045, 2.5, z);
       ind.mesh.rotation.y = -Math.PI / 2;
       cars.push({ leaves, ind });
@@ -469,23 +474,23 @@ export function installShafts(ctx) {
     const lift = new THREE.Group(), fx = LIFT.x + 0.05, front = LIFT.x + 0.1, cx = front + CAR.d / 2, back = front + CAR.d, sw = CAR.w / 2 + 0.3, top = ROOM.h;
     const stone = [[0.1, top, sw - DOOR.w / 2, fx, top / 2, -(sw + DOOR.w / 2) / 2], [0.1, top, sw - DOOR.w / 2, fx, top / 2, (sw + DOOR.w / 2) / 2],
       [0.1, top - DOOR.h, DOOR.w, fx, (top + DOOR.h) / 2, 0],
-      [back + 0.2 - front, top, 0.3, (front + back + 0.2) / 2, top / 2, -sw + 0.15],
-        [back + 0.2 - front, top, 0.3, (front + back + 0.2) / 2, top / 2, sw - 0.15],
-      [0.2, top, CAR.w, back + 0.1, top / 2, 0], [back + 0.2 - front, top - CAR.h - 0.04, CAR.w, (front + back + 0.2) / 2, (top + CAR.h + 0.04) / 2, 0]];
+      [back + 0.2 - front, top, 0.28, (front + back + 0.2) / 2, top / 2, -sw + 0.14],   // (outside the car's walls, not in them)
+        [back + 0.2 - front, top, 0.28, (front + back + 0.2) / 2, top / 2, sw - 0.14],
+      [0.18, top, CAR.w, back + 0.11, top / 2, 0], [back + 0.2 - front, top - CAR.h - 0.04, CAR.w, (front + back + 0.2) / 2, (top + CAR.h + 0.04) / 2, 0]];
     // panel joints, not across the doorway
     for (let y = 0.9; y < top;
       y += 0.9) for (const s of y > DOOR.h ? [0] :
       [-1, 1]) stone.push([0.012, 0.006, s ? sw - DOOR.w / 2 - 0.08 : sw * 2, LIFT.x - 0.001, y, s * (sw + DOOR.w / 2 + 0.08) / 2]);
     lift.add(mergedBoxes(stone.map((b) => [...b, b[1] === 0.006 ? '#5d5852' : '#77716a']), mat('#ffffff', { vertexColors: true, roughness: 0.55 })));
-    const steel = [[0.05, 0.08, DOOR.w + 0.16, LIFT.x - 0.02, DOOR.h + 0.04, 0], [0.34, 0.012, DOOR.w, fx + 0.02, 0.006, 0],
+    const steel = [[0.045, 0.08, DOOR.w + 0.16, LIFT.x - 0.0225, DOOR.h + 0.04, 0], [0.34, 0.012, DOOR.w, fx + 0.02, 0.006, 0],
       [0.04, 0.26, 0.56, LIFT.x - 0.02, 2.5, 0],
       [0.02, 0.38, 0.15, LIFT.x - 0.01, 1.1, DOOR.w / 2 + 0.3], [back + 0.24 - LIFT.x, 0.03, sw * 2 + 0.02, (LIFT.x + back + 0.24) / 2, top + 0.015, 0],
       carPlate(0)];
-    for (const s of [-1, 1]) steel.push([0.05, DOOR.h + 0.08, 0.08, LIFT.x - 0.02, (DOOR.h + 0.08) / 2, s * (DOOR.w / 2 + 0.04)]);
+    for (const s of [-1, 1]) steel.push([0.045, DOOR.h - 0.002, 0.08, LIFT.x - 0.0225, DOOR.h / 2 + 0.001, s * (DOOR.w / 2 + 0.04)]);
     const steelM = ctx.liftSteelM;   // the office's brushed steel, so doors and surrounds match on every floor
     lift.add(mergedBoxes(steel, steelM));
-    const car = [[CAR.d, 0.02, CAR.w, cx, 0.01, 0, '#2c2b2a'], [CAR.d, 0.04, CAR.w, cx, CAR.h, 0, '#232426'],
-      [0.04, CAR.h, CAR.w, back, CAR.h / 2, 0, '#8a6446'],
+    const car = [[CAR.d - 0.02, 0.023, CAR.w - 0.04, cx - 0.01, 0.0085, 0, '#2c2b2a'], [CAR.d - 0.02, 0.04, CAR.w - 0.04, cx - 0.01, CAR.h, 0, '#232426'],
+      [0.04, CAR.h, CAR.w - 0.08, back, CAR.h / 2, 0, '#8a6446'],
       [0.035, 0.035, CAR.w - 0.2, back - 0.06, 0.95, 0, '#dfe2e5']];
     for (const s of [-1, 1]) car.push([CAR.d, CAR.h, 0.04, cx, CAR.h / 2, s * CAR.w / 2, '#aeb4ba'],
       [CAR.d - 0.3, 0.035, 0.035, cx + 0.1, 0.95, s * (CAR.w / 2 - 0.06), '#dfe2e5']);
@@ -494,7 +499,7 @@ export function installShafts(ctx) {
       mergedBoxes([[CAR.d - 0.5, 0.01, CAR.w - 0.45, cx, CAR.h - 0.025, 0]],
         new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: '#fff3df', emissiveIntensity: 1.6 })));
     const leaves = [-1,
-      1].map((s) => box(lift, 0.03, DOOR.h, DOOR.w / 2 + 0.01, '', LIFT.x + 0.13, DOOR.h / 2, s * DOOR.w / 4, { material: steelM, shadow: false }));
+      1].map((s) => box(lift, 0.03, DOOR.h, DOOR.w / 2 + 0.01, '', LIFT.x + 0.13 + (s > 0 ? 0.004 : 0), DOOR.h / 2, s * DOOR.w / 4, { material: steelM, shadow: false }));
     const ind = { ind: makeScreen(lift, 0.48, 0.2, 192, 80, LIFT.x - 0.045, 2.5, 0), floor: ARCHIVE, dir: 0 };
     ind.ind.mesh.rotation.y = -Math.PI / 2;
     const callM = new THREE.MeshStandardMaterial({ color: '#e6e3dc', emissive: '#ffb347', emissiveIntensity: 0, roughness: 0.4 });

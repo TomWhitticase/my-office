@@ -72,7 +72,7 @@ export function install(ctx) {
     const stone = [], zinc = [], steel = [], car = [], mirror = [], glow = [];
     const edges = [z0, ...lifts.flatMap((L) => [L.z - DOOR.w / 2, L.z + DOOR.w / 2]), z1];
     for (let k = 0; k < edges.length; k += 2) stone.push([0.1, top, edges[k + 1] - edges[k], fx, top / 2, (edges[k] + edges[k + 1]) / 2]);
-    zinc.push([x1 - LIFT.x, top, 0.1, (LIFT.x + x1) / 2, top / 2, z0 + 0.05], [x1 - LIFT.x, top, 0.1, (LIFT.x + x1) / 2, top / 2, z1 - 0.05],
+    zinc.push([x1 - LIFT.x - 0.1, top, 0.1, (LIFT.x + 0.1 + x1) / 2, top / 2, z0 + 0.05], [x1 - LIFT.x - 0.1, top, 0.1, (LIFT.x + 0.1 + x1) / 2, top / 2, z1 - 0.05],   // (behind the stone)
       [x1 - LIFT.x + 0.2, 0.25, z1 - z0 + 0.2, (LIFT.x + x1) / 2, top + 0.125, (z0 + z1) / 2], [0.1, top, z1 - z0, x1 - 0.05, top / 2, (z0 + z1) / 2]);
     // standing seams
     for (let x = LIFT.x + 0.5; x < x1; x += 0.5) for (const s of [-1, 1]) zinc.push([0.03, top, 0.03, x, top / 2, s > 0 ? z1 + 0.01 : z0 - 0.01]);
@@ -84,11 +84,12 @@ export function install(ctx) {
     for (const L of lifts) {
       const z = L.z;
       stone.push([0.1, top - DOOR.h, DOOR.w, fx, (top + DOOR.h) / 2, z]);
-      for (const s of [-1, 1]) steel.push([0.05, DOOR.h + 0.08, 0.08, LIFT.x - 0.02, (DOOR.h + 0.08) / 2, z + s * (DOOR.w / 2 + 0.04)]);
-      steel.push([0.05, 0.08, DOOR.w + 0.16, LIFT.x - 0.02, DOOR.h + 0.04, z], [0.34, 0.012, DOOR.w, fx + 0.02, 0.006, z],
+      // (as downstairs, systems/lifts.js: the jambs up to the head, nothing in another's plane)
+      for (const s of [-1, 1]) steel.push([0.045, DOOR.h - 0.002, 0.08, LIFT.x - 0.0225, DOOR.h / 2 + 0.001, z + s * (DOOR.w / 2 + 0.04)]);
+      steel.push([0.045, 0.08, DOOR.w + 0.16, LIFT.x - 0.0225, DOOR.h + 0.04, z], [0.34, 0.012, DOOR.w, fx + 0.02, 0.006, z],
         [0.04, 0.26, 0.56, LIFT.x - 0.02, 2.5, z]);
-      car.push([CAR.d, 0.02, CAR.w, cx, 0.01, z, '#2c2b2a'], [CAR.d, 0.04, CAR.w, cx, CAR.h, z, '#232426'],
-        [0.04, CAR.h, CAR.w, back, CAR.h / 2, z, '#8a6446']);
+      car.push([CAR.d - 0.02, 0.023, CAR.w - 0.04, cx - 0.01, 0.0085, z, '#2c2b2a'], [CAR.d - 0.02, 0.04, CAR.w - 0.04, cx - 0.01, CAR.h, z, '#232426'],
+        [0.04, CAR.h, CAR.w - 0.08, back, CAR.h / 2, z, '#8a6446']);
       for (const s of [-1, 1]) car.push([CAR.d, CAR.h, 0.04, cx, CAR.h / 2, z + s * CAR.w / 2, '#aeb4ba'],
         [CAR.d - 0.3, 0.035, 0.035, cx + 0.1, 0.95, z + s * (CAR.w / 2 - 0.06), '#dfe2e5']);
       car.push([0.035, 0.035, CAR.w - 0.2, back - 0.06, 0.95, z, '#dfe2e5']); steel.push(carPlate(z));
@@ -100,7 +101,7 @@ export function install(ctx) {
       ind.mesh.rotation.y = -Math.PI / 2;
       roof.cars.push({ z,
         leaves: [-1,
-        1].map((s) => box(dg, 0.03, DOOR.h, DOOR.w / 2 + 0.01, '', LIFT.x + 0.13, DOOR.h / 2, s * DOOR.w / 4, { material: steelM, shadow: false })),
+        1].map((s) => box(dg, 0.03, DOOR.h, DOOR.w / 2 + 0.01, '', LIFT.x + 0.13 + (s > 0 ? 0.004 : 0), DOOR.h / 2, s * DOOR.w / 4, { material: steelM, shadow: false })),
         ind: { ind, floor: L.floor, dir: 0 } });
     }
     G.add(mergedBoxes(stone, mat('#77716a', { roughness: 0.55 })), mergedBoxes(zinc, mat('#5d636a', { metalness: 0.5, roughness: 0.55 })),
