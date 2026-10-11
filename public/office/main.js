@@ -55,6 +55,7 @@ import { install as installAvatar } from './systems/avatar.js';
 import { install as installChat } from './systems/chat.js';
 import { install as installHover } from './systems/hover.js';
 import { install as installMinimap } from './systems/minimap.js';
+import { install as installMenu } from './systems/menu.js';
 import { install as installPost, installRender } from './systems/post.js';
 
 // ---------- the office ----------
@@ -223,6 +224,7 @@ export function mountOffice(container) {
   const { openChat, closeChat, openJohn, talk, johnChat, rosie, openRosie } = ctx;
 
   installHover(ctx);
+  installMenu(ctx);   // ☰ / Q: back to your desk from anywhere (after everything it puts away)
 
   installMinimap(ctx);
 
@@ -288,7 +290,7 @@ export function mountOffice(container) {
       r = renderer.domElement.getBoundingClientRect(); return { x: r.left + (p.x + 1) / 2 * r.width, y: r.top + (1 - p.y) / 2 * r.height }; },
     tvs: () => tvs.map((t) => ({ id: t.id, live: t.live, frame: !!t.frame, url: t.page?.url, title: t.page?.title, dist: t.dist })), seats, sitIn, openLaptop,
       laptop, kitchen, player, keys, camera, people, blinds, door, doors, collide, colliders, desks, idleSpots, lifts, sfx, mine, arch, roof, srv, FLOORS,
-      openJohn, johnChat, rosie, openRosie, setFloor, get away() { return ctx.away; }, callLift, heli: ctx.heli, cctv: ctx.cctv, darts: ctx.darts, weather: ctx.weather,
+      openJohn, johnChat, rosie, openRosie, setFloor, get away() { return ctx.away; }, callLift, heli: ctx.heli, menu: ctx.menu, cctv: ctx.cctv, darts: ctx.darts, weather: ctx.weather,
     goFloor: (n) => {   // debug: straight into your car at floor n, doors opening (headless tests can't sit through a ride)
       const L = mine.L || lifts.find(spare); if (!L) return false;
       Object.assign(mine, { L, call: false, goal: null }); L.player = true;

@@ -10,7 +10,7 @@ export const CSS = `
     .of-dom { background: var(--page); overflow: hidden; pointer-events: none; }
     .of-hud { position: absolute; inset: 0; z-index: 2; pointer-events: none; font: 13px/1.4 system-ui, -apple-system, sans-serif; color: #fff; transition: opacity .4s; }
     .of-hud.hidden { opacity: 0; }
-    .of-bare > :not(.of-cross, .of-toast, .of-tvbar, .of-osd, .of-chat, .of-chatbar, .of-wbbar, .of-wbtext, .of-kbui) { display: none !important; }   /* a TV in use keeps its bar, an open chat stays */
+    .of-bare > :not(.of-cross, .of-toast, .of-tvbar, .of-osd, .of-chat, .of-chatbar, .of-wbbar, .of-wbtext, .of-kbui, .of-menu) { display: none !important; }   /* a TV in use keeps its bar, an open chat stays */
     .of-toast { position: absolute; left: 50%; top: 18px; transform: translateX(-50%); background: rgba(15,16,19,.82); border: 1px solid rgba(255,255,255,.14); border-radius: 10px; padding: 6px 12px; color: #c3c2b7; font-size: 12px; opacity: 0; transition: opacity .3s; }
     .of-toast.on { opacity: 1; }
     .of-toast kbd { font: inherit; font-weight: 600; color: #fff; background: rgba(255,255,255,.12); border-radius: 4px; padding: 0 5px; }
@@ -34,6 +34,16 @@ export const CSS = `
     .of-time button { font: inherit; font-size: 11px; color: #c3c2b7; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); border-radius: 6px; padding: 2px 7px; cursor: pointer; }
     .of-time button:hover { color: #fff; }
     .of-time button[aria-pressed="true"] { background: #3987e5; border-color: #3987e5; color: #fff; }
+    .of-menub { position: absolute; z-index: 10; left: 16px; top: 96px; font: inherit; font-size: 12px; color: #e8e6df; background: rgba(15,16,19,.72); border: 1px solid rgba(255,255,255,.1); border-radius: 10px; padding: 5px 10px; cursor: pointer; pointer-events: auto; }
+    .of-menub:hover, .of-menub[aria-expanded="true"] { color: #fff; background: rgba(15,16,19,.9); }
+    .of-menub kbd, .of-legend .of-menuk kbd { font: inherit; font-weight: 600; color: #fff; background: rgba(255,255,255,.12); border-radius: 4px; padding: 0 5px; }
+    .of-locked .of-menub, .of-locked .of-menuk, .of-using .of-menuk, .of-boarding .of-menub { display: none; }   /* with the mouse free (Esc); goldens shoot locked */
+    .of-menu { position: absolute; z-index: 10; inset: 0; display: none; pointer-events: auto; }
+    .of-menu.on { display: block; }
+    .of-menu > div { position: absolute; left: 16px; top: 132px; display: flex; flex-direction: column; gap: 4px; min-width: 210px; background: rgba(15,16,19,.9); border: 1px solid rgba(255,255,255,.14); border-radius: 12px; padding: 6px; }
+    .of-menu button { font: inherit; font-size: 13px; text-align: left; color: #e8e6df; background: none; border: 0; border-radius: 7px; padding: 7px 10px; cursor: pointer; }
+    .of-menu button:hover { color: #fff; background: rgba(255,255,255,.1); }
+    .of-menu small { color: #8b8a85; font-size: 11px; padding: 2px 10px 0; }
     .of-tvbar { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); width: min(880px, calc(100% - 32px)); display: none; align-items: center; gap: 6px; background: rgba(15,16,19,.86); border: 1px solid rgba(255,255,255,.14); border-radius: 12px; padding: 6px 8px; pointer-events: auto; }
     .of-using .of-tvbar { display: flex; }
     .of-using .of-legend, .of-using .of-start, .of-using .of-map, .of-using .of-count, .of-using .of-time { display: none; }
@@ -132,7 +142,9 @@ export const CSS = `
 export const hudHTML = (ALT, IS_MAC) => `<div class="of-cross"></div><div class="of-target"></div><canvas class="of-map" width="440" height="330" style="width:220px;height:165px"></canvas>
     <div class="of-count"></div>
     <div class="of-time"><span class="of-clock"></span><button data-speed="live">Live</button><button data-speed="1">×1</button><button data-speed="120">×120</button><button data-speed="1200">×1200</button><button data-speed="7200">×7200</button></div>
-    <div class="of-legend"><kbd>W A S D</kbd> move · <kbd>Shift</kbd> run · <kbd>Click</kbd> talk to someone or use a TV · <kbd>E</kbd> details / set up a TV · <kbd>1</kbd> desks <kbd>2</kbd> breakroom <kbd>3</kbd> my office <kbd>4</kbd> lobby <kbd>5</kbd> meeting rooms · <kbd>T</kbd> time speed · <kbd>G</kbd> graphics · <kbd>H</kbd> hide overlays · <kbd>M</kbd> sounds · <kbd>Esc</kbd> release mouse</div>
+    <div class="of-legend"><kbd>W A S D</kbd> move · <kbd>Shift</kbd> run · <kbd>Click</kbd> talk to someone or use a TV · <kbd>E</kbd> details / set up a TV · <kbd>1</kbd> desks <kbd>2</kbd> breakroom <kbd>3</kbd> my office <kbd>4</kbd> lobby <kbd>5</kbd> meeting rooms · <kbd>T</kbd> time speed · <kbd>G</kbd> graphics · <kbd>H</kbd> hide overlays · <kbd>M</kbd> sounds · <kbd>Esc</kbd> release mouse<span class="of-menuk"> · <kbd>Q</kbd> menu</span></div>
+    <button class="of-menub" aria-expanded="false" title="Menu (Q)">☰ Menu <kbd>Q</kbd></button>
+    <div class="of-menu"><div><button data-go="desk">Back to my desk</button><button data-go="lobby">Lift lobby · 48</button><button data-go="unstick">Unstick me</button><small><kbd>Q</kbd> or <kbd>Esc</kbd> to close</small></div></div>
     <div class="of-toast"></div>
     <div class="of-heli"><div><small>ALT</small><b class="alt"></b></div><div><small>SPEED</small><b class="spd"></b></div><div><small>HDG</small><b class="hdg"></b></div><div><small>ROTOR</small><b class="rpm"></b></div><div class="hint"></div></div>
     <div class="of-start"><b>Click to look around</b><span>Walk up to anyone and click to talk to them, or click their screen for details.<br>Click your own monitor to use your computer.</span></div>
