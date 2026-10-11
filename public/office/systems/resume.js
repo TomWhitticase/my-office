@@ -15,6 +15,7 @@ import { EYE, LIFT, REDUCED } from '../util.js';
 /** @param {import('../ctx.js').OfficeCtx} ctx */
 export function install(ctx) {
   const { CAR, player, mine, lifts, FLOORS, setFloor, setLift, spare, collide, seatTaken, sitIn, seatedPose, setCam, container, hud, arch } = ctx;
+  const OFFICE = FLOORS.find((F) => F.n === 48);
   const r2 = (v) => Math.round(v * 100) / 100, r3 = (v) => Math.round(v * 1000) / 1000;
 
   // ----- saving -----
@@ -22,7 +23,7 @@ export function install(ctx) {
   function snapshot() {
     const F = ctx.away;
     if (!F && player.seated && !player.seat) return { desk: 1 };
-    const s = F?.save?.();
+    const s = (F || OFFICE).save?.();   // (48 keeps the den under it: world/secret-room.js)
     if (s === false) return null;
     if (ctx.mode === 'free' && !player.seated && !F?.walk && !F?.fly && !isFree(player.x, player.z)) return null;   // (inside something)
     return { f: F ? F.n : 48, car: mine.L ? lifts.indexOf(mine.L) : -1, cz: mine.L ? r2(mine.L.z) : 0, x: r2(player.x), z: r2(player.z),
@@ -76,7 +77,7 @@ export function install(ctx) {
     }
     Object.assign(player, { x: p.x, z: p.z, eye: F?.fly ? p.eye : EYE, yaw: p.yaw, pitch: p.pitch });
     ctx.mode = 'free';
-    if (!lobby && F?.restore?.(p.s || {}, p)) return true;   // the floor's put you somewhere itself (in the helicopter, in your gravity)
+    if (!lobby && (F || OFFICE).restore?.(p.s || {}, p)) return true;   // the floor's put you somewhere itself (in the helicopter, in your gravity)
     const L = mine.L;
     if (!lobby && F && !F.carless && !F.liftGone && p.x > LIFT.x + 0.3 && p.x < LIFT.x + 0.1 + CAR.d && Math.abs(p.z - L.z) < CAR.w / 2) {
       setLift(L, 'opening');   // still in the car: its doors open on the floor
@@ -99,7 +100,7 @@ export function install(ctx) {
     const F = p.desk ? null : floorOf(p.f);
     (p.desk || F === undefined ? Promise.resolve(false) : go(p, F)).catch((e) => { console.warn('office: resume', e); return false; }).then((ok) => {
       if (!ok) { atDesk(); ctx.mode = 'free'; }
-      player.fy = ctx.away?.ground?.(player.x, player.z) || 0;
+      player.fy = (ctx.away || ctx.below)?.ground?.(player.x, player.z) || 0;
       if (ctx.mode === 'free' && !ctx.away?.walk) setCam({ x: player.x, y: player.eye + (ctx.away?.y || 0) + player.fy, z: player.z, yaw: player.yaw, pitch: player.pitch });
       hud.classList.remove('hidden');
       requestAnimationFrame(() => requestAnimationFrame(() => { fade.style.transition = `opacity ${REDUCED ? 0.1 : 0.7}s ease`; fade.style.opacity = '0'; }));

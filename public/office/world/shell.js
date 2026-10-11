@@ -22,8 +22,9 @@ export function install(ctx) {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0),
       new THREE.MeshStandardMaterial({ color: tex ? '#ffffff' : base, map: tex, roughness: 1 }));
     m.rotation.x = -Math.PI / 2; m.position.set((x0 + x1) / 2, y, (z0 + z1) / 2); m.receiveShadow = true; world.add(m);
+    return m;
   }
-  rug(6, 19.9, -14.9, -3.5, '#3a4660', null, 0.004);                       // my office carpet
+  const officeCarpet = rug(6, 19.9, -14.9, -3.5, '#3a4660', null, 0.004);   // my office carpet
   rug(10.5, 15.5, -11, -7.5, '#d8c7a8', '#33405a');
   rug(-15.9, -12.1, 4.4, 9.6, '#cdb99b', '#8c5a3c');                        // breakroom
   rug(7.4, 12.6, 6.8, 11.2, '#b5654a', '#e2c9a6');                          // lounge
@@ -46,7 +47,7 @@ export function install(ctx) {
 
   for (const [x, z] of [[4, -8], [4, 8], [-9, 0.5 - 2.6]]) { box(world, 0.5, ROOM.h, 0.5, '#a8774b', x, ROOM.h / 2, z, { mat: { roughness: 0.7 } });
     solid(x, z, 0.5, 0.5); }
-  Object.assign(ctx, { rugs, frameM, winRuns, winKey, WIN, shaftU, wallM, ceilingM, shafts, shellWalls, sunbeams });
+  Object.assign(ctx, { rugs, frameM, winRuns, winKey, WIN, shaftU, wallM, ceilingM, shafts, shellWalls, sunbeams, officeFloor: floor, officeCarpet });
 }
 
 // The shell every floor of the tower shares: the ceiling and its beams, and the outer walls with their floor-to-ceiling

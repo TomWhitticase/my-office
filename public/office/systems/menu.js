@@ -97,7 +97,7 @@ export function install(ctx) {
       toast('Nothing in your way there · by the lift');
     }
     Object.assign(player, { x: q.x, z: q.z, seated: false, seat: null, eye: EYE });
-    player.fy = F?.ground?.(q.x, q.z) || 0;
+    player.fy = (F || ctx.below)?.ground?.(q.x, q.z) || 0;
     if (!F?.walk) setCam({ x: player.x, y: player.eye + (F?.y || 0) + player.fy, z: player.z, yaw: player.yaw, pitch: player.pitch });
   }
 

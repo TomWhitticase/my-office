@@ -47,7 +47,7 @@ Choosing the shots (`POSES` in `goldens.mjs` has them all, with what each sets u
 
 - **An area of the office floor** (a room, its furniture, a TV, a board): the shots that see it. `desks`, `breakroom`,
   `lobby`, `meeting-rooms`, `kitchen`, `lounge`, `my-office`, `ping-pong-tv`, `tv-panel`, `whiteboard`, `laptop`,
-  `task-board`, `task-board-card` and `dusk` are on 48; open the PNGs in `test/golden/` to see which take in your spot.
+  `task-board`, `task-board-card` and `dusk` are on 48 (and `secret-*`, my office's bookcase door and the den under it); open the PNGs in `test/golden/` to see which take in your spot.
   Lighting, the shell, the city or the sky reach all of them, plus `seated`, `lift-car`, `roof` and `heli-cockpit`.
 - **Another floor**: its own shots: `archive*` and `gateway`, `inside-a-repo` (B2); `server-hall` (B1); `vacant-floor`
   (45); `roof` and `heli-cockpit` (50); `restricted*` (B3); and `security-app` / `security-archive` if one of its
