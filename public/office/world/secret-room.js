@@ -196,7 +196,7 @@ function build(ctx) {
     const hd = z1 - (POCKET - 0.02), hw = x1 - x0;   // (the hole's full width: no slit beside it)
     const top = new THREE.Mesh(new THREE.PlaneGeometry(hw, hd), officeCarpet.material);
     top.rotation.x = -Math.PI / 2; top.position.z = -hd / 2; top.receiveShadow = true; hatch.add(top);
-    const under = mergedBoxes([[hw, 0.035, hd, 0, -0.0185, -hd / 2, '#6b4a2e'], [hw - 0.1, 0.02, 0.05, 0, -0.045, -0.06, '#4a3220'],
+    const under = mergedBoxes([[hw, 0.035, hd, 0, -0.0215, -hd / 2, '#6b4a2e'], [hw - 0.1, 0.02, 0.05, 0, -0.045, -0.06, '#4a3220'],
       [hw - 0.1, 0.02, 0.05, 0, -0.045, -hd + 0.06, '#4a3220']], new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8 }));
     hatch.add(under);
     // Shut, the boards over the shaft are only my floor's plane and carpet, which have no underside: from below, a lid.

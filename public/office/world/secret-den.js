@@ -103,8 +103,8 @@ export function buildDen(ctx, api) {
     for (const [za, zb] of [[DEN.z0, VT.z0 - 0.07], [VT.z1 + 0.07, DEN.z1]]) trim.push(B(w, 0.16 - o, zb - za, '#2a180d', x, 0.08 - o / 2, (za + zb) / 2));   // (round the vent's frame)
   }
   for (const x of [6.55, 10.6]) trim.push(B(0.18, 0.2, D, '#2a1a10', x, H - 0.1, cz));
-  for (const [w, d, x, z] of [[HOLE.x1 - HOLE.x0 + 0.1, 0.05, (HOLE.x0 + HOLE.x1) / 2, HOLE.z1 + 0.025], [0.05, HOLE.z1 - HOLE.z0, HOLE.x0 - 0.025, (HOLE.z0 + HOLE.z1) / 2],
-    [0.05, HOLE.z1 - HOLE.z0, HOLE.x1 + 0.025, (HOLE.z0 + HOLE.z1) / 2]]) trim.push(B(w, 0.08, d, '#2a1a10', x, H - 0.04, z));
+  for (const [w, d, x, z] of [[HOLE.x1 - HOLE.x0 + 0.1, 0.05, (HOLE.x0 + HOLE.x1) / 2, HOLE.z1 + 0.025], [0.05, HOLE.z1 - DEN.z0 - 0.06, HOLE.x0 - 0.025, (DEN.z0 + 0.06 + HOLE.z1) / 2],
+    [0.05, HOLE.z1 - DEN.z0 - 0.06, HOLE.x1 + 0.025, (DEN.z0 + 0.06 + HOLE.z1) / 2]]) trim.push(B(w, 0.08, d, '#2a1a10', x, H - 0.04, z));
   add(merge(trim, vc({ roughness: 0.6 })));
   for (const [x0, x1, z0, z1] of [[DEN.x0 - 1, DEN.x0, DEN.z0 - 1, DEN.z1 + 1], [DEN.x1, DEN.x1 + 1, DEN.z0 - 1, DEN.z1 + 1], [DEN.x0, DEN.x1, DEN.z0 - 1, DEN.z0],
     [DEN.x0, DEN.x1, DEN.z1, DEN.z1 + 1]]) solid(x0, x1, z0, z1);
@@ -211,9 +211,9 @@ export function buildDen(ctx, api) {
 
   // The sideboard on the north wall with the record player, two speakers and a row of LPs.
   const sb = { x0: 9.3, x1: 11.1, z0: DEN.z0, z1: -14.43 }, sbx = (sb.x0 + sb.x1) / 2, sbz = (sb.z0 + sb.z1) / 2, top = 0.62;
-  wood.push(B(sb.x1 - sb.x0, 0.04, sb.z1 - sb.z0, '#2e1c10', sbx, top - 0.02, sbz), B(sb.x1 - sb.x0, 0.06, sb.z1 - sb.z0 - 0.04, '#2e1c10', sbx, 0.03, sbz),
+  wood.push(B(sb.x1 - sb.x0, 0.04, sb.z1 - sb.z0, '#2e1c10', sbx, top - 0.02, sbz), B(sb.x1 - sb.x0 - 0.01, 0.06, sb.z1 - sb.z0 - 0.04, '#2e1c10', sbx, 0.03, sbz),
     B(0.04, top - 0.08, sb.z1 - sb.z0, '#3f2718', sb.x0 + 0.02, top / 2, sbz), B(0.04, top - 0.08, sb.z1 - sb.z0, '#3f2718', sb.x1 - 0.02, top / 2, sbz),
-    B(sb.x1 - sb.x0, top - 0.08, 0.02, '#3a2414', sbx, top / 2, sb.z0 + 0.01));
+    B(sb.x1 - sb.x0 - 0.08, top - 0.08, 0.02, '#3a2414', sbx, top / 2, sb.z0 + 0.01));   // (between the sides)
   for (let x = sb.x0 + 0.08; x < sb.x1 - 0.08; x += 0.013 + R() * 0.004) dark.push(B(0.012, 0.31, 0.3, `hsl(${Math.floor(R() * 360)}, ${Math.round(35 + R() * 35)}%, ${Math.round(12 + R() * 22)}%)`, x, 0.22, sbz + 0.02));
   for (const x of [sb.x0 + 0.18, sb.x1 - 0.18]) { wood.push(B(0.22, 0.32, 0.22, '#3f2718', x, top + 0.16, sbz)); dark.push(B(0.17, 0.27, 0.005, '#2a2420', x, top + 0.16, sbz + 0.112)); }
   const tt = { x: 10.2, z: sbz + 0.02, on: false, spin: 0, arm: 0 };
@@ -221,8 +221,8 @@ export function buildDen(ctx, api) {
   brass.push(C(0.15, 0.15, 0.02, '#8c9096', tt.x - 0.05, top + 0.1, tt.z, 32));
   const platter = new THREE.Group(); platter.position.set(tt.x - 0.05, Y(top + 0.112), tt.z); G.add(platter);
   {
-    const disc = merge([part(new THREE.CylinderGeometry(0.143, 0.143, 0.004, 40), '#0c0c0d', 0, 0, 0), part(new THREE.CylinderGeometry(0.045, 0.045, 0.005, 24), '#b8322b', 0, 0, 0),
-      part(new THREE.BoxGeometry(0.03, 0.006, 0.008), '#e8dcc0', 0.02, 0, 0)], vc({ roughness: 0.3 }));
+    const disc = merge([part(new THREE.CylinderGeometry(0.143, 0.143, 0.004, 40), '#0c0c0d', 0, 0, 0), part(new THREE.CylinderGeometry(0.045, 0.045, 0.008, 24), '#b8322b', 0, 0, 0),
+      part(new THREE.BoxGeometry(0.03, 0.013, 0.008), '#e8dcc0', 0.02, 0, 0)], vc({ roughness: 0.3 }));
     disc.userData = { action: 'den-records', reach: 2.6 }; platter.add(disc);
   }
   const arm = new THREE.Group(); arm.position.set(tt.x + 0.15, Y(top + 0.12), tt.z - 0.12); G.add(arm);
@@ -236,8 +236,8 @@ export function buildDen(ctx, api) {
   const sfx_ = (sf.x0 + sf.x1) / 2, sfz = (sf.z0 + sf.z1) / 2, sh = 0.9;
   const steel = vc({ metalness: 0.55, roughness: 0.45 });
   add(merge([part(new THREE.BoxGeometry(0.06, sh, sf.z1 - sf.z0), '#22352a', sf.x0 + 0.03, Y(sh / 2), sfz), part(new THREE.BoxGeometry(0.06, sh, sf.z1 - sf.z0), '#22352a', sf.x1 - 0.03, Y(sh / 2), sfz),
-    part(new THREE.BoxGeometry(sf.x1 - sf.x0, 0.06, sf.z1 - sf.z0), '#22352a', sfx_, Y(sh - 0.03), sfz), part(new THREE.BoxGeometry(sf.x1 - sf.x0, 0.08, sf.z1 - sf.z0), '#1c2b22', sfx_, Y(0.04), sfz),
-    part(new THREE.BoxGeometry(sf.x1 - sf.x0, sh, 0.04), '#17221b', sfx_, Y(sh / 2), sf.z0 + 0.02), part(new THREE.BoxGeometry(sf.x1 - sf.x0 - 0.12, 0.02, sf.z1 - sf.z0 - 0.08), '#1c2b22', sfx_, Y(0.45), sfz),
+    part(new THREE.BoxGeometry(sf.x1 - sf.x0 - 0.12, 0.06, sf.z1 - sf.z0), '#22352a', sfx_, Y(sh - 0.03), sfz), part(new THREE.BoxGeometry(sf.x1 - sf.x0 - 0.12, 0.08, sf.z1 - sf.z0), '#1c2b22', sfx_, Y(0.04), sfz),
+    part(new THREE.BoxGeometry(sf.x1 - sf.x0 - 0.12, sh - 0.14, 0.04), '#17221b', sfx_, Y(0.08 + (sh - 0.14) / 2), sf.z0 + 0.02), part(new THREE.BoxGeometry(sf.x1 - sf.x0 - 0.12, 0.02, sf.z1 - sf.z0 - 0.08), '#1c2b22', sfx_, Y(0.45), sfz),
     ...[0, 1, 2, 3].map((i) => part(new THREE.BoxGeometry(0.18, 0.05, 0.08), '#d9a441', sfx_ - 0.12 + (i % 2) * 0.2, Y(0.105 + Math.floor(i / 2) * 0.05), sfz + 0.02)),
     part(new THREE.BoxGeometry(0.24, 0.03, 0.32), '#8c2f24', sfx_ + 0.05, Y(0.475), sfz + 0.02, 0, 0.2)], steel), { action: 'den-safe', reach: 2.6 });
   const door = new THREE.Group(); door.position.set(sf.x0 + 0.005, DY, sf.z1); G.add(door);
@@ -272,7 +272,7 @@ export function buildDen(ctx, api) {
   stone.push(B(o0 - 7.95, H, DEN.z1 - fz, '#4a3a2e', (7.95 + o0) / 2, H / 2, (fz + DEN.z1) / 2), B(10.05 - o1, H, DEN.z1 - fz, '#4a3a2e', (o1 + 10.05) / 2, H / 2, (fz + DEN.z1) / 2),
     B(FP.ow, H - FP.oh, DEN.z1 - fz, '#4a3a2e', FP.x, FP.oh + (H - FP.oh) / 2, (fz + DEN.z1) / 2));   // the breast, plastered dark
   for (const x of [o0 - 0.11, o1 + 0.11]) stone.push(B(0.22, 1.02, 0.08, '#b5a991', x, 0.51, fz - 0.04), B(0.26, 0.06, 0.1, '#bfb29a', x, 0.03, fz - 0.05), B(0.26, 0.05, 0.1, '#bfb29a', x, 1.0, fz - 0.05));
-  stone.push(B(FP.ow + 0.44, 0.2, 0.07, '#afa38c', FP.x, FP.oh + 0.1, fz - 0.035), B(0.3, 0.12, 0.02, '#b3a68e', FP.x, FP.oh + 0.1, fz - 0.075),   // the frieze, a carved panel
+  stone.push(B(FP.ow + 0.42, 0.19, 0.07, '#afa38c', FP.x, FP.oh + 0.095, fz - 0.035), B(0.3, 0.12, 0.02, '#b3a68e', FP.x, FP.oh + 0.1, fz - 0.075),   // the frieze, a carved panel
     B(FP.ow + 0.8, 0.07, 0.34, '#bcb099', FP.x, 1.07, fz - 0.13), B(FP.ow + 0.7, 0.03, 0.3, '#bfb29a', FP.x, 1.02, fz - 0.11),   // the mantel shelf
     B(FP.ow + 0.9, 0.04, 0.62, '#5c544c', FP.x, 0.02, fz - 0.31));   // the hearth
   soot.push(B(FP.ow, FP.oh, 0.02, '#141110', FP.x, FP.oh / 2, bz + 0.01), B(0.02, FP.oh, bz - fz, '#1a1614', o0 + 0.01, FP.oh / 2, (fz + bz) / 2),
@@ -300,7 +300,7 @@ export function buildDen(ctx, api) {
   }
   wood.push(B(0.16, 0.2, 0.015, '#1c1a18', FP.x + 0.33, my + 0.1, fz - 0.17, -0.25));
   { const pic = new THREE.Mesh(new THREE.PlaneGeometry(0.12, 0.16), new THREE.MeshStandardMaterial({ map: artTexture(77, 0.75), roughness: 0.9 }));
-    pic.position.set(FP.x + 0.33 - 0.0025, Y(my + 0.1), fz - 0.179); pic.rotation.y = Math.PI - 0.25; add(pic); }
+    pic.position.set(FP.x + 0.33 + 0.0115 * Math.sin(0.25), Y(my + 0.1), fz - 0.17 - 0.0115 * Math.cos(0.25)); pic.rotation.y = Math.PI - 0.25; add(pic); }
   add(merge(stone, vc({ roughness: 0.85 }))); add(merge(soot, vc({ roughness: 1 })), { action: 'den-fire', reach: 3 });
   solid(7.95, 10.05, fz, DEN.z1);
   // The logs: three, crossed on the grate, their ends glowing while it burns.
