@@ -151,14 +151,14 @@ export function installBackstage(ctx, edge) {
   const LX = (LOCK.x0 + LOCK.x1) / 2;
   wallWith(lists.dark, false, GAL.z1 + T / 2, GAL.x0 - T, GAL.x1 + T, GAL.h, [[LX - LOCK.w / 2 - 0.03, LX + LOCK.w / 2 + 0.03, 2.23]], '#2b2c2f');   // the back, the sound lock's inner doors (cut under their frame)
   // the floors: the pit, the tiers (their fronts are the risers), the stairs either side, the top and the walkway
-  const fl = (x0, x1, za, zb, y, c = '#151618') => lists.floorG.push([x1 - x0, y - PIT + 0.1, zb - za, (x0 + x1) / 2, (y + PIT - 0.1) / 2, (za + zb) / 2, c]);
+  const fl = (x0, x1, za, zb, y, c = '#151618', y0 = PIT - 0.1) => lists.floorG.push([x1 - x0, y - y0, zb - za, (x0 + x1) / 2, (y + y0) / 2, (za + zb) / 2, c]);
   fl(GAL.x0, GAL.x1, GAL.z0, TIERS[0][0], PIT);
   TIERS.forEach(([zf, y], k) => fl(-AISLE, AISLE, zf, k < 2 ? TIERS[k + 1][0] : REAR, y, '#1b1c1f'));
   fl(GAL.x0, GAL.x1, REAR, GAL.z1 + T, 0, '#1b1c1f');
   for (const s of [-1, 1]) {
     const xa = s > 0 ? AISLE : GAL.x0, xb = s > 0 ? GAL.x1 : -AISLE;
     fl(xa, xb, STEPS[0], REAR, 0, '#222327');
-    STEPS.forEach((zs, k) => { if (k < STEPS.length - 1) fl(xa, xb, STEPS[k + 1], zs, -0.2 * (k + 1), '#222327'); });
+    STEPS.forEach((zs, k) => { if (k < STEPS.length - 1) fl(xa, xb, STEPS[k + 1], zs, -0.2 * (k + 1), '#222327', zs <= TIERS[0][0] ? PIT : undefined); });   // (the bottom one stands on the pit's floor)
   }
   for (const [zf] of TIERS) cols.push({ minX: -AISLE, maxX: AISLE, minZ: zf - 0.05, maxZ: zf + 0.05 });   // (the risers: a step up's a wall)
   // the edges lit, as they are in the dark: each tier's nosing, each stair's
@@ -221,9 +221,10 @@ export function installBackstage(ctx, edge) {
   for (const s of [1, -1]) {
     const pts = offsetLine(s * (LW + T / 2));
     for (let i = 0; i < pts.length - 1; i++) {
-      // each run carries on through the corner square at its end; the next starts past it (two through it: a doubled face)
+      // each run carries on through the corner square at its end; the next starts past it (two through it: a doubled face);
+      // the first starts, and the last stops, at the route's end, where the end's own wall runs across both
       const [a, b] = [pts[i], pts[i + 1]], ns = Math.abs(a[0] - b[0]) < 1e-6, fixed = ns ? a[0] : a[1];
-      const sa = ns ? a[1] : a[0], sb = ns ? b[1] : b[0], dr = Math.sign(sb - sa), s0 = sa + dr * (i === 0 ? -T / 2 : T / 2), s1 = sb + dr * T / 2;
+      const sa = ns ? a[1] : a[0], sb = ns ? b[1] : b[0], dr = Math.sign(sb - sa), s0 = sa + dr * (i === 0 ? 0 : T / 2), s1 = sb + dr * (i < pts.length - 2 ? T / 2 : 0);
       const a0 = Math.min(s0, s1), a1 = Math.max(s0, s1);
       // (a run with the duct's opening in it is built apart, on a stream of its own, a placeholder in its place: three takes
       // a uuid from Math.random for each box, and the extra pieces round it would move every draw after them)
@@ -249,11 +250,11 @@ export function installBackstage(ctx, edge) {
   for (const [x0, x1, za, zb] of lids) corL.ceil.push([x1 - x0, 0.1, zb - za, (x0 + x1) / 2, COR.h + 0.05, (za + zb) / 2, '#5f5d58']);
   // the store: a cupboard off the corridor, shelves of tape boxes and gaffer, a mop in a bucket
   const ST = { x0: -6.9, x1: -5.1, z0: 3.1 + LW + T, z1: 5.5 };
-  wallWith(corL.walls, true, ST.x0 - T / 2, ST.z0, ST.z1 + T, COR.h, [], '#8a877f');
-  wallWith(corL.walls, true, ST.x1 + T / 2, ST.z0, ST.z1 + T, COR.h, [], '#8a877f');
+  wallWith(corL.walls, true, ST.x0 - T / 2, ST.z0, ST.z1, COR.h, [], '#8a877f');   // (the sides up to the back, which runs across their ends)
+  wallWith(corL.walls, true, ST.x1 + T / 2, ST.z0, ST.z1, COR.h, [], '#8a877f');
   wallWith(corL.walls, false, ST.z1 + T / 2, ST.x0 - T, ST.x1 + T, COR.h, [], '#8a877f');
   corL.floor.push([ST.x1 - ST.x0, 0.1, ST.z1 - ST.z0, (ST.x0 + ST.x1) / 2, -0.05, (ST.z0 + ST.z1) / 2]);
-  corL.ceil.push([ST.x1 - ST.x0 + 0.4, 0.1, ST.z1 - ST.z0 + 0.4, (ST.x0 + ST.x1) / 2, COR.h + 0.05, (ST.z0 + ST.z1) / 2, '#6a6862']);
+  corL.ceil.push([ST.x1 - ST.x0 + 0.4, 0.1, ST.z1 - ST.z0 + 0.2, (ST.x0 + ST.x1) / 2, COR.h + 0.05, (ST.z0 + ST.z1) / 2 + 0.1, '#6a6862']);   // (from the corridor's lid, not over it)
   {
     const sh = [];
     for (const y of [0.35, 0.85, 1.35, 1.85]) {
@@ -551,7 +552,7 @@ export function installBackstage(ctx, edge) {
     const m = mergedBoxes(f, M({ color: '#4d5256', metalness: 0.5, roughness: 0.5 })); m.castShadow = false; parent.add(m); return m;
   };
   const exitG = new THREE.Group(); exitG.position.set(Q.x, 0, Q.z); root.add(exitG);   // the exit's own space
-  exitFrame(exitG, -T / 2 - 0.005, T + 0.01);   // (proud this side; on the other, flush with the doorway, where its pane is)
+  exitFrame(exitG, -T / 2 - 0.0065, T + 0.007);   // (proud this side; on the other, 3 mm short of the wall's face, the doorway's pane on it)
   // its leaf hung at the jamb's corner on B3's side, behind that line: open, clear of the jamb and the reveal
   const inLeaf = exitLeafG(true), inHinge = new THREE.Group(); inHinge.position.set(-EXIT.w / 2 + 0.005, 0.01, 0.004); inLeaf.g.position.z = -0.025; inHinge.add(inLeaf.g); exitG.add(inHinge);
   const exitHit = ctx.hitBox(inLeaf.g, EXIT.w, EXIT.h, 0.2, EXIT.w / 2, EXIT.h / 2, -0.05, { action: 'edge-exit', reach: 2.6 });
