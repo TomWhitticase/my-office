@@ -400,7 +400,8 @@ function build(ctx) {
     restr.z0 = z; root.position.z = z;
     story.enter();
     creature.enter(story.st.visit);
-    stream(LIFT.x - 3, 0, true); syncChunks();
+    const at = restr.arriveAt || { x: LIFT.x - 3, z: 0 }; restr.arriveAt = null;   // (or, through a doorway from another floor, where that is)
+    stream(at.x, at.z, true); syncChunks();
     hud.classList.add('of-restricted');
   };
   restr.leave = () => {
