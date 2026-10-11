@@ -15,18 +15,19 @@ export function installFlat(ctx, bs, PLAN, door) {
   const root = bs.root, { FLAT } = PLAN, R = Math.random, hits = [], cols = [];
   const M = (o) => new THREE.MeshStandardMaterial({ roughness: 0.85, ...o });
   const info = (h, k) => ({ action: 'backstage', reach: 4, info: `<b>${h}</b>${k ? `<div class="k">${k}</div>` : ''}` });
-  const cx = FLAT.door - 0.2, tvZ = FLAT.z0 + 0.35, sofaZ = FLAT.z0 + 2.5;
+  const cx = FLAT.door - 0.2, tvZ = FLAT.z0 + 0.35, sofaZ = FLAT.z0 + 2.5, tz = tvZ + 1.3;   // (the coffee table between them)
 
   // ----- the sofa (facing the TV, its back to the door), a coffee table, a lamp, a sideboard, closed blinds -----
   const sofa = [], fab = '#5d4a3c', fab2 = '#4c3c30';
-  sofa.push([2.1, 0.42, 0.85, cx, 0.21, sofaZ, fab2], [2.1, 0.5, 0.22, cx, 0.62, sofaZ + 0.34, fab], [0.22, 0.6, 0.85, cx - 1.05, 0.3, sofaZ, fab], [0.22, 0.6, 0.85, cx + 1.05, 0.3, sofaZ, fab]);
+  sofa.push([1.88, 0.42, 0.85, cx, 0.21, sofaZ, fab2],   // (the seat between the arms)
+    [2.1, 0.5, 0.22, cx, 0.62, sofaZ + 0.34, fab], [0.22, 0.6, 0.85, cx - 1.05, 0.3, sofaZ, fab], [0.22, 0.6, 0.85, cx + 1.05, 0.3, sofaZ, fab]);
   sofa.push([0.95, 0.14, 0.62, cx - 0.48, 0.47, sofaZ - 0.06, '#66523f'], [0.95, 0.12, 0.62, cx + 0.48, 0.46, sofaZ - 0.06, '#614e3d']);   // cushions, one sunk
-  sofa.push([1.1, 0.04, 0.6, cx, 0.42, tvZ + 2.0, '#4a3523'], ...[[-0.5, -0.25], [0.5, -0.25], [-0.5, 0.25], [0.5, 0.25]].map(([x, z]) => [0.04, 0.4, 0.04, cx + x, 0.2, tvZ + 2.0 + z, '#3a2a1c']));
+  sofa.push([1.1, 0.04, 0.6, cx, 0.42, tz, '#4a3523'], ...[[-0.5, -0.25], [0.5, -0.25], [-0.5, 0.25], [0.5, 0.25]].map(([x, z]) => [0.04, 0.4, 0.04, cx + x, 0.2, tz + z, '#3a2a1c']));
   sofa.push([1.6, 0.55, 0.42, cx, 0.275, tvZ + 0.05, '#3b2c20']);   // the sideboard the TV's on
   sofa.push([1.3, 0.8, 0.4, FLAT.x0 + 0.25, 0.4, FLAT.z0 + 3.4, '#4a3a2c'], [1.3, 0.04, 0.4, FLAT.x0 + 0.25, 1.1, FLAT.z0 + 3.4, '#4a3a2c']);   // a shelf, by the west wall (turned)
   const furn = mergedBoxes(sofa, M({ vertexColors: true }));
   root.add(furn);
-  cols.push({ minX: cx - 1.16, maxX: cx + 1.16, minZ: sofaZ - 0.45, maxZ: sofaZ + 0.46 }, { minX: cx - 0.58, maxX: cx + 0.58, minZ: tvZ + 1.68, maxZ: tvZ + 2.32 },
+  cols.push({ minX: cx - 1.16, maxX: cx + 1.16, minZ: sofaZ - 0.45, maxZ: sofaZ + 0.46 }, { minX: cx - 0.58, maxX: cx + 0.58, minZ: tz - 0.32, maxZ: tz + 0.32 },
     { minX: cx - 0.82, maxX: cx + 0.82, minZ: FLAT.z0, maxZ: tvZ + 0.3 }, { minX: FLAT.x0, maxX: FLAT.x0 + 0.5, minZ: FLAT.z0 + 2.7, maxZ: FLAT.z0 + 4.1 });
   hits.push(ctx.hitBox(root, 2.3, 0.9, 0.9, cx, 0.45, sofaZ, info('A sofa', 'Sagging in the middle. They’ve been sitting there a long time.')));
   // a window with its blind down, the street's light leaking round it
@@ -42,7 +43,7 @@ export function installFlat(ctx, bs, PLAN, door) {
   const lampL = new THREE.PointLight('#ffb070', 0.9, 5, 1.8); lampL.position.set(FLAT.x1 - 0.4, 1.4, FLAT.z0 + 0.5); root.add(lampL);
 
   // ----- the takeaway: cartons, a foil tray, cans -----
-  const tk = [], tz = tvZ + 2.0;
+  const tk = [];
   tk.push([0.12, 0.1, 0.1, cx - 0.25, 0.49, tz + 0.05, '#efe9dc'], [0.12, 0.1, 0.1, cx - 0.08, 0.49, tz - 0.12, '#efe9dc'], [0.22, 0.035, 0.15, cx + 0.2, 0.457, tz + 0.08, '#bfc3c7'],
     [0.2, 0.012, 0.16, cx + 0.22, 0.446, tz - 0.14, '#d8d2c0']);
   root.add(mergedBoxes(tk, M({ vertexColors: true, roughness: 0.5 })));
@@ -146,10 +147,10 @@ export function installFlat(ctx, bs, PLAN, door) {
   bx(dark, 0.1, 0.08, 0.035, hx - 0.02, 1.42, -ft - 0.0175); cy(brass, 0.014, 0.02, hx - 0.03, 1.42, -ft - 0.045, 10);
   bx(brass, 0.11, 0.022, 0.008, hx - 0.03, 1.58, -ft - 0.004); for (let i = 0; i < 7; i++) bx(brass, 0.012, 0.022, 0.006, hx + 0.03 - i * 0.006, 1.57 - i * 0.022 + (i > 3 ? (i - 3) * 0.008 : 0), -ft - 0.012);   // the chain, hanging
   const cent = (g) => (g.index ? g.toNonIndexed() : g);
-  L.hinge.add(new THREE.Mesh(mergeGeometries(brass.map(cent)), M({ color: '#9a7c46', metalness: 0.85, roughness: 0.42 })), new THREE.Mesh(mergeGeometries(dark.map(cent)), M({ color: '#141210', roughness: 0.6 })));
+  L.body.add(new THREE.Mesh(mergeGeometries(brass.map(cent)), M({ color: '#9a7c46', metalness: 0.85, roughness: 0.42 })), new THREE.Mesh(mergeGeometries(dark.map(cent)), M({ color: '#141210', roughness: 0.6 })));
   const num = makeCanvas(96, 128); num.ctx.fillStyle = '#fff'; num.ctx.font = `600 120px Georgia, serif`; num.ctx.textAlign = 'center'; num.ctx.textBaseline = 'middle'; num.ctx.fillText('7', 48, 70); num.tex.needsUpdate = true;
   const n7 = new THREE.Mesh(new THREE.PlaneGeometry(0.075, 0.1), M({ color: '#b08f52', metalness: 0.8, roughness: 0.38, alphaMap: num.tex, transparent: true, alphaTest: 0.4 }));
-  n7.position.set(mid, 1.74, ft + 0.004); L.hinge.add(n7);
+  n7.position.set(mid, 1.74, ft + 0.004); L.body.add(n7);
   // the mat, coir, WELCOME mostly gone
   const mat = makeCanvas(256, 160), mc = mat.ctx;
   mc.fillStyle = '#6e5230'; mc.fillRect(0, 0, 256, 160);
@@ -158,7 +159,7 @@ export function installFlat(ctx, bs, PLAN, door) {
   mc.fillStyle = 'rgba(30,20,10,.55)'; mc.font = `800 40px ${FONT}`; mc.textAlign = 'center'; mc.textBaseline = 'middle'; mc.fillText('WELCOME', 128, 82);
   for (let i = 0; i < 40; i++) { mc.fillStyle = `rgba(110,82,48,${0.4 + rng() * 0.5})`; mc.beginPath(); mc.ellipse(70 + rng() * 120, 70 + rng() * 26, 4 + rng() * 14, 3 + rng() * 6, rng() * 3, 0, 7); mc.fill(); }   // worn through where feet go
   mat.tex.needsUpdate = true;
-  const DZ = door.z + PLAN.T / 2;   // the corridor's face of the wall
+  const DZ = door.z + PLAN.T / 2, LZ = door.z - door.face2 + 0.05;   // the corridor's face of the wall; the leaf's, shut (hung on the flat's side)
   const matM = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.014, 0.48), M({ map: mat.tex, roughness: 1 })); matM.position.set(door.x + 0.03, 0.007, DZ + 0.3); matM.rotation.y = 0.04; root.add(matM);
   hits.push(ctx.hitBox(root, 0.8, 0.05, 0.48, door.x, 0.02, DZ + 0.3, info('A doormat', 'WELCOME, nearly.')));
   // the TV's light under the door (and out through it, open): a line in the gap, a wash on the floor that flickers with it
@@ -169,8 +170,8 @@ export function installFlat(ctx, bs, PLAN, door) {
   wash.ctx.globalCompositeOperation = 'destination-out'; wash.ctx.fillStyle = side; wash.ctx.fillRect(0, 0, 64, 64); wash.tex.needsUpdate = true;
   const add = (o) => new THREE.MeshBasicMaterial({ color: '#a8c4ff', transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, ...o });
   const spill = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, 0, 0.5), add({ map: wash.tex, opacity: 0 }));
-  spill.position.set(door.x, 0.016, DZ - 0.04); spill.renderOrder = 2; root.add(spill);
-  const slit = new THREE.Mesh(new THREE.PlaneGeometry(door.w - 0.04, 0.012), add({ opacity: 0, color: new THREE.Color(1.4, 1.7, 2.4) })); slit.position.set(door.x, 0.006, door.z - 0.035); root.add(slit);
+  spill.position.set(door.x, 0.016, LZ + 0.002); spill.renderOrder = 2; root.add(spill);
+  const slit = new THREE.Mesh(new THREE.PlaneGeometry(door.w - 0.04, 0.012), add({ opacity: 0, color: new THREE.Color(1.4, 1.7, 2.4) })); slit.position.set(door.x, 0.006, LZ + 0.002); root.add(slit);
 
   // ----- each frame while you're in here or looking in -----
   let at = -1, glowK = 1;
@@ -180,7 +181,7 @@ export function installFlat(ctx, bs, PLAN, door) {
     glowK += (0.7 + 0.5 * Math.sin(t * 2.3) * Math.sin(t * 0.7 + 1) + (Math.random() - 0.5) * 0.3 - glowK) * Math.min(1, dt * 6);
     glow.intensity = 1.6 * glowK * (tvM.uniforms.on.value ? 1 : 0.2);
     const ok = Math.min(1, door.k * 1.6), lit = glowK * (tvM.uniforms.on.value ? 1 : 0.35);   // the light from under the door, out of it
-    spill.scale.set(door.w - 0.1 + ok * 0.6, 1, 0.24 + ok * 1.6); spill.material.opacity = lit * (0.32 + ok * 0.08);
+    spill.scale.set(door.w - 0.1 + ok * 0.6, 1, 0.38 + ok * 1.6); spill.material.opacity = lit * (0.32 + ok * 0.08);
     slit.material.opacity = Math.min(1, lit * 1.6) * (1 - ok);
     people[0].rotation.z = 0.06 + 0.01 * Math.sin(t * 0.4); people[1].rotation.z = -0.04 + 0.008 * Math.sin(t * 0.33 + 2);   // breathing, barely
     if (!bs.on || !ctx.cctv?.into) return;

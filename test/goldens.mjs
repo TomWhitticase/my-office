@@ -241,6 +241,20 @@ export const POSES = [
     await o.eval(() => window.__office.heli.edge.backstage.go(27.6, 20, Math.PI / 2, 0.05));
     await o.step(40);
   }],
+  ['edge-door-swing', async (o) => {   // the door in the sky held a third open, from the landing close up: its leaf and its sign whole as it swings
+    await from('edge-door', o);
+    await o.eval(() => {
+      const O = window.__office, E = O.heli.edge, P = O.player;
+      Object.assign(E.E, { open: 0.3, want: 0.3 });
+      Object.assign(P, { x: -E.R + 0.55, z: 0.75, yaw: Math.atan2(0.55, 0.75) + 0.25, pitch: 0, fy: E.LT - O.roof.y });
+    });
+    await o.step(30);
+  }],
+  ['edge-exit-jamb', async (o) => {   // the exit open, from beside the plant room, at an angle: its jambs and reveal clean, the leaf clear of them
+    await from('edge-door', o);
+    await o.eval(() => { const b = window.__office.heli.edge.backstage; b.go(37.6, 20.2, -1.97, 0.02); b.exit(true); });
+    await o.step(30);
+  }],
   ['edge-stub', async (o) => {   // round the corner from the gallery's corridor: the door in the sky open off the stub's side, the scene dock at its end
     await from('edge-door', o);
     await o.eval(() => window.__office.heli.edge.backstage.go(-18.4, 3.6, Math.PI, 0));

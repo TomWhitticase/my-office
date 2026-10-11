@@ -122,7 +122,9 @@ export function install(ctx) {
     return new THREE.ShaderMaterial({
       uniforms: { ...skyU, ...U, cut: { value: cut }, paintM: { value: paintM } }, side: THREE.DoubleSide, fragmentShader: f,
       vertexShader: `uniform mat4 paintM; varying vec3 vW, vP;
-        void main() { vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; vP = (paintM * vec4(position, 1.0)).xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
+        void main() { vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; vP = (paintM * vec4(position, 1.0)).xyz; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+      // (projected through modelViewMatrix, made on the CPU in doubles: through the world, 5 km out in float32, it was
+      // millimetres out, and the door's sign 4 mm proud of it came and went)
     });
   }
 
@@ -211,8 +213,8 @@ export function install(ctx) {
       tube(new THREE.Vector3(x(RW), at(u) + H * 0.5, u), new THREE.Vector3(x(RW), at(Math.min(u + TREAD * 5, LAND.u0 - 0.1)) + H * 0.5, Math.min(u + TREAD * 5, LAND.u0 - 0.1)), 0.012);
     const rails = new THREE.Mesh(mergeGeometries(rail), steel); rails.castShadow = true; G.add(rails);
 
-    // The door, painted with the wall's sky where it would be, hung on the stairs' side and opening away from you. Open,
-    // it's the copy behind the sky you see (world-edge-backstage.js): this one's only ever seen shut.
+    // The door, painted with the wall's sky where it would be, hung on the stairs' side and opening away from you. What of
+    // it has swung through the doorway, it's the copy behind the sky you see (world-edge-backstage.js), through it.
     const LW2 = DOOR.w - 0.02, LH = DOOR.h - 0.02, hinge = E.hinge = new THREE.Group();
     hinge.position.set(-R + 0.018, LT + 0.01 + LH / 2, -LW2 / 2); G.add(hinge);
     const edgeM = mat('#6f7378', { roughness: 0.7 });
@@ -288,7 +290,8 @@ export function install(ctx) {
     // The door swings open over a couple of seconds, slowing; the doorway's walkable once it's well open.
     E.open = damp(E.open, E.want, 1.4, dt);
     E.hinge.rotation.y = -1.75 * sstep(0, 1, E.open);
-    E.leaf.visible = E.open < 0.002;   // open, it's the one behind the sky you see, through the doorway
+    // (and it's drawn throughout: open, the doorway's pane hides what of it's swung through, and shows that of the copy
+    // behind the sky instead; hidden as soon as it opened, its face and sign this side of the doorway went missing)
     E.hinge.updateMatrixWorld();
     // At the top of the stairs, the lights go down a little (and stay down while you're up there, or behind).
     const P = ctx.player, onFoot = S.out && !S.aboard;
