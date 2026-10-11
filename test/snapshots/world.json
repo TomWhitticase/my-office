@@ -6127,6 +6127,28 @@
     "map",
     "fx"
    ]
+  },
+  {
+   "n": -5,
+   "label": "THE PLAIN",
+   "title": "The Plain",
+   "scene": true,
+   "y": null,
+   "carless": true,
+   "fly": false,
+   "sound": {
+    "kind": "plain",
+    "steps": true
+   },
+   "colliders": 0,
+   "hits": 0,
+   "hooks": [
+    "enter",
+    "leave",
+    "bound",
+    "map",
+    "fx"
+   ]
   }
  ],
  "tvs": [
@@ -6331,6 +6353,15 @@
    },
    "ordered": "1a4118c0",
    "sorted": "5b24a7a2"
+  },
+  "the plain": {
+   "objects": 1,
+   "types": {
+    "Scene": 1
+   },
+   "actions": {},
+   "ordered": "841c0771",
+   "sorted": "841c0771"
   }
  }
 }

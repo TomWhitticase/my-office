@@ -109,7 +109,8 @@ export async function runWorld(browser, base, { record = false, log = console.lo
 }
 
 // A reload puts you back where you were (systems/resume.js): the office loaded with a pose saved on another floor comes up
-// there, not at your desk. Relativity in its second gravity, deep in B3's rooms, and the helicopter in flight.
+// there, not at your desk. Relativity in its second gravity, deep in B3's rooms, out on the Plain and at its painting, and
+// the helicopter in flight.
 const RESUME = {
   relativity: [{ f: -4, car: 0, cz: -0.5, x: -1, z: -15, eye: 1.65, yaw: 1.45, pitch: 0.3, s: { k: 1, x: 4, y: -15, z: -1 } },
     () => { const w = window.__office, S = w.ctx.rel.walker.S; return w.away?.n === -4 && S.k === 1 && Math.hypot(S.x - 4, S.z + 1) < 0.05 && w.mode === 'free'; }],
@@ -119,6 +120,11 @@ const RESUME = {
   // somewhere you can walk from, close by, not back in it
   'relativity, stuck': [{ f: -4, car: 0, cz: -0.5, x: 0, z: 0, eye: 1.65, yaw: 0, pitch: 0, s: { k: 2, x: -0.093, y: -5.82, z: -0.573 } },
     () => { const w = window.__office, r = w.ctx.rel, S = r.walker.S; return w.away?.n === -4 && w.mode === 'free' && r.walker.ok() && S.k === 2 && Math.hypot(S.x + 0.093, S.y + 5.82, S.z + 0.573) < 6; }],
+  // out on the Plain (floors/plain.js), and in front of its painting on B3 (built as the page comes back)
+  plain: [{ f: -5, car: 0, cz: -0.5, x: 2.5, z: -30, eye: 1.65, yaw: 0.4, pitch: 0, s: {} },
+    () => { const w = window.__office; return w.away?.n === -5 && Math.hypot(w.player.x - 2.5, w.player.z + 30) < 0.05 && w.mode === 'free'; }],
+  'the painting on B3': [{ f: -3, car: 0, cz: -0.5, x: 2, z: 40.55, eye: 1.65, yaw: 1.571, pitch: 0 },
+    () => { const w = window.__office; return w.away?.n === -3 && w.plain.built && Math.hypot(w.player.x - 2, w.player.z - 40.55) < 0.05 && w.mode === 'free'; }],
   helicopter: [{ f: 50, car: 0, cz: -0.5, x: 19, z: -0.5, eye: 1.65, yaw: 0, pitch: 0, s: { x: 120, y: 90, z: -60, yaw: 0.7, landed: false, aboard: true, out: false, free: false } },
     () => { const w = window.__office, S = w.heli.S; return w.away?.n === 50 && w.mode === 'heli' && S.aboard && !S.landed && S.rpm === 1 && Math.hypot(S.pos.x - 120, S.pos.y - 90, S.pos.z + 60) < 1; }],
 };

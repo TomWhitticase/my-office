@@ -402,6 +402,17 @@ export const POSES = [
     await stepUntil(o, () => window.__office.ctx.rel.walker.S.roll?.t > 0.45, 60);
     await o.eval(() => window.__office.keys.delete('KeyW'));
   }],
+  // The painting on B3 that's a way onto the Plain (floors/plain.js): from across its hall; close, the paint going clear;
+  // a few centimetres from it, walking in (the Plain all round you, on B3 still); out there, the city ahead; a few
+  // centimetres from the frame on the way back (B3 all round you, out there still); the frame hanging in the air behind
+  // you with B3 through it; and the thing that lives out there, a few metres off, looking at you.
+  ['plain-painting', async (o) => { await arrive(o); await o.eval(() => window.__office.plain.painting(0, 9, 0, 0)); await o.step(30); }],
+  ['plain-painting-close', async (o) => { await arrive(o); await o.eval(() => window.__office.plain.painting(0.1, 1.4, 0.04, -0.03)); await o.step(30); }],
+  ['plain-crossing', async (o) => { await arrive(o); await o.eval(() => window.__office.plain.painting(0.05, 0.06, 0, 0)); await o.step(20); }],
+  ['plain', async (o) => { await arrive(o); await o.eval(() => window.__office.plain.go(0.4, -6, 0.04, 0.02)); await o.step(30); }],
+  ['plain-crossing-out', async (o) => { await arrive(o); await o.eval(() => { const p = window.__office.plain; p.painting(0, 3, 0, 0); p.go(0.05, -0.06, Math.PI, 0); }); await o.step(20); }],
+  ['plain-frame', async (o) => { await arrive(o); await o.eval(() => { const p = window.__office.plain; p.painting(0, 3, 0, 0); p.go(-0.9, -4.5, Math.PI + 0.2, -0.04); }); await o.step(30); }],
+  ['plain-crawler', async (o) => { await arrive(o); await o.eval(() => { const p = window.__office.plain; p.go(0, -6, 0, -0.12); p.stage(0.4, -10.5, -0.2); }); await o.step(20); }],
   ['task-board', async (o) => {   // over to the task board in my office, in use: the fixture board, the layer over it
     await arrive(o);
     await stand(o, 16.7, -11.5, { x: 16.7, y: 1.9, z: -14.9 });
