@@ -131,6 +131,18 @@ export function installModel(ctx, bs, PLAN, edge) {
   const cloudM = new THREE.MeshBasicMaterial({ map: cl.tex, transparent: true, opacity: 0, depthWrite: false, color: new THREE.Color(0.9, 0.92, 0.95) });
   const cloud = new THREE.Mesh(new THREE.CircleGeometry(RIM - 0.02, 64).rotateX(-Math.PI / 2), cloudM);
   cloud.position.y = 0.28; cloud.layers.set(1); cloud.raycast = () => {}; g.add(cloud);
+  // ...and the weather under it (world/weather.js): rain or snow falling from it to the streets, fog lying in layers
+  const RN = 1400, NS = 1100, wxR = Math.random, rainP = new Float32Array(RN * 6), snowP = new Float32Array(NS * 3);
+  const disc = () => { const a = wxR() * Math.PI * 2, r = Math.sqrt(wxR()) * (RIM - 0.05); return [Math.cos(a) * r, Math.sin(a) * r]; };
+  for (let i = 0; i < RN; i++) { const [x, z] = disc(), y = wxR() * 0.27; rainP.set([x, y, z, x, y + 0.025, z], i * 6); }
+  for (let i = 0; i < NS; i++) { const [x, z] = disc(); snowP.set([x, wxR() * 0.27, z], i * 3); }
+  const geo = (a) => new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(a, 3).setUsage(THREE.DynamicDrawUsage));
+  const rainM = new THREE.LineBasicMaterial({ color: '#c8d4e4', transparent: true, opacity: 0, depthWrite: false });
+  const rainL = new THREE.LineSegments(geo(rainP), rainM), snowL = new THREE.Points(geo(snowP), new THREE.PointsMaterial({ color: '#ffffff', size: 0.006, transparent: true, opacity: 0, depthWrite: false }));
+  const hazeM = new THREE.MeshBasicMaterial({ color: '#d8dde2', transparent: true, opacity: 0, depthWrite: false }), haze = [];
+  for (const y of [0.02, 0.07, 0.13, 0.2]) { const h = new THREE.Mesh(new THREE.CircleGeometry(RIM - 0.03, 48).rotateX(-Math.PI / 2), hazeM); h.position.y = y; haze.push(h); }
+  for (const o of [rainL, snowL, ...haze]) { o.layers.set(1); o.raycast = () => {}; o.frustumCulled = false; o.visible = false; g.add(o); }
+  let clX = 0, clZ = 0;
 
   // ----- its lamp: the sun (from where the sun is), and a cool fill for the night -----
   const lamp = new THREE.SpotLight('#ffffff', 0, 9, 0.42, 0.5, 1.2);
@@ -210,7 +222,36 @@ export function installModel(ctx, bs, PLAN, edge) {
     whiteM.emissiveIntensity = 0.06 * night; towerM.emissiveIntensity = 0.9 * lights; glowM.emissiveIntensity = 0.35 * lights;
     doorM.color.setRGB(2.5, 2.8, 2.2).multiplyScalar(0.7 + 0.3 * Math.sin(t * 2.2)); haloS.material.opacity = 0.6 + 0.4 * Math.sin(t * 2.2);
     // cloud
-    cloudM.opacity = sstep(0.25, 1, ctx.skyU.cover.value) * 0.6; cl.tex.offset.set(t * 0.004, t * 0.0025);
+    const W = ctx.weather?.now, wind = W ? W.wind / 0.3 : 1;
+    clX += dt * 0.004 * wind; clZ += dt * 0.0025 * wind;
+    cloudM.opacity = sstep(0.25, 1, ctx.skyU.cover.value) * 0.6 + (W ? W.grey * 0.25 : 0); cl.tex.offset.set(clX, clZ);
+    if (W) {
+      cloudM.color.setRGB(0.9, 0.92, 0.95).multiplyScalar(1 - 0.6 * W.dark).addScalar(W.flash * 1.5);
+      fill.intensity += 60 * W.flash;
+      const rain = clamp(W.rain, 0, 2) / 2, snow = W.snow, drift = W.wind * 0.02;
+      rainM.opacity = 0.55 * Math.min(1, rain * 1.4); rainL.visible = rain > 0.01;
+      if (rainL.visible) {
+        rainL.geometry.setDrawRange(0, Math.ceil(RN * Math.min(1, 0.3 + rain)) * 2);
+        for (let i = 0; i < RN * 6; i += 6) {
+          let y = rainP[i + 1] - dt * 0.9;
+          if (y < 0) y += 0.27;
+          rainP[i + 1] = y; rainP[i + 4] = y + 0.025; rainP[i + 3] = rainP[i] + drift;
+        }
+        rainL.geometry.attributes.position.needsUpdate = true;
+      }
+      snowL.material.opacity = 0.9 * snow; snowL.visible = snow > 0.01;
+      if (snowL.visible) {
+        for (let i = 0; i < NS * 3; i += 3) {
+          let y = snowP[i + 1] - dt * 0.03;
+          if (y < 0) y += 0.27;
+          snowP[i + 1] = y; snowP[i] += Math.sin(t * 1.3 + i) * dt * 0.004 + drift * dt;
+          if (snowP[i] * snowP[i] + snowP[i + 2] * snowP[i + 2] > (RIM - 0.05) ** 2) snowP[i] *= -0.98;
+        }
+        snowL.geometry.attributes.position.needsUpdate = true;
+      }
+      hazeM.opacity = 0.2 * W.fog; for (const h of haze) h.visible = W.fog > 0.02;
+      hazeM.color.copy(ctx.scene.fog.color).multiplyScalar(0.6);
+    }
     // the helicopter
     hel.position.set(S.pos.x * K, my(S.pos.y) + 0.008, S.pos.z * K); hel.rotation.y = S.yaw; rotor.rotation.y += dt * 30 * S.rpm;
     hel.visible = Math.hypot(S.pos.x, S.pos.z) < W;
