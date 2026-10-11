@@ -216,11 +216,12 @@ function build(ctx) {
   };
   rel.bound = () => {};
   // You walk here yourself (player.js hands over): in your gravity, turning over at its seams.
-  let lastFeet = null, rolls = 0;
+  let lastFeet = null, rolls = 0, clock = 0;   // the head bob's own clock, in frames' dt (performance.now() isn't repeatable in the harness)
   rel.walk = (dt, keys) => {
+    clock += dt;
     const P = ctx.player, f = (keys.has('KeyW') || keys.has('ArrowUp') ? 1 : 0) - (keys.has('KeyS') || keys.has('ArrowDown') ? 1 : 0);
     const s = (keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) - (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0);
-    const r = walker.step(dt, f, s, keys.has('ShiftLeft') || keys.has('ShiftRight'), P.yaw, P.pitch, camera, performance.now() / 1000);
+    const r = walker.step(dt, f, s, keys.has('ShiftLeft') || keys.has('ShiftRight'), P.yaw, P.pitch, camera, clock);
     if (walker.S.rolls !== rolls) { rolls = walker.S.rolls; sound.roll(); }
     if (r) { P.yaw = r.yaw; P.pitch = r.pitch; }
     const feet = walker.feet();
