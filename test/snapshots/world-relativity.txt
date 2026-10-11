@@ -39,6 +39,9 @@ Mesh||BufferGeometry:2268|MeshStandardMaterial:c9c2b4::|0 0 0 0 0 0 1 1 1||1|n=2
 Mesh||CapsuleGeometry:110|MeshStandardMaterial:c9c2b4::|0 0 0 0 0 0 1 1 1||1|n=56|0|
 Mesh||CapsuleGeometry:90|MeshStandardMaterial:c9c2b4::|0 0 0 0 0 0 1 1 1||1|n=56|0|
 Mesh||BufferGeometry:660|MeshStandardMaterial:8a7b63::|0 0 0 0 0 0 1 1 1||1|n=3|0|
-Mesh||BufferGeometry:309|ShaderMaterial:::|0 0 0 0 0 0 1 1 1|hidden|2||0|
-Mesh||BufferGeometry:309|ShaderMaterial:::|0 0 0 0 0 0 1 1 1|hidden|2||0|
-Mesh||BufferGeometry:309|ShaderMaterial:::|0 0 0 0 0 0 1 1 1|hidden|2||0|
+Mesh||BufferGeometry:309|ShaderMaterial:::|0 0 0 0 0 0 1 1 1|hidden|2||1|
+Mesh||PlaneGeometry:4|ShaderMaterial:::|0 0 0 0 0 0 1 1 1|hidden|2||0|ao{}
+Mesh||BufferGeometry:309|ShaderMaterial:::|0 0 0 0 0 0 1 1 1|hidden|2||1|
+Mesh||PlaneGeometry:4|ShaderMaterial:::|0 0 0 0 0 0 1 1 1|hidden|2||0|ao{}
+Mesh||BufferGeometry:309|ShaderMaterial:::|0 0 0 0 0 0 1 1 1|hidden|2||1|
+Mesh||PlaneGeometry:4|ShaderMaterial:::|0 0 0 0 0 0 1 1 1|hidden|2||0|ao{}

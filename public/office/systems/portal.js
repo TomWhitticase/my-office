@@ -10,9 +10,69 @@
 // the way you'd walk from the side it's seen from. A point p on this side is (there · here⁻¹) p on the other.
 
 import * as THREE from 'three';
+import { rng } from '../util.js';
 
-/** @param {any} ctx @param {{ w: number, h: number }} size the opening, metres */
-export function makePortal(ctx, { w, h }) {
+// What a doorway shows is a picture, not geometry, so ambient occlusion must leave it alone: an AO pass that skips layer
+// 1 (the panes are there) sees straight through a pane to what's behind the doorway in its own scene and shades the
+// picture with it (the hall's balustrade ghosted over B3's corridor). maskAO(ao) has a GTAOPass draw every visible pane
+// into its depth after its own, at depth 1 wherever the pane's nearest (marked in the stencil, then written): background,
+// which it leaves unshaded and nothing is occluded by. Panes register with addPane (makePortal's do).
+const panes = new Set();
+export const addPane = (m) => { panes.add(m); return m; };
+let portals = 0;
+// (three takes a uuid from Math.random for each material and mesh: what's made here takes them from its own stream, so
+// it doesn't shift what's built after it: see helicopter.js)
+const own = (seed, fn) => { const random = Math.random; Math.random = rng(seed); try { return fn(); } finally { Math.random = random; } };
+const VS = 'void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
+let markM, skyM;
+const aoMats = () => own(7101, () => [markM = new THREE.ShaderMaterial({ vertexShader: VS, fragmentShader: 'void main() { gl_FragColor = vec4(0.0); }', side: THREE.DoubleSide,
+  colorWrite: false, depthWrite: false, stencilWrite: true, stencilRef: 1, stencilFunc: THREE.AlwaysStencilFunc, stencilZPass: THREE.ReplaceStencilOp }),
+skyM = new THREE.ShaderMaterial({ vertexShader: VS, fragmentShader: 'void main() { gl_FragColor = vec4(0.5, 0.5, 1.0, 1.0); gl_FragDepth = 1.0; }',
+  side: THREE.DoubleSide, depthFunc: THREE.AlwaysDepth, stencilWrite: true, stencilRef: 1, stencilFunc: THREE.EqualStencilFunc })]);
+/** @param {any} ao a GTAOPass */
+export function maskAO(ao) {
+  if (!markM) aoMats();
+  const over = ao._renderOverride.bind(ao);
+  ao._renderOverride = (renderer, m, rt, ...a) => {
+    over(renderer, m, rt, ...a);
+    if (rt !== ao.normalRenderTarget) return;
+    const cam = ao.camera, mask = cam.layers.mask;
+    cam.layers.enable(1);
+    for (const p of panes) {
+      if (!p.visible) continue;
+      let top = p; while (top.parent) top = top.parent;
+      if (top !== ao.scene) continue;
+      const mat = p.material, auto = p.matrixWorldAutoUpdate;   // (drawn alone: its world matrix as it is, parent and all)
+      const kids = p.children.filter((c) => c.visible);
+      for (const c of kids) c.visible = false;
+      p.matrixWorldAutoUpdate = false;
+      for (const m of p.userData.ao || [markM, skyM]) { p.material = m; renderer.render(p, cam); }
+      p.material = mat; p.matrixWorldAutoUpdate = auto;
+      for (const c of kids) c.visible = true;
+    }
+    cam.layers.mask = mask;
+  };
+}
+
+// The cap (makePortal): a quad over the whole view, each pixel the ray through it met with the doorway's plane; where it
+// goes through the opening, the picture at the true depth of that point, else nothing. mode 0 draws it; 1 and 2 are its
+// stencil mark and depth-1 write for maskAO.
+const CAP_VS = `uniform mat4 unproj; varying vec3 vDir;
+  void main() { vec4 p = unproj * vec4(position.xy, 1.0, 1.0); vDir = p.xyz / p.w - cameraPosition; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
+const capFS = (mode) => `uniform mat4 projectionMatrix; uniform sampler2D tView; uniform vec2 res; uniform float k; uniform mat4 toDoor; uniform vec3 size; varying vec3 vDir;
+  void main() {
+    vec3 dir = normalize(vDir), o = (toDoor * vec4(cameraPosition, 1.0)).xyz, d = mat3(toDoor) * dir;
+    if (d.z <= 1e-5) discard;
+    float t = -o.z / d.z; vec3 p = o + d * t;
+    float sp = size.y - size.x / 2.0;
+    if (t <= 0.0 || abs(p.x) > size.x / 2.0 || p.y < 0.0 || p.y > size.y || (size.z > 0.5 && p.y > sp && length(vec2(p.x, p.y - sp)) > size.x / 2.0)) discard;
+    vec4 c = projectionMatrix * viewMatrix * vec4(cameraPosition + dir * t, 1.0);
+    ${mode === 2 ? 'gl_FragDepth = 1.0; gl_FragColor = vec4(0.5, 0.5, 1.0, 1.0);'
+    : 'gl_FragDepth = clamp(c.z / c.w * 0.5 + 0.5, 0.0, 1.0); gl_FragColor = vec4(texture2D(tView, gl_FragCoord.xy / res).rgb * k, 1.0);'}
+  }`;
+
+/** @param {any} ctx @param {{ w: number, h: number, arch?: boolean }} size the opening, metres (arch: round-headed, its crown at h) */
+export function makePortal(ctx, { w, h, arch = false }) {
   const { renderer, camera } = ctx;
   const rt = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType });
   rt.scissorTest = true;
@@ -24,7 +84,16 @@ export function makePortal(ctx, { w, h }) {
   });
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, 1).translate(0, h / 2, -0.5), mat);
   mesh.matrixAutoUpdate = false; mesh.frustumCulled = false; mesh.visible = false;
-  mesh.layers.set(1);   // no ambient occlusion over it (post.js, and floors whose look has aoSkip1)
+  mesh.layers.set(1); addPane(mesh);   // no ambient occlusion over it (maskAO)
+  // Close up, the box's face across the opening can be nearer than the near plane, clipped away, what's behind it showing
+  // through for a frame or two before you cross: the cap covers it then, exactly.
+  const capU = { ...mat.uniforms, toDoor: { value: new THREE.Matrix4() }, unproj: { value: new THREE.Matrix4() }, size: { value: new THREE.Vector3(w, h, arch ? 1 : 0) } };
+  const capM = (mode, o = {}) => new THREE.ShaderMaterial({ uniforms: capU, vertexShader: CAP_VS, fragmentShader: capFS(mode), side: THREE.DoubleSide, ...o });
+  const cap = own(7200 + portals++, () => new THREE.Mesh(new THREE.PlaneGeometry(2, 2), capM(0)));
+  cap.frustumCulled = false; cap.visible = false; cap.layers.set(1); cap.raycast = () => {};
+  cap.userData.ao = own(7300 + portals, () => [capM(1, { colorWrite: false, depthWrite: false, stencilWrite: true, stencilRef: 1, stencilFunc: THREE.AlwaysStencilFunc, stencilZPass: THREE.ReplaceStencilOp }),
+    capM(2, { depthFunc: THREE.AlwaysDepth, stencilWrite: true, stencilRef: 1, stencilFunc: THREE.EqualStencilFunc })]);
+  mesh.add(cap); addPane(cap);
   mesh.raycast = () => {};
   const cam = new THREE.PerspectiveCamera();
   cam.matrixAutoUpdate = false; cam.matrixWorldAutoUpdate = false;   // set from yours each frame
@@ -72,6 +141,8 @@ export function makePortal(ctx, { w, h }) {
       if (!rect) return false;
       mesh.matrix.copy(here).multiply(S.makeScale(1, 1, near ? 0.25 : 0.004));   // the box reaches back toward you from the opening
       mesh.matrixWorldNeedsUpdate = true;
+      cap.visible = near;
+      if (near) { camera.updateMatrixWorld(); capU.toDoor.value.copy(here).invert(); capU.unproj.value.copy(camera.matrixWorld).multiply(camera.projectionMatrixInverse); }
       if (rt.width !== buf.x || rt.height !== buf.y) { rt.setSize(buf.x, buf.y); mat.uniforms.res.value.copy(buf); }
       mat.uniforms.k.value = k;
       // The camera over there, and its projection narrowed to the doorway's rectangle.

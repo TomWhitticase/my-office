@@ -15,6 +15,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { escapeHtml } from '../../chat.js';
+import { addPane } from '../systems/portal.js';
 import { damp, dash, ease, LIFT, makeCanvas, mat, mergedBoxes, rng, ROOM, sstep } from '../util.js';
 
 // The hall inside: x from the vault's wall (X0) to the lift's (X1), z ±HW about the car, H high. Walls T thick, the
@@ -753,7 +754,7 @@ function build(ctx) {
     fragmentShader: 'uniform sampler2D tHall; uniform vec2 res; uniform float k; void main() { gl_FragColor = vec4(texture2D(tHall, gl_FragCoord.xy / res).rgb * k, 1.0); }',
   });
   const disc = mesh(new THREE.CircleGeometry(VAULT.r + 0.01, 96).rotateY(-Math.PI / 2), discM, x0 - 0.13, VAULT.y, 0, portal);
-  disc.layers.set(1); disc.visible = false; disc.raycast = () => {};
+  disc.layers.set(1); addPane(disc); disc.visible = false; disc.raycast = () => {};
   const bufSize = new THREE.Vector2();
   // The hall as it is from inside it: there, lit by its own lamps, its own hemisphere and environment. Undone by the return.
   function hallLit() {

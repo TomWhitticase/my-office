@@ -328,6 +328,11 @@ export const POSES = [
     await o.eval(() => { const r = window.__office.ctx.rel; r.door.open(true); r.door.through(); r.pose(0, 9.4, -15, 6.3, Math.PI - 0.12, 0.02); });
     await o.step(20);
   }],
+  ['relativity-exit-near', async (o) => {   // a step from it, where the hall used to show through B3 (ambient occlusion through the pane)
+    await from('relativity-door', o);
+    await o.eval(() => { const r = window.__office.ctx.rel; r.door.open(true); r.door.through(); r.pose(0, 9.0, -15, 7.9, 3.2, -0.15); });
+    await o.step(20);
+  }],
   ['relativity', async (o) => {   // through it: Relativity as you arrive, the door behind you, three gravities' stairs ahead
     await arrive(o);
     await ride(o, -3);

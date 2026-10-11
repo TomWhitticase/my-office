@@ -13,6 +13,7 @@ import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { maskAO } from './portal.js';
 
 /** @param {import('../ctx.js').OfficeCtx} ctx */
 export function install(ctx) {
@@ -527,6 +528,7 @@ export function installShafts(ctx) {
       const ao = F.gtao = new GTAOPass(F.scene, camera, 512, 512);
       ao.blendIntensity = 0.8;
       ao.updateGtaoMaterial({ radius: 0.5, distanceExponent: 1.4, thickness: 1, scale: 1.1, samples: 12 });
+      maskAO(ao);   // (what a doorway shows isn't shaded: systems/portal.js)
       if (L.aoSkip1) { const aoRender = ao.render.bind(ao); ao.render = (...a) => { camera.layers.disable(1); aoRender(...a); camera.layers.enable(1); }; }
       F.bloom = new UnrealBloomPass(new THREE.Vector2(512, 512), ctx.bloom.strength, ctx.bloom.radius, ctx.bloom.threshold);
       F.grade = new ShaderPass(ctx.grade.material.clone());
