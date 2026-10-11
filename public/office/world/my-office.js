@@ -203,7 +203,8 @@ export function installScreen(ctx) {
     if (pw !== cssPx.w || ph !== cssPx.h) { domScreen.style.width = pw + 'px'; domScreen.style.height = ph + 'px'; Object.assign(cssPx, { w: pw, h: ph }); }
     (lap ? laptop.pivot : centerMon.g).add(hole);
     hole.scale.set(s.w, s.h, 1);
-    if (lap) hole.position.set(0, laptop.LH - 0.004 - s.h / 2, 0.0024);   // (in front of the bezel, lounge.js) else hole.position.set(0, 0.12 + center.h / 2, 0.012);
+    // (the laptop's hole in front of its bezel, lounge.js)
+    if (lap) hole.position.set(0, laptop.LH - 0.004 - s.h / 2, 0.0024); else hole.position.set(0, 0.12 + center.h / 2, 0.012);
     awayScr.mesh.visible = lap;
     centerMon.g.updateWorldMatrix(true, true);
     (lap ? awayScr.mesh : hole).getWorldPosition(screenWorld);
