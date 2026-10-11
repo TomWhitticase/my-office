@@ -61,6 +61,11 @@ export const POSES = [
   ['secret-shaft', async (o) => { await arrive(o); await o.eval(() => window.__office.secret.climb(-1.4, 0.4, -1.1)); await o.step(3); }],
   ['secret-den', async (o) => { await arrive(o); await o.eval(() => window.__office.secret.den(7.9, -13.4, Math.atan2(-1.6, -5), -0.08)); await o.step(6); }],
   ['secret-den-desk', async (o) => { await arrive(o); await o.eval(() => window.__office.secret.den(10, -11.6, Math.PI / 2, -0.05)); await o.step(8); }],
+  // The duct from the den (world/secret-duct.js): its carved vent open in the den's wall; crawling, at its first turn; the
+  // far end's louvred grille low in the corridor's wall behind the sky (its own scene, built as the vent opens).
+  ['secret-vent', async (o) => { await arrive(o); await o.eval(() => { const s = window.__office.secret; s.den(11.3, -9.6, -Math.PI / 2, -0.5); s.vent(true); }); await o.step(6); }],
+  ['secret-duct-turn', async (o) => { await arrive(o); await o.eval(() => window.__office.secret.duct(15.3, -8.9, Math.PI - 0.5, 0.02)); await o.step(4); }],
+  ['secret-duct-grille', async (o) => { await arrive(o); await o.eval(() => window.__office.secret.corridor(34.6, 20.5, 0.6, -0.55)); await o.step(6); }],
   ['ping-pong-tv', async (o) => { await arrive(o); await stand(o, 1.4, 8, { x: 3.69, y: 1.6, z: 8 }); await o.step(3); }],
   ['tv-panel', async (o) => { await from('ping-pong-tv', o); await o.eval(() => window.__office.openTv('pingpong')); await o.step(2); }],
   ['whiteboard', async (o) => {

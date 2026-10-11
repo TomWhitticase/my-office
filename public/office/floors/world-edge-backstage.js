@@ -26,7 +26,7 @@
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { clamp, damp, FONT, makeCanvas, mergedBoxes, sstep } from '../util.js';
+import { clamp, damp, FONT, makeCanvas, mergedBoxes, rng, sstep } from '../util.js';
 import { makePortal } from '../systems/portal.js';
 import { installGallery } from './world-edge-gallery.js';
 import { installFlat } from './world-edge-flat.js';
@@ -50,6 +50,7 @@ export const PLAN = {
   EXIT: { w: 1.0, h: 2.1, x: 38.8, z: 21.1 },               // the fire door onto B3, in the last leg's side, just short of its end
   TC: { x: 0, z: -11.6, y: -1.6 },                          // the model table's middle, on the pit's floor
   DIR: { x: 0, z: -3.9, y: -0.4 },                             // the director's console, at the top tier's middle
+  VENT: { x: 33.6, z: 19.0, w: 0.64, h: 0.7 },              // a duct's grille low in the last leg's wall (world/secret-duct.js dresses it)
 };
 // How high the floor is at (x, z) (this side's own space): the tiers, the stairs, the pit; 0 everywhere else.
 export function floorAt(x, z) {
@@ -97,7 +98,7 @@ export function installBackstage(ctx, edge) {
   S.environment = office.environment;
   S.add(root);
   const bs = { n: -9, label: 'BACKSTAGE', title: 'Backstage', unlisted: true, carless: true, liftGone: true, on: false, composer: null, scene: S, root,
-    colliders: [], hits: [], sound: { kind: 'backstage' }, hemi: new THREE.HemisphereLight('#c9d2e0', '#2a2622', 0.05),
+    colliders: [], more: [], hits: [], sound: { kind: 'backstage' }, hemi: new THREE.HemisphereLight('#c9d2e0', '#2a2622', 0.05),
     look: { exposure: 1.0, hemi: 0.05, sky: new THREE.Color('#c9d2e0'), ground: new THREE.Color('#2a2622'), env: 0.05, bloom: 1.1, grade: 1.1, lights: [], aoSkip1: true } };
   S.add(bs.hemi); S.environmentIntensity = bs.look.env;
   ctx.addFloor(bs);
@@ -212,10 +213,11 @@ export function installBackstage(ctx, edge) {
   const holes = [   // every opening in a corridor wall: the doors above, and the two that go somewhere else
     ...DOORS.filter((d) => !d.across).map((d) => ({ ...d, lap: 0.03 })),
     { x: SKYAT.x - T / 2, z: SKYAT.z, ns: true, w: SKY.w, h: SKY.h }, { x: Q.x, z: Q.z - T / 2, ns: false, w: EXIT.w, h: EXIT.h, lap: 0.03 },
+    { x: PLAN.VENT.x, z: PLAN.VENT.z, ns: false, w: PLAN.VENT.w, h: PLAN.VENT.h, own: true },
   ];
   const holesOn = (ns, fixed, a0, a1) => holes.filter((d) => !!d.ns === ns && Math.abs((ns ? d.x : d.z) - fixed) < 0.15 && (ns ? d.z : d.x) > a0 && (ns ? d.z : d.x) < a1)
-    .map((d) => { const m = ns ? d.z : d.x, e = d.w / 2 + (d.lap || 0); return [m - e, m + e, (d.h ?? 2.1) + (d.lap || 0)]; });
-  const corL = { walls: [], floor: [], ceil: [], fit: [], glow: [], pool: [], wet: [], pipe: [] };
+    .map((d) => { const m = ns ? d.z : d.x, e = d.w / 2 + (d.lap || 0); return [m - e, m + e, (d.h ?? 2.1) + (d.lap || 0), d.own]; });
+  const corL = { own: [], walls: [], floor: [], ceil: [], fit: [], glow: [], pool: [], wet: [], pipe: [] };
   for (const s of [1, -1]) {
     const pts = offsetLine(s * (LW + T / 2));
     for (let i = 0; i < pts.length - 1; i++) {
@@ -223,7 +225,11 @@ export function installBackstage(ctx, edge) {
       const [a, b] = [pts[i], pts[i + 1]], ns = Math.abs(a[0] - b[0]) < 1e-6, fixed = ns ? a[0] : a[1];
       const sa = ns ? a[1] : a[0], sb = ns ? b[1] : b[0], dr = Math.sign(sb - sa), s0 = sa + dr * (i === 0 ? -T / 2 : T / 2), s1 = sb + dr * T / 2;
       const a0 = Math.min(s0, s1), a1 = Math.max(s0, s1);
-      wallWith(corL.walls, ns, fixed, a0, a1, COR.h, holesOn(ns, fixed, a0, a1), s > 0 ? '#77746e' : '#7a776f');
+      // (a run with the duct's opening in it is built apart, on a stream of its own, a placeholder in its place: three takes
+      // a uuid from Math.random for each box, and the extra pieces round it would move every draw after them)
+      const hs = holesOn(ns, fixed, a0, a1), apart = hs.some((h) => h[3]);
+      wallWith(apart ? corL.own : corL.walls, ns, fixed, a0, a1, COR.h, hs, s > 0 ? '#77746e' : '#7a776f');
+      if (apart) corL.walls.push([0, 0, 0, 0, -9, 0, '#77746e']);
     }
   }
   {   // the two ends
@@ -389,6 +395,7 @@ export function installBackstage(ctx, edge) {
     const parts = [mergedBoxes(corL.walls, concM), mergedBoxes(corL.floor, M({ color: '#4a4b4d', map: floorT, roughness: 0.75 })), mergedBoxes(corL.ceil, M({ vertexColors: true })),
       mergedBoxes(corL.fit, M({ vertexColors: true, roughness: 0.6, metalness: 0.3 })), new THREE.Mesh(mergeGeometries(pipeGeos), M({ vertexColors: true, roughness: 0.5, metalness: 0.5 }))];
     for (const m of parts) { m.castShadow = false; root.add(m); }
+    { const random = Math.random; Math.random = rng(5310); try { root.add(Object.assign(mergedBoxes(corL.own, concM), { castShadow: false })); } finally { Math.random = random; } }
     root.add(mergedBoxes(corL.glow, new THREE.MeshBasicMaterial({ color: LIT })));
     // the light each tube throws on the floor, and the wet
     const poolT = tex(128, 128, (c, w, h) => { const g = c.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2); g.addColorStop(0, 'rgba(255,255,255,.55)'); g.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = g; c.fillRect(0, 0, w, h); });
@@ -757,7 +764,7 @@ export function installBackstage(ctx, edge) {
   bs.hits = [skyHit, exitHit, ...doors.map((d) => d.hit), ...gallery.hits, ...flat.hits, ...model.hits, ...desk.hits];
   bs.enter = () => {
     place(mine.L?.z ?? restr.z0);
-    bs.colliders = [...cols, ...gallery.cols, ...flat.cols, ...model.cols, ...desk.cols].map((b) => boxB3(b));
+    bs.colliders = [...cols, ...gallery.cols, ...flat.cols, ...model.cols, ...desk.cols, ...bs.more].map((b) => boxB3(b));
     bound = boxB3({ minX: SKYAT.x - 0.3, maxX: RT[RT.length - 1][0] + 0.3, minZ: GAL.z0, maxZ: Q.z + 0.4 });
     shut();
   };
@@ -811,6 +818,7 @@ export function installBackstage(ctx, edge) {
     },
   };
 
+  ctx.dressBackstage?.({ bs, root, place: (z) => place(z), toB3, fromB3 });   // others' parts in here (world/secret-duct.js: the duct's grille)
   return {
     bs, gallery, flat, model, X,
     here: () => bs.on || restr.on,
