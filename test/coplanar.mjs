@@ -263,8 +263,6 @@ const PLACES = [
 // Intended overlaps, or ones another session is fixing: [scene, why, { box: [x0, x1, y0, y1, z0, z1] (where), upTo: n (at most
 // this many in that scene) }]. A hit is let through if its centre is in the box, or the scene has no more than upTo.
 export const ALLOW = [
-  // Being fixed by the sessions that own them (2026-10-11): counts as found, so a new one there still fails.
-  ['relativity', 'Relativity\'s stairs, walls and arches (floors/relativity*.js): its own session is fixing them', { upTo: 77 }],
   // Small joints left in the office's own parts (each under 90 cm², most under 10; listed in test/out/coplanar.txt): to tidy.
   ['office', 'small joints still to tidy: the stage\'s edges, the guitars\' bridges, the drinks fridges\' backs', { upTo: 11 }],
   ['floor 46', 'small joints still to tidy: changing-room benches, door frames, the pool\'s grate ends', { upTo: 24 }],
