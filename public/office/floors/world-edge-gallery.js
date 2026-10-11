@@ -16,7 +16,9 @@ import { dash, FONT, makeCanvas, MARKER, ME_LAYER } from '../util.js';
 const FW = 256, FH = 144, FPS = 3;
 
 export function installGallery(ctx, bs, PLAN) {
-  const { camera } = ctx, root = bs.root, { GAL, DIR, TIERS, PIT } = PLAN, R = Math.random;
+  const { camera } = ctx, root = bs.root, { GAL, DIR, TIERS, PIT } = PLAN;
+  let seed = 4;
+  const R = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };   // its own stream: what's built before it (each new object draws a uuid) can't shuffle its chairs
   const hits = [], cols = [];
   const M = (o) => new THREE.MeshStandardMaterial({ roughness: 0.7, ...o });
   // round the director's position: angle a from straight ahead (-z), r out

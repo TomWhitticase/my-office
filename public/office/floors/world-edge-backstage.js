@@ -191,7 +191,7 @@ export function installBackstage(ctx, edge) {
     return [p[0] + o * (n0[0] + n1[0]), p[1] + o * (n0[1] + n1[1])];
   });
   // The doors: in a wall along z (ns) or x, their middle at (x, z). kind: 'fire' (steel, wired glass, a push bar), 'wood',
-  // 'steel'; across a corridor (`across`: a frame and a transom, no wall); `pair` for double doors; locked ones rattle; auto
+  // 'steel', 'flat' (the flat's front door: world-edge-flat.js dresses it); `inward` ones always swing away from their `face`; across a corridor (`across`: a frame and a transom, no wall); `pair` for double doors; locked ones rattle; auto
   // ones swing open as you come up to them, and shut behind you.
   const DOORS = [
     { name: 'lockIn', x: LX, z: GAL.z1 + T / 2, ns: false, w: LOCK.w, h: 2.2, pair: true, kind: 'acoustic', auto: true, face: 1, title: 'Gallery 4', say: 'Swing doors: they open as you come to them' },
@@ -201,13 +201,14 @@ export function installBackstage(ctx, edge) {
     { name: 'fireS', x: 24, z: 12, ns: false, w: 1.6, pair: true, kind: 'fire', auto: true, across: true, title: 'Fire door', say: 'Fire door: keep shut' },
     { name: 'wc', x: -1.6, z: 3.1 - LW - T / 2, ns: false, w: 0.85, kind: 'wood', locked: true, face: 1, title: 'WC', say: 'Engaged. Someone coughs.' },
     { name: 'edit', x: 4.6, z: 3.1 - LW - T / 2, ns: false, w: 0.85, kind: 'wood', locked: true, face: 1, title: 'Edit 2', say: 'Locked. A red light over it: in session.' },
+    { name: 'flat', x: FLAT.door, z: 3.1 - LW - T / 2, ns: false, w: 0.9, h: 2.05, kind: 'flat', inward: true, face: 1, title: 'Flat 7', say: 'A front door, tired. A TV on behind it.' },
     { name: 'store', x: -6.0, z: 3.1 + LW + T / 2, ns: false, w: 0.85, kind: 'wood', face: -1, title: 'Store', say: 'A store cupboard' },
     { name: 'dock', x: -18.4, z: 8.0 + T / 2, ns: false, w: 1.3, kind: 'steel', locked: true, face: -1, title: 'Scene dock', say: 'Locked. Something big leans on it from the other side.' },
     { name: 'riser', x: 24 + LW + T / 2, z: 7.5, ns: true, w: 0.8, kind: 'steel', locked: true, face: -1, title: 'Electrical riser', say: 'Locked. It hums.' },
     { name: 'plant', x: 40.9 + T / 2, z: 20, ns: true, w: 1.2, kind: 'steel', locked: true, face: -1, title: 'Plant room', say: 'Locked. Authorised personnel only.' },
   ];
-  const holes = [   // every opening in a corridor wall: the doors above, the flat's, and the two that go somewhere else
-    ...DOORS.filter((d) => !d.across), { x: FLAT.door, z: 3.1 - LW - T / 2, ns: false, w: 0.9, h: 2.05 },
+  const holes = [   // every opening in a corridor wall: the doors above, and the two that go somewhere else
+    ...DOORS.filter((d) => !d.across),
     { x: SKYAT.x - T / 2, z: SKYAT.z, ns: true, w: SKY.w, h: SKY.h }, { x: Q.x, z: Q.z - T / 2, ns: false, w: EXIT.w, h: EXIT.h },
   ];
   const holesOn = (ns, fixed, a0, a1) => holes.filter((d) => !!d.ns === ns && Math.abs((ns ? d.x : d.z) - fixed) < 0.15 && (ns ? d.z : d.x) > a0 && (ns ? d.z : d.x) < a1)
@@ -281,6 +282,15 @@ export function installBackstage(ctx, edge) {
     mergedBoxes(lists.trim, M({ vertexColors: true, roughness: 0.5 })), mergedBoxes(lists.led, new THREE.MeshBasicMaterial({ color: new THREE.Color(0.35, 0.55, 1.0) })),
   ];
   for (const m of meshes) { m.castShadow = false; root.add(m); }
+  {   // the flat's paper on the corridor's wall too, round its front door (a skin, its pattern the same size as the far wall's)
+    const sh = new THREE.Shape([[FLAT.x0, 0], [FLAT.x1, 0], [FLAT.x1, FLAT.h], [FLAT.x0, FLAT.h]].map(([x, y]) => new THREE.Vector2(x, y))), dh = 0.51;
+    const hx = FLAT.x0 + FLAT.x1 - FLAT.door;   // (it's turned round to face in)
+    sh.holes.push(new THREE.Path([[hx - dh, 0], [hx - dh, 2.11], [hx + dh, 2.11], [hx + dh, 0]].map(([x, y]) => new THREE.Vector2(x, y))));
+    const g = new THREE.ShapeGeometry(sh), pa = g.attributes.position, uv = g.attributes.uv;
+    for (let i = 0; i < pa.count; i++) uv.setXY(i, (FLAT.x1 - pa.getX(i)) / (FLAT.x1 - FLAT.x0), pa.getY(i) / FLAT.h);
+    g.rotateY(Math.PI).translate(FLAT.x0 + FLAT.x1, 0, FLAT.z1 - 0.006);
+    root.add(new THREE.Mesh(g, M({ color: '#8f8a6e', map: paperT })));
+  }
 
   const red = M({ color: '#a8231c', roughness: 0.45 }), black = M({ color: '#151515', roughness: 0.6 });
   const cyl = (g, r, h, m, x, y, z) => { const o = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 18), m); o.position.set(x, y, z); g.add(o); return o; };
@@ -417,7 +427,7 @@ export function installBackstage(ctx, edge) {
   // ----- the doors: frames, leaves that swing, signs -----
   const frameG = [], doors = [];
   const doorM = { fire: M({ color: '#5d6266', roughness: 0.5, metalness: 0.5 }), wood: M({ color: '#8a6d4c', roughness: 0.55 }), steel: M({ color: '#4f5458', roughness: 0.55, metalness: 0.4 }),
-    acoustic: M({ color: '#2e3034', roughness: 0.7 }) };
+    acoustic: M({ color: '#2e3034', roughness: 0.7 }), flat: null };   // (the flat's: its own, world-edge-flat.js)
   const glassM = M({ color: '#0c1014', roughness: 0.1, metalness: 0.6 }), chrome = M({ color: '#b9bdc1', metalness: 0.8, roughness: 0.3 });
   const signM = (draw, w, h) => { const c = makeCanvas(Math.round(w * 500), Math.round(h * 500)); draw(c.ctx, c.W, c.H); c.tex.needsUpdate = true; return c.tex; };
   const fireSignM = M({ roughness: 0.5, map: signM((c, w, h) => {
@@ -440,6 +450,7 @@ export function installBackstage(ctx, edge) {
     const leaves = (d.pair ? [-1, 1] : [-1]).map((s) => {
       const lw = (d.pair ? w / 2 : w) - 0.015, hinge = new THREE.Group(); hinge.position.set(s * (w / 2 - 0.005), 0.01, 0); g.add(hinge);
       const leaf = new THREE.Mesh(new THREE.BoxGeometry(lw, h - 0.02, 0.05).translate(-s * lw / 2, (h - 0.02) / 2, 0), m); hinge.add(leaf);
+      if (d.kind === 'flat') return { hinge, s, leaf, lw };
       const fx = -s * lw / 2;   // the leaf's middle, across
       if (d.kind === 'fire' || d.kind === 'acoustic') {   // a vision panel
         const gl = new THREE.Mesh(new THREE.BoxGeometry(Math.min(0.3, lw * 0.4), 0.7, 0.056), glassM); gl.position.set(fx, 1.45, 0); hinge.add(gl);
@@ -455,10 +466,10 @@ export function installBackstage(ctx, edge) {
       }
       return { hinge, s, leaf };
     });
-    const D = { ...d, g, leaves, k: 0, want: 0, swing: 1, held: false, rattle: 0, hit: null };
+    const D = { ...d, g, leaves, k: 0, want: 0, swing: d.inward ? -d.face : 1, held: false, rattle: 0, hit: null };
     D.hit = ctx.hitBox(g, w, h, 0.3, 0, h / 2, 0, { action: 'stage-door', reach: 2.6 }); D.hit.userData.door = D;
     // its sign, both sides (or the corridor's side), a lamp over some
-    if (!d.across && d.kind !== 'acoustic') {
+    if (!d.across && d.kind !== 'acoustic' && d.kind !== 'flat') {
       const tx = signM(plate(d.title.toUpperCase()), 0.36, 0.1);
       const sp = new THREE.Mesh(new THREE.PlaneGeometry(0.36, 0.1), M({ map: tx, roughness: 0.5 })); sp.position.set(d.locked ? 0 : (d.w / 2 + 0.3) * d.face, 1.62, d.face * (T / 2 + 0.003)); if (d.face < 0) sp.rotation.y = Math.PI; g.add(sp);
     }
@@ -591,13 +602,17 @@ export function installBackstage(ctx, edge) {
   }
   function openDoor(d, on) {
     if (!!d.want === !!on) return;
-    if (on && d.k < 0.05) {   // swinging away from you
+    if (on && d.k < 0.05 && !d.inward) {   // swinging away from you
       const [px, pz] = fromB3(P.x, P.z), side = d.ns ? px - d.x : pz - d.z;
       d.swing = side > 0 ? -1 : 1;
     }
     d.want = on ? 1 : 0;
     if (d.kind === 'fire') { if (on) sound.bar(at3(d.x, d.z)); else setTimeout(() => sound.clunk(at3(d.x, d.z)), 1100); }
-    else ctx.sfx.cabinet?.('latch', at3(d.x, d.z), 0.2);
+    else if (d.kind === 'flat') {   // the latch, then the hinge; shutting, the hinge, then the latch catching
+      const p = at3(d.x, d.z);
+      if (on) { ctx.sfx.cabinet?.('latch', p, 0.3); setTimeout(() => sound.creak(p, 0.35, 1.25), 120); }
+      else { sound.creak(p, 0.25, 1.45); setTimeout(() => ctx.sfx.cabinet?.('latch', p, 0.45), 1250); }
+    } else ctx.sfx.cabinet?.('latch', at3(d.x, d.z), 0.2);
   }
   // each frame: the swing doors open as you come to them and shut behind you; the leaves where they are
   function doorsFx(dt, t) {
@@ -617,7 +632,7 @@ export function installBackstage(ctx, edge) {
 
   // ----- the rooms' contents -----
   const gallery = installGallery(ctx, bs, PLAN);
-  const flat = installFlat(ctx, bs, PLAN);
+  const flat = installFlat(ctx, bs, PLAN, doorBy.flat);
   const model = installModel(ctx, bs, PLAN, edge);
   const desk = installConsole(ctx, bs, PLAN);
 
@@ -760,7 +775,11 @@ export function installBackstage(ctx, edge) {
   bs.ground = (x, z) => { const [lx, lz] = fromB3(x, z); return floorAt(lx, lz); };
   bs.save = () => false;   // a reload in here puts you back where it last saved you: out on the pier (systems/resume.js)
   const tvAt = new THREE.Vector3();
-  bs.fx = (dt, t) => { shut(); corFlicker(t); sound.backstage(1, flat.tv.screen.getWorldPosition(tvAt)); };
+  bs.fx = (dt, t) => {
+    shut(); corFlicker(t);
+    const [px, pz] = fromB3(P.x, P.z), inFlat = px > FLAT.x0 && px < FLAT.x1 && pz > FLAT.z0 && pz < FLAT.z1;   // their TV: muffled under their door, clear through it
+    sound.backstage(1, flat.tv.screen.getWorldPosition(tvAt), inFlat ? 1 : sstep(0, 0.6, doorBy.flat.k));
+  };
   bs.map = () => {
     const c = ctx.mapCtx, W = 440, MH = 330, K = 9, [px, pz] = fromB3(P.x, P.z), sx = (x) => W / 2 + (x - px) * K, sz = (z) => MH / 2 + (z - pz) * K;
     c.clearRect(0, 0, W, MH);

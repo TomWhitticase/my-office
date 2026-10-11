@@ -214,9 +214,14 @@ export const POSES = [
     await o.eval(() => { const b = window.__office.heli.edge.backstage; b.go(-1.4, -7.4, -0.3, -0.3); b.model.open(true); });
     await o.step(60);
   }],
-  ['edge-flat', async (o) => {   // in the flat's doorway: the two of them on the sofa, you on their TV
+  ['edge-flat', async (o) => {   // in the flat's open doorway: the two of them on the sofa, you on their TV
     await from('edge-door', o);
-    await o.eval(() => window.__office.heli.edge.backstage.go(-11.1, 2.5, 0, -0.12));
+    await o.eval(() => { const b = window.__office.heli.edge.backstage; b.doors.flat.open(true); b.go(-11.1, 2.5, 0, -0.12); });
+    await o.step(40);
+  }],
+  ['edge-flat-door', async (o) => {   // the flat's front door from the corridor, shut: chipped paint, its number, the mat, the TV's light under it
+    await from('edge-door', o);
+    await o.eval(() => window.__office.heli.edge.backstage.go(-11.1, 3.85, 0, -0.5));
     await o.step(40);
   }],
   ['edge-exit', async (o) => {   // the fire door marked EXIT open off the corridor's last leg: B3 through it, in its own light
