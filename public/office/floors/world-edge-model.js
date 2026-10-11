@@ -1,8 +1,8 @@
 // The model table in the gallery behind the sky (world-edge-backstage.js): the whole world in miniature on a round table,
 // a matte white architectural model lit from above. The city's blocks (city.js's own footprints, one merged mesh), the
 // river, the ring of mountains, the sea out to the sky's wall (a faint line dome over it all), your building in the middle.
-// Live: its lamp is the sun, from where the sun really is (so the shadows are the time of day; the gallery's SUN fader
-// moves both), WEATHER's cloud drifts over it, your building's windows light with the office's lights, the helicopter sits
+// Live: its sun a glowing ball on a brass arm over it, where the sun really is (so the shadows are the time of day; the
+// console's TIME OF DAY dial moves both), WEATHER's cloud drifts over it, your building's windows light with the office's lights, the helicopter sits
 // where it is (on the pier now), and the door you came in by glows at the edge. Click your building and its floors lift
 // apart above the table into a stacked cutaway, each with its walls and desks, and the office's people moving about on
 // it (and the blinds, the lights). Hover anything for its name. Only updated while you're in here: the people and the
@@ -17,7 +17,7 @@ const RIM = 1.75, TOP = 0.9, VEX = 1.25;   // the model's radius (the sky's wall
 export function installModel(ctx, bs, PLAN, edge) {
   const { city, heli, roof, FLOORS, sun, sunDir } = ctx, root = bs.root, { TC } = PLAN, R = Math.random, hits = [], cols = [];
   const W = edge.R, K = RIM / W, G0 = city.GROUND;
-  const g = new THREE.Group(); g.position.set(TC.x, TOP, TC.z); root.add(g);
+  const Y0 = TC.y || 0, g = new THREE.Group(); g.position.set(TC.x, Y0 + TOP, TC.z); root.add(g);
   const my = (y) => (y - G0) * K * VEX;   // a height in the world, on the model
   const M = (o) => new THREE.MeshStandardMaterial({ roughness: 0.92, ...o });
   const whiteM = M({ color: '#f4f2ec', emissive: '#ffd9a0', emissiveIntensity: 0 }), landM = M({ color: '#9f9b91' });
@@ -28,10 +28,10 @@ export function installModel(ctx, bs, PLAN, edge) {
 
   // ----- the table: dark, round, a brass edge -----
   const tableM = M({ color: '#0d0e10', roughness: 0.4, metalness: 0.3 });
-  const table = new THREE.Mesh(new THREE.CylinderGeometry(RIM + 0.1, RIM + 0.06, 0.09, 64), tableM); table.position.set(TC.x, TOP - 0.055, TC.z); root.add(table);
-  const plinth = new THREE.Mesh(new THREE.CylinderGeometry(RIM - 0.55, RIM - 0.45, TOP - 0.1, 48), tableM); plinth.position.set(TC.x, (TOP - 0.1) / 2, TC.z); root.add(plinth);
+  const table = new THREE.Mesh(new THREE.CylinderGeometry(RIM + 0.1, RIM + 0.06, 0.09, 64), tableM); table.position.set(TC.x, Y0 + TOP - 0.055, TC.z); root.add(table);
+  const plinth = new THREE.Mesh(new THREE.CylinderGeometry(RIM - 0.55, RIM - 0.45, TOP - 0.1, 48), tableM); plinth.position.set(TC.x, Y0 + (TOP - 0.1) / 2, TC.z); root.add(plinth);
   const rim = new THREE.Mesh(new THREE.TorusGeometry(RIM + 0.08, 0.02, 8, 96).rotateX(Math.PI / 2), M({ color: '#8a7448', metalness: 0.8, roughness: 0.35 }));
-  rim.position.set(TC.x, TOP - 0.01, TC.z); root.add(rim);
+  rim.position.set(TC.x, Y0 + TOP - 0.01, TC.z); root.add(rim);
   for (const [w, d] of [[2 * RIM + 0.2, 2.2], [2.2, 2 * RIM + 0.2], [3.1, 3.1]]) cols.push({ minX: TC.x - w / 2, maxX: TC.x + w / 2, minZ: TC.z - d / 2, maxZ: TC.z + d / 2 });
 
   // ----- the sea, the land, the river -----
@@ -144,15 +144,31 @@ export function installModel(ctx, bs, PLAN, edge) {
   for (const o of [rainL, snowL, ...haze]) { o.layers.set(1); o.raycast = () => {}; o.frustumCulled = false; o.visible = false; g.add(o); }
   let clX = 0, clZ = 0;
 
-  // ----- its lamp: the sun (from where the sun is), and a cool fill for the night -----
+  // ----- its sun: a little glowing ball on a brass arm over the model, at the dome's edge, where the sun is in the sky (its
+  // arm swung round to the sun's bearing, the ball up it to the sun's height: below the horizon it sinks to the rim and
+  // dims), its light from further out along the same line (so the shadows fall as the day's do); a cool fill for the night
   const lamp = new THREE.SpotLight('#ffffff', 0, 9, 0.42, 0.5, 1.2);
   lamp.castShadow = true; lamp.shadow.mapSize.set(2048, 2048); lamp.shadow.bias = -0.0004; lamp.shadow.normalBias = 0.004; lamp.shadow.camera.near = 2; lamp.shadow.camera.far = 9;
-  root.add(lamp, lamp.target); lamp.target.position.set(TC.x, TOP, TC.z);
-  const fill = new THREE.SpotLight('#9fb6e0', 6, 6, 0.5, 0.8, 1.5); fill.position.set(TC.x, 3.5, TC.z + 0.3); fill.target.position.set(TC.x, TOP, TC.z); root.add(fill, fill.target);
-  const housing = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.09, 0.14, 14), M({ color: '#202124', metalness: 0.6 }));
-  const lens = new THREE.Mesh(new THREE.CircleGeometry(0.075, 14), new THREE.MeshBasicMaterial({ color: '#fff4dc' }));
-  lens.position.y = -0.071; lens.rotation.x = Math.PI / 2; housing.add(lens); root.add(housing);
-  const cable = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 1, 6), M({ color: '#111' })); root.add(cable);
+  root.add(lamp, lamp.target); lamp.target.position.set(TC.x, Y0 + TOP, TC.z);
+  const fill = new THREE.SpotLight('#9fb6e0', 6, 6, 0.5, 0.8, 1.5); fill.position.set(TC.x, Y0 + 3.3, TC.z + 0.3); fill.target.position.set(TC.x, Y0 + TOP, TC.z); root.add(fill, fill.target);
+  const AR = RIM + 0.06, AH = 0.62;   // the arm: a half ellipse over the model from rim to rim, as the dome's lines are
+  const arm = new THREE.Group(); g.add(arm);
+  {
+    const pts = [];
+    for (let i = 0; i <= 48; i++) { const e = i / 48 * Math.PI; pts.push(new THREE.Vector3(AR * Math.cos(e), AR * AH * Math.sin(e), 0)); }
+    const brass = M({ color: '#8a7448', metalness: 0.8, roughness: 0.35 });
+    arm.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 64, 0.006, 6, false), brass));
+    for (const s of [-1, 1]) { const pv = new THREE.Mesh(new THREE.SphereGeometry(0.018, 10, 8), brass); pv.position.set(s * AR, 0.004, 0); arm.add(pv); }   // its pivots on the rim
+    arm.traverse((o) => { o.raycast = () => {}; });
+  }
+  const sunBall = new THREE.Mesh(new THREE.SphereGeometry(0.045, 20, 14), new THREE.MeshBasicMaterial({ color: new THREE.Color(3, 2.6, 1.9) }));
+  const sunGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: (() => {
+    const c = makeCanvas(64, 64), x = c.ctx, gr = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+    gr.addColorStop(0, 'rgba(255,236,190,1)'); gr.addColorStop(0.35, 'rgba(255,210,140,.35)'); gr.addColorStop(1, 'rgba(255,200,120,0)'); x.fillStyle = gr; x.fillRect(0, 0, 64, 64); c.tex.needsUpdate = true; return c.tex;
+  })(), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
+  sunGlow.scale.setScalar(0.32); sunGlow.layers.set(1); sunBall.add(sunGlow); g.add(sunBall);
+  const sunHit = ctx.hitBox(sunBall, 0.12, 0.12, 0.12, 0, 0, 0, { action: 'edge-model', reach: 5 });
+  sunHit.userData.drawerAt = () => name('The sun', sunDir.y > 0 ? `${Math.round(Math.asin(sunDir.y) * 180 / Math.PI)}° up · set it on the console’s TIME OF DAY` : 'Down for the night'); hits.push(sunHit);
 
   // ----- the cutaway: your building's floors, lifted apart above the table -----
   const C = { k: 0, want: 0, built: false, floors: [], people: null, n: 0 };
@@ -209,13 +225,15 @@ export function installModel(ctx, bs, PLAN, edge) {
   let slowAt = -1, shadowAt = -1, lastSun = new THREE.Vector3();
   function fx(dt, t) {
     const S = heli.S;
-    // the sun lamp: 4.5 m out along the sun's direction (from below the horizon it's off, the fill alone)
-    const el = sunDir.y, on = sstep(-0.03, 0.06, el);
-    lamp.position.copy(sunDir).multiplyScalar(4.2).add(v.set(TC.x, TOP, TC.z)); if (lamp.position.y < TOP + 0.3) lamp.position.y = TOP + 0.3;
+    // the sun: the ball where the line from the model's middle along the sun's direction meets the arm (so it's at the
+    // sun's height in the sky), the arm swung to its bearing; the light 4.2 m out along the same line
+    const el = sunDir.y, on = sstep(-0.03, 0.06, el), h = Math.hypot(sunDir.x, sunDir.z) || 1e-6, e = Math.max(-0.02, Math.asin(clamp(el, -1, 1)));
+    const r = 1 / Math.hypot(Math.cos(e) / AR, Math.sin(e) / (AR * AH));
+    arm.rotation.y = Math.atan2(-sunDir.z, sunDir.x);
+    sunBall.position.set(sunDir.x / h * r * Math.cos(e), r * Math.sin(e) + 0.01, sunDir.z / h * r * Math.cos(e));
+    sunBall.material.color.setRGB(3, 2.6, 1.9).multiplyScalar(0.15 + 0.85 * on); sunGlow.material.opacity = 0.2 + 0.8 * on;
+    lamp.position.copy(sunDir).multiplyScalar(4.2).add(v.set(TC.x, Y0 + TOP, TC.z)); if (lamp.position.y < Y0 + TOP + 0.3) lamp.position.y = Y0 + TOP + 0.3;
     lamp.color.copy(sun.color); lamp.intensity = 28 * on * (0.4 + 0.6 * clamp(sun.intensity / 4.2, 0, 1.2));
-    housing.position.copy(lamp.position); housing.lookAt(lamp.target.position); housing.rotateX(-Math.PI / 2); housing.visible = on > 0.01;
-    lens.material.color.setScalar(on > 0.01 ? 1 : 0.1);
-    v.copy(lamp.position); cable.position.set(v.x, (v.y + PLAN.GAL.h) / 2 + 0.07, v.z); cable.scale.y = Math.max(0.01, PLAN.GAL.h - v.y - 0.07); cable.visible = housing.visible;
     fill.intensity = 3 + 7 * (1 - on);
     // the city's lights at night, your building's with the office's
     const night = ctx.skyU.night.value, o = dash.office || {}, lights = (o.lights === 'on' ? 1 : o.lights === 'off' ? 0 : 1 - ctx.daylight) * (o.brightness ?? 1);
