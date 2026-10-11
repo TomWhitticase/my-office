@@ -52,11 +52,11 @@ export function buildArch(R) {
     return g;
   }
   // A box from (x0, y0, z0) to (x1, y1, z1) in frame k: solid (in `boxes`, a floor for frames m) and/or shown.
-  function box(k, x0, y0, z0, x1, y1, z1, { m = bit(k), solid = true, show = true, kind = 'stone', tint = STONE, j } = {}) {
+  function box(k, x0, y0, z0, x1, y1, z1, { m = bit(k), solid = true, show = true, kind = 'stone', tint = STONE, j, rgb } = {}) {
     if (x1 - x0 < 1e-4 || y1 - y0 < 1e-4 || z1 - z0 < 1e-4) return;
     const a = toWorld(k, [x0, y0, z0]), b = toWorld(k, [x1, y1, z1]);
     if (solid) { boxes.push({ min: a, max: b, m, piece }); }
-    if (show) put(0, new THREE.BoxGeometry(b[0] - a[0], b[1] - a[1], b[2] - a[2]).translate((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2), kind, col(tint, j));
+    if (show) put(0, new THREE.BoxGeometry(b[0] - a[0], b[1] - a[1], b[2] - a[2]).translate((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2), kind, rgb || col(tint, j));
   }
   const begin = (name) => { piece = name; pieces.push(name); };
 
@@ -97,18 +97,19 @@ export function buildArch(R) {
     return Array.from({ length: n }, (_, i) => ({ c: o + i * (w + p), w, s, ...extra }));
   };
   // A balustrade on a level surface at height y, from (x0, z0) to (x1, z1) (one of them the same): a coping on
-  // balusters, and a box you can't step over.
+  // balusters, and a box you can't step over. Where two meet at a corner they'd share faces: what's shown stops 5 mm
+  // short of each end (inside the one it meets), and one along z stands 5 mm taller than one along x.
   function rail(k, x0, z0, x1, z1, y, { solid = true, h = RAIL } = {}) {
     const alongX = Math.abs(x1 - x0) > Math.abs(z1 - z0), len = alongX ? Math.abs(x1 - x0) : Math.abs(z1 - z0);
     if (len < 0.05) return;
-    const lo = Math.min(alongX ? x0 : z0, alongX ? x1 : z1), c = alongX ? z0 : x0;
+    const lo = Math.min(alongX ? x0 : z0, alongX ? x1 : z1), c = alongX ? z0 : x0, a = lo + 0.005, b = lo + len - 0.005, t = alongX ? 0 : 0.005;
     const B = (u0, v0, w0, u1, v1, w1, o) => (alongX ? box(k, u0, v0, w0, u1, v1, w1, o) : box(k, w0, v0, u0, w1, v1, u1, o));
-    B(lo, y + h - 0.1, c - 0.12, lo + len, y + h, c + 0.12, { solid: false, kind: 'pale', tint: PALE });
-    B(lo, y, c - 0.1, lo + len, y + 0.12, c + 0.1, { solid: false, kind: 'pale', tint: PALE });
+    B(a, y + h + t - 0.1, c - 0.12, b, y + h + t, c + 0.12, { solid: false, kind: 'pale', tint: PALE });
+    B(a, y, c - 0.1, b, y + 0.12 + t, c + 0.1, { solid: false, kind: 'pale', tint: PALE });
     const n = Math.max(1, Math.round(len / 0.24));
     for (let i = 0; i <= n; i++) {
-      const u = lo + (len * i) / n, w = i === 0 || i === n ? 0.08 : 0.035;
-      B(u - w, y + 0.12, c - w, u + w, y + h - 0.1, c + w, { solid: false, kind: 'pale', tint: PALE });
+      const u = a + ((b - a) * i) / n, w = i === 0 || i === n ? 0.08 : 0.035;
+      B(u - w, y + 0.12 + t, c - w, u + w, y + h + t - 0.1, c + w, { solid: false, kind: 'pale', tint: PALE });
     }
     if (solid) B(lo, y, c - 0.1, lo + len, y + h, c + 0.1, { show: false });
   }
@@ -126,21 +127,23 @@ export function buildArch(R) {
   for (let k = 0; k < 3; k++) {
     begin(`floor${k}`);
     box(k, -L, -L - 1, -L, L + 3, -L, L + 3, { tint: '#cfc7b6' });
-    // flagstones: a grid of joints, a shade darker
+    // flagstones: a grid of joints, a shade darker (kept to the floor, not over its edges; where they cross, one way a
+    // little prouder, and each stops 1 cm short of the edge joints across its ends)
     for (let i = -L; i <= L + 3; i += 3) {
-      box(k, i - 0.015, -L, -L, i + 0.015, -L + 0.004, L + 3, { solid: false, kind: 'stone', tint: DARK });
-      box(k, -L, -L, i - 0.015, L + 3, -L + 0.004, i + 0.015, { solid: false, kind: 'stone', tint: DARK });
+      const u0 = Math.max(-L, i - 0.015), u1 = Math.min(L + 3, i + 0.015);
+      box(k, u0, -L, -L + 0.01, u1, -L + 0.004, L + 2.99, { solid: false, kind: 'stone', tint: DARK });
+      box(k, -L + 0.01, -L, u0, L + 2.99, -L + 0.008, u1, { solid: false, kind: 'stone', tint: DARK });
     }
     begin(`arcade${k}`);
     arches(k, 'z', L, -7, L, -L, 6.5, 0.8, bays(-7, L, 2.7, 0.9, 3.3, { rail: true }));
     arches(k, 'x', L, -7, L + 0.8, -L, 6.5, 0.8, bays(-7, L + 0.8, 2.7, 0.9, 3.3, { rail: true }));
     box(k, L - 0.1, -L + 6.5, -7, L + 0.9, -L + 6.9, L + 0.9, { solid: false, kind: 'pale', tint: PALE });   // a cornice
-    box(k, -7, -L + 6.5, L - 0.1, L + 0.9, -L + 6.9, L + 0.9, { solid: false, kind: 'pale', tint: PALE });
+    box(k, -7, -L + 6.5, L - 0.1, L - 0.1, -L + 6.9, L + 0.9, { solid: false, kind: 'pale', tint: PALE });   // (up to the other one)
     begin(`garden${k}`);
     rail(k, L + 3, -6.5, L + 3, L + 3, -L, { solid: false });
     rail(k, -6.5, L + 3, L + 3, L + 3, -L, { solid: false });
     box(k, L + 2.6, -L - 3.6, -6.5, L + 3, -L - 1, L + 3, { solid: false, tint: DARK });   // the retaining wall down to the lawn
-    box(k, -6.5, -L - 3.6, L + 2.6, L + 3, -L - 1, L + 3, { solid: false, tint: DARK });
+    box(k, -6.5, -L - 3.6, L + 2.6, L + 2.6, -L - 1, L + 3, { solid: false, tint: DARK });
     box(k, L + 3, -L - 4.2, -6, 70, -L - 3.6, 70, { solid: false, kind: 'lawn', tint: '#c9c8b4' });
     box(k, -6, -L - 4.2, L + 3, L + 3, -L - 3.6, 70, { solid: false, kind: 'lawn', tint: '#c9c8b4' });
     const yl = -L - 3.6;
@@ -156,10 +159,10 @@ export function buildArch(R) {
     for (let n = 0; n < 6; n++) {   // hedges
       const x = L + 8 + n * 7;
       box(k, x, yl, 4, x + 1.2, yl + 1.2, 40, { solid: false, kind: 'leaf', tint: '#b6b5a6' });
-      box(k, 4, yl, x, 40, yl + 1.2, x + 1.2, { solid: false, kind: 'leaf', tint: '#b6b5a6' });
+      box(k, 4, yl, x, 40, yl + 1.3, x + 1.2, { solid: false, kind: 'leaf', tint: '#b6b5a6' });   // (taller than those they cross)
     }
     // far off, more of the same building: arcades on arcades
-    for (const [along, at] of [['z', 72], ['x', 72]]) {
+    for (const [along, at] of [['z', 72 + k * 0.5], ['x', 72 + k * 0.5]]) {   // (each gravity's further out: two cross)
       for (let lvl = 0; lvl < 3; lvl++) arches(k, along, at, -6, 72, yl + lvl * 7, 7, 1, bays(-6, 72, 3, 1.2, 4), { solid: false, tint: lvl ? '#cbc3b2' : DARK });
     }
 
@@ -167,11 +170,18 @@ export function buildArch(R) {
     begin(`stair${k}`);
     const { xa, W, yf, zf, n, h, T, T1, D, EXT, yt, zt } = S, mm = bit(k) | bit(k + 1);
     for (let i = 0; i < n; i++) {
-      box(k, xa, yf + i * h - T, zf + i * h, xa + W, yf + (i + 1) * h, zf + (i + 1) * h, { m: mm, tint: i % 2 ? STONE : '#d1c9b8', j: 0.02 });
+      const step = { m: mm, tint: i % 2 ? STONE : '#d1c9b8', j: 0.02 };
+      if (i < n - 1) box(k, xa, yf + i * h - T, zf + i * h, xa + W, yf + (i + 1) * h, zf + (i + 1) * h, step);
+      else {   // the top one: its right half's in the next one's top landing (below), so only what's under that is shown
+        const rgb = col(step.tint, step.j);
+        box(k, xa, yf + i * h - T, zf + i * h, xa + W, yf + (i + 1) * h, zf + (i + 1) * h, { m: mm, show: false });
+        box(k, xa, yf + i * h - T, zf + i * h, xa + W / 2, yf + (i + 1) * h, zf + (i + 1) * h, { solid: false, rgb });
+        box(k, xa + W / 2, yf + i * h - T, zf + i * h, xa + W, yt - T, zf + (i + 1) * h, { solid: false, rgb });
+      }
       for (const x of [xa, xa + W - 0.2]) {   // balustrades: on top (this gravity's), and on the underside (the next one's)
         box(k, x, yf + (i + 1) * h, zf + i * h, x + 0.2, yf + (i + 1) * h + RAIL, zf + (i + 1) * h, { show: false });
         box(k, x, yf + i * h - T, zf + (i + 1) * h, x + 0.2, yf + (i + 1) * h - T, zf + (i + 1) * h + RAIL, { show: false });
-        box(k, x + 0.065, yf + (i + 1) * h, zf + i * h + 0.1, x + 0.135, yf + (i + 1) * h + RAIL - 0.1, zf + i * h + 0.17, { solid: false, kind: 'pale', tint: PALE });
+        box(k, x + 0.065, yf + (i + 1) * h, zf + i * h + 0.105, x + 0.135, yf + (i + 1) * h + RAIL - 0.1, zf + i * h + 0.175, { solid: false, kind: 'pale', tint: PALE });
         box(k, x + 0.065, yf + i * h - T + 0.1, zf + (i + 1) * h, x + 0.135, yf + i * h - T + 0.17, zf + (i + 1) * h + RAIL - 0.1, { solid: false, kind: 'pale', tint: PALE });
       }
     }
