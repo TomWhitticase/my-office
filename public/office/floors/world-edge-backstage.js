@@ -148,7 +148,7 @@ export function installBackstage(ctx, edge) {
   wallBox(lists.dark, GAL.x1, GAL.x1 + T, WIN.z0, WIN.z1, PIT, WIN.y0, '#2b2c2f');
   wallBox(lists.dark, GAL.x1, GAL.x1 + T, WIN.z0, WIN.z1, WIN.y1, GAL.h, '#2b2c2f');
   const LX = (LOCK.x0 + LOCK.x1) / 2;
-  wallWith(lists.dark, false, GAL.z1 + T / 2, GAL.x0 - T, GAL.x1 + T, GAL.h, [[LX - LOCK.w / 2, LX + LOCK.w / 2, 2.2]], '#2b2c2f');   // the back, the sound lock's inner doors
+  wallWith(lists.dark, false, GAL.z1 + T / 2, GAL.x0 - T, GAL.x1 + T, GAL.h, [[LX - LOCK.w / 2 - 0.03, LX + LOCK.w / 2 + 0.03, 2.23]], '#2b2c2f');   // the back, the sound lock's inner doors (cut under their frame)
   // the floors: the pit, the tiers (their fronts are the risers), the stairs either side, the top and the walkway
   const fl = (x0, x1, za, zb, y, c = '#151618') => lists.floorG.push([x1 - x0, y - PIT + 0.1, zb - za, (x0 + x1) / 2, (y + PIT - 0.1) / 2, (za + zb) / 2, c]);
   fl(GAL.x0, GAL.x1, GAL.z0, TIERS[0][0], PIT);
@@ -177,7 +177,7 @@ export function installBackstage(ctx, edge) {
   wallWith(lists.flat, true, FLAT.x1 + T / 2, FLAT.z0 - T, FLAT.z1, FLAT.h, [], '#8f8a6e');
   wallWith(lists.flat, false, FLAT.z0 - T / 2, FLAT.x0, FLAT.x1, FLAT.h, [], '#8f8a6e');
   lists.floorF.push([FLAT.x1 - FLAT.x0, 0.1, FLAT.z1 - FLAT.z0 + 0.2, (FLAT.x0 + FLAT.x1) / 2, -0.05, (FLAT.z0 + FLAT.z1) / 2 + 0.1]);
-  lists.ceil.push([FLAT.x1 - FLAT.x0 + 0.4, 0.1, FLAT.z1 - FLAT.z0 + 0.4, (FLAT.x0 + FLAT.x1) / 2, FLAT.h + 0.05, (FLAT.z0 + FLAT.z1) / 2, '#a19b86']);
+  lists.ceil.push([FLAT.x1 - FLAT.x0 + 0.4, 0.1, FLAT.z1 - FLAT.z0 + 0.3, (FLAT.x0 + FLAT.x1) / 2, FLAT.h + 0.05, (FLAT.z0 + FLAT.z1) / 2 - 0.05, '#a19b86']);   // (its end inside the corridor's wall, not on its face)
 
   // ----- the corridors: one route, from the stub by the sky door along the gallery's back and round to the exit -----
   // Its walls are its middle line offset either side (o > 0: to the left of the way along it, the +n side); the doors in
@@ -207,18 +207,22 @@ export function installBackstage(ctx, edge) {
     { name: 'riser', x: 24 + LW + T / 2, z: 7.5, ns: true, w: 0.8, kind: 'steel', locked: true, face: -1, title: 'Electrical riser', say: 'Locked. It hums.' },
     { name: 'plant', x: 40.9 + T / 2, z: 20, ns: true, w: 1.2, kind: 'steel', locked: true, face: -1, title: 'Plant room', say: 'Locked. Authorised personnel only.' },
   ];
+  // (a framed one cut 3 cm wider each side and higher than its opening, the wall's ends hidden inside the frame, not on
+  // the same plane as its jambs' faces)
   const holes = [   // every opening in a corridor wall: the doors above, and the two that go somewhere else
-    ...DOORS.filter((d) => !d.across),
-    { x: SKYAT.x - T / 2, z: SKYAT.z, ns: true, w: SKY.w, h: SKY.h }, { x: Q.x, z: Q.z - T / 2, ns: false, w: EXIT.w, h: EXIT.h },
+    ...DOORS.filter((d) => !d.across).map((d) => ({ ...d, lap: 0.03 })),
+    { x: SKYAT.x - T / 2, z: SKYAT.z, ns: true, w: SKY.w, h: SKY.h }, { x: Q.x, z: Q.z - T / 2, ns: false, w: EXIT.w, h: EXIT.h, lap: 0.03 },
   ];
   const holesOn = (ns, fixed, a0, a1) => holes.filter((d) => !!d.ns === ns && Math.abs((ns ? d.x : d.z) - fixed) < 0.15 && (ns ? d.z : d.x) > a0 && (ns ? d.z : d.x) < a1)
-    .map((d) => { const m = ns ? d.z : d.x; return [m - d.w / 2, m + d.w / 2, d.h ?? 2.1]; });
+    .map((d) => { const m = ns ? d.z : d.x, e = d.w / 2 + (d.lap || 0); return [m - e, m + e, (d.h ?? 2.1) + (d.lap || 0)]; });
   const corL = { walls: [], floor: [], ceil: [], fit: [], glow: [], pool: [], wet: [], pipe: [] };
   for (const s of [1, -1]) {
     const pts = offsetLine(s * (LW + T / 2));
     for (let i = 0; i < pts.length - 1; i++) {
+      // each run carries on through the corner square at its end; the next starts past it (two through it: a doubled face)
       const [a, b] = [pts[i], pts[i + 1]], ns = Math.abs(a[0] - b[0]) < 1e-6, fixed = ns ? a[0] : a[1];
-      const a0 = Math.min(ns ? a[1] : a[0], ns ? b[1] : b[0]) - T / 2, a1 = Math.max(ns ? a[1] : a[0], ns ? b[1] : b[0]) + T / 2;
+      const sa = ns ? a[1] : a[0], sb = ns ? b[1] : b[0], dr = Math.sign(sb - sa), s0 = sa + dr * (i === 0 ? -T / 2 : T / 2), s1 = sb + dr * T / 2;
+      const a0 = Math.min(s0, s1), a1 = Math.max(s0, s1);
       wallWith(corL.walls, ns, fixed, a0, a1, COR.h, holesOn(ns, fixed, a0, a1), s > 0 ? '#77746e' : '#7a776f');
     }
   }
@@ -227,16 +231,16 @@ export function installBackstage(ctx, edge) {
     wallWith(corL.walls, false, p0[1] + T / 2, p0[0] - LW - T, p0[0] + LW + T, COR.h, holesOn(false, p0[1] + T / 2, -1e9, 1e9), '#77746e');
     wallWith(corL.walls, true, p1[0] + T / 2, p1[1] - LW - T, p1[1] + LW + T, COR.h, holesOn(true, p1[0] + T / 2, -1e9, 1e9), '#77746e');
   }
-  const rects = [];   // the corridors' floor, each leg to the corners
+  const rects = [], lids = [];   // the corridors' floor, each leg through the corner at its end (the next from there on); the ceiling, into the walls
   for (let i = 0; i < dirs.length; i++) {
-    const a = RT[i], b = RT[i + 1], ea = i > 0 ? LW : 0, eb = i < dirs.length - 1 ? LW : 0, d = dirs[i];
+    const a = RT[i], b = RT[i + 1], ea = i > 0 ? -LW : 0, eb = i < dirs.length - 1 ? LW : 0, d = dirs[i];
     const xa = a[0] - d[0] * ea, za = a[1] - d[1] * ea, xb = b[0] + d[0] * eb, zb = b[1] + d[1] * eb;
     rects.push([Math.min(xa, xb) - (d[0] ? 0 : LW), Math.max(xa, xb) + (d[0] ? 0 : LW), Math.min(za, zb) - (d[1] ? 0 : LW), Math.max(za, zb) + (d[1] ? 0 : LW)]);
+    const ca = i > 0 ? -LW - 0.2 : 0.2, cb = i < dirs.length - 1 ? LW + 0.2 : 0.2, xc = a[0] - d[0] * ca, zc = a[1] - d[1] * ca, xd = b[0] + d[0] * cb, zd = b[1] + d[1] * cb;
+    lids.push([Math.min(xc, xd) - (d[0] ? 0 : LW + 0.2), Math.max(xc, xd) + (d[0] ? 0 : LW + 0.2), Math.min(zc, zd) - (d[1] ? 0 : LW + 0.2), Math.max(zc, zd) + (d[1] ? 0 : LW + 0.2)]);
   }
-  for (const [x0, x1, za, zb] of rects) {
-    corL.floor.push([x1 - x0, 0.1, zb - za, (x0 + x1) / 2, -0.05, (za + zb) / 2]);
-    corL.ceil.push([x1 - x0 + 0.4, 0.1, zb - za + 0.4, (x0 + x1) / 2, COR.h + 0.05, (za + zb) / 2, '#5f5d58']);
-  }
+  for (const [x0, x1, za, zb] of rects) corL.floor.push([x1 - x0, 0.1, zb - za, (x0 + x1) / 2, -0.05, (za + zb) / 2]);
+  for (const [x0, x1, za, zb] of lids) corL.ceil.push([x1 - x0, 0.1, zb - za, (x0 + x1) / 2, COR.h + 0.05, (za + zb) / 2, '#5f5d58']);
   // the store: a cupboard off the corridor, shelves of tape boxes and gaffer, a mop in a bucket
   const ST = { x0: -6.9, x1: -5.1, z0: 3.1 + LW + T, z1: 5.5 };
   wallWith(corL.walls, true, ST.x0 - T / 2, ST.z0, ST.z1 + T, COR.h, [], '#8a877f');
@@ -332,7 +336,7 @@ export function installBackstage(ctx, edge) {
   function flatRun(o, y, w, h, c, list = corL.fit) {
     const pts = offsetLine(o);
     for (let i = 0; i < pts.length - 1; i++) {
-      const a = pts[i], b = pts[i + 1], ns = Math.abs(a[0] - b[0]) < 1e-6, e0 = i > 0 ? w / 2 : 0, e1 = i < pts.length - 2 ? w / 2 : 0;
+      const a = pts[i], b = pts[i + 1], ns = Math.abs(a[0] - b[0]) < 1e-6, e0 = i > 0 ? -w / 2 : 0, e1 = i < pts.length - 2 ? w / 2 : 0;   // (through the corner at its end; the next from there on)
       const lo = Math.min(ns ? a[1] : a[0], ns ? b[1] : b[0]), hi = Math.max(ns ? a[1] : a[0], ns ? b[1] : b[0]);
       const sa = (ns ? a[1] < b[1] : a[0] < b[0]) ? e0 : e1, sb = sa === e0 ? e1 : e0, l = hi - lo + sa + sb, mid = (lo - sa + hi + sb) / 2;
       list.push(ns ? [w, h, l, a[0], y, mid, c] : [l, h, w, mid, y, a[1], c]);
@@ -439,7 +443,7 @@ export function installBackstage(ctx, edge) {
     const g = new THREE.Group(); g.position.set(d.x, 0, d.z); g.rotation.y = d.ns ? Math.PI / 2 : 0; root.add(g); g.updateMatrix();   // local x along the wall, z across it
     const h = d.h ?? 2.1, w = d.w, m = doorM[d.kind], deep = d.across ? 0.12 : T + 0.02;
     const fb = (bw, bh, bd, x, y, z) => frameG.push(new THREE.BoxGeometry(bw, bh, bd).translate(x, y, z).applyMatrix4(g.matrix));
-    fb(0.06, h + 0.06, deep, -w / 2 - 0.03, (h + 0.06) / 2, 0); fb(0.06, h + 0.06, deep, w / 2 + 0.03, (h + 0.06) / 2, 0); fb(w + 0.12, 0.06, deep, 0, h + 0.03, 0);
+    fb(0.06, h, deep, -w / 2 - 0.03, h / 2, 0); fb(0.06, h, deep, w / 2 + 0.03, h / 2, 0); fb(w + 0.12, 0.06, deep, 0, h + 0.03, 0);   // jambs, the head over them
     if (d.across) {   // a door across the corridor: posts to the walls, a transom over it to the ceiling, its cables and pipes through
       const side = (COR.w - w - 0.12) / 2;
       if (side > 0.01) { fb(side, h + 0.06, 0.1, -COR.w / 2 + side / 2, (h + 0.06) / 2, 0); fb(side, h + 0.06, 0.1, COR.w / 2 - side / 2, (h + 0.06) / 2, 0); }
@@ -448,30 +452,34 @@ export function installBackstage(ctx, edge) {
       cols.push(cb, d.ns ? { ...cb, minZ: d.z + w / 2, maxZ: d.z + LW } : { ...cb, minX: d.x + w / 2, maxX: d.x + LW });
     }
     const leaves = (d.pair ? [-1, 1] : [-1]).map((s) => {
-      const lw = (d.pair ? w / 2 : w) - 0.015, hinge = new THREE.Group(); hinge.position.set(s * (w / 2 - 0.005), 0.01, 0); g.add(hinge);
-      const leaf = new THREE.Mesh(new THREE.BoxGeometry(lw, h - 0.02, 0.05).translate(-s * lw / 2, (h - 0.02) / 2, 0), m); hinge.add(leaf);
-      if (d.kind === 'flat') return { hinge, s, leaf, lw };
+      // hung at the jamb's corner on the face it opens toward (hang()), the leaf behind that line: open, it's clear of the
+      // jamb and the reveal, not swung through them
+      const lw = (d.pair ? w / 2 : w) - 0.015, hinge = new THREE.Group(), body = new THREE.Group(); hinge.position.set(s * (w / 2 - 0.005), 0.01, 0); g.add(hinge); hinge.add(body);
+      const leaf = new THREE.Mesh(new THREE.BoxGeometry(lw, h - 0.02, 0.05).translate(-s * lw / 2, (h - 0.02) / 2, 0), m); body.add(leaf);
+      if (d.kind === 'flat') return { hinge, body, s, leaf, lw };
       const fx = -s * lw / 2;   // the leaf's middle, across
       if (d.kind === 'fire' || d.kind === 'acoustic') {   // a vision panel
-        const gl = new THREE.Mesh(new THREE.BoxGeometry(Math.min(0.3, lw * 0.4), 0.7, 0.056), glassM); gl.position.set(fx, 1.45, 0); hinge.add(gl);
+        const gl = new THREE.Mesh(new THREE.BoxGeometry(Math.min(0.3, lw * 0.4), 0.7, 0.056), glassM); gl.position.set(fx, 1.45, 0); body.add(gl);
       }
       if (d.kind === 'fire') {   // a push bar one side, a pull handle the other; the round blue sign
-        for (const sz of [1, -1]) { const b = new THREE.Mesh(new THREE.BoxGeometry(lw * 0.7, 0.05, 0.05), chrome); b.position.set(fx, 1.0, sz * 0.055); hinge.add(b); }
-        const sg = new THREE.Mesh(new THREE.CircleGeometry(0.09, 24), fireSignM); sg.position.set(fx, 1.6 - 0.45, 0.027); hinge.add(sg);
-        const sg2 = sg.clone(); sg2.position.z = -0.027; sg2.rotation.y = Math.PI; hinge.add(sg2);
+        for (const sz of [1, -1]) { const b = new THREE.Mesh(new THREE.BoxGeometry(lw * 0.7, 0.05, 0.05), chrome); b.position.set(fx, 1.0, sz * 0.055); body.add(b); }
+        const sg = new THREE.Mesh(new THREE.CircleGeometry(0.09, 24), fireSignM); sg.position.set(fx, h - 0.2, 0.027); body.add(sg);   // (over the glass, not in it)
+        const sg2 = sg.clone(); sg2.position.z = -0.027; sg2.rotation.y = Math.PI; body.add(sg2);
       } else if (d.kind === 'acoustic') {
-        for (const sz of [1, -1]) { const b = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.12, 0.02), chrome); b.position.set(fx + s * lw * 0.3, 1.1, sz * 0.035); hinge.add(b); }   // push plates
+        for (const sz of [1, -1]) { const b = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.12, 0.02), chrome); b.position.set(fx + s * lw * 0.3, 1.1, sz * 0.035); body.add(b); }   // push plates
       } else {
-        for (const sz of [1, -1]) { const b = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.025, 0.05), chrome); b.position.set(-s * (lw - 0.1), 1.0, sz * 0.05); hinge.add(b); }   // lever handles
+        for (const sz of [1, -1]) { const b = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.025, 0.05), chrome); b.position.set(-s * (lw - 0.1), 1.0, sz * 0.05); body.add(b); }   // lever handles
       }
-      return { hinge, s, leaf };
+      return { hinge, body, s, leaf };
     });
-    const D = { ...d, g, leaves, k: 0, want: 0, swing: d.inward ? -d.face : 1, held: false, rattle: 0, hit: null };
+    const D = { ...d, g, leaves, k: 0, want: 0, swing: d.inward ? -d.face : d.locked ? d.face : 1, held: false, rattle: 0, hit: null, face2: (deep / 2) - 0.006 };
+    hang(D);
     D.hit = ctx.hitBox(g, w, h, 0.3, 0, h / 2, 0, { action: 'stage-door', reach: 2.6 }); D.hit.userData.door = D;
     // its sign, both sides (or the corridor's side), a lamp over some
     if (!d.across && d.kind !== 'acoustic' && d.kind !== 'flat') {
       const tx = signM(plate(d.title.toUpperCase()), 0.36, 0.1);
-      const sp = new THREE.Mesh(new THREE.PlaneGeometry(0.36, 0.1), M({ map: tx, roughness: 0.5 })); sp.position.set(d.locked ? 0 : (d.w / 2 + 0.3) * d.face, 1.62, d.face * (T / 2 + 0.003)); if (d.face < 0) sp.rotation.y = Math.PI; g.add(sp);
+      const sp = new THREE.Mesh(new THREE.PlaneGeometry(0.36, 0.1), M({ map: tx, roughness: 0.5 })); sp.position.set(d.locked ? 0 : (d.w / 2 + 0.3) * d.face, 1.62, d.face * (d.locked ? D.face2 + 0.003 : T / 2 + 0.003));   // (a locked one's on its leaf)
+      if (d.face < 0) sp.rotation.y = Math.PI; g.add(sp);
     }
     doors.push(D);
   }
@@ -493,7 +501,7 @@ export function installBackstage(ctx, edge) {
   // ----- the door in the sky, from behind: the back of a set (battens, ply), the leaf a copy of the sky's -----
   const back = [];
   for (const z of [SKYAT.z - SKY.w / 2 - 0.05, SKYAT.z + SKY.w / 2 + 0.05]) back.push([0.06, COR.h, 0.1, SKYAT.x + 0.03, COR.h / 2, z, '#6b5a43']);
-  back.push([0.06, 0.1, SKY.w + 0.2, SKYAT.x + 0.03, SKY.h + 0.05, SKYAT.z, '#6b5a43']);
+  back.push([0.06, 0.1, SKY.w, SKYAT.x + 0.03, SKY.h + 0.05, SKYAT.z, '#6b5a43']);   // (between the uprights, not over them)
   root.add(mergedBoxes(back, M({ vertexColors: true, roughness: 0.8 })));
   const skyHinge = new THREE.Group(); skyHinge.matrixAutoUpdate = false; S.add(skyHinge);   // in the world: set from the sky door's own each frame
   const plyT = tex(128, 256, (c, w, h) => { c.fillStyle = '#c9a77a'; c.fillRect(0, 0, w, h); for (let k = 0; k < 40; k++) { c.strokeStyle = `rgba(110,80,40,${R() * 0.25})`; c.lineWidth = 1 + R() * 2; c.beginPath(); const y = R() * h; c.moveTo(0, y); c.bezierCurveTo(w / 3, y + 9, w * 0.66, y - 9, w, y + R() * 6); c.stroke(); } });
@@ -510,7 +518,7 @@ export function installBackstage(ctx, edge) {
     worn = true;
     skyLeaf.material = [E.leafM, plyM, E.edgeM, E.edgeM, E.edgeM, E.edgeM];
     const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.11), new THREE.MeshStandardMaterial({ map: E.signTex, roughness: 0.5 }));
-    sign.rotation.y = Math.PI / 2; sign.position.set(0.0235, LH / 2 - 0.28, 0); skyLeaf.add(sign);
+    sign.rotation.y = Math.PI / 2; sign.position.set(0.0265, LH / 2 - 0.28, 0); skyLeaf.add(sign);   // (as the one out there)
   }
   // the sky door's hinge in the world while it's shut (as world-edge.js hangs it), till there's a real one to follow
   const hinge0 = new THREE.Matrix4().makeTranslation(-edge.R + 0.018, edge.LT + 0.01 + LH / 2, -LW2 / 2);
@@ -531,13 +539,14 @@ export function installBackstage(ctx, edge) {
     return { g, leaf };
   };
   const exitFrame = (parent, z, deep) => {   // a steel frame round the opening, on the face at z
-    const f = [[0.06, EXIT.h + 0.06, deep, -EXIT.w / 2 - 0.03, (EXIT.h + 0.06) / 2, z], [0.06, EXIT.h + 0.06, deep, EXIT.w / 2 + 0.03, (EXIT.h + 0.06) / 2, z],
+    const f = [[0.06, EXIT.h, deep, -EXIT.w / 2 - 0.03, EXIT.h / 2, z], [0.06, EXIT.h, deep, EXIT.w / 2 + 0.03, EXIT.h / 2, z],
       [EXIT.w + 0.12, 0.06, deep, 0, EXIT.h + 0.03, z]];
     const m = mergedBoxes(f, M({ color: '#4d5256', metalness: 0.5, roughness: 0.5 })); m.castShadow = false; parent.add(m); return m;
   };
   const exitG = new THREE.Group(); exitG.position.set(Q.x, 0, Q.z); root.add(exitG);   // the exit's own space
-  exitFrame(exitG, -T / 2, T + 0.02);
-  const inLeaf = exitLeafG(true), inHinge = new THREE.Group(); inHinge.position.set(-EXIT.w / 2 + 0.01, 0.01, -0.03); inHinge.add(inLeaf.g); exitG.add(inHinge);
+  exitFrame(exitG, -T / 2 - 0.005, T + 0.01);   // (proud this side; on the other, flush with the doorway, where its pane is)
+  // its leaf hung at the jamb's corner on B3's side, behind that line: open, clear of the jamb and the reveal
+  const inLeaf = exitLeafG(true), inHinge = new THREE.Group(); inHinge.position.set(-EXIT.w / 2 + 0.005, 0.01, 0.004); inLeaf.g.position.z = -0.025; inHinge.add(inLeaf.g); exitG.add(inHinge);
   const exitHit = ctx.hitBox(inLeaf.g, EXIT.w, EXIT.h, 0.2, EXIT.w / 2, EXIT.h / 2, -0.05, { action: 'edge-exit', reach: 2.6 });
   const exitSign = decal(0.42, 0.16, (c, w, h) => { c.fillStyle = '#0e7a3a'; c.fillRect(0, 0, w, h); c.fillStyle = '#eaffef'; c.font = `800 ${h * 0.66}px ${FONT}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('EXIT', w / 2, h / 2 + 3); },
     0, EXIT.h + 0.17, -T - 0.034, Math.PI);
@@ -548,9 +557,9 @@ export function installBackstage(ctx, edge) {
   // and on B3: the same door from its side (frame, leaf, a plain handle), there from now on
   const b3 = new THREE.Group(); b3.position.set(XD, 0, ZF); b3.rotation.y = YAW;
   exitFrame(b3, 0.012, 0.024);
-  const outLeaf = exitLeafG(false), outHinge = new THREE.Group(); outHinge.position.set(-EXIT.w / 2 + 0.01, 0.01, 0.03); outHinge.add(outLeaf.g); b3.add(outHinge);
+  const outLeaf = exitLeafG(false), outHinge = new THREE.Group(); outHinge.position.set(-EXIT.w / 2 + 0.005, 0.01, 0.004); outLeaf.g.position.z = -0.025; outHinge.add(outLeaf.g); b3.add(outHinge);
   const handle = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.025, 0.05), chrome);
-  handle.position.set(EXIT.w - 0.12, 1.0, 0.05); outLeaf.g.add(handle);
+  handle.position.set(EXIT.w - 0.12, 1.0, 0.055); outLeaf.g.add(handle);
   const outHit = ctx.hitBox(outLeaf.g, EXIT.w, EXIT.h, 0.12, EXIT.w / 2, EXIT.h / 2, 0.03, { action: 'edge-exit', reach: 2.6 });
   restr.root.add(b3);
   const X = { open: 0, want: 0, cut: false, seen: false };
@@ -600,11 +609,13 @@ export function installBackstage(ctx, edge) {
     }
     openDoor(d, !d.want); d.held = d.want;
   }
+  // A door's leaves on the face it'll open toward (swing: +1 toward its +z), shut flush with it, 4 mm in from its frame
+  function hang(d) { for (const L of d.leaves) { L.hinge.position.z = d.swing * d.face2; L.body.position.z = -d.swing * 0.025; } }
   function openDoor(d, on) {
     if (!!d.want === !!on) return;
     if (on && d.k < 0.05 && !d.inward) {   // swinging away from you
       const [px, pz] = fromB3(P.x, P.z), side = d.ns ? px - d.x : pz - d.z;
-      d.swing = side > 0 ? -1 : 1;
+      d.swing = side > 0 ? -1 : 1; hang(d);
     }
     d.want = on ? 1 : 0;
     if (d.kind === 'fire') { if (on) sound.bar(at3(d.x, d.z)); else setTimeout(() => sound.clunk(at3(d.x, d.z)), 1100); }
@@ -625,7 +636,7 @@ export function installBackstage(ctx, edge) {
       }
       d.k = damp(d.k, d.want, d.want ? 3 : 1.8, dt);
       d.rattle = Math.max(0, d.rattle - dt * 2.5);
-      const a = 1.5 * sstep(0, 1, d.k) * d.swing, r = d.rattle ? Math.sin(t * 70) * 0.012 * d.rattle : 0;
+      const a = 1.55 * sstep(0, 1, d.k) * d.swing, r = d.rattle ? Math.sin(t * 70) * 0.012 * d.rattle : 0;
       for (const L of d.leaves) L.hinge.rotation.y = L.s < 0 ? -a + r : a - r;
     }
   }
@@ -651,8 +662,8 @@ export function installBackstage(ctx, edge) {
     F.exit.makeTranslation(Q.x, 0, Q.z).premultiply(root.matrixWorld); F.exitBack.copy(F.exit).multiply(flip);
   }
   place(0);
-  const skyP = makePortal(ctx, { w: SKY.w, h: SKY.h }), outP = makePortal(ctx, { w: EXIT.w, h: EXIT.h });
-  const skyBackP = makePortal(ctx, { w: SKY.w, h: SKY.h }), outBackP = makePortal(ctx, { w: EXIT.w, h: EXIT.h });
+  const skyP = makePortal(ctx, { w: SKY.w, h: SKY.h, flat: true }), outP = makePortal(ctx, { w: EXIT.w, h: EXIT.h, flat: true });
+  const skyBackP = makePortal(ctx, { w: SKY.w, h: SKY.h, flat: true }), outBackP = makePortal(ctx, { w: EXIT.w, h: EXIT.h, flat: true });
   office.add(skyP.mesh); S.add(skyBackP.mesh, outP.mesh); restr.scene.add(outBackP.mesh);
 
   // Lighting another floor as it's lit from inside, for a look through a door: its look in full.

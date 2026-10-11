@@ -71,8 +71,9 @@ const capFS = (mode) => `uniform mat4 projectionMatrix; uniform sampler2D tView;
     : 'gl_FragDepth = clamp(c.z / c.w * 0.5 + 0.5, 0.0, 1.0); gl_FragColor = vec4(texture2D(tView, gl_FragCoord.xy / res).rgb * k, 1.0);'}
   }`;
 
-/** @param {any} ctx @param {{ w: number, h: number, arch?: boolean }} size the opening, metres (arch: round-headed, its crown at h) */
-export function makePortal(ctx, { w, h, arch = false }) {
+/** @param {any} ctx @param {{ w: number, h: number, arch?: boolean, flat?: boolean }} size the opening, metres (arch: round-headed, its crown at h;
+ * flat: a pane 2 mm this side of the opening, never deepened (close up, the cap alone), so nothing of it lies along a reveal) */
+export function makePortal(ctx, { w, h, arch = false, flat = false }) {
   const { renderer, camera } = ctx;
   const rt = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType });
   rt.scissorTest = true;
@@ -82,7 +83,7 @@ export function makePortal(ctx, { w, h, arch = false }) {
     fragmentShader: 'uniform sampler2D tView; uniform vec2 res; uniform float k; void main() { gl_FragColor = vec4(texture2D(tView, gl_FragCoord.xy / res).rgb * k, 1.0); }',
     side: THREE.DoubleSide,
   });
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, 1).translate(0, h / 2, -0.5), mat);
+  const mesh = new THREE.Mesh((flat ? new THREE.PlaneGeometry(w, h) : new THREE.BoxGeometry(w, h, 1)).translate(0, h / 2, -0.5), mat);
   mesh.matrixAutoUpdate = false; mesh.frustumCulled = false; mesh.visible = false;
   mesh.layers.set(1); addPane(mesh);   // no ambient occlusion over it (maskAO)
   // Close up, the box's face across the opening can be nearer than the near plane, clipped away, what's behind it showing
@@ -139,7 +140,7 @@ export function makePortal(ctx, { w, h, arch = false }) {
       const rect = open && front ? onScreen(here, near) : null;
       mesh.visible = !!rect;
       if (!rect) return false;
-      mesh.matrix.copy(here).multiply(S.makeScale(1, 1, near ? 0.25 : 0.004));   // the box reaches back toward you from the opening
+      mesh.matrix.copy(here).multiply(S.makeScale(1, 1, near && !flat ? 0.25 : 0.004));   // the box reaches back toward you from the opening
       mesh.matrixWorldNeedsUpdate = true;
       cap.visible = near;
       if (near) { camera.updateMatrixWorld(); capU.toDoor.value.copy(here).invert(); capU.unproj.value.copy(camera.matrixWorld).multiply(camera.projectionMatrixInverse); }
