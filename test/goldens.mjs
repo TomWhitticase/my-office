@@ -213,13 +213,20 @@ export const POSES = [
   }],
   ['edge-exit', async (o) => {   // the fire door marked EXIT open from the gallery: B3 through it, in its own light
     await from('edge-door', o);
-    await o.eval(() => { const b = window.__office.heli.edge.backstage; b.go(0, -2.8, Math.PI, 0); b.exit(true); });
+    await o.eval(() => { const b = window.__office.heli.edge.backstage; b.go(20, 31.2, Math.PI, 0); b.exit(true); });
     await o.step(30);
   }],
-  ['edge-exit-b3', async (o) => {   // and from B3, at the end of its dead end deep in: the gallery and its table through the open door
+  ['edge-exit-b3', async (o) => {   // never flown: down to B3 by lift, to the dead end deep in, the door open on the long corridor
+    await arrive(o);
+    await o.eval(() => window.__office.goFloor(-3));
+    await o.step(40);
+    await o.eval(() => { const b = window.__office.heli.edge.back(); b.b3(0, 3.2, 0, -0.04); b.exit(true); });
+    await o.step(40);
+  }],
+  ['edge-corridor', async (o) => {   // in the long corridor, looking back down its first leg to the gallery's glow
     await from('edge-door', o);
-    await o.eval(() => { const b = window.__office.heli.edge.backstage; b.exit(true); b.b3(0, 2.6, 0, -0.05); });
-    await o.step(30);
+    await o.eval(() => window.__office.heli.edge.backstage.go(0, 13, 0, 0));
+    await o.step(40);
   }],
   ['security-app', async (o) => {   // out of the helicopter to your desktop full screen, the Security app's feeds at dusk
     await from('heli-cockpit', o);

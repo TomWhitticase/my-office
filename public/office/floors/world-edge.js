@@ -5,16 +5,17 @@
 // with you. You can't fly through it (a hollow knock). Due west, a plain concrete stair rises out of the water along it
 // from a little pier to a door in the sky marked EXIT. Land on the pier, get out (F), climb up and open the door: behind
 // it is what's behind the sky (world-edge-backstage.js), and you walk straight in.
-// Nothing here is built until you're first let out past the city's edge, and nothing is shown or runs unless you're out
-// there (or behind it). It's in the office's scene, like the roof (you're still on the roof floor while you fly).
+// Nothing here is built until you're first let out past the city's edge (or open its door from behind, having come in from
+// B3), and nothing is shown or runs unless you're out there (or behind it). It's in the office's scene, like the roof (you're still on the roof floor while you fly).
 // Debug: ctx.heli.edge.place(d, h) puts the helicopter d m out from the wall by the stairs, h m up, facing it, flying;
-// .land() sets it down on the pier; .door(true) opens the door; .backstage (once built) stages what's behind it.
+// .land() sets it down on the pier; .door(true) opens the door; .backstage (once built) stages what's behind it, and
+// .back() builds that now (it's built the first time you come near its other door, on B3, if you haven't flown out).
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { damp, makeCanvas, mat, mergedBoxes, rng, sstep } from '../util.js';
 import { makeSound } from './world-edge-sound.js';
-import { installBackstage } from './world-edge-backstage.js';
+import { findExit, installBackstage } from './world-edge-backstage.js';
 
 /** @param {import('../ctx.js').OfficeCtx} ctx */
 export function install(ctx) {
@@ -231,10 +232,26 @@ export function install(ctx) {
     door = hitBox(leaf, 0.12, LH, LW2, 0.03, 0, 0, { action: 'edge-door', reach: 2.6 });
     roof.hits.push(door);
     Object.assign(E, { leafM, edgeM, steel, signTex: sc.tex, LW2, LH });
-    // What's behind it, built now too (its own scene: nothing of it is drawn or runs until you look through the door).
-    E.back = installBackstage(ctx, edge);
-    heli.edge.backstage = E.back.debug;
+    // What's behind it, built now too if it isn't yet (its own scene: nothing of it is drawn or runs until you look through
+    // a door into it).
+    buildBack();
   }
+  // Behind the sky: built the first time it's wanted, from out here or from B3 (below), whichever's first.
+  function buildBack() {
+    if (E.back) return E.back.debug;
+    const random = Math.random;
+    Math.random = rng(5300);
+    try { E.back = installBackstage(ctx, edge); } finally { Math.random = random; }
+    heli.edge.backstage = E.back.debug;
+    return E.back.debug;
+  }
+  // From B3: the way in is there from the start, built as you first come near it (its doorway, deep in, found from B3's
+  // layout: the same place every time).
+  ctx.onFrame(() => {
+    if (E.back || ctx.away !== ctx.restr) return;
+    const { XD, ZF } = findExit(ctx.restr), P = ctx.player;
+    if (Math.hypot(P.x - XD, P.z - ZF - (ctx.restr.z0 || 0)) < 45) buildBack();
+  }, 191);
 
   // ----- the door: click to open it, again to shut it (from either side) -----
   ctx.action('edge-door', {
@@ -243,6 +260,9 @@ export function install(ctx) {
   });
   function openDoor(on = true) {
     if (!!E.want === on) return;
+    // Opened from behind having come in from B3 (the helicopter at home): it's out on the pier, waiting, as if you'd flown
+    // it there, for the way back (and so the sky side's built now, as its being out shows it).
+    if (on && !S.free && E.back?.here()) { edge.land(); heli.waitOn(pier); }
     E.want = on ? 1 : 0;
     sound.creak(new THREE.Vector3(-R, LT + 1, 0));
   }
@@ -300,6 +320,8 @@ export function install(ctx) {
       return true;
     },
     door(open = true) { openDoor(open); E.open = E.want; },
+    back: () => buildBack(),
+    b3Exit: () => findExit(ctx.restr),   // where its door is on B3 ({ XD, ZF, YAW }: B3's space, the car at z = 0)   // what's behind the sky, built now if it isn't (its debug hooks, as .backstage)
     R, SEA, PT, LT, PIER, STAIR, LAND,
   };
 }
