@@ -53,9 +53,11 @@ export const POSES = [
   ['kitchen', async (o) => { await arrive(o); await stand(o, -13, 10.5, { x: -18, y: 1.2, z: 14 }); await o.step(3); }],
   ['lounge', async (o) => { await arrive(o); await stand(o, 4.5, 8.5, { x: 12, y: 1.0, z: 10 }); await o.step(3); }],
   ['my-office', async (o) => { await arrive(o); await stand(o, 9, -6, { x: 16, y: 1.2, z: -12 }); await o.step(3); }],
-  // Behind my office's bookcase (world/secret-room.js): it swung open, the hatch down and the ladder's top up out of the
-  // shaft; on the ladder in the shaft looking down into the den; the den from the foot of the ladder; its desk and monitors.
-  ['secret-bookcase', async (o) => { await arrive(o); await o.eval(() => window.__office.secret.open(true)); await stand(o, 6.95, -12.1, { x: 8.1, y: 0.4, z: -14.4 }); await o.step(3); }],
+  // Behind my office's bookcase (world/secret-room.js): its bay halfway into the pocket behind its neighbour; slid away,
+  // the hatch down and the ladder's top up out of the shaft; on the ladder in the shaft looking down into the den; the
+  // den from the foot of the ladder, the fire lit; its desk and monitors.
+  ['secret-bookcase-slide', async (o) => { await arrive(o); await o.eval(() => window.__office.secret.pose(2.45)); await stand(o, 8.6, -11.8, { x: 8.6, y: 1.1, z: -14.7 }); await o.step(3); }],
+  ['secret-bookcase', async (o) => { await arrive(o); await o.eval(() => window.__office.secret.open(true)); await stand(o, 8.35, -12.0, { x: 8.35, y: 0.6, z: -14.8 }); await o.step(3); }],
   ['secret-shaft', async (o) => { await arrive(o); await o.eval(() => window.__office.secret.climb(-1.4, 0.4, -1.1)); await o.step(3); }],
   ['secret-den', async (o) => { await arrive(o); await o.eval(() => window.__office.secret.den(7.9, -13.4, Math.atan2(-1.6, -5), -0.08)); await o.step(6); }],
   ['secret-den-desk', async (o) => { await arrive(o); await o.eval(() => window.__office.secret.den(10, -11.6, Math.PI / 2, -0.05)); await o.step(8); }],

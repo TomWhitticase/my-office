@@ -6199,13 +6199,13 @@
  ],
  "scenes": {
   "office": {
-   "objects": 3357,
+   "objects": 3359,
    "types": {
     "Scene": 1,
     "HemisphereLight": 1,
     "DirectionalLight": 2,
     "Object3D": 2,
-    "Mesh": 2880,
+    "Mesh": 2882,
     "Group": 540,
     "PointLight": 16,
     "Sprite": 9,
@@ -6219,7 +6219,6 @@
     "laptop": 7,
     "door": 86,
     "coffee": 1,
-    "secret-book": 1,
     "taskboard": 1,
     "decanter": 1,
     "computer": 1,
@@ -6244,11 +6243,12 @@
     "wellness-jacuzzi": 1,
     "wellness-float": 1,
     "wellness-xshower": 4,
+    "secret-book": 1,
     "lightpanel": 5,
     "rosie": 57
    },
-   "ordered": "11a4494b",
-   "sorted": "362f5749"
+   "ordered": "891aa6b0",
+   "sorted": "7bb83ae4"
   },
   "servers": {
    "objects": 383,

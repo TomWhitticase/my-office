@@ -1,16 +1,18 @@
 // The den: the room at the foot of the ladder behind my office's bookcase (world/secret-room.js), in the dead storey
 // under 48. Walnut panelling, a beamed ceiling, a worn rug on dark boards. Against the west wall a desk with a green
 // banker's lamp (click it) and, over it, four little monitors showing the office upstairs through its security cameras
-// (systems/cctv.js `into`; click for others); by the east wall a leather wingback to sit in, a reading lamp, and a
-// cabinet of whisky (click to pour; again to drink); on the north wall, beside the ladder, a record player on a
-// sideboard (click to play), an old safe in the corner (click: the dial, then the door), and the lever that shuts the
-// bookcase upstairs; on the south wall, a pin board with red string between your projects: your live and recent
-// sessions' folders and your GitHub repos (/api/repos), you in the middle. Built the first time the bookcase opens,
-// merged by material; its fx runs only while it's shown.
+// (systems/cctv.js `into`; click for others); on the south wall a fireplace, lit (click to put it out or light it): a
+// carved stone surround, a clock, candlesticks and a photo on the mantel, logs on a grate with flames (a few layered
+// planes of a cheap noise shader), glowing embers and the odd spark, a crackle, and its flicker on the room (one of the
+// lamp lights secret-room.js borrows; no shadows); a fire screen and a set of fire irons. By it, a leather wingback
+// turned to the fire (sit in it), a side table and a reading lamp; a cabinet of whisky on the east wall (click to pour;
+// again to drink); on the north wall, beside the ladder, a record player on a sideboard (click to play), an old safe in
+// the corner (click: the dial, then the door), and the lever that shuts the bookcase upstairs. Built the first time the
+// bookcase opens, merged by material; its fx runs only while it's shown, and the fire only moves while you're below.
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { damp, ease, FONT, hash, makeCanvas, makeScreen, MARKER, rng, rugTexture, woodTexture } from '../util.js';
+import { artTexture, damp, ease, makeCanvas, rng, rugTexture, woodTexture } from '../util.js';
 
 // A geometry posed (rotated x, y, z then moved) and painted one colour (a vertex colour), for merge().
 export function part(g, color, x, y, z, rx = 0, ry = 0, rz = 0) {
@@ -84,7 +86,8 @@ export function buildDen(ctx, api) {
   // Mouldings and beams: skirting, the cornice, the beams; the shaft's opening trimmed.
   const trim = [];
   for (const [w, d, x, z] of [[W, 0.03, cx, DEN.z0 + 0.015], [W, 0.03, cx, DEN.z1 - 0.015], [0.03, D, DEN.x0 + 0.015, cz], [0.03, D, DEN.x1 - 0.015, cz]]) {
-    trim.push(B(w, 0.16, d, '#2a180d', x, 0.08, z), B(w + (d < 0.1 ? 0 : 0.04), 0.12, d * 2, '#3a2414', x, H - 0.06, z));
+    const o = d < 0.1 ? 0 : 0.003;   // (the runs along x and along z meet at the corners: never in one plane)
+    trim.push(B(w, 0.16 - o, d, '#2a180d', x, 0.08 - o / 2, z), B(w, 0.12 - o, d * 2, '#3a2414', x, H - 0.06 - o / 2, z));
   }
   for (const x of [6.55, 10.6]) trim.push(B(0.18, 0.2, D, '#2a1a10', x, H - 0.1, cz));
   for (const [w, d, x, z] of [[HOLE.x1 - HOLE.x0 + 0.1, 0.05, (HOLE.x0 + HOLE.x1) / 2, HOLE.z1 + 0.025], [0.05, HOLE.z1 - HOLE.z0, HOLE.x0 - 0.025, (HOLE.z0 + HOLE.z1) / 2],
@@ -141,8 +144,9 @@ export function buildDen(ctx, api) {
     scr.position.set(5.565, Y(y), -11.6 + dz); scr.rotation.y = Math.PI / 2; add(scr, { action: 'den-cams', reach: 3 });
     feeds.push({ rt, scr });
   }
-  // The wingback by the east wall, turned to the room; a side table; a reading lamp behind.
-  const chair = new THREE.Group(); chair.position.set(11.65, DY, -10.25); chair.rotation.y = -2.0; G.add(chair);
+  // The wingback turned to the fire; a side table at its elbow; a reading lamp behind.
+  const CH = { x: 10.95, z: -9.75, ry: -1.15 };
+  const chair = new THREE.Group(); chair.position.set(CH.x, DY, CH.z); chair.rotation.y = CH.ry; G.add(chair);
   {
     const L = [], c = '#5b2219', P = (g, x, y, z, rx = 0, rz = 0) => L.push(part(g, c, x, y, z, rx, 0, rz));
     P(new THREE.BoxGeometry(0.86, 0.36, 0.82), 0, 0.26, 0); P(new THREE.BoxGeometry(0.62, 0.13, 0.62), 0, 0.5, 0.06);
@@ -153,11 +157,12 @@ export function buildDen(ctx, api) {
     const legs = []; for (const [x, z] of [[-0.36, -0.34], [0.36, -0.34], [-0.36, 0.34], [0.36, 0.34]]) legs.push(part(new THREE.CylinderGeometry(0.025, 0.02, 0.08, 8), '#2a1a10', x, 0.04, z));
     chair.add(merge(legs, vc()));
   }
-  const seat = { name: 'Armchair', x: 11.65 + Math.sin(-2.0) * 0.05, z: -10.25 + Math.cos(-2.0) * 0.05, rotY: -2.0, eye: 1.08, floor: 'den', obj: chair };
-  solid(11.15, 12.15, -10.75, -9.75);
-  wood.push(C(0.24, 0.24, 0.03, '#3b2416', 11.95, 0.58, -11.35, 24), C(0.025, 0.03, 0.56, '#3b2416', 11.95, 0.29, -11.35), C(0.16, 0.18, 0.03, '#3b2416', 11.95, 0.015, -11.35, 20));
-  dark.push(B(0.16, 0.035, 0.22, '#2f4a5e', 11.9, 0.613, -11.38, 0.4));
-  solid(11.7, 12.2, -11.6, -11.1);
+  const seat = { name: 'Armchair', x: CH.x + Math.sin(CH.ry) * 0.05, z: CH.z + Math.cos(CH.ry) * 0.05, rotY: CH.ry, eye: 1.08, floor: 'den', obj: chair };
+  solid(CH.x - 0.5, CH.x + 0.5, CH.z - 0.5, CH.z + 0.5);
+  const st = { x: CH.x - 0.42 * 0.8, z: CH.z - 0.91 * 0.8 };   // (at its left hand)
+  wood.push(C(0.24, 0.24, 0.03, '#3b2416', st.x, 0.58, st.z, 24), C(0.025, 0.03, 0.56, '#3b2416', st.x, 0.29, st.z), C(0.16, 0.18, 0.03, '#3b2416', st.x, 0.015, st.z, 20));
+  dark.push(B(0.16, 0.035, 0.22, '#2f4a5e', st.x - 0.05, 0.613, st.z, 0.4));
+  solid(st.x - 0.25, st.x + 0.25, st.z - 0.25, st.z + 0.25);
   brass.push(C(0.15, 0.17, 0.03, '#2a2420', 12.22, 0.015, -9.0, 20), C(0.012, 0.012, 1.4, '#b8913f', 12.22, 0.72, -9.0));
   const fabricM = new THREE.MeshStandardMaterial({ color: '#e9d8b8', emissive: '#ffcf8a', emissiveIntensity: 0.55, roughness: 0.9, side: THREE.DoubleSide });
   { const s = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.22, 0.28, 24, 1, true), fabricM); s.position.set(12.22, Y(1.5), -9.0); add(s); }
@@ -242,112 +247,131 @@ export function buildDen(ctx, api) {
   lever.traverse((o) => { o.userData = { action: 'den-lever', reach: 2.4 }; });
   // A caged bulkhead light by the ladder.
   const cageM = new THREE.MeshStandardMaterial({ color: '#fff0d8', emissive: '#ffcf8a', emissiveIntensity: 1.6 });
-  { const b = new THREE.Mesh(new THREE.SphereGeometry(0.05, 14, 10), cageM); b.position.set(8.85, Y(2.25), DEN.z0 + 0.08); add(b); }
-  brass.push(C(0.07, 0.07, 0.03, '#2a2420', 8.85, 2.25, DEN.z0 + 0.02, 16, Math.PI / 2), ...[-1, 0, 1].map((k) => B(0.004, 0.13, 0.004, '#2a2420', 8.85 + k * 0.04, 2.25, DEN.z0 + 0.11)));
+  { const b = new THREE.Mesh(new THREE.SphereGeometry(0.05, 14, 10), cageM); b.position.set(9.1, Y(2.25), DEN.z0 + 0.08); add(b); }
+  brass.push(C(0.07, 0.07, 0.03, '#2a2420', 9.1, 2.25, DEN.z0 + 0.02, 16, Math.PI / 2), ...[-1, 0, 1].map((k) => B(0.004, 0.13, 0.004, '#2a2420', 9.1 + k * 0.04, 2.25, DEN.z0 + 0.11)));
 
-  // The pin board on the south wall, its own picture light over it.
-  const board = makeScreen(G, 2.4, 1.3, 1024, 555, 9.0, Y(1.5), DEN.z1 - 0.035);
-  board.mesh.rotation.y = Math.PI;
-  board.mesh.material = new THREE.MeshStandardMaterial({ map: board.tex, roughness: 0.9 });
-  board.mesh.userData = { action: 'den-board', reach: 4 };
-  wood.push(B(2.52, 1.42, 0.03, '#2a180d', 9.0, 1.5, DEN.z1 - 0.015));
-  brass.push(B(0.9, 0.04, 0.06, '#b8913f', 9.0, 2.28, DEN.z1 - 0.09), B(0.02, 0.02, 0.1, '#b8913f', 9.0, 2.28, DEN.z1 - 0.04));
-  const picM = new THREE.MeshStandardMaterial({ color: '#fff3dd', emissive: '#ffcf8a', emissiveIntensity: 1.2 });
-  { const s = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.008, 0.03), picM); s.position.set(9.0, Y(2.258), DEN.z1 - 0.1); add(s); }
+  // The fireplace on the south wall: a chimney breast out from the panelling with the firebox in it, a carved stone
+  // surround and mantel, a stone hearth; logs on an iron grate; a fire screen and the irons.
+  const FP = { x: 9.0, face: DEN.z1 - 0.45, ow: 1.0, oh: 0.82, on: true, k: 1, flick: 1 };   // (the breast's face; the opening)
+  const fz = FP.face, bz = DEN.z1 - 0.06, o0 = FP.x - FP.ow / 2, o1 = FP.x + FP.ow / 2, stone = [], soot = [];
+  stone.push(B(o0 - 7.95, H, DEN.z1 - fz, '#4a3a2e', (7.95 + o0) / 2, H / 2, (fz + DEN.z1) / 2), B(10.05 - o1, H, DEN.z1 - fz, '#4a3a2e', (o1 + 10.05) / 2, H / 2, (fz + DEN.z1) / 2),
+    B(FP.ow, H - FP.oh, DEN.z1 - fz, '#4a3a2e', FP.x, FP.oh + (H - FP.oh) / 2, (fz + DEN.z1) / 2));   // the breast, plastered dark
+  for (const x of [o0 - 0.11, o1 + 0.11]) stone.push(B(0.22, 1.02, 0.08, '#b5a991', x, 0.51, fz - 0.04), B(0.26, 0.06, 0.1, '#bfb29a', x, 0.03, fz - 0.05), B(0.26, 0.05, 0.1, '#bfb29a', x, 1.0, fz - 0.05));
+  stone.push(B(FP.ow + 0.44, 0.2, 0.07, '#afa38c', FP.x, FP.oh + 0.1, fz - 0.035), B(0.3, 0.12, 0.02, '#b3a68e', FP.x, FP.oh + 0.1, fz - 0.075),   // the frieze, a carved panel
+    B(FP.ow + 0.8, 0.07, 0.34, '#bcb099', FP.x, 1.07, fz - 0.13), B(FP.ow + 0.7, 0.03, 0.3, '#bfb29a', FP.x, 1.02, fz - 0.11),   // the mantel shelf
+    B(FP.ow + 0.9, 0.04, 0.62, '#5c544c', FP.x, 0.02, fz - 0.31));   // the hearth
+  soot.push(B(FP.ow, FP.oh, 0.02, '#141110', FP.x, FP.oh / 2, bz + 0.01), B(0.02, FP.oh, bz - fz, '#1a1614', o0 + 0.01, FP.oh / 2, (fz + bz) / 2),
+    B(0.02, FP.oh, bz - fz, '#1a1614', o1 - 0.01, FP.oh / 2, (fz + bz) / 2), B(FP.ow, 0.02, bz - fz, '#1a1614', FP.x, FP.oh - 0.01, (fz + bz) / 2),
+    B(FP.ow - 0.04, 0.03, bz - fz, '#211b17', FP.x, 0.055, (fz + bz) / 2));
+  // The grate (black iron) and the irons on their stand.
+  const gz = (fz + bz) / 2 + 0.03;
+  for (let i = 0; i < 6; i++) dark.push(B(0.012, 0.16, 0.012, '#1c1c1c', FP.x - 0.28 + i * 0.112, 0.17, gz - 0.13));
+  dark.push(B(0.6, 0.015, 0.3, '#1c1c1c', FP.x, 0.1, gz), B(0.6, 0.015, 0.015, '#1c1c1c', FP.x, 0.25, gz - 0.13));
+  for (const x of [-0.27, 0.27]) for (const z of [-0.12, 0.12]) dark.push(B(0.02, 0.09, 0.02, '#1c1c1c', FP.x + x, 0.045, gz + z));
+  const irons = { x: o1 + 0.62, z: fz - 0.22 };
+  brass.push(C(0.1, 0.11, 0.02, '#2a2420', irons.x, 0.01, irons.z, 16), C(0.008, 0.008, 0.7, '#b8913f', irons.x, 0.36, irons.z), C(0.06, 0.06, 0.012, '#b8913f', irons.x, 0.66, irons.z, 12));
+  for (const [dx, dz, t] of [[0.04, 0, 0], [-0.02, 0.035, 0.1], [-0.02, -0.035, -0.1]]) brass.push(part(new THREE.CylinderGeometry(0.006, 0.006, 0.66, 6), '#2a2420', irons.x + dx, Y(0.36), irons.z + dz, t, 0, -t),
+    C(0.012, 0.012, 0.07, '#c9a24a', irons.x + dx, 0.72, irons.z + dz, 8));
+  solid(irons.x - 0.12, irons.x + 0.12, irons.z - 0.12, irons.z + 0.12);
+  // On the mantel: a clock, two candlesticks, a small framed photo.
+  const my = 1.105;
+  wood.push(B(0.22, 0.26, 0.1, '#2e1c10', FP.x, my + 0.13, fz - 0.14), B(0.26, 0.03, 0.12, '#2e1c10', FP.x, my + 0.015, fz - 0.14));
+  dark.push(C(0.075, 0.075, 0.006, '#efe6d2', FP.x, my + 0.16, fz - 0.192, 24, Math.PI / 2), B(0.004, 0.05, 0.002, '#1c1c1c', FP.x, my + 0.18, fz - 0.196, 0), B(0.035, 0.004, 0.002, '#1c1c1c', FP.x + 0.015, my + 0.16, fz - 0.197));
+  const flameM = new THREE.MeshStandardMaterial({ color: '#fff3dd', emissive: '#ffb050', emissiveIntensity: 2.0 });
+  for (const x of [FP.x - 0.55, FP.x + 0.55]) {
+    brass.push(C(0.04, 0.045, 0.015, '#b8913f', x, my + 0.008, fz - 0.14, 14), C(0.012, 0.018, 0.2, '#b8913f', x, my + 0.11, fz - 0.14, 10), C(0.025, 0.015, 0.03, '#b8913f', x, my + 0.225, fz - 0.14, 12));
+    dark.push(C(0.011, 0.011, 0.12, '#efe8da', x, my + 0.3, fz - 0.14, 10));
+    const f = new THREE.Mesh(new THREE.SphereGeometry(0.009, 8, 6), flameM); f.scale.y = 2; f.position.set(x, Y(my + 0.375), fz - 0.14); add(f);
+  }
+  wood.push(B(0.16, 0.2, 0.015, '#1c1a18', FP.x + 0.33, my + 0.1, fz - 0.17, -0.25));
+  { const pic = new THREE.Mesh(new THREE.PlaneGeometry(0.12, 0.16), new THREE.MeshStandardMaterial({ map: artTexture(77, 0.75), roughness: 0.9 }));
+    pic.position.set(FP.x + 0.33 - 0.0025, Y(my + 0.1), fz - 0.179); pic.rotation.y = Math.PI - 0.25; add(pic); }
+  add(merge(stone, vc({ roughness: 0.85 }))); add(merge(soot, vc({ roughness: 1 })), { action: 'den-fire', reach: 3 });
+  solid(7.95, 10.05, fz, DEN.z1);
+  // The logs: three, crossed on the grate, their ends glowing while it burns.
+  const logM = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, emissive: '#ff4a10', emissiveIntensity: 0.5 });
+  const logs = merge([part(new THREE.CylinderGeometry(0.055, 0.06, 0.52, 10), '#4a3020', FP.x, Y(0.17), gz, 0, 0.3, Math.PI / 2),
+    part(new THREE.CylinderGeometry(0.05, 0.05, 0.48, 10), '#3e2a1c', FP.x + 0.03, Y(0.22), gz + 0.02, 0, -0.5, Math.PI / 2),
+    part(new THREE.CylinderGeometry(0.045, 0.05, 0.42, 10), '#52361f', FP.x - 0.05, Y(0.25), gz - 0.04, 0, 0.9, Math.PI / 2 - 0.3)], logM);
+  add(logs, { action: 'den-fire', reach: 3 });
+  // The fire: flames on a few crossed planes and the embers under them, one noise shader, added on (no depth written).
+  const fireU = { t: { value: 0 }, k: { value: 1 } };
+  const NOISE = `float h1(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+    float n1(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+      return mix(mix(h1(i), h1(i + vec2(1.0, 0.0)), f.x), mix(h1(i + vec2(0.0, 1.0)), h1(i + vec2(1.0, 1.0)), f.x), f.y); }`;
+  const VS = 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
+  const flameMat = (seed) => new THREE.ShaderMaterial({ uniforms: { ...fireU, seed: { value: seed } }, vertexShader: VS, transparent: true, depthWrite: false,
+    blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+    fragmentShader: `uniform float t, k, seed; varying vec2 vUv; ${NOISE}
+      void main() {
+        float y = vUv.y, q = n1(vec2(vUv.x * 4.0 + seed, y * 3.0 - t * 2.3)) * 0.65 + n1(vec2(vUv.x * 9.0 - seed, y * 7.0 - t * 4.1)) * 0.35;
+        float w = (1.0 - y) * 0.42 + 0.04, d = abs(vUv.x - 0.5 + (q - 0.5) * 0.3 * y);
+        float f = smoothstep(w, w * 0.25, d) * smoothstep(1.0, 0.2, y + q * 0.45) * smoothstep(0.0, 0.1, y) * k;
+        gl_FragColor = vec4(mix(vec3(1.0, 0.28, 0.04), vec3(1.0, 0.82, 0.42), smoothstep(0.35, 0.95, f)) * f * 1.8, 1.0);
+      }` });
+  const flames = [];
+  for (const [w, hh, dx, dz, ry, seed] of [[0.56, 0.5, 0, 0.02, 0, 1.3], [0.42, 0.42, -0.1, -0.03, 0.6, 7.1], [0.4, 0.38, 0.12, -0.01, -0.6, 3.7], [0.3, 0.3, 0.02, 0.05, 0.2, 5.2]]) {
+    const f = new THREE.Mesh(new THREE.PlaneGeometry(w, hh), flameMat(seed));
+    f.position.set(FP.x + dx, Y(0.17 + hh / 2), gz + dz); f.rotation.y = Math.PI + ry; f.layers.set(1); f.userData = { action: 'den-fire', reach: 3 }; add(f); flames.push(f);
+  }
+  const embers = new THREE.Mesh(new THREE.PlaneGeometry(0.56, 0.26), new THREE.ShaderMaterial({ uniforms: fireU, vertexShader: VS, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    fragmentShader: `uniform float t, k; varying vec2 vUv; ${NOISE}
+      void main() { float e = n1(vUv * vec2(14.0, 7.0) + vec2(t * 0.25, -t * 0.4)) * 0.7 + n1(vUv * 30.0 - t * 0.6) * 0.3, edge = smoothstep(0.0, 0.25, min(min(vUv.x, 1.0 - vUv.x), min(vUv.y, 1.0 - vUv.y)));
+        gl_FragColor = vec4(vec3(1.0, 0.32, 0.05) * pow(e, 2.0) * edge * (0.25 + 0.95 * k) * 1.6, 1.0); }` }));
+  embers.rotation.x = -Math.PI / 2; embers.position.set(FP.x, Y(0.115), gz); embers.layers.set(1); add(embers);
+  // A spark now and then, rising out of it.
+  const NS = 8, sparkP = new Float32Array(NS * 3), sparks = new THREE.Points(new THREE.BufferGeometry(), new THREE.PointsMaterial({ color: '#ffb35a', size: 0.018,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+  sparks.geometry.setAttribute('position', new THREE.BufferAttribute(sparkP, 3)); sparks.frustumCulled = false; sparks.layers.set(1); add(sparks);
+  const sp = Array.from({ length: NS }, () => ({ life: -R() * 3, vx: 0, vz: 0 }));
+  // The screen in front: a brass frame round a dark mesh you can see the fire through.
+  brass.push(B(1.12, 0.02, 0.02, '#b8913f', FP.x, 0.62, fz - 0.42), B(1.12, 0.02, 0.02, '#b8913f', FP.x, 0.05, fz - 0.42), B(0.02, 0.6, 0.02, '#b8913f', FP.x - 0.55, 0.34, fz - 0.42),
+    B(0.02, 0.6, 0.02, '#b8913f', FP.x + 0.55, 0.34, fz - 0.42), B(0.25, 0.012, 0.012, '#b8913f', FP.x - 0.55, 0.012, fz - 0.42, Math.PI / 2), B(0.25, 0.012, 0.012, '#b8913f', FP.x + 0.55, 0.012, fz - 0.42, Math.PI / 2));
+  {
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1.08, 0.56), new THREE.MeshStandardMaterial({ color: '#0d0c0b', transparent: true, opacity: 0.4, roughness: 0.6, metalness: 0.5, side: THREE.DoubleSide, depthWrite: false }));
+    mesh.position.set(FP.x, Y(0.335), fz - 0.42); mesh.layers.set(1); add(mesh, { action: 'den-fire', reach: 3 });
+  }
+  solid(FP.x - 0.6, FP.x + 0.6, fz - 0.47, fz);
 
   add(merge(wood, vc({ roughness: 0.55 })));
   add(merge(brass, vc({ metalness: 0.8, roughness: 0.32 })));
   add(merge(leather, vc({ roughness: 0.45 })));
   add(merge(dark, vc({ roughness: 0.8 })));
 
-  // ----- the pin board: your projects and the strings between them -----
-  let repos = null, boardSig = '', boardAt = -1;
-  fetch('/api/repos').then((r) => (r.ok ? r.json() : null)).then((j) => { repos = j?.repos || []; boardAt = -1; }).catch(() => { repos = []; });
-  const base = (p) => String(p || '').replace(/\/+$/, '').split('/').pop();
-  function paintBoard() {
-    const st = ctx.state || {}, live = st.live || [], recent = st.recent || [];
-    const cards = new Map();   // name → { name, live, recent, repo, cost }
-    const card = (n) => { if (!cards.has(n)) cards.set(n, { name: n }); return cards.get(n); };
-    for (const s of live) { const n = base(s.cwd); if (n) { const c = card(n); c.live = (c.live || 0) + 1; c.cost = (c.cost || 0) + (s.cost || 0); } }
-    for (const s of recent) { const n = base(s.cwd); if (n && (cards.has(n) || cards.size < 8)) card(n).recent = true; }
-    for (const r of (repos || []).slice(0, 12)) if (cards.has(r.name)) card(r.name).repo = r; else if (cards.size < 10) Object.assign(card(r.name), { repo: r });
-    const list = [...cards.values()].slice(0, 10), sig = list.map((c) => `${c.name}${c.live || 0}${c.repo ? 'r' : ''}`).join('|');
-    if (sig === boardSig) return;
-    boardSig = sig;
-    const c = board.ctx, Wb = 1024, Hb = 555, Rb = rng(hash(sig) || 1);
-    // Cork, a dark frame shadow.
-    c.fillStyle = '#b48a5a'; c.fillRect(0, 0, Wb, Hb);
-    for (let i = 0; i < 2600; i++) { c.fillStyle = `rgba(${Rb() < 0.5 ? '90,60,30' : '220,180,130'},${0.15 + Rb() * 0.25})`; c.fillRect(Rb() * Wb, Rb() * Hb, 1 + Rb() * 3, 1 + Rb() * 2); }
-    const g = c.createRadialGradient(Wb / 2, Hb / 2, 200, Wb / 2, Hb / 2, 620); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.35)');
-    c.fillStyle = g; c.fillRect(0, 0, Wb, Hb);
-    // Where the cards go: round you, on an ellipse, a little askew.
-    const mid = { x: Wb / 2, y: Hb / 2 + 6 }, at = list.map((k, i) => {
-      const a = -Math.PI / 2 + (i + 0.5) * (Math.PI * 2 / Math.max(list.length, 1)) + (Rb() - 0.5) * 0.25;
-      return { k, x: mid.x + Math.cos(a) * (360 + Rb() * 40), y: mid.y + Math.sin(a) * (185 + Rb() * 20), r: (Rb() - 0.5) * 0.12 };
-    });
-    // The strings first (under the cards): you to each, a project to the repos it shares a language or an owner with.
-    const string = (a, b) => {
-      c.strokeStyle = 'rgba(0,0,0,.25)'; c.lineWidth = 3; c.beginPath(); c.moveTo(a.x + 3, a.y + 4); c.quadraticCurveTo((a.x + b.x) / 2 + 3, (a.y + b.y) / 2 + 22, b.x + 3, b.y + 4); c.stroke();
-      c.strokeStyle = '#c0262c'; c.lineWidth = 2.5; c.beginPath(); c.moveTo(a.x, a.y); c.quadraticCurveTo((a.x + b.x) / 2, (a.y + b.y) / 2 + 18, b.x, b.y); c.stroke();
-    };
-    for (const p of at) string(mid, p);
-    for (let i = 0; i < at.length; i++) for (let j = i + 1; j < at.length; j++) {
-      const a = at[i].k.repo, b = at[j].k.repo;
-      if (a && b && ((a.language && a.language === b.language) || (j === i + 1 && at[i].k.live && at[j].k.live))) string(at[i], at[j]);
-    }
-    // You, a photo pinned in the middle.
-    const owner = dash.config?.owner || 'ME';
-    c.save(); c.translate(mid.x, mid.y); c.rotate(-0.04);
-    c.fillStyle = 'rgba(0,0,0,.3)'; c.fillRect(-62, -70, 132, 152);
-    c.fillStyle = '#f2ede2'; c.fillRect(-66, -76, 132, 152);
-    c.fillStyle = '#2b3240'; c.fillRect(-56, -66, 112, 104);
-    c.fillStyle = '#7d8696'; c.beginPath(); c.arc(0, -26, 22, 0, Math.PI * 2); c.fill(); c.beginPath(); c.ellipse(0, 30, 40, 30, 0, Math.PI, 0); c.fill();
-    c.fillStyle = '#26282b'; c.font = `600 22px ${MARKER}`; c.textAlign = 'center'; c.fillText(owner.toUpperCase().slice(0, 12), 0, 64);
-    c.restore();
-    // The cards.
-    for (const { k, x, y, r } of at) {
-      c.save(); c.translate(x, y); c.rotate(r);
-      c.fillStyle = 'rgba(0,0,0,.28)'; c.fillRect(-84, -36, 172, 80);
-      c.fillStyle = k.repo && !k.live ? '#f6f1e3' : '#fdf6d2'; c.fillRect(-88, -40, 172, 80);
-      c.fillStyle = '#c0262c'; c.fillRect(-88, -24, 172, 2);
-      c.fillStyle = '#1d1f24'; c.font = `600 21px ${MARKER}`; c.textAlign = 'center';
-      let n = k.name; while (n.length > 3 && c.measureText(n).width > 160) n = n.slice(0, -2);
-      c.fillText(n === k.name ? n : n + '…', -2, 4);
-      c.font = `400 15px ${FONT}`; c.fillStyle = '#5a5c60';
-      const bits = [k.live ? `${k.live} live` : k.recent ? 'recent' : '', k.repo?.language || (k.repo ? 'repo' : ''), k.cost ? `$${k.cost.toFixed(2)}` : ''].filter(Boolean);
-      c.fillText(bits.join(' · '), -2, 28);
-      c.fillStyle = '#c0262c'; c.beginPath(); c.arc(0, -40, 7, 0, Math.PI * 2); c.fill(); c.fillStyle = 'rgba(255,255,255,.55)'; c.beginPath(); c.arc(-2, -42, 2.5, 0, Math.PI * 2); c.fill();
-      c.restore();
-    }
-    // A pin at the photo, notes in the corners.
-    c.fillStyle = '#c0262c'; c.beginPath(); c.arc(mid.x, mid.y - 76, 8, 0, Math.PI * 2); c.fill();
-    const note = (x, y, r, col, lines) => {
-      c.save(); c.translate(x, y); c.rotate(r); c.fillStyle = col; c.fillRect(-58, -44, 116, 88);
-      c.fillStyle = '#26282b'; c.font = `400 19px ${MARKER}`; c.textAlign = 'center'; lines.forEach((l, i) => c.fillText(l, 0, -12 + i * 24)); c.restore();
-    };
-    note(78, 64, -0.08, '#f7e463', ['stay', 'curious']);
-    note(Wb - 80, Hb - 66, 0.06, '#9fd8f0', [`${live.length} live`, `${(repos || []).length} repos`]);
-    if (!list.length) { c.fillStyle = '#26282b'; c.font = `400 26px ${MARKER}`; c.textAlign = 'center'; c.fillText('nothing yet…', mid.x, mid.y + 130); }
-    board.tex.needsUpdate = true;
-  }
-
   // ----- each frame while it's shown -----
   const lights = [
     { p: new THREE.Vector3(5.8, Y(0.98), -12.05), color: '#ffd29a', distance: 6, level: () => 3.0 * lamp.k },
     { p: new THREE.Vector3(12.22, Y(1.45), -9.0), color: '#ffc88a', distance: 8, level: () => 4.2 },
-    { p: new THREE.Vector3(9.0, Y(2.2), DEN.z1 - 0.35), color: '#ffdcae', distance: 5, level: () => 2.0 },
-    { p: new THREE.Vector3(8.85, Y(2.2), DEN.z0 + 0.3), color: '#ffd8a6', distance: 6, level: () => 1.8 },
+    { p: new THREE.Vector3(FP.x, Y(0.8), FP.face - 0.8), color: '#ff9848', distance: 8, level: () => 2.8 * FP.k * FP.flick },   // the fire
+    { p: new THREE.Vector3(9.1, Y(2.2), DEN.z0 + 0.3), color: '#ffd8a6', distance: 6, level: () => 1.8 },
   ];
   let feedN = 0, feedAt = 0;
+  const bank = new THREE.Box3(new THREE.Vector3(5.4, Y(1.1), -12.3), new THREE.Vector3(5.6, Y(2.05), -10.9));
   function fx(dt, t, S) {
-    // The cameras: one feed every third frame in turn (each straight away the first time), only while you're down here.
+    // The cameras: each is a whole render of the office, so only while you're down here and the monitors are in view, one
+    // feed every eighth frame in turn (each straight away the first time).
     const fresh = feeds.find((f) => !f.scr.material.uniforms.on.value);
-    if (S.at === 'den' && ctx.cctv && (fresh || (feedN = (feedN + 1) % 3) === 0)) {
+    if (S.at === 'den' && ctx.cctv && api.inView(bank) && (fresh || (feedN = (feedN + 1) % 8) === 0)) {
       const i = fresh ? feeds.indexOf(fresh) : (feedAt = (feedAt + 1) % feeds.length), f = feeds[i];
       const cams = ctx.cctv.cams.filter((cm) => cm.n === 48 && !cm.city), cam = cams.find((cm) => cm.id === camIds[(camAt + i) % camIds.length]) || cams[i % cams.length];
       if (cam) { ctx.cctv.into(cam, f.rt, t); f.scr.material.uniforms.on.value = 1; }
     }
-    if (S.at === 'den' && t - boardAt > 2) { boardAt = t; paintBoard(); }
+    // The fire: it moves only while you're below; its crackle comes from the hearth (and fades with distance).
+    FP.k = damp(FP.k, FP.on ? 1 : 0, FP.on ? 1.2 : 2.5, dt);
+    api.snd().fire(S.at === 'office' ? 0 : FP.k, { x: FP.x, y: Y(0.3), z: FP.face - 0.2 });
+    if (S.at !== 'office') {
+      FP.flick = 0.84 + 0.08 * Math.sin(t * 13.1) + 0.06 * Math.sin(t * 7.3 + 1) + 0.05 * Math.sin(t * 23.7 + 2);
+      fireU.t.value = t; fireU.k.value = FP.k;
+      for (const f of flames) f.visible = FP.k > 0.01;
+      logM.emissiveIntensity = (0.08 + 0.3 * FP.flick) * FP.k;
+      sp.forEach((q, i) => {
+        q.life += dt;
+        if (q.life > 1.4) { q.life = FP.k > 0.5 && Math.random() < 0.5 ? 0 : -Math.random() * 2; q.vx = (Math.random() - 0.5) * 0.15; q.vz = (Math.random() - 0.5) * 0.1; }
+        const u = Math.max(0, q.life), on = q.life >= 0 && FP.k > 0.5;
+        sparkP[i * 3] = FP.x + q.vx * u + Math.sin(u * 9 + i) * 0.02; sparkP[i * 3 + 1] = on ? Y(0.3 + u * 0.45) : -999; sparkP[i * 3 + 2] = gz + q.vz * u;
+      });
+      sparks.geometry.attributes.position.needsUpdate = true;
+    }
     // The lamp, the record, the safe, the dram, the lever.
     lamp.k = damp(lamp.k, lamp.on ? 1 : 0, 14, dt);
     shadeM.emissiveIntensity = 0.08 + 0.55 * lamp.k; bulbM.emissiveIntensity = 0.05 + 2.2 * lamp.k;
@@ -359,9 +383,9 @@ export function buildDen(ctx, api) {
     if (was > 0 && sf.k === 0 && sf.to === 0) api.snd().clang({ x: sfx_, y: Y(0.5), z: sf.z1 });
     door.rotation.y = -1.7 * ease(sf.k);
     cab.fill = damp(cab.fill, cab.to, 2.5, dt); dram.visible = cab.fill > 0.01; dram.scale.y = 0.05 * cab.fill; dram.position.y = Y(0.893 + 0.025 * cab.fill);
-    lever.rotation.x = 0.4 + (Math.PI - 0.8) * (1 - api.leafK());
+    lever.rotation.x = 0.4 + (Math.PI - 0.8) * (1 - api.openK());
   }
-  function stopAll() { if (tt.on) { tt.on = false; api.snd().record(false); } }
+  function stopAll() { if (tt.on) { tt.on = false; api.snd().record(false); } api.snd().fire(0); }
 
   // ----- clicks -----
   const hint = (t, k) => `<b>${t}</b>${k ? `<div class="k">${k}</div>` : ''}`;
@@ -379,7 +403,8 @@ export function buildDen(ctx, api) {
     hover: () => { const cams = ctx.cctv?.cams || []; return hint('Office cameras', `${feeds.map((f, i) => cams.find((c) => c.id === camIds[(camAt + i) % camIds.length])?.name).filter(Boolean).join(' · ')}<br>Click for others`); },
     click: () => { camAt = (camAt + 1) % camIds.length; },
   });
-  ctx.action('den-board', { hover: () => hint('Your projects', 'Live and recent sessions, your repos, and what joins them') });
+  ctx.action('den-fire', { hover: () => hint('The fire', FP.on ? 'Click to put it out' : 'Click to light it'),
+    click: () => { FP.on = !FP.on; api.snd()[FP.on ? 'ignite' : 'douse']({ x: FP.x, y: Y(0.3), z: FP.face - 0.2 }); } });
 
   // ----- the map while you're down here -----
   function map(c, sx, sz) {
