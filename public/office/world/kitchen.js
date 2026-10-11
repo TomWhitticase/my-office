@@ -55,8 +55,9 @@ export function install(ctx) {
 
     // Sink with a gooseneck tap, soap and a brush; a boiling/sparkling water tap by the coffee.
     const sx = -18.35;
-    M.push([0.62, 0.006, 0.42, sx, TOP + 0.001, 14.5, '#7d8389'], [0.54, 0.008, 0.34, sx, TOP + 0.002, 14.5, '#3a3e43'],
-      [0.05, 0.009, 0.05, sx, TOP + 0.003, 14.5, '#202225']);
+    // (rim, basin and drain each a mm or two off the others' top and bottom: not in each other's planes)
+    M.push([0.62, 0.006, 0.42, sx, TOP + 0.002, 14.5, '#7d8389'], [0.54, 0.01, 0.34, sx, TOP + 0.002, 14.5, '#3a3e43'],
+      [0.05, 0.011, 0.05, sx, TOP + 0.006, 14.5, '#202225']);
     const tap = (x, z, h, r) => {
       cyl(world, 0.022, 0.026, 0.03, '', x, TOP + 0.015, z, { material: shinyTapM });
       cyl(world, 0.012, 0.012, h, '', x, TOP + h / 2, z, { material: shinyTapM });
@@ -74,7 +75,7 @@ export function install(ctx) {
     B.push([0.38, 0.5, 0.42, CX, TOP + 0.25, CZ, '#202225'], [0.3, 0.1, 0.05, CX, TOP + 0.36, CZ - 0.23, '#2a2c30'],
       [0.07, 0.05, 0.06, CX, TOP + 0.3, CZ - 0.25, BLACK],
       [0.14, 0.32, 0.2, CX + 0.36, TOP + 0.16, CZ + 0.04, '#26282b'], [0.12, 0.1, 0.12, CX - 0.38, TOP + 0.05, CZ - 0.04, BLACK]);
-    M.push([0.39, 0.04, 0.43, CX, TOP + 0.48, CZ, STEEL], [0.32, 0.025, 0.15, CX, TOP + 0.0125, CZ - 0.24, '#9aa0a6'],
+    M.push([0.39, 0.04, 0.43, CX, TOP + 0.482, CZ, STEEL], [0.32, 0.025, 0.15, CX, TOP + 0.0145, CZ - 0.24, '#9aa0a6'],
       [0.012, 0.3, 0.43, CX - 0.19, TOP + 0.25, CZ, STEEL], [0.012, 0.3, 0.43, CX + 0.19, TOP + 0.25, CZ, STEEL]);
     cyl(world, 0.07, 0.06, 0.12, '#4a2c1a', CX + 0.06, TOP + 0.56, CZ + 0.06, { mat: { roughness: 0.9 } });
     cyl(world, 0.07, 0.03, 0.12, '#3b2416', CX + 0.36, TOP + 0.38, CZ + 0.04, { mat: { roughness: 0.9 } });
@@ -123,7 +124,7 @@ export function install(ctx) {
     const WX = -19.35, WZ0 = 10.9, WZ1 = 14.22, TH = 2.25;
     const wfront = (za, zb, ya, yb, c = GREEN) => B.push([0.02, yb - ya - 0.008, zb - za - 0.008, WX + 0.01, (ya + yb) / 2, (za + zb) / 2, c]);
     B.push([0.65, ROOM.h - TH, WZ1 - WZ0, WX - 0.325, (TH + ROOM.h) / 2, (WZ0 + WZ1) / 2, GREEN],
-      [0.6, 0.1, WZ1 - WZ0, WX - 0.33, 0.05, (WZ0 + WZ1) / 2, BLACK]);
+      [0.6, 0.1, WZ1 - WZ0 - 0.004, WX - 0.33, 0.05, (WZ0 + WZ1) / 2, BLACK]);   // (its ends just inside the end panels')
     for (const z of [WZ0 + 0.01, 11.4, 12.0, 12.635, 13.27, WZ1 - 0.01]) B.push([0.66, TH, 0.02, WX - 0.33, TH / 2, z, GREEN]);
     B.push([0.62, TH - 0.1, 0.48, WX - 0.33, TH / 2 + 0.05, 11.15, GAP], [0.62, TH - 0.1, 0.58, WX - 0.33, TH / 2 + 0.05, 11.7, GAP]);
     wfront(WZ0, 11.4, 0.1, TH); M.push([0.02, 0.6, 0.012, WX + 0.035, 1.15, 11.33, BRASS]);
@@ -157,18 +158,19 @@ export function install(ctx) {
     // Glass drinks fridges: lit white box, wire shelves, six products; black-framed glass doors that open toward each other's hinge.
     for (const [za, zb, north, name] of [[12.635, 13.27, true, 'Drinks fridge'], [12.0, 12.635, false, 'Drinks fridge']]) {
       const zm = (za + zb) / 2, w = zb - za - 0.06;
-      B.push([0.02, TH - 0.2, w, WX - 0.62, TH / 2, zm, '#eaf2f7'], [0.6, 0.02, w, WX - 0.33, 0.12, zm, '#dfe6ea'],
+      // (the lit back 2 mm off the wall's line the shelves stop at)
+      B.push([0.02, TH - 0.2, w, WX - 0.618, TH / 2, zm, '#eaf2f7'], [0.6, 0.02, w, WX - 0.33, 0.12, zm, '#dfe6ea'],
         [0.6, 0.02, w, WX - 0.33, TH - 0.08, zm, '#dfe6ea'], [0.6, 0.1, w + 0.04, WX - 0.33, 0.05, zm, BLACK]);
       B.push([0.012, 0.08, w, WX - 0.33, TH - 0.15, zm, '#1f2a33']);   // lit header
-      for (let s = 0; s < 6; s++) M.push([0.55, 0.012, w, WX - 0.34, 0.15 + s * 0.34, zm, '#b8bcc2']);
+      for (let s = 0; s < 6; s++) M.push([0.55, 0.012, w - 0.004, WX - 0.34, 0.15 + s * 0.34, zm, '#b8bcc2']);
       const k0 = north ? 0 : 3;
       stock(Math.floor(w / 0.078), 12, (c, r) => {
         const s = Math.floor(r / 2), back = r % 2;
         return [WX - 0.12 - back * 0.16, 0.16 + s * 0.34, za + 0.07 + c * 0.078, k0 + s];
       });
       applianceDoor(name, za, zb, 0.1, TH - 0.02, north, (g, W, ya, yb) => {
-        const fr = [[W, 0.06, 0.04, W / 2, ya + 0.03, 0.02], [W, 0.1, 0.04, W / 2, yb - 0.05, 0.02], [0.05, yb - ya, 0.04, 0.025, (ya + yb) / 2, 0.02],
-          [0.05, yb - ya, 0.04, W - 0.025, (ya + yb) / 2, 0.02]];
+        const fr = [[W, 0.06, 0.04, W / 2, ya + 0.03, 0.022], [W, 0.1, 0.04, W / 2, yb - 0.05, 0.022], [0.05, yb - ya, 0.04, 0.025, (ya + yb) / 2, 0.022],
+          [0.05, yb - ya, 0.04, W - 0.025, (ya + yb) / 2, 0.022]];   // (2 mm off the carcass's face)
         g.add(mergedBoxes(fr.map((b) => [...b, BLACK]), kvc));
         box(g, W - 0.1, yb - ya - 0.16, 0.012, '', W / 2, (ya + yb) / 2 - 0.02, 0.02, { material: kGlassM, shadow: false });
         handle(g, W, 0.85, 1.55, BLACK);
@@ -177,7 +179,8 @@ export function install(ctx) {
     // Fridge-freezer: lit interior with glass shelves and food behind the top door; freezer drawer below.
     {
       const za = 13.27, zb = WZ1, zm = (za + zb) / 2, w = zb - za - 0.06;
-      B.push([0.6, 0.05, w + 0.04, WX - 0.33, 0.77, zm, '#e3e7ea'], [0.6, 0.08, w + 0.04, WX - 0.33, TH - 0.04, zm, '#e3e7ea'],
+      // (the divider off the back's and the front's planes)
+      B.push([0.592, 0.05, w + 0.04, WX - 0.33, 0.77, zm, '#e3e7ea'], [0.6, 0.08, w + 0.04, WX - 0.33, TH - 0.04, zm, '#e3e7ea'],
         [0.6, 0.1, w + 0.04, WX - 0.33, 0.05, zm, BLACK]);
       for (const s of [1.15, 1.5, 1.85]) M.push([0.55, 0.01, w, WX - 0.34, s, zm, '#cfe3ea']);
       const FOOD = [[0.09, 0.24, 0.07, '#f4f6f9'], [0.08, 0.22, 0.08, '#4a6fd0'], [0.07, 0.2, 0.07, '#f2f2f2'], [0.2, 0.1, 0.15, '#ff9d3a'],
@@ -236,7 +239,7 @@ export function install(ctx) {
     box(world, IL, 0.05, ID, '', IX, TOP - 0.025, IZ, { material: quartzM });
     for (const s of [-1, 1]) box(world, 0.05, TOP - 0.05, ID, '', IX + s * (IL / 2 - 0.025), (TOP - 0.05) / 2, IZ, { material: quartzM });
     B.push([IL - 0.1, TOP - 0.15, 0.62, IX, (TOP - 0.05) / 2 + 0.05, IZ + 0.12, GAP], [IL - 0.12, 0.1, 0.58, IX, 0.05, IZ + 0.12, BLACK]);
-    for (let x = IX - IL / 2 + 0.1; x < IX + IL / 2 - 0.1; x += 0.05) B.push([0.04, TOP - 0.16, 0.025, x + 0.025, (TOP - 0.06) / 2 + 0.05, IZ - 0.2, OAK]);
+    for (let x = IX - IL / 2 + 0.1; x < IX + IL / 2 - 0.1; x += 0.05) B.push([0.04, TOP - 0.16, 0.025, x + 0.025, (TOP - 0.06) / 2 + 0.05, IZ - 0.2025, OAK]);   // (in front of the carcass, not into it)
     for (let i = 0; i < 6; i++) {
       const xa = IX - IL / 2 + 0.05 + i * (IL - 0.1) / 6, xb = xa + (IL - 0.1) / 6;
       B.push([xb - xa - 0.008, TOP - 0.16, 0.02, (xa + xb) / 2, (TOP - 0.06) / 2 + 0.05, IZ + 0.44, GREEN]);

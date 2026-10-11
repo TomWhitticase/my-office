@@ -72,7 +72,8 @@ export function install(ctx) {
     const deckM = new THREE.MeshStandardMaterial({ map: deck.tex, metalness: 0.2, roughness: 0.6, envMapIntensity: 0.5, emissive: '#cfe2ff',
       emissiveMap: glow.tex, emissiveIntensity: 0 });
     const top = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.006, D - 0.006), deckM);
-    top.rotation.x = -Math.PI / 2; top.position.y = T + 0.0003; top.receiveShadow = true; g.add(top);
+    // (1.2 mm up: less and the depth buffer can't tell it from the base across the room)
+    top.rotation.x = -Math.PI / 2; top.position.y = T + 0.0012; top.receiveShadow = true; g.add(top);
     const hinge = new THREE.Mesh(new THREE.CylinderGeometry(0.0042, 0.0042, W - 0.05, 12).rotateZ(Math.PI / 2),
       mat('#2b2c2f', { metalness: 0.5, roughness: 0.4 }));
     hinge.position.set(0, T - 0.0005, -D / 2 + 0.0045); g.add(hinge);
@@ -82,9 +83,9 @@ export function install(ctx) {
     lid.castShadow = true; pivot.add(lid);
     const bezel = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.004, LH - 0.004),
       new THREE.MeshStandardMaterial({ color: '#050506', roughness: 0.4, metalness: 0 }));
-    bezel.position.set(0, LH / 2, 0.0003); pivot.add(bezel);
+    bezel.position.set(0, LH / 2, 0.0012); pivot.add(bezel);
     const notch = new THREE.Mesh(new THREE.PlaneGeometry(0.03, 0.0065), bezel.material);
-    notch.position.set(0, LH - 0.002 - 0.0033, 0.0018); pivot.add(notch);
+    notch.position.set(0, LH - 0.002 - 0.0033, 0.0036); pivot.add(notch);   // (over the screen's hole, my-office.js)
     const logo = makeCanvas(256, 256), l = logo.ctx;
     l.fillStyle = '#fff';
     for (const [x, y, rx, ry] of [[100, 140, 72, 74], [156, 140, 72, 74], [128, 184, 82, 58]]) { l.beginPath(); l.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
@@ -96,7 +97,7 @@ export function install(ctx) {
     const apple = new THREE.Mesh(new THREE.PlaneGeometry(0.046, 0.046),
       new THREE.MeshStandardMaterial({ color: '#f1f2f4', metalness: 1, roughness: 0.08, alphaMap: logo.tex, alphaTest: 0.5, emissive: '#ffffff',
       emissiveIntensity: 0.06 }));
-    apple.rotation.y = Math.PI; apple.position.set(0, LH / 2 + 0.006, -LT - 0.0002); pivot.add(apple);
+    apple.rotation.y = Math.PI; apple.position.set(0, LH / 2 + 0.006, -LT - 0.0012); pivot.add(apple);
     // The screen's light on the keys and on you.
     const light = new THREE.PointLight('#d6e4ff', 0, 0.9, 2);
     light.position.set(0, LH * 0.5, 0.16); pivot.add(light);

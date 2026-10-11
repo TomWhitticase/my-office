@@ -198,10 +198,11 @@ export function install(ctx) {
   function sofa(x, z, rotY, len = 2.4, color = '#5b6b7d', parent = world) {
     const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rotY; parent.add(g);
     box(g, len, 0.4, 0.9, color, 0, 0.2, 0);
-    box(g, len, 0.12, 0.7, color, 0, 0.46, 0.08, { mat: { roughness: 1 } });
-    box(g, len, 0.5, 0.2, color, 0, 0.6, -0.35);
-    box(g, 0.2, 0.32, 0.9, color, -len / 2 + 0.1, 0.52, 0);
-    box(g, 0.2, 0.32, 0.9, color, len / 2 - 0.1, 0.52, 0);
+    // (the cushion between the arms, the arms on the base, the back's ends just inside the arms': no two faces in one plane)
+    box(g, len - 0.4, 0.12, 0.7, color, 0, 0.46, 0.08, { mat: { roughness: 1 } });
+    box(g, len - 0.004, 0.5, 0.2, color, 0, 0.6, -0.35);
+    box(g, 0.2, 0.28, 0.9, color, -len / 2 + 0.1, 0.54, 0);
+    box(g, 0.2, 0.28, 0.9, color, len / 2 - 0.1, 0.54, 0);
     const CUSH = ['#d9a441', '#b5654a', '#e7dcc8', '#6b8e4e', '#a35d7a'];
     for (const side of [-1, 1]) box(g, 0.26, 0.34, 0.12, CUSH[hash(`${x}${z}${side}`) % CUSH.length], side * (len / 2 - 0.33), 0.72, -0.2).rotation.x = -0.25;
     // One place per ~0.7 m of seat; clicking the sofa sits you in the place nearest where you aimed.
