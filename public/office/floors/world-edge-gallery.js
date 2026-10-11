@@ -176,7 +176,7 @@ export function installGallery(ctx, bs, PLAN) {
       new THREE.BoxGeometry(0.2, 0.015, 0.14).translate(x, 0.785, z - 0.02).applyMatrix4(m));
     const s = new THREE.PlaneGeometry(0.46, 0.27), U = s.attributes.uv, cu = k % 2, cv = (k >> 1) % 2;
     for (let i = 0; i < U.count; i++) U.setXY(i, (cu + U.getX(i)) / 2, 1 - (cv + 1 - U.getY(i)) / 2);
-    monS.push(s.translate(x, 1.12, z + 0.021).applyMatrix4(m));
+    monS.push(s.translate(x, 1.12, z + 0.023).applyMatrix4(m));
   };
   const chair = (x, y, z, yaw) => {   // an operator's chair: five-star base, a post, a seat, a back
     const m = new THREE.Matrix4().makeRotationY(yaw).setPosition(x, y, z);
@@ -235,7 +235,7 @@ export function installGallery(ctx, bs, PLAN) {
   const stripM = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.07).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ map: strip.tex, roughness: 0.9 }));
   stripM.position.set(0, 0.0345, 0.36); mid.add(stripM);
   const meterM = new THREE.Mesh(new THREE.PlaneGeometry(0.98, 0.12), new THREE.MeshBasicMaterial({ map: meters.tex, color: new THREE.Color(1.6, 1.6, 1.6) }));
-  meterM.position.set(0, 0.98, -0.299); mid.parent.add(meterM);
+  meterM.position.set(0, 0.98, -0.297); mid.parent.add(meterM);
   for (const k of [1, 3, 6, 8]) { const m2 = meterM.clone(); m2.position.copy(meterM.position); tops[k].parent.add(m2); }
   function paintMeters(t) {
     const c = meters.ctx; c.fillStyle = '#050605'; c.fillRect(0, 0, 512, 64);
@@ -271,7 +271,7 @@ export function installGallery(ctx, bs, PLAN) {
   const handle = new THREE.Mesh(new THREE.TorusGeometry(0.025, 0.007, 6, 12), white); handle.position.set(0.048, 0.05, 0); mug.add(handle);
   hits.push(ctx.hitBox(mug, 0.12, 0.12, 0.1, 0, 0.05, 0, info('A mug of coffee', 'Stone cold, a skin on it.')));
   const clip = prop(5, 0.2, 0.18);
-  clip.add(new THREE.Mesh(new THREE.BoxGeometry(0.23, 0.006, 0.31), M({ color: '#7a5a32' })));
+  clip.add(new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.006, 0.31), M({ color: '#7a5a32' })));
   const sheet = makeCanvas(256, 340), shc = sheet.ctx;
   shc.fillStyle = '#f4f1e6'; shc.fillRect(0, 0, 256, 340); shc.fillStyle = '#222'; shc.font = `700 18px ${FONT}`; shc.fillText('RUNNING ORDER', 20, 34);
   shc.font = `400 14px ${FONT}`;

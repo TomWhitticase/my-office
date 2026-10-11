@@ -51,7 +51,7 @@ export function installFlat(ctx, bs, PLAN, door) {
   const cans = new THREE.Mesh(mergeGeometries([can.clone().translate(cx + 0.42, 0.5, tz + 0.12), can.clone().rotateZ(Math.PI / 2).translate(cx + 0.38, 0.473, tz - 0.05)]), M({ color: '#9a1d1d', metalness: 0.7, roughness: 0.3 }));
   root.add(cans);
   const lid = makeCanvas(64, 64); lid.ctx.fillStyle = '#efe9dc'; lid.ctx.fillRect(0, 0, 64, 64); lid.ctx.fillStyle = '#b8261d'; lid.ctx.font = `700 22px ${FONT}`; lid.ctx.fillText('☺', 20, 40); lid.tex.needsUpdate = true;
-  const tag = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 0.1).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ map: lid.tex })); tag.position.set(cx - 0.25, 0.541, tz + 0.05); root.add(tag);
+  const tag = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 0.1).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ map: lid.tex })); tag.position.set(cx - 0.25, 0.543, tz + 0.05); root.add(tag);
   hits.push(ctx.hitBox(root, 1.1, 0.3, 0.6, cx, 0.5, tz, info('A takeaway', 'Half eaten. Cold. Two forks.')));
 
   // ----- the two of them: smooth, faceless, sitting, never moving much -----
