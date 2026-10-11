@@ -114,7 +114,7 @@ export function installDuct(ctx, api) {
       quad([[x0, tz(z0), z0], [x1, tz(z0), z0], [x1, tz(z1), z1], [x0, tz(z1), z1]], [0, -1, 0]);
       if (isPeek(c) || fgr) {
         const y = fz(z0), gap = isPeek(c) ? 0.12 : 0.07;
-        for (let x = x0 + 0.04; x < x1 - 0.02; x += gap) fit(0.025, 0.03, C, x, y - 0.015, (z0 + z1) / 2, '#4a4f54');
+        for (let x = x0 + 0.04; x < x1 - 0.02; x += gap) fit(0.025, 0.03, C - 0.08, x, y - 0.015, (z0 + z1) / 2, '#4a4f54');
         fit(C, 0.04, 0.04, (x0 + x1) / 2, y - 0.02, z0 + 0.02, '#4a4f54'); fit(C, 0.04, 0.04, (x0 + x1) / 2, y - 0.02, z1 - 0.02, '#4a4f54');
         if (fgr) {
           glows.push([C - 0.06, C - 0.06, (x0 + x1) / 2, y - 0.14, (z0 + z1) / 2, 'y', fgr.c]);
@@ -132,7 +132,7 @@ export function installDuct(ctx, api) {
         const gr = grilleOf(c, s);
         if (gr) {
           const y0 = fz(z0), mid = (u0 + u1) / 2;
-          for (let k = 0; k < 6; k++) { const y = y0 + 0.08 + k * 0.09; fit(alongX ? C : 0.03, 0.035, alongX ? 0.03 : C, alongX ? mid : at - di * 0.015, y, alongX ? at - dj * 0.015 : mid, '#454a4f', 0, 0); }
+          for (let k = 0; k < 6; k++) { const y = y0 + 0.08 + k * 0.09; fit(alongX ? C - 0.006 : 0.03, 0.035, alongX ? 0.03 : C - 0.006, alongX ? mid : at - di * 0.015, y, alongX ? at - dj * 0.015 : mid, '#454a4f', 0, 0); }
           fit(alongX ? C : 0.04, 0.06, alongX ? 0.04 : C, alongX ? mid : at, y0 + 0.03, alongX ? at : mid, '#3d4146'); fit(alongX ? C : 0.04, 0.06, alongX ? 0.04 : C, alongX ? mid : at, y0 + C - 0.03, alongX ? at : mid, '#3d4146');
           glows.push([C, C, alongX ? mid : at + di * 0.1, y0 + C / 2, alongX ? at + dj * 0.1 : mid, alongX ? 'z' : 'x', gr.c]);
           for (let k = 0; k < 5; k++) {   // a slat of light from each gap, down across the floor
@@ -156,7 +156,7 @@ export function installDuct(ctx, api) {
     }
     {   // a collar round the duct at the join, each half its own side of it (what the portals' margins show: systems/portal.js)
       const x = far ? XC + 0.04 : XC - 0.04, y0 = FL + 0.6, zc = ZC;   // (a centimetre off the join: never on the portal's clipping plane)
-      for (const [h, d, y, z] of [[0.05, C + 0.1, y0 - 0.025, zc], [0.05, C + 0.1, y0 + C + 0.025, zc], [C, 0.05, y0 + C / 2, zc - C / 2 - 0.025], [C, 0.05, y0 + C / 2, zc + C / 2 + 0.025]])
+      for (const [h, d, y, z] of [[0.05, C + 0.1, y0 - 0.028, zc], [0.05, C + 0.1, y0 + C + 0.028, zc], [C + 0.006, 0.05, y0 + C / 2, zc - C / 2 - 0.028], [C + 0.006, 0.05, y0 + C / 2, zc + C / 2 + 0.028]])
         fit(0.06, h, d, x, y, z, '#5a6066');
     }
     if (far) {   // the stub through the corridor's wall, to its face
@@ -197,9 +197,9 @@ export function installDuct(ctx, api) {
     own(() => {
       officeG = buildHalf(false); officeG.visible = false; ctx.world.add(officeG);
       const { part, merge, vc } = den, Y0 = DY, wall = X0 - 0.004, L = [];
-      for (const [w, h, z, y] of [[0.05, C + 0.16, VENT.z0 - 0.04, VENT.y0 + C / 2], [0.05, C + 0.16, VENT.z1 + 0.04, VENT.y0 + C / 2], [C + 0.13, 0.06, vz, VENT.y1 + 0.04]])
+      for (const [w, h, z, y] of [[0.05, C + 0.16, VENT.z0 - 0.04, VENT.y0 + C / 2], [0.05, C + 0.16, VENT.z1 + 0.04, VENT.y0 + C / 2], [C + 0.12, 0.06, vz, VENT.y1 + 0.04]])
         L.push(part(new THREE.BoxGeometry(0.035, h, w), '#3a2414', wall - 0.012, Y0 + y, z));
-      L.push(part(new THREE.BoxGeometry(0.02, 0.025, C + 0.13), '#4a2e1b', wall - 0.03, Y0 + VENT.y1 + 0.075, vz));
+      L.push(part(new THREE.BoxGeometry(0.02, 0.025, C + 0.12), '#4a2e1b', wall - 0.03, Y0 + VENT.y1 + 0.075, vz));
       den.g.add(merge(L, vc({ roughness: 0.55 })));
       // the grille: a fretwork panel (carved lattice and a rosette, cut through), its own frame
       const fret = (() => {

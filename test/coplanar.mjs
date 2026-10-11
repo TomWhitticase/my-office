@@ -266,7 +266,6 @@ export const ALLOW = [
   // Being fixed by the sessions that own them (2026-10-11): counts as found, so a new one there still fails.
   ['relativity', 'Relativity\'s stairs, walls and arches (floors/relativity*.js): its own session is fixing them', { upTo: 77 }],
   ['backstage', 'behind the sky: the corridor, gallery and flat (floors/world-edge-*.js): the edge session is fixing them', { upTo: 30 }],
-  ['den', 'the secret den and its shaft (world/secret-den.js, secret-room.js): the secret-room session is fixing them', { upTo: 22 }],
   // Small joints left in the office's own parts (each under 90 cm², most under 10; listed in test/out/coplanar.txt): to tidy.
   ['office', 'small joints still to tidy: the stage\'s edges, the guitars\' bridges, the drinks fridges\' backs', { upTo: 11 }],
   ['floor 46', 'small joints still to tidy: changing-room benches, door frames, the pool\'s grate ends', { upTo: 24 }],
