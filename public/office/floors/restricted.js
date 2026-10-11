@@ -526,7 +526,7 @@ function build(ctx) {
   const blink = document.createElement('div'); blink.className = 'of-blink'; hud.appendChild(blink);
   let pass = false;   // the one ride the right code buys: used up by the press it makes (see restr.access)
   try { localStorage.removeItem('officeRestricted'); } catch {}   // it used to be remembered there
-  const sound = makeSound(ctx, restr);
+  const sound = restr.audio = makeSound(ctx, restr);   // (relativity-door.js plays its bleed through the stone door)
   restr.grid = { C, CH, H, T, X: (i) => GX + i * C, Z: (j) => GZ + j * C, edgeType, SOLID, cellOk, h3 };
   restr.sync = syncChunks;
   // A reload down here (systems/resume.js): the same rooms round where you were (they're fixed by place, not by visit), and no keypad.

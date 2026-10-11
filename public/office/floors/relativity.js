@@ -113,12 +113,12 @@ function build(ctx) {
     const leaf = new THREE.Mesh(mergeGeometries(parts), oak); grp.add(leaf);
     const back = new THREE.Mesh(new THREE.ShapeGeometry(archShape(d.w, d.s), 10), behind);   // what's through it
     back.position.z = d.along === 'z' ? -0.15 : 0.25; grp.add(back);
-    return { ...d, grp, leaf, k: d.k, open: 0, want: 0, swing };
+    return { ...d, grp, leaf, back, k: d.k, open: 0, want: 0, swing };
   }
   const skyM = new THREE.MeshBasicMaterial({ map: clouds, fog: false });
   const paperM = new THREE.MeshBasicMaterial({ map: paper, fog: false, color: new THREE.Color(0.75, 0.72, 0.6) });
   const skyDoors = rel.skyDoors = arch.skyDoors.map((d) => makeDoor(d, skyM, -1));
-  const exits = arch.doors.map((d, i) => {
+  const exits = rel.exits = arch.doors.map((d, i) => {
     const door = makeDoor(d, paperM, 1);
     const hit = hitBox(frames[d.k], d.w, d.s + d.w / 2, 0.3, d.hinge[0] + d.w / 2, d.hinge[1] + (d.s + d.w / 2) / 2, d.hinge[2] - 0.1,
       { action: 'relexit', reach: 3, keyAt: () => i });
@@ -159,6 +159,13 @@ function build(ctx) {
       }`,
   });
   const res = new THREE.Vector2();
+  rel.hatch = hatch;   // (relativity-door.js eases it off toward the way out: B3 isn't engraved)
+  // Its post-processing made and drawn a couple of times before you first walk in (relativity-door.js, as the door opens):
+  // the first frames out of a new composer are wrong. (Drawn to the canvas, under the frame that's drawn over it.)
+  rel.prime = () => {
+    if (hatch.added) return;
+    ctx.renderFloor(rel); rel.composer.addPass(hatch); hatch.added = true; ctx.renderFloor(rel); ctx.renderFloor(rel);
+  };
 
   // ----- coming and going (the fade, a white you walk through) -----
   style.textContent += `
@@ -305,8 +312,9 @@ function build(ctx) {
     c.font = '600 20px system-ui'; c.fillStyle = 'rgba(255,255,255,.85)'; c.fillText('RELATIVITY', 16, 30);
   };
 
-  ctx.action('relexit', { hover: () => '<b>The door you came in by</b><div class="k">It shouldn’t lead anywhere. Click to go back through</div>',
-    click: (h) => { back(exits[h.key] || exits[0]); } });
+  ctx.action('relexit', { hover: () => (rel.door.st.at ? '<b>The door you came in by</b><div class="k">B3’s on the other side of it, whichever way is down. Walk through · click to open or shut it</div>'
+    : '<b>The door you came in by</b><div class="k">It shouldn’t lead anywhere. Click to go back through</div>'),
+    click: (h) => { if (!rel.door.exit(h.key ?? 0)) back(exits[h.key] || exits[0]); } });   // open or shut it, or (no door on B3 to open onto) back by the lift
   ctx.action('relsky', { hover: () => '<b>A door</b><div class="k">Open sky, all the way down.</div>' });
   ctx.action('relfig', { hover: () => '<b>Someone</b><div class="k">Going about their business. They don’t look up.</div>' });
   Object.assign(ctx, { rel });

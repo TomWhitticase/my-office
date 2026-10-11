@@ -13,7 +13,7 @@ export function makeSound(ctx, restr) {
   const { camera } = ctx;
   let A = null, B = null, out = null, loops = [], lamps = [], drone = null, ring = null;
   let thumpAt = 0, chimeAt = 0, walkT = 0, follow = null, last = null, stepAcc = 0, hushAt = 0, hushed = false, swellAt = 0;
-  let baseHum = null, dreadK = 0, rumble = null, echoAt = null;   // the creature (restricted-creature.js): how near, its rumble, your steps' echo
+  let baseHum = null, dreadK = 0, rumble = null, echoAt = null, bleedL = null;   // the creature (restricted-creature.js): how near, its rumble, your steps' echo
   const rnd = (a, b) => a + Math.random() * (b - a), nz = () => Math.random() * 2 - 1;
   const pick = (a) => a[Math.floor(Math.random() * a.length)];
 
@@ -96,7 +96,7 @@ export function makeSound(ctx, restr) {
   function ready() {
     const a = ctx.sfx.audio;
     if (!a || a.ctx.state !== 'running') return false;
-    if (A?.ctx !== a.ctx) { A = a; B = null; loops = []; lamps = []; baseHum = rumble = null; out = A.ctx.createGain(); out.connect(A.master); }
+    if (A?.ctx !== a.ctx) { A = a; B = null; loops = []; lamps = []; baseHum = rumble = bleedL = null; out = A.ctx.createGain(); out.connect(A.master); }
     if (!B) B = build();
     return true;
   }
@@ -250,6 +250,21 @@ export function makeSound(ctx, restr) {
       step(x, z) { if (ready()) shot(pick(B.step), x, 0.05, z, 0.16, { rate: rnd(0.55, 0.65), lp: 500, ref: 3, roll: 0.9 }); },   // too heavy, too slow
     },
     get hushed() { return hushed; },
+    // Heard from another floor through a doorway onto B3 (relativity-door.js): the tubes' hum and the drone at v (0 to 1).
+    bleed(v) {
+      if (!ready() || (!bleedL && v < 0.002)) return;
+      const now = A.ctx.currentTime;
+      if (!bleedL) {
+        const g = A.ctx.createGain(); g.gain.value = 0; g.connect(A.master);
+        bleedL = { g, srcs: [[B.hum, 0.03, 'bandpass', 1400], [B.drone, 0.02, 'lowpass', 220]].map(([buf, gain, type, f0]) => {
+          const src = A.ctx.createBufferSource(), f = A.ctx.createBiquadFilter(), sg = A.ctx.createGain();
+          src.buffer = buf; src.loop = true; f.type = type; f.frequency.value = f0; sg.gain.value = gain;
+          src.connect(f).connect(sg).connect(g); src.start(); return src;
+        }) };
+      }
+      bleedL.g.gain.setTargetAtTime(v, now, 0.3);
+      if (v < 0.002) { for (const src of bleedL.srcs) src.stop(now + 1.5); bleedL = null; }
+    },
     stop() {
       if (A) for (const { src, g } of loops) { g.gain.setTargetAtTime(0, A.ctx.currentTime, 0.2); src.stop(A.ctx.currentTime + 1); }
       if (A && out) out.gain.setTargetAtTime(1, A.ctx.currentTime, 0.1);

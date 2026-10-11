@@ -130,6 +130,13 @@ export function makeWalker(boxes) {
   const qE = new THREE.Quaternion(), eul = new THREE.Euler(0, 0, 0, 'YXZ'), tmp = v3(), rt = new THREE.Quaternion();
   return {
     S, B, M, hit, ground,
+    /** Box i there or not (a door, open): gone, it's moved out of everyone's way. */
+    solid(i, on) {
+      for (let k = 0; k < 3; k++) {
+        if (on) { B[k].set(toLocal(k, boxes[i].min), i * 6); B[k].set(toLocal(k, boxes[i].max), i * 6 + 3); }
+        else B[k].fill(1e6, i * 6, i * 6 + 6);
+      }
+    },
     /** Put you at (x, y, z) in frame k, settled onto whatever's under you. */
     place(k, x, y, z) {
       Object.assign(S, { k, x, y, z, roll: null, press: 0, supp: -1 });

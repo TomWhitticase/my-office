@@ -296,6 +296,16 @@ export const POSES = [
     await stand(o, x, z, { x: d.x, y: 1.9, z: d.z });
     await o.step(20);
   }],
+  ['relativity-door-open', async (o) => {   // and open: the hall through it, live, in its own light (systems/portal.js)
+    await from('relativity-door', o);
+    await o.eval(() => window.__office.ctx.rel.door.open(true));
+    await o.step(20);
+  }],
+  ['relativity-exit', async (o) => {   // inside, looking back at the door you came in by: B3's corridor through it
+    await from('relativity-door', o);
+    await o.eval(() => { const r = window.__office.ctx.rel; r.door.open(true); r.door.through(); r.pose(0, 9.4, -15, 6.3, Math.PI - 0.12, 0.02); });
+    await o.step(20);
+  }],
   ['relativity', async (o) => {   // through it: Relativity as you arrive, the door behind you, three gravities' stairs ahead
     await arrive(o);
     await ride(o, -3);
