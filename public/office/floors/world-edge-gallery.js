@@ -240,7 +240,7 @@ export function installGallery(ctx, bs, PLAN) {
     frustum.setFromProjectionMatrix(pv.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
     if (!frustum.intersectsSphere(sphere)) return;
     let due = null;
-    for (const s of screens) if (s.cam && t - s.at >= 1 / FPS && (!due || s.at < due.at)) due = s;
+    for (const s of screens) if (s.cam && (s.cam !== pier || E.E.built) && t - s.at >= 1 / FPS && (!due || s.at < due.at)) due = s;   // (the pier: once there's one)
     if (!due) return;
     due.at = t;
     ctx.cctv.into(due.cam, due.rt, t);
