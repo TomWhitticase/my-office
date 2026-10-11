@@ -87,7 +87,7 @@ export function install(ctx) {
 
   function collide(p, r = 0.3) {
     if (p === player && carCollide(p)) return;
-    for (const b of ctx.away ? ctx.away.colliders : colliders) {
+    for (const b of ctx.away ? ctx.away.colliders : ctx.below ? ctx.below.colliders : colliders) {   // below: under 48 (world/secret-room.js)
       const cx = clamp(p.x, b.minX, b.maxX), cz = clamp(p.z, b.minZ, b.maxZ);
       const dx = p.x - cx, dz = p.z - cz, d2 = dx * dx + dz * dz;
       if (d2 >= r * r) continue;
@@ -111,6 +111,7 @@ export function install(ctx) {
   function movePlayer(dt) {
     if (ctx.away?.fly) { flyPlayer(dt); return; }
     if (ctx.away?.walk) { ctx.away.walk(dt, keys); return; }   // a floor that moves you itself (relativity.js)
+    if (ctx.climb?.(dt, keys)) return;   // on a ladder (world/secret-room.js)
     let f = 0, s = 0;
     if (keys.has('KeyW') || keys.has('ArrowUp')) f += 1;
     if (keys.has('KeyS') || keys.has('ArrowDown')) f -= 1;
@@ -131,7 +132,7 @@ export function install(ctx) {
     }
     player.eye = damp(player.eye, player.seated ? player.seat?.eye ?? SEATED_EYE : EYE, 5, dt);
     const bob = (f || s) && !player.seated ? Math.sin(performance.now() / 140) * 0.025 : 0;
-    player.fy = damp(player.fy || 0, ctx.away?.ground?.(player.x, player.z) || 0, 14, dt);   // up steps (the gateway's plinth)
+    player.fy = damp(player.fy || 0, (ctx.away || ctx.below)?.ground?.(player.x, player.z) || 0, 14, dt);   // up steps (the gateway's plinth), down to the den
     setCam({ x: player.x, y: player.eye + bob + (ctx.away?.y || 0) + player.fy, z: player.z, yaw: player.yaw, pitch: player.pitch });
   }
 

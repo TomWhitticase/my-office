@@ -47,7 +47,9 @@ export function install(ctx) {
     if (light) addLamp(x, 1.45, z, light);   // 0: shade glows, no light
     solid(x, z, 0.35, 0.35);
   }
-  function bookshelf(x, z, rotY, w, h, rows) {
+  // pick(book, row): the first book it picks is left out of the merge and handed back as g.userData.picked (my office's
+  // secret door pulls one out: world/secret-room.js).
+  function bookshelf(x, z, rotY, w, h, rows, pick) {
     const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rotY; world.add(g);
     const D = 0.34, gap = (h - 0.06) / rows;
     const frame = [[0.04, h, D, -w / 2 + 0.02, h / 2, 0], [0.04, h, D, w / 2 - 0.02, h / 2, 0], [w, 0.03, D, 0, h - 0.015, 0],
@@ -67,6 +69,8 @@ export function install(ctx) {
         bx += (lean ? bh : bw) + 0.004;
       }
     }
+    const k = pick ? books.findIndex((b) => pick(b, Math.floor((b[4] - 0.04) / gap))) : -1;
+    if (k >= 0) g.userData.picked = books.splice(k, 1)[0];
     g.add(mergedBoxes(books, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8 })));
     const horiz = Math.abs(Math.sin(rotY)) < 0.5;
     solid(x, z, horiz ? w : D, horiz ? D : w);

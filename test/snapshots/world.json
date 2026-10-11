@@ -6199,14 +6199,14 @@
  ],
  "scenes": {
   "office": {
-   "objects": 3355,
+   "objects": 3357,
    "types": {
     "Scene": 1,
     "HemisphereLight": 1,
     "DirectionalLight": 2,
     "Object3D": 2,
-    "Mesh": 2879,
-    "Group": 539,
+    "Mesh": 2880,
+    "Group": 540,
     "PointLight": 16,
     "Sprite": 9,
     "LineSegments": 2,
@@ -6219,6 +6219,7 @@
     "laptop": 7,
     "door": 86,
     "coffee": 1,
+    "secret-book": 1,
     "taskboard": 1,
     "decanter": 1,
     "computer": 1,
@@ -6246,8 +6247,8 @@
     "lightpanel": 5,
     "rosie": 57
    },
-   "ordered": "643d328d",
-   "sorted": "a1baa4f"
+   "ordered": "11a4494b",
+   "sorted": "362f5749"
   },
   "servers": {
    "objects": 383,
