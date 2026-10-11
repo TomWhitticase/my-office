@@ -321,7 +321,7 @@ export function installDuct(ctx, api) {
     const s = D;
     s.tw = to === 'den'
       ? { t: 0, d: 1.1, a: { x: s.x, z: s.z, fy: s.fy, eyeH: s.eyeH, yaw: s.yaw, pitch: s.pitch }, b: { x: X0 - 0.6, z: vz, fy: DY, eyeH: EYE, yaw: Math.PI / 2, pitch: -0.1 }, then: to }
-      : { t: 0, d: 1.3, a: { x: s.x, z: s.z, fy: s.fy, eyeH: s.eyeH, yaw: s.yaw, pitch: s.pitch }, b: { x: OUT + 0.85, z: Z0 + 4.5 * C, fy: DY, eyeH: EYE, yaw: s.yaw, pitch: 0 }, then: to };
+      : { t: 0, d: 1.3, a: { x: s.x, z: s.z, fy: s.fy, eyeH: s.eyeH, yaw: s.yaw, pitch: s.pitch }, b: { x: OUT + 0.85, z: Z0 + 4.5 * C, fy: DY, eyeH: EYE, yaw: 0, pitch: 0 }, then: to };   // (turned down the corridor, toward its light: not facing its far wall)
     api.snd().duct('hand', 0.4);
   }
   function finish(to) {
