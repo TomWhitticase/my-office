@@ -413,13 +413,14 @@ export const POSES = [
   ['plain-crossing-out', async (o) => { await arrive(o); await o.eval(() => { const p = window.__office.plain; p.painting(0, 3, 0, 0); p.go(0.05, -0.06, Math.PI, 0); }); await o.step(20); }],
   ['plain-frame', async (o) => { await arrive(o); await o.eval(() => { const p = window.__office.plain; p.painting(0, 3, 0, 0); p.go(-0.9, -4.5, Math.PI + 0.2, -0.04); }); await o.step(30); }],
   ['plain-crawler', async (o) => { await arrive(o); await o.eval(() => { const p = window.__office.plain; p.go(0, -6, 0, -0.12); p.stage(0.4, -10.5, -0.2); }); await o.step(20); }],
-  // The grid (floors/grid.js), behind a bookcase on B3: the bookcase from across the room; the wall behind it, from its
-  // open end; the wall giving, half gone, the grid through it; a step from going through it; in the grid, the sky up;
-  // a step from going back out, B3 through the doorway; the black hole, seven seconds in.
+  // The grid (floors/grid.js), behind a bookcase on B3: the bookcase from across the room, against the wall; beside it,
+  // close up; pulled out, the wall it hid; the wall giving, half gone, the grid through it; a step from going through it;
+  // in the grid, the sky up; a step from going back out, B3 through the doorway; the black hole, seven seconds in.
   ['grid-door', async (o) => { await arrive(o); await ride(o, -3); await o.eval(() => window.__office.grid.door(0.5, 4.4, 0.1, -0.02)); await o.step(20); }],
   ['grid-door-near', async (o) => { await arrive(o); await ride(o, -3); await o.eval(() => { const g = window.__office.grid; g.door(1.3, 0.55, 1.35, -0.02); g.open(0); }); await o.step(1); }],
-  ['grid-door-open', async (o) => { await arrive(o); await ride(o, -3); await o.eval(() => { const g = window.__office.grid; g.door(0.2, 0.62, -0.25, 0); g.open(0.45); }); await o.step(1); }],
-  ['grid-crossing-in', async (o) => { await arrive(o); await ride(o, -3); await o.eval(() => { const g = window.__office.grid; g.door(-0.15, 0.22, 0.3, -0.02); g.open(1); }); await o.step(2); }],
+  ['grid-case-out', async (o) => { await arrive(o); await ride(o, -3); await o.eval(() => { const g = window.__office.grid; g.door(0.5, 4.4, 0.1, -0.02); g.bookcase(true); }); await o.step(20); }],
+  ['grid-door-open', async (o) => { await arrive(o); await ride(o, -3); await o.eval(() => { const g = window.__office.grid; g.door(0.2, 0.62, -0.25, 0); g.bookcase(true); g.open(0.45); }); await o.step(1); }],
+  ['grid-crossing-in', async (o) => { await arrive(o); await ride(o, -3); await o.eval(() => { const g = window.__office.grid; g.door(-0.15, 0.22, 0.3, -0.02); g.bookcase(true); g.open(1); }); await o.step(2); }],
   ['grid', async (o) => { await arrive(o); await ride(o, -3); await o.eval(() => window.__office.grid.go(1.5, -2.5, 0.05, -0.08)); await o.step(130); }],
   ['grid-crossing-out', async (o) => { await arrive(o); await ride(o, -3); await o.eval(() => window.__office.grid.go(0.15, -0.3, Math.PI - 0.25, -0.02)); await o.step(130); }],
   ['grid-hole', async (o) => {

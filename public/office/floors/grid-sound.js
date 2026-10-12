@@ -10,7 +10,7 @@ const TAU = Math.PI * 2;
 
 export function makeSound(ctx) {
   const { camera } = ctx;
-  let A = null, B = null, out = null, verb = null, loops = [], stepAcc = 0, lastP = null, chimeAt = 0, roar = null, bleedL = null, buzzL = null;
+  let A = null, B = null, out = null, verb = null, loops = [], stepAcc = 0, lastP = null, chimeAt = 0, roar = null, bleedL = null, buzzL = null, scrapeL = null;
   const rnd = (a, b) => a + Math.random() * (b - a), nz = () => Math.random() * 2 - 1;
   const pick = (a) => a[Math.floor(Math.random() * a.length)];
 
@@ -78,13 +78,20 @@ export function makeSound(ctx) {
       zip: (() => { let ph = 0; return make(0.7, (t) => { ph += (1400 * Math.pow(0.08, t / 0.7)) / A.ctx.sampleRate; return (saw(ph) * 0.6 + nz() * 0.15) * Math.exp(-t / 0.3); }); })(),
       heal: make(3.5, (t) => [0, 0.18, 0.36, 0.54].reduce((s, d, i) => s + (t > d ? Math.sin(TAU * [587.3, 740, 880, 1174.7][i] * (t - d)) * Math.exp(-(t - d) * 1.4) : 0), 0)
         * Math.min(1, t / 0.01) + air(nz()) * Math.sin(Math.PI * Math.min(1, t / 3.5)) * 0.2),
+      // the bookcase on B3, dragged: a heavy wooden scrape, juddering as it sticks and slips; and its thud as it stops
+      scrape: (() => { const body = biq('bp', 180, 1.4), grit = biq('bp', 1400, 0.9), low = biq('lp', 120, 0.7); let j = 0;
+        return make(3, (t) => { if (Math.random() < 0.0012) j = rnd(0.5, 1); j *= 0.9993;
+          const judder = 0.55 + 0.45 * Math.abs(Math.sin(TAU * cyc(13, 3) * t));
+          return (body(nz()) * 2.2 * judder + grit(nz()) * 0.5 * (0.3 + j) + low(nz()) * 1.5) * (0.7 + 0.3 * j); }, 0.9); })(),
+      thud: (() => { const lp = biq('lp', 90, 0.8), knock = biq('bp', 500, 2);
+        return make(0.6, (t) => lp(nz()) * 6 * Math.exp(-t / 0.08) + Math.sin(TAU * 62 * t) * Math.exp(-t / 0.12) + knock(nz()) * Math.exp(-t / 0.02) * 0.3); })(),
       buzz: make(2, (t) => Math.sin(TAU * 120 * t) * 0.6 + Math.sin(TAU * 240 * t) * 0.25 + Math.sign(Math.sin(TAU * 120 * t)) * 0.08),
     };
   }
   function ready() {
     const a = ctx.sfx.audio;
     if (!a || a.ctx.state !== 'running') return false;
-    if (A?.ctx !== a.ctx) { A = a; B = null; loops = []; out = verb = roar = bleedL = buzzL = null; }
+    if (A?.ctx !== a.ctx) { A = a; B = null; loops = []; out = verb = roar = bleedL = buzzL = scrapeL = null; }
     if (!B) B = build();
     if (!out) {
       out = A.ctx.createGain(); out.connect(A.master);
@@ -157,6 +164,8 @@ export function makeSound(ctx) {
     // Heard through the doorway: this side on B3 (v: 0 to 1), and B3's strip lights in here.
     bleed(v) { if (ready() && (bleedL || v >= 0.002)) bleedL = level(bleedL, [[B.pad, 0.035], [B.rumble, 0.04]], v); },
     buzz(v) { if (ready() && (buzzL || v >= 0.002)) buzzL = level(buzzL, [[B.buzz, 0.012]], v); },
+    scrape(v) { if (ready() && (scrapeL || v >= 0.002)) scrapeL = level(scrapeL, [[B.scrape, 0.09]], v); },
+    thud(v) { if (ready()) shot(B.thud, null, 0.14 * v, { send: 0 }); },
     get playing() { return loops.length > 0; },
     stop() {
       if (A) for (const { src, g } of loops) { g.gain.setTargetAtTime(0, A.ctx.currentTime, 0.3); src.stop(A.ctx.currentTime + 1.5); }

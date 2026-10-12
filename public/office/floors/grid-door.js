@@ -1,6 +1,7 @@
 // The way into the grid (floors/grid.js) from the restricted level (floors/restricted.js), as it is in the reference: a
-// bookcase stands a little out from a wall, and the stretch of wall behind it is wrong: flat, too clean, unlit, faintly
-// ruled like graph paper. Squeeze in behind the bookcase and walk at it, and it gives: it dissolves from the middle out,
+// bookcase stands flush against a wall. Click it and you drag it out, heavily, scraping: it swings out on its corner and
+// drags clear, and the stretch of wall it hid is wrong: flat, too clean, unlit, faintly ruled like graph paper (click it
+// again and it goes back, never onto you: it stops short). Squeeze in behind the bookcase and walk at it, and it gives: it dissolves from the middle out,
 // a bright blue crackling edge where it meets the wall, onto the grid's black and green, live (systems/portal.js), and
 // you walk through. From the grid the doorway hangs in the void, a blue fizz round its edge, B3 through it drawn flat
 // and inked like a cartoon (fading to B3 as it is as you come up to it, so nothing jumps as you cross). It's always in
@@ -13,8 +14,9 @@ import { clamp, EYE, lerp, makeCanvas, rng, sstep } from '../util.js';
 import { makePortal } from '../systems/portal.js';
 import { findExit } from './world-edge-backstage.js';
 
-export const DOOR = { w: 1.0, h: 2.1, PO: 0.006, PANEL: 0.012, SLOT: 0.95, CASE: 0.38, CW: 1.7, PIV: [-1.3, 0.62], TURN: -0.5 };   // the opening; the pane and the panel off
-// the wall; the bookcase (its back-left corner at PIV, pulled out from the wall at the other end by TURN)
+export const DOOR = { w: 1.0, h: 2.1, PO: 0.006, PANEL: 0.012, PH: 2.16, SLOT: 0.95, CASE: 0.38, CW: 1.7, SHUT: [-0.85, 0.03], PIV: [-1.3, 0.62], TURN: -0.5 };
+// the opening; the pane and the panel off the wall, the panel's height; the bookcase (its back-left corner at SHUT,
+// flush against the wall; pulled out, at PIV, the other end out from the wall by TURN)
 
 // ----- where it is: a cell 10-18 cells' walk from the lift (and 25 m from it as the crow flies) with a solid wall to stand the bookcase by, an open side for
 // the gap behind it, two cells of room in front, nothing else in it, and well away from the other doors. -----
@@ -54,8 +56,8 @@ export function installDoor(ctx, grid, W, sound) {
 
   // ----- B3's side: the bookcase, the wall that's wrong -----
   const g = new THREE.Group(); g.position.set(X, 0, Z); g.rotation.y = YAW; restr.root.add(g);
-  const caseG = new THREE.Group(); caseG.position.set(DOOR.PIV[0], 0, DOOR.PIV[1]); caseG.rotation.y = DOOR.TURN; g.add(caseG);
-  {   // the bookcase, its back to the wall, pulled out at one end: painted blue-violet, its books in colour order
+  const caseG = new THREE.Group(); g.add(caseG);
+  {   // the bookcase, its back to the wall: painted blue-violet, its books in colour order
     const parts = [], col = (c) => new THREE.Color(c);
     const b = (w, h, d, x, y, z, c) => { const geo = new THREE.BoxGeometry(w, h, d).translate(x, y, z), cc = col(c);
       geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(geo.attributes.position.count * 3).map((_, k) => [cc.r, cc.g, cc.b][k % 3]), 3)); geo.deleteAttribute('uv'); parts.push(geo); };
@@ -81,19 +83,26 @@ export function installDoor(ctx, grid, W, sound) {
     m.castShadow = m.receiveShadow = true; caseG.add(m);
   }
   const caseHit = ctx.hitBox(caseG, DOOR.CW, 2.2, DOOR.CASE, DOOR.CW / 2, 1.1, DOOR.CASE / 2, { action: 'gridcase', reach: 3 });
-  // where it stands, as boxes on the floor (in the doorway's frame): four squares along it
-  const along = [Math.cos(DOOR.TURN), -Math.sin(DOOR.TURN)], out = [Math.sin(DOOR.TURN), Math.cos(DOOR.TURN)];
-  const caseCols = [0.125, 0.375, 0.625, 0.875].map((k) => {
-    const x = DOOR.PIV[0] + along[0] * k * DOOR.CW + out[0] * DOOR.CASE / 2, z = DOOR.PIV[1] + along[1] * k * DOOR.CW + out[1] * DOOR.CASE / 2;
-    return [x - 0.24, x + 0.24, z - 0.24, z + 0.24];
-  });
+  // Where it stands, c (0 against the wall, 1 pulled out): swung out on its back corner first, then dragged clear.
+  const pose = (c) => ({ x: lerp(DOOR.SHUT[0], DOOR.PIV[0], sstep(0.2, 1, c)), z: lerp(DOOR.SHUT[1], DOOR.PIV[1], sstep(0.2, 1, c)), a: DOOR.TURN * sstep(0, 0.7, c) });
+  const place = (c) => { const P = pose(c); caseG.position.set(P.x, 0, P.z); caseG.rotation.y = P.a; };
+  // as boxes on the floor (in the doorway's frame): four squares along it
+  const caseCols = (c) => { const P = pose(c), along = [Math.cos(P.a), -Math.sin(P.a)], out = [Math.sin(P.a), Math.cos(P.a)];
+    return [0.125, 0.375, 0.625, 0.875].map((k) => {
+      const x = P.x + along[0] * k * DOOR.CW + out[0] * DOOR.CASE / 2, z = P.z + along[1] * k * DOOR.CW + out[1] * DOOR.CASE / 2;
+      return [x - 0.24, x + 0.24, z - 0.24, z + 0.24];
+    }); };
+  // whether (x, z) (the doorway's frame) is within r of it at c
+  const onIt = (c, x, z, r) => { const P = pose(c), dx = x - P.x, dz = z - P.z, co = Math.cos(P.a), si = Math.sin(P.a);
+    const lx = dx * co - dz * si, lz = dx * si + dz * co;
+    return lx > -r && lx < DOOR.CW + r && lz > -r && lz < DOOR.CASE + r; };
   // The wrong wall: the wallpaper's colour, flat and unlit, no pattern, no damp, ruled faintly every 20 cm; it dissolves
   // (open, 0 to 1) from the middle out, a blue crackling edge where it's going.
-  const ruled = makeCanvas(256, 427), rc = ruled.ctx;
-  rc.fillStyle = '#7d6d34'; rc.fillRect(0, 0, 256, 427);
+  const RH = Math.round(256 * DOOR.PH / 1.5), ruled = makeCanvas(256, RH), rc = ruled.ctx;
+  rc.fillStyle = '#7d6d34'; rc.fillRect(0, 0, 256, RH);
   rc.strokeStyle = 'rgba(70,62,28,.35)'; rc.lineWidth = 1;
-  for (let x = 0; x <= 256; x += 256 / 7.5) { rc.beginPath(); rc.moveTo(x, 0); rc.lineTo(x, 427); rc.stroke(); }
-  for (let y = 427; y >= 0; y -= 427 / 12.5) { rc.beginPath(); rc.moveTo(0, y); rc.lineTo(256, y); rc.stroke(); }
+  for (let x = 0; x <= 256; x += 256 / 7.5) { rc.beginPath(); rc.moveTo(x, 0); rc.lineTo(x, RH); rc.stroke(); }
+  for (let y = RH; y >= 0; y -= 256 / 7.5) { rc.beginPath(); rc.moveTo(0, y); rc.lineTo(256, y); rc.stroke(); }
   ruled.tex.needsUpdate = true;
   const PU = { open: { value: 0 }, t: { value: 0 } };
   const panelM = new THREE.MeshBasicMaterial({ map: ruled.tex, transparent: true });
@@ -106,7 +115,7 @@ export function installDoor(ctx, grid, W, sound) {
       float nn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(hh(i), hh(i + vec2(1, 0)), f.x), mix(hh(i + vec2(0, 1)), hh(i + vec2(1, 1)), f.x), f.y); }`)
       .replace('#include <map_fragment>', `#include <map_fragment>
       {
-        vec2 p = vPl - vec2(0.0, ${(DH / 2 - 1.25).toFixed(3)}), qq = abs(p) / vec2(${(DW / 2).toFixed(3)}, ${(DH / 2).toFixed(3)});
+        vec2 p = vPl - vec2(0.0, ${(DH / 2 - DOOR.PH / 2).toFixed(3)}), qq = abs(p) / vec2(${(DW / 2).toFixed(3)}, ${(DH / 2).toFixed(3)});
         float d = pow(pow(qq.x, 4.0) + pow(qq.y, 4.0), 0.25), n = nn(p * 9.0 + t * 1.7) * 0.6 + nn(p * 23.0 - t * 3.1) * 0.4 - 0.5;
         float rad = open * 1.25, e = d - rad + n * 0.14 * (1.0 - smoothstep(1.0, 1.25, rad));
         bool inside = qq.x < 1.0 && qq.y < 1.0;
@@ -118,14 +127,15 @@ export function installDoor(ctx, grid, W, sound) {
       }`);
   };
   panelM.customProgramCacheKey = () => 'grid-panel';
-  const panel = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 2.5), panelM);
-  panel.position.set(0, 1.25, DOOR.PANEL); panel.renderOrder = 2;
+  const panel = new THREE.Mesh(new THREE.PlaneGeometry(1.5, DOOR.PH), panelM);   // (no taller than the bookcase: shut, it hides it all)
+  panel.position.set(0, DOOR.PH / 2, DOOR.PANEL); panel.renderOrder = 2;
   Object.assign(panel.userData, { action: 'gridwall', reach: 3 });
   g.add(panel);
 
   // ----- B3's colliders and hits: the bookcase; a way through the wall (a stop well behind it, so nothing comes
   // through from the room beyond); shut till the wall's given -----
-  const st = { open: 0, crossing: false, built: true, seenB3: false, drawnAt: -1e9 };
+  const st = { open: 0, crossing: false, built: true, seenB3: false, drawnAt: -1e9, c: grid.caseOut ? 1 : 0, goal: grid.caseOut ? 1 : 0, vel: 0, cols: 0 };
+  place(st.c);
   function local(x0, x1, z0, z1) {   // a rectangle in the doorway's frame as a box on the floor (B3's own space)
     const c = Math.cos(YAW), s = Math.sin(YAW), xs = [], zs = [];
     for (const [x, z] of [[x0, z0], [x1, z0], [x0, z1], [x1, z1]]) { xs.push(X + x * c + z * s); zs.push(Z - x * s + z * c); }
@@ -133,7 +143,7 @@ export function installDoor(ctx, grid, W, sound) {
   }
   const given = () => st.open > 0.9;
   restr.extras.push({
-    cols: () => [...caseCols.map((c) => local(...c)), local(-0.62, 0.62, -0.46, -0.4),
+    cols: () => [...caseCols(st.cols = st.c).map((c) => local(...c)), local(-0.62, 0.62, -0.46, -0.4),
       ...(given() ? [] : [local(-DW / 2, DW / 2, -0.1, 0.02)])],
     hits: () => [caseHit, panel],
     cut(list) {   // the wall's boxes either side of the doorway, not across it
@@ -239,8 +249,32 @@ export function installDoor(ctx, grid, W, sound) {
     restr.arriveAt = { x: pos.x, z: pos.z - restr.z0 };   // (its rooms built round the doorway, not the lift)
     st.crossing = true; ctx.setFloor(restr); st.crossing = false;
     restr.out = 1;   // (no fading in from the car's light: you didn't come by lift)
-    st.open = 1; restr.sync();
+    st.open = 1; bookcase(1); restr.sync();
     stand(); lastAway = restr;
+  }
+
+  // ----- the bookcase, dragged: it gets going slowly and slows as it comes home; going back, it stops short of you -----
+  function drag(dt) {
+    const want = st.goal - st.c;
+    if (Math.abs(want) < 1e-4 && Math.abs(st.vel) < 1e-3) { st.c = st.goal; st.vel = 0; sound.scrape(0); return; }
+    const vmax = Math.min(0.45, Math.sqrt(2 * 0.6 * Math.abs(want)) + 0.02);
+    st.vel = clamp(st.vel + Math.sign(want) * 0.9 * dt, -vmax, vmax);
+    let c = clamp(st.c + st.vel * dt, 0, 1);
+    if ((st.goal - c) * Math.sign(want) <= 0) c = st.goal;
+    const [px, pz] = fromB3(ctx.player.x, ctx.player.z - restr.z0);
+    if (c < st.c && onIt(c, px, pz, 0.32)) {   // you're in its way: it stops there
+      st.goal = st.c; st.vel = 0; sound.thud(0.5); sound.scrape(0); return;
+    }
+    const done = c === st.goal && st.c !== st.goal;
+    st.c = c; place(c);
+    if (done) { st.vel = 0; sound.thud(st.goal ? 0.6 : 1); }
+    sound.scrape(done ? 0 : Math.min(1, Math.abs(st.vel) / 0.3));
+    if (Math.abs(st.cols - c) > 0.01 || done) { restr.sync(); if (st.vel > 0 || done) ctx.collide(ctx.player); }   // (pulled out, it shoves you out of its way)
+  }
+  const fromB3 = (x, z) => { const dx = x - X, dz = z - Z, c = Math.cos(YAW), s = Math.sin(YAW); return [dx * c - dz * s, dx * s + dz * c]; };
+  function pull() {   // a click: out if it's (mostly) in, back if it's (mostly) out, or the other way if it's on its way
+    st.goal = Math.abs(st.vel) > 1e-3 ? (st.vel > 0 ? 0 : 1) : st.c > 0.5 ? 0 : 1;
+    grid.caseOut = st.goal;
   }
 
   // ----- each frame on either side: the wall giving, what's through it, going through, the looks and the sound meeting -----
@@ -260,8 +294,9 @@ export function installDoor(ctx, grid, W, sound) {
       if (side === 'grid' && restr.z0 !== grid.z0) restr.view(X, Z, t, grid.z0, true);   // (B3 laid out about your car, waiting there)
       frames();
       if (side === 'b3') {
+        drag(dt);
         // the wall gives as you come up to it behind the bookcase, and closes up once you've gone
-        const d0 = dist(F.b3), slot = v.z > -1.1 && Math.abs(v.x) < DOOR.CW / 2 + 0.2;
+        const d0 = dist(F.b3), slot = st.c > 0.98 && v.z > -1.1 && Math.abs(v.x) < DOOR.CW / 2 + 0.2;
         st.open = clamp(st.open + (slot && d0 < 1.05 ? dt / 0.6 : -dt / 1.4), 0, 1);
         g.visible = Math.hypot(ctx.player.x - g.position.x, ctx.player.z - restr.z0 - g.position.z) < 40;
         const u0 = sstep(0, 0.6, st.open);
@@ -296,7 +331,13 @@ export function installDoor(ctx, grid, W, sound) {
     grid.tick(dt, t, eye, false);
   }
 
-  ctx.action('gridcase', { hover: () => '<b>A bookcase</b><div class="k">Pulled out from the wall a little. The books are in colour order. There’s room behind it.</div>' });
+  ctx.action('gridcase', {
+    hover: () => {
+      const back = Math.abs(st.vel) > 1e-3 ? st.vel > 0 : st.c > 0.5;
+      return `<b>A bookcase</b><div class="k">${back ? 'Click to push it back' : 'Click to pull it out'}</div><div class="m">The books are in colour order.</div>`;
+    },
+    click: () => { pull(); return true; },
+  });
   ctx.action('gridwall', { hover: () => (st.open > 0.05 ? '<b>The wall</b><div class="k">It’s giving. Walk on through</div>'
     : '<b>The wall</b><div class="k">Too clean. Flat, like it’s painted on. Faint lines in it, like graph paper.</div>') });
 
@@ -305,5 +346,11 @@ export function installDoor(ctx, grid, W, sound) {
     // the doorway's frame on B3 to B3's space: (x along the wall, z out from it) → [x, z] (B3's own, the car at z = 0)
     toB3: (x, z) => [X + x * Math.cos(YAW) + z * Math.sin(YAW), Z - x * Math.sin(YAW) + z * Math.cos(YAW)], YAW,
     open(v2 = 1) { st.open = v2; PU.open.value = v2; wasGiven = !given(); },
+    bookcase,
   };
+  // Straight to c (0 against the wall, 1 pulled out), no dragging.
+  function bookcase(c = 1) {
+    st.c = st.goal = clamp(+c, 0, 1); st.vel = 0; place(st.c); grid.caseOut = st.c > 0.5 ? 1 : 0;
+    sound.scrape(0); restr.sync();
+  }
 }
