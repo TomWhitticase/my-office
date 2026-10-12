@@ -1,5 +1,6 @@
 // The grid's black hole (floors/grid.js), as it goes in the reference: a little silver cone drifts by the signpost; come
-// near it and it darts at you and pokes you, then hangs there in front of you. Click and you throw it, point first, into
+// near it and it darts at you and pokes you, then hangs there in the air, pointing at you (out of your face: it backs off as
+// you come at it; walk off and it's left behind, and drifts home after a while). Click anywhere, or E, and you throw it, point first, into
 // the floor a few metres ahead: it sticks, quivers, and sinks, leaving a dark hole; the grid dimples down round it into a
 // smooth funnel, its green lines bending down into the dark (grid-world.js draws it); the funnel deepens and widens and
 // starts to turn, the lines winding into the throat, and everything near it (the shapes, the maths in the air) slides and
@@ -24,7 +25,7 @@ export function makeHole(ctx, W, sound) {
   cone.castShadow = true;
   Object.assign(cone.userData, { action: 'gridcone', reach: 4 });
   W.root.add(cone);
-  const st = { cone: 'drift', k: 0, p0: new THREE.Vector3(), at: new THREE.Vector3(), phase: 'none', ht: 0, s: 0, spin: 0, pop: 0, R: 0 };
+  const st = { cone: 'drift', k: 0, calm: 0, anchor: new THREE.Vector3(), p0: new THREE.Vector3(), at: new THREE.Vector3(), phase: 'none', ht: 0, s: 0, spin: 0, pop: 0, R: 0 };
   const v = new THREE.Vector3(), fwd = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0), q = new THREE.Quaternion();
   const P = { D: 0, r0: 1, R: 1 };   // the funnel: depth, throat, reach (as the floor's shader has them)
   const holeG = (r) => P.r0 * P.r0 / (r * r + P.r0 * P.r0);
@@ -49,15 +50,16 @@ export function makeHole(ctx, W, sound) {
     return new THREE.Vector3(0, 0, -16);
   }
   function throwIt() {
-    if (st.cone !== 'drift' && st.cone !== 'held') return;
+    if (st.cone !== 'drift' && st.cone !== 'held' && st.cone !== 'home') return false;
     st.p0.copy(cone.position); st.at.copy(landing()); st.cone = 'throw'; st.k = 0;
     sound.whoosh(cone.position);
+    return true;
   }
-  // the cone's place in front of you, held: low and to the right, as if in your hand
+  // the cone's place in front of you, held: a little low and to the right, off the crosshair
   function heldAt(out) {
     camera.getWorldDirection(fwd);
     const right = v.crossVectors(fwd, up).normalize();
-    return out.copy(camera.position).addScaledVector(fwd, 0.55).addScaledVector(right, 0.28).addScaledVector(up, -0.28);
+    return out.copy(camera.position).addScaledVector(fwd, 1.1).addScaledVector(right, 0.42).addScaledVector(up, -0.22);
   }
   const tmp = new THREE.Vector3();
   function coneFx(dt, t) {
@@ -67,26 +69,38 @@ export function makeHole(ctx, W, sound) {
         cone.position.set(HOME.x + Math.sin(t * 0.3) * 0.25, HOME.y + Math.sin(t * 0.7) * 0.1, HOME.z + Math.cos(t * 0.23) * 0.2);
         cone.rotation.set(0.5 + Math.sin(t * 0.4) * 0.2, t * 0.6, 0.3);
         cone.scale.setScalar(Math.min(1, st.pop += dt * 2));
-        if (st.phase === 'none' && Math.hypot(camera.position.x - cone.position.x, camera.position.z - cone.position.z) < 2.4) { st.cone = 'dart'; st.k = 0; st.p0.copy(cone.position); }
+        st.calm = Math.max(0, st.calm - dt);
+        if (st.phase === 'none' && st.calm === 0 && Math.hypot(camera.position.x - cone.position.x, camera.position.z - cone.position.z) < 2.4) { st.cone = 'dart'; st.k = 0; st.p0.copy(cone.position); }
         break;
       }
       case 'dart': {   // at you, point first, and a poke
         st.k = Math.min(1, st.k + dt / 0.45);
-        const to = heldAt(tmp).addScaledVector(fwd, -0.2);
+        const to = heldAt(tmp);
         cone.position.lerpVectors(st.p0, to, st.k * st.k);
         cone.quaternion.setFromUnitVectors(up, v.copy(to).sub(st.p0).normalize());
         if (st.k >= 1) {
-          st.cone = 'held'; sound.poke(cone.position);
+          st.cone = 'held'; st.k = 0; st.anchor.copy(to); sound.poke(cone.position);
           ctx.player.pitch += 0.06; ctx.player.yaw += 0.03; jolt = 0.25;
         }
         break;
       }
-      case 'held': {
-        heldAt(tmp);
+      case 'held': {   // where it poked you, bobbing, pointing at you; never in your face; left behind if you walk off
+        st.k += dt;
+        v.set(st.anchor.x - camera.position.x, 0, st.anchor.z - camera.position.z);
+        const d = v.length();
+        if (d < 0.9) st.anchor.addScaledVector(d > 1e-3 ? v.normalize() : v.set(0, 0, -1), Math.min(0.9 - d, dt * 4));
+        tmp.copy(st.anchor); tmp.y += Math.sin(t * 2.1) * 0.03;
         cone.position.lerp(tmp, Math.min(1, dt * 10));
-        camera.getWorldDirection(fwd);
-        q.setFromUnitVectors(up, v.copy(fwd).add(up.clone().multiplyScalar(0.6)).normalize());
+        q.setFromUnitVectors(up, v.copy(camera.position).sub(cone.position).normalize().addScaledVector(up, 1.2).normalize());   // (tipped up, so it reads as a cone)
         cone.quaternion.slerp(q, Math.min(1, dt * 8));
+        if (d > 4 || st.k > 20) { st.cone = 'home'; st.k = 0; st.p0.copy(cone.position); }
+        break;
+      }
+      case 'home': {   // back to the signpost, unhurried
+        st.k = Math.min(1, st.k + dt / 3);
+        cone.position.lerpVectors(st.p0, HOME, sstep(0, 1, st.k));
+        cone.rotation.set(0.5, t * 0.6, 0.3);
+        if (st.k >= 1) { st.cone = 'drift'; st.calm = 5; }
         break;
       }
       case 'throw': {   // an arc, point first, into the floor
@@ -182,7 +196,7 @@ export function makeHole(ctx, W, sound) {
   }
 
   return {
-    st, cone, throwIt, reset, ground: (x, z) => holeY(Math.hypot(x - st.at.x, z - st.at.z)),
+    st, cone, throwIt, reset, get held() { return st.cone === 'held'; }, ground: (x, z) => holeY(Math.hypot(x - st.at.x, z - st.at.z)),
     // the throat, as somewhere you can't stand (a box round its lip)
     cols() { const l = lip(); return l > 0 ? [{ minX: st.at.x - l * 0.85, maxX: st.at.x + l * 0.85, minZ: st.at.z - l * 0.85, maxZ: st.at.z + l * 0.85 }] : []; },
     get on() { return st.phase !== 'none'; },
