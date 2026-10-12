@@ -6149,6 +6149,29 @@
     "map",
     "fx"
    ]
+  },
+  {
+   "n": -6,
+   "label": "GRID",
+   "title": "The grid",
+   "scene": false,
+   "y": null,
+   "carless": true,
+   "fly": false,
+   "sound": {
+    "kind": "grid",
+    "steps": true
+   },
+   "colliders": 0,
+   "hits": 0,
+   "hooks": [
+    "enter",
+    "leave",
+    "bound",
+    "map",
+    "fx",
+    "ground"
+   ]
   }
  ],
  "tvs": [
