@@ -540,7 +540,7 @@ export function installShafts(ctx) {
       c.addPass(ao); c.addPass(F.bloom); c.addPass(new OutputPass()); c.addPass(F.grade);
       c.setSize(w, h);
     }
-    F.gtao.enabled = ctx.quality;
+    F.gtao.enabled = ctx.quality && L.ao !== false;
     // Only the car itself is office-lit: the switch happens across the doorway (0.4 m inside to 0.3 m out), eased over ~1 s,
     // so walking up to the lift from the floor (or round the back of it) never dims anything.
     const P = ctx.player, byCar = !!mine.L && P.x < LIFT.x + 0.3 + CAR.d && Math.abs(P.z - mine.L.z) < CAR.w / 2 + 0.3;
