@@ -49,8 +49,9 @@ export function findGridDoor(restr) {
   return (at = { spot, X, Z, YAW });
 }
 
-/** @param {any} ctx @param {any} grid the floor @param {any} W its world (grid-world.js) @param {any} sound grid-sound.js's */
-export function installDoor(ctx, grid, W, sound) {
+/** @param {any} ctx @param {any} grid the floor @param {any} W its world (grid-world.js) @param {any} sound grid-sound.js's
+ * @param {() => void} warm (the world's shaders compiled, as the bookcase starts to come out) */
+export function installDoor(ctx, grid, W, sound, warm) {
   const restr = ctx.restr, { X, Z, YAW } = findGridDoor(restr), { T } = restr.grid, { w: DW, h: DH, PO } = DOOR;
   const camera = ctx.camera, R = rng(734);
 
@@ -275,6 +276,7 @@ export function installDoor(ctx, grid, W, sound) {
   function pull() {   // a click: out if it's (mostly) in, back if it's (mostly) out, or the other way if it's on its way
     st.goal = Math.abs(st.vel) > 1e-3 ? (st.vel > 0 ? 0 : 1) : st.c > 0.5 ? 0 : 1;
     grid.caseOut = st.goal;
+    if (st.goal) warm();
   }
 
   // ----- each frame on either side: the wall giving, what's through it, going through, the looks and the sound meeting -----
@@ -351,6 +353,7 @@ export function installDoor(ctx, grid, W, sound) {
   // Straight to c (0 against the wall, 1 pulled out), no dragging.
   function bookcase(c = 1) {
     st.c = st.goal = clamp(+c, 0, 1); st.vel = 0; place(st.c); grid.caseOut = st.c > 0.5 ? 1 : 0;
+    if (grid.caseOut) warm();
     sound.scrape(0); restr.sync();
   }
 }

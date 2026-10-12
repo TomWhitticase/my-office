@@ -46,8 +46,34 @@ export function install(ctx) {
       sound = makeSound(ctx);
       hole = makeHole(ctx, W, sound);
       grid.hits = [...W.hits, hole.cone];
-      door = installDoor(ctx, grid, W, sound);
+      door = installDoor(ctx, grid, W, sound, () => warm());
     } finally { Math.random = random; }
+    if (grid.caseOut) warm();
+  }
+  // Everything's shaders compiled and textures up before it's first seen (the hole's funnel too), in the background, so
+  // nothing hitches the first time you turn round in here: as the bookcase starts to come out (it takes longer than this
+  // does), or as you come in some other way. (Into a render target, as the floor's composer and the doorway draw it: the
+  // programs differ from the screen's.)
+  let warmed = false;
+  function warm() {
+    if (warmed || !W) return;
+    warmed = true;
+    const r = ctx.renderer, hidden = [], rt = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType }), was = r.getRenderTarget();
+    W.scene.traverse((o) => {
+      if (!o.visible) { hidden.push(o); o.visible = true; }
+      for (const m of [o.material || []].flat()) for (const k of ['map', 'emissiveMap']) if (m[k]) r.initTexture(m[k]);
+    });
+    r.setRenderTarget(rt);
+    const mats = new Set(), env = W.scene.environment;
+    W.scene.traverse((o) => { for (const m of [o.material || []].flat()) mats.add(m); });
+    W.scene.environment = null;   // (TEST)
+    r.compileAsync(W.scene, camera, W.scene).catch(() => {}).finally(() => {   // (and each program's first use: its link checked)
+      rt.dispose();
+      for (const m of mats) r.properties.get(m).currentProgram?.getUniforms();
+    });
+    W.scene.environment = env;
+    r.setRenderTarget(was);
+    for (const o of hidden) o.visible = false;
   }
   grid.prepare = () => { build(); return true; };   // (a reload in here: systems/resume.js)
 
@@ -69,6 +95,7 @@ export function install(ctx) {
   grid.enter = (z) => {
     build();
     grid.z0 = z;
+    warm();
     if (door.st.c < 1) door.bookcase(1);   // (you came in by it: it's out)
     if (!door.st.crossing) Object.assign(ctx.player, { x: 0, z: -1.4, yaw: 0, pitch: 0, eye: EYE, fy: 0, seated: false, seat: null });   // (not through the wall: in front of it)
   };

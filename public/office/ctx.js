@@ -30,7 +30,7 @@
  * @property {any} [scene]                its own THREE.Scene, drawn by renderFloor
  * @property {number} [y]                 instead of a scene: that far up in the office's scene
  * @property {{ exposure: number, hemi: number, sky: any, ground: any, env: number, bloom: number, grade: number,
- *   lights: [any, number][], aoSkip1?: boolean }} [look]   how it's lit once you step out of the car
+ *   lights: [any, number][], aoSkip1?: boolean, ao?: boolean }} [look]   how it's lit once you step out of the car (ao false: no ambient occlusion)
  * @property {{ minX: number, maxX: number, minZ: number, maxZ: number }[]} [colliders]
  * @property {any[]} [hits]               what you can point at there
  * @property {boolean} [on]               you're on it

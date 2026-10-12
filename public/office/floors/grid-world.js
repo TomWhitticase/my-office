@@ -35,8 +35,9 @@ export function buildWorld(ctx) {
   S.add(key, key.target);
   const hemi = new THREE.HemisphereLight('#1d2d46', '#0b4a16', 0.6);
   S.add(hemi);
-  const look = { exposure: 1.0, hemi: 0.6, sky: new THREE.Color('#1d2d46'), ground: new THREE.Color('#0b4a16'), env: 0.1, bloom: 1.1, grade: 0.9,
-    lights: [[key, 2.4]], aoSkip1: true };
+  // (No ambient occlusion and no bloom: raytraced, hard shadows only, the lines' glow their own; and they're what cost most here.)
+  const look = { exposure: 1.0, hemi: 0.6, sky: new THREE.Color('#1d2d46'), ground: new THREE.Color('#0b4a16'), env: 0.1, bloom: 0, grade: 0.9,
+    lights: [[key, 2.4]], aoSkip1: true, ao: false };
 
   // ----- the sky: a dome that goes with you -----
   const U = { wisp: { value: 0 }, t: { value: 0 } };

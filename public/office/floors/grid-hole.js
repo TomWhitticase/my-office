@@ -26,7 +26,7 @@ export function makeHole(ctx, W, sound) {
   Object.assign(cone.userData, { action: 'gridcone', reach: 4 });
   W.root.add(cone);
   const st = { cone: 'drift', k: 0, calm: 0, anchor: new THREE.Vector3(), p0: new THREE.Vector3(), at: new THREE.Vector3(), phase: 'none', ht: 0, s: 0, spin: 0, pop: 0, R: 0 };
-  const v = new THREE.Vector3(), fwd = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0), q = new THREE.Quaternion();
+  const v = new THREE.Vector3(), fwd = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0), q = new THREE.Quaternion(), eu = new THREE.Euler();
   const P = { D: 0, r0: 1, R: 1 };   // the funnel: depth, throat, reach (as the floor's shader has them)
   const holeG = (r) => P.r0 * P.r0 / (r * r + P.r0 * P.r0);
   const holeY = (r) => (st.phase === 'none' || r >= P.R ? 0 : -P.D * (holeG(r) - holeG(P.R)) / (1 - holeG(P.R)));
@@ -116,7 +116,7 @@ export function makeHole(ctx, W, sound) {
       case 'stuck': {   // it quivers, and sinks
         st.k += dt;
         const w = Math.exp(-st.k * 3) * Math.sin(st.k * 38) * 0.12;
-        cone.quaternion.setFromEuler(new THREE.Euler(Math.PI + w, 0, w * 0.6));
+        cone.quaternion.setFromEuler(eu.set(Math.PI + w, 0, w * 0.6));
         cone.position.set(st.at.x, 0.06 - sstep(1.0, 2.4, st.k) * 0.5, st.at.z);
         if (st.k > 2.4) { st.cone = 'gone'; cone.visible = false; }
         break;
