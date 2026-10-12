@@ -1,14 +1,15 @@
-// The thing on the Plain (floors/plain.js), as the painting has it. A great hunched back like a sack of wet hide, much
-// higher than the head; the head hung low between its arms, almost on the ground, wound round and round in old bandage,
-// the strips layered over each other, grey with dirt, and something dark and wet soaking through where its face is.
-// Four limbs like a starved man's arms and legs, too long: thin bone under waxy, wrinkled, sallow skin, the elbows and
-// knees knobbed and jutting high, sinew standing out down the forearms, and hands with long jointed fingers, the
-// knuckles raised, splayed on the dust like a spider's legs.
-// It walks on them a limb at a time (two-bone IK to hands planted in the world, each lifted when the body's left it
-// behind), never in step: out of order, hesitating, lurching. It twitches: a hand jerks up and slaps down, the head snaps
-// round, the back shudders. It freezes dead still, mid-stride. It rises, slowly, far higher than it should, its hands
-// drawn in under it, and drops again all at once. Its head tilts at you, right over, when it looks at you. Charging, it
-// scuttles: low, fast, three limbs moving at once.
+// The thing on the Plain (floors/plain.js), as the painting has it: a starved man down on all fours. A great hunched back
+// like a sack of wet hide, much higher than the head; the head hung low between its arms on a thin neck, almost on the
+// ground, wound round and round in old bandage, the strips layered over each other, grey with dirt, and something dark
+// and wet soaking through where its face is. Two thin arms, too long, reach forward and down to the dust ahead of it, the
+// elbows bent back, the hands splayed, the fingers long and jointed, the knuckles raised. Its legs are folded under and
+// behind it, the knees on the ground like a kneeling man's, the shins and feet trailing. Bone under waxy, sallow skin,
+// tapering, swollen at every joint, sinew standing out down the forearms.
+// It crawls, wrongly: an arm reaching far out ahead, then the body dragged after it, the knees shuffling up behind
+// (two-bone IK to hands and feet planted in the world, each moved when the body's left it behind), never in step. It
+// twitches: a hand jerks up and slaps down, the head snaps round, the back shudders. It freezes dead still, mid-stride.
+// It rises, slowly, far higher than it should, up on its arms and knees, and drops again all at once. Its head tilts at
+// you, right over, when it looks at you. Charging, it scuttles: low, fast, three limbs moving at once.
 // Bones, knuckles and hands are instanced (lathed and sculpted shapes, a few draw calls for all of it).
 // What it does: crouched in the painting's foreground while you're on B3 (come up close and it turns its head to you,
 // then scuttles off into the haze); out here, it turns up far off, at the edge of what you can see, and watches; creeps
@@ -34,32 +35,32 @@ function canvases(w, h, draw) {
   b.tex.colorSpace = THREE.NoColorSpace;
   return [c.tex, b.tex];
 }
-function skinTex(R) {   // u round the limb, v along it: sallow, mottled, creased across, veins along
+function skinTex(R) {   // u round the limb, v along it: waxy, pallid, yellow-grey, blotched; fine creases; veins showing through
   return canvases(256, 512, (c, b, w, h) => {
-    c.fillStyle = '#a89070'; c.fillRect(0, 0, w, h); b.fillStyle = '#808080'; b.fillRect(0, 0, w, h);
-    for (let k = 0; k < 220; k++) { const x = R() * w, y = R() * h, r = 6 + R() * 30;
-      const g = c.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, `rgba(${R() < 0.5 ? '120,96,70' : '196,178,140'},${0.12 + R() * 0.15})`); g.addColorStop(1, 'rgba(0,0,0,0)');
+    c.fillStyle = '#c4b596'; c.fillRect(0, 0, w, h); b.fillStyle = '#808080'; b.fillRect(0, 0, w, h);
+    for (let k = 0; k < 260; k++) { const x = R() * w, y = R() * h, r = 8 + R() * 40, q = R();
+      const g = c.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, `rgba(${q < 0.4 ? '150,150,118' : q < 0.7 ? '214,200,172' : q < 0.9 ? '188,148,128' : '120,100,110'},${0.15 + R() * 0.2})`); g.addColorStop(1, 'rgba(0,0,0,0)');
       c.fillStyle = g; c.fillRect(x - r, y - r, r * 2, r * 2); }
-    for (let k = 0; k < 340; k++) {   // creases across the limb, bunched
-      const y = R() * h, x0 = R() * w, len = 20 + R() * 120, a = (R() - 0.5) * 0.25, d = 0.7 + R() * 1.6;
-      for (const [ctx, col] of [[c, `rgba(70,52,36,${0.2 + R() * 0.3})`], [b, 'rgba(20,20,20,.55)']]) {
+    for (let k = 0; k < 160; k++) {   // fine creases across the limb, short, bunched
+      const y = R() * h, x0 = R() * w, len = 10 + R() * 50, a = (R() - 0.5) * 0.3, d = 0.5 + R();
+      for (const [ctx, col] of [[c, `rgba(110,92,70,${0.12 + R() * 0.18})`], [b, 'rgba(30,30,30,.45)']]) {
         ctx.strokeStyle = col; ctx.lineWidth = d; ctx.beginPath(); ctx.moveTo(x0, y);
-        ctx.quadraticCurveTo(x0 + len / 2, y + Math.sin(a) * len + (R() - 0.5) * 6, x0 + len, y + Math.sin(a) * len * 2); ctx.stroke();
+        ctx.quadraticCurveTo(x0 + len / 2, y + Math.sin(a) * len + (R() - 0.5) * 4, x0 + len, y + Math.sin(a) * len * 2); ctx.stroke();
       }
-      b.strokeStyle = 'rgba(230,230,230,.35)'; b.lineWidth = d; b.beginPath(); b.moveTo(x0, y - d * 1.5); b.lineTo(x0 + len, y - d * 1.5 + Math.sin(a) * len * 2); b.stroke();
     }
-    for (let k = 0; k < 9; k++) {   // veins along it
-      let x = R() * w, y = 0; c.strokeStyle = `rgba(80,90,92,${0.18 + R() * 0.15})`; b.strokeStyle = 'rgba(210,210,210,.5)';
-      c.lineWidth = b.lineWidth = 1.5 + R() * 2; c.beginPath(); b.beginPath(); c.moveTo(x, y); b.moveTo(x, y);
-      while (y < h) { x += (R() - 0.5) * 18; y += 10 + R() * 20; c.lineTo(x, y); b.lineTo(x, y); }
+    for (let k = 0; k < 6; k++) {   // veins, blue-grey under the skin, branching
+      let x = R() * w, y = 0; c.strokeStyle = `rgba(92,108,120,${0.12 + R() * 0.1})`; b.strokeStyle = 'rgba(190,190,190,.35)';
+      c.lineWidth = b.lineWidth = 1 + R() * 1.5; c.beginPath(); b.beginPath(); c.moveTo(x, y); b.moveTo(x, y);
+      while (y < h) { x += (R() - 0.5) * 26; y += 8 + R() * 22; c.lineTo(x, y); b.lineTo(x, y); }
       c.stroke(); b.stroke();
     }
-    for (let k = 0; k < 4000; k++) { c.fillStyle = `rgba(60,44,30,${R() * 0.15})`; c.fillRect(R() * w, R() * h, 1, 1); }
+    for (let k = 0; k < 3000; k++) { c.fillStyle = `rgba(90,76,60,${R() * 0.12})`; c.fillRect(R() * w, R() * h, 1, 1); }
   });
 }
 function hideTex(R) {   // the back: near black hide, or old cloth gone hard; folds, sheen worn on the ridges, a split or two
   return canvases(512, 512, (c, b, w, h) => {
-    c.fillStyle = '#2b1f17'; c.fillRect(0, 0, w, h); b.fillStyle = '#707070'; b.fillRect(0, 0, w, h);
+    c.fillStyle = '#382a20'; c.fillRect(0, 0, w, h); b.fillStyle = '#707070'; b.fillRect(0, 0, w, h);
     for (let k = 0; k < 160; k++) {   // folds: long curving creases, a lit lip on one side
       const x = R() * w, y = R() * h, l = 40 + R() * 220, a = R() * TAU, bend = (R() - 0.5) * 80, wd = 2 + R() * 7;
       const ex = x + Math.cos(a) * l, ey = y + Math.sin(a) * l, mx = (x + ex) / 2 + Math.sin(a) * bend, my = (y + ey) / 2 - Math.cos(a) * bend;
@@ -134,8 +135,8 @@ export function makeCrawler(R, events = {}) {
   const [sk, skB] = skinTex(R), [hd, hdB] = hideTex(R), [bd, bdB] = bandTex(R);
   sk.repeat.set(1, 1);
   // waxy: a soft sheen over it, a little light let through
-  const skinM = new THREE.MeshPhysicalMaterial({ map: sk, bumpMap: skB, bumpScale: 1.2, roughness: 0.48, sheen: 0.6, sheenColor: new THREE.Color('#e9cfa8'), sheenRoughness: 0.5,
-    emissive: new THREE.Color('#3a2414'), emissiveIntensity: 0.35 });
+  const skinM = new THREE.MeshPhysicalMaterial({ map: sk, bumpMap: skB, bumpScale: 1.2, roughness: 0.42, sheen: 0.7, sheenColor: new THREE.Color('#f0e2c4'), sheenRoughness: 0.45,
+    emissive: new THREE.Color('#3c2a1e'), emissiveIntensity: 0.3 });
   const hideM = new THREE.MeshPhysicalMaterial({ map: hd, bumpMap: hdB, bumpScale: 4, roughness: 0.55, sheen: 0.7, sheenColor: new THREE.Color('#8a6a52'), sheenRoughness: 0.45 });
 
   // ----- the back: one shape, the hump high behind, narrowing and dropping to the shoulders, a ridge of spine, folds -----
@@ -143,30 +144,30 @@ export function makeCrawler(R, events = {}) {
   for (let i = 0; i < bp.count; i++) {
     let x = bp.getX(i), y = bp.getY(i), z = bp.getZ(i);
     const front = sm(-0.2, 1, z), rear = sm(0.3, -0.9, z);
-    x *= 0.44 * (1 - 0.3 * front); z *= 0.7;
-    y = y > 0 ? y * 0.46 * (1 + 0.45 * rear - 0.25 * front) : y * 0.26;
+    x *= 0.4 * (1 - 0.3 * front); z *= 0.68;
+    y = y > 0 ? y * 0.42 * (1 + 0.25 * rear - 0.25 * front) : y * 0.36 * (1 + 0.5 * rear);   // (its haunches low behind, over the folded legs)
     y += 0.04 * Math.exp(-x * x * 90) * Math.max(0, bp.getY(i));   // the spine
     y += 0.025 * Math.sin(z * 22) * Math.exp(-x * x * 120) * Math.max(0, bp.getY(i));   // its vertebrae
     const n = 1 + 0.035 * Math.sin(x * 17 + z * 6) * Math.sin(y * 13 - z * 9) + 0.02 * Math.sin(x * 41 + y * 23);
     bp.setXYZ(i, x * n, y * n - 0.12 * front, z);
   }
   backG.computeVertexNormals();
-  const back = new THREE.Mesh(backG, hideM); back.position.set(0, 0.92, -0.22); back.rotation.x = 0.12;
-  // the shoulders under its front, and the neck down to the head (vertebrae standing out), in skin
-  const neckC = new THREE.CatmullRomCurve3([V(0, 0.84, 0.1), V(0, 0.72, 0.3), V(0, 0.6, 0.42), V(0, 0.52, 0.5)]);
-  const neckG = new THREE.TubeGeometry(neckC, 24, 0.1, 12), np = neckG.attributes.position, cp = V(0, 0, 0);
+  const back = new THREE.Mesh(backG, hideM); back.position.set(0, 0.72, -0.2); back.rotation.x = 0.12;
+  // the shoulders under its front, and the thin neck hanging from under the hump down to the head, vertebrae standing out
+  const neckC = new THREE.CatmullRomCurve3([V(0, 0.6, 0.16), V(0, 0.52, 0.34), V(0, 0.42, 0.5), V(0, 0.32, 0.6)]);
+  const neckG = new THREE.TubeGeometry(neckC, 24, 0.05, 12), np = neckG.attributes.position, cp = V(0, 0, 0);
   for (let i = 0; i < np.count; i++) {
     const t = Math.floor(i / 13) / 24; neckC.getPointAt(t, cp);
-    const dx = np.getX(i) - cp.x, dy = np.getY(i) - cp.y, dz = np.getZ(i) - cp.z, k = (1.5 - 0.6 * t) * (1 + 0.15 * Math.max(0, Math.sin(t * 34)) * Math.max(0, dy / 0.1));
+    const dx = np.getX(i) - cp.x, dy = np.getY(i) - cp.y, dz = np.getZ(i) - cp.z, k = (1.6 - 0.75 * sm(0, 0.4, t)) * (1 + 0.35 * Math.max(0, Math.sin(t * 30)) * Math.max(0, dy / 0.05) ** 2);
     np.setXYZ(i, cp.x + dx * k, cp.y + dy * k, cp.z + dz * k);
   }
   neckG.computeVertexNormals();
-  const neck = new THREE.Mesh(neckG, hideM);
-  const shoulders = new THREE.Mesh(lump(3), hideM); shoulders.scale.set(0.3, 0.17, 0.2); shoulders.position.set(0, 0.8, 0.22);
+  const neck = new THREE.Mesh(neckG, skinM);
+  const shoulders = new THREE.Mesh(lump(3), hideM); shoulders.scale.set(0.3, 0.17, 0.2); shoulders.position.set(0, 0.58, 0.22);
   body.add(back, neck, shoulders);
 
   // ----- the head: an egg wound in bandage; each turn a layer over the last (a sawtooth in its radius); the stain -----
-  headG.position.set(0, 0.5, 0.56);
+  headG.position.set(0, 0.3, 0.64); headG.scale.setScalar(0.85);
   // the stain: at the front, low, soaking out ragged (on the unit head)
   const stainAt = (x, y, z) => { const d = Math.hypot(x * 1.2, (y + 0.15) * 1.1, z - 1), e = 0.12 * Math.sin(x * 19 + y * 11) * Math.sin(y * 17 - x * 7); return sm(0.95, 0.25, d + e); };
   const headGeo = new THREE.SphereGeometry(1, 64, 48), hp = headGeo.attributes.position, huv = headGeo.attributes.uv;
@@ -229,25 +230,29 @@ export function makeCrawler(R, events = {}) {
   const blob = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 3.2).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: shade.tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4 }));
   blob.position.y = 0.014; root.add(blob);
 
-  // ----- the limbs: anchors on the body, lengths, where each hand rests, which way its elbow or knee bends -----
+  // ----- the limbs: anchors on the body, lengths, where each hand or foot rests, which way its elbow or knee bends -----
+  // The arms reach forward and down, the elbows bent back and out; the legs fold under, the knees forward and down onto
+  // the ground, the feet trailing behind them. Not quite a pair: the left arm reaches further.
   const LIMBS = [
-    { a: V(0.22, 0.7, 0.32), L: [0.96, 0.9], home: V(0.52, 0, 1.02), pole: V(0.35, 2.4, -0.9), fingers: 5, pair: 0 },
-    { a: V(-0.22, 0.7, 0.32), L: [0.96, 0.9], home: V(-0.52, 0, 1.02), pole: V(-0.35, 2.4, -0.9), fingers: 5, pair: 1 },
-    { a: V(0.26, 0.86, -0.64), L: [0.98, 0.94], home: V(0.72, 0, -0.86), pole: V(0.7, 1.9, 0.35), fingers: 5, pair: 1 },
-    { a: V(-0.26, 0.86, -0.64), L: [0.98, 0.94], home: V(-0.72, 0, -0.86), pole: V(-0.7, 1.9, 0.35), fingers: 5, pair: 0 },
+    { a: V(0.24, 0.58, 0.32), L: [0.54, 0.58], home: V(0.42, 0, 0.92), pole: V(0.3, 0.6, -1), arm: true, pair: 0 },
+    { a: V(-0.24, 0.58, 0.32), L: [0.54, 0.58], home: V(-0.38, 0, 1.06), pole: V(-0.3, 0.6, -1), arm: true, pair: 1 },
+    { a: V(0.2, 0.42, -0.6), L: [0.48, 0.54], home: V(0.34, 0, -1.24), pole: V(0.3, -0.3, 1), arm: false, pair: 1 },
+    { a: V(-0.2, 0.42, -0.6), L: [0.48, 0.54], home: V(-0.3, 0, -1.2), pole: V(-0.3, -0.3, 1), arm: false, pair: 0 },
   ].map((l, i) => ({ ...l, i, foot: V(0, 0, 0), from: V(0, 0, 0), to: V(0, 0, 0), t: -1, dur: 0.3, lift: 0, wait: 0, ph: R() * TAU }));
-  // the bones: upper (shoulder or hip down to a big knobbed elbow or knee), lower (the sinewy forearm or shin down to a
-  // thin wrist), a finger's bone (knuckle, shaft, knuckle)
-  const upperG = bone((v) => 0.62 + knob(v, 0.0, 0.01, 0.45) + knob(v, 0.25, 0.03, 0.12) - 0.08 * Math.sin(v * Math.PI) + knob(v, 0.97, 0.004, 0.55), [[0.4, 0.15, 0.7, 0.18]]);
-  const lowerG = bone((v) => 0.95 - 0.5 * v + knob(v, 0.02, 0.003, 0.4) + knob(v, 0.22, 0.02, 0.22) + knob(v, 1.0, 0.002, 0.25), [[0.3, 0.1, 0.85, 0.22], [2.4, 0.15, 0.8, 0.16], [-1.5, 0.2, 0.7, 0.12]]);
+  // the bones, each tapering, swollen at its joints: the upper arm (thin, a knob of elbow), the forearm (sinew down it to a
+  // narrow wrist), the thigh (wasted, a big kneecap), the shin (a sharp front, thin to the ankle), a finger's or a toe's
+  const uArmG = bone((v) => 0.85 - 0.3 * sm(0, 0.5, v) + knob(v, 0.0, 0.01, 0.35) + knob(v, 0.97, 0.004, 0.5), [[0.4, 0.1, 0.6, 0.12]]);
+  const fArmG = bone((v) => 0.62 + knob(v, 0.02, 0.002, 0.4) + knob(v, 0.2, 0.02, 0.2) - 0.3 * sm(0.3, 0.9, v) + knob(v, 0.99, 0.002, 0.18), [[0.3, 0.08, 0.85, 0.25], [2.4, 0.12, 0.75, 0.18], [-1.5, 0.15, 0.6, 0.12]]);
+  const thighG = bone((v) => 0.9 - 0.3 * sm(0, 0.7, v) + knob(v, 0.0, 0.01, 0.2) + knob(v, 0.98, 0.003, 0.55), [[1.6, 0.15, 0.8, 0.14]]);
+  const shinG = bone((v) => 0.62 + knob(v, 0.03, 0.003, 0.45) + knob(v, 0.25, 0.03, 0.1) - 0.25 * sm(0.3, 0.9, v) + knob(v, 0.99, 0.003, 0.3), [[-1.57, 0.06, 0.9, 0.22]]);
   const phalG = bone((v) => 0.7 + knob(v, 0.0, 0.006, 0.45) - 0.12 * Math.sin(v * Math.PI) + knob(v, 1.0, 0.006, 0.25), [], 14, 8);
-  const NF = LIMBS.reduce((n, l) => n + l.fingers, 0);
+  const NF = 20;   // five fingers or toes to each
   const inst = (g, n, m = skinM) => { const x = new THREE.InstancedMesh(g, m, n); x.frustumCulled = false; root.add(x); return x; };
-  const uppers = inst(upperG, 4), lowers = inst(lowerG, 4), phals = inst(phalG, NF * 3), knobs = inst(lump(1), 4 * 2 + NF * 2), palms = inst(lump(5), 4);
+  const uppers = [inst(uArmG, 2), inst(thighG, 2)], lowers = [inst(fArmG, 2), inst(shinG, 2)], phals = inst(phalG, NF * 3), knobs = inst(lump(1), 4 * 2 + NF * 2), palms = inst(lump(5), 4);
 
   // ----- moving it -----
   const S = { x: POSE.x, z: POSE.z, yaw: POSE.yaw, speed: 0, want: 0, state: 'posed', t: 0, timer: 0, shrieked: false, pass: null, hx: 0, hy: 0, hr: 0, tw: 0, twAt: 0,
-    stopT: 0, lurch: 0, visible: true, seen: 0, freeze: 0, rise: 0, riseWant: 0, riseT: 0, shud: 0, tilt: 0, tiltSide: 1 };
+    stopT: 0, lurch: 0, drag: 0, visible: true, seen: 0, freeze: 0, rise: 0, riseWant: 0, riseT: 0, shud: 0, tilt: 0, tiltSide: 1 };
   const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), UP = V(0, 1, 0), tmp = V(0, 0, 0), tmp2 = V(0, 0, 0), sca = V(1, 1, 1);
   // a bone from a to b, th thick, into instanced mesh `m` at index i
   const put = (m, i, a, b, th) => {
@@ -263,7 +268,7 @@ export function makeCrawler(R, events = {}) {
   const toW = (v, out) => { const c = Math.cos(S.yaw) * SC, s = Math.sin(S.yaw) * SC; return out.set(S.x + v.x * c + v.z * s, v.y * SC, S.z - v.x * s + v.z * c); };
   const toL = (v, out) => { const c = Math.cos(S.yaw) / SC, s = Math.sin(S.yaw) / SC, dx = v.x - S.x, dz = v.z - S.z; return out.set(dx * c - dz * s, v.y / SC, dx * s + dz * c); };
   const homeL = V(0, 0, 0);
-  const homeOf = (l) => homeL.set(l.home.x * (1 - 0.45 * S.rise), 0, l.home.z * (1 - 0.4 * S.rise));   // drawn in under it as it rises
+  const homeOf = (l) => homeL.set(l.home.x * (1 - 0.3 * S.rise), 0, l.home.z * (1 - (l.arm ? 0.25 : 0.4) * S.rise));   // drawn in under it as it rises
   function plant() { for (const l of LIMBS) { toW(homeOf(l), l.foot); l.t = -1; } }
   plant();
 
@@ -280,7 +285,8 @@ export function makeCrawler(R, events = {}) {
 
   const A = V(0, 0, 0), J = V(0, 0, 0), POLE = V(0, 0, 0), W2 = V(0, 0, 0), P = V(0, 0, 0), home = V(0, 0, 0), fwd = V(0, 0, 0);
   const hdir = V(0, 0, 0), side = V(0, 0, 0), K0 = V(0, 0, 0), K1 = V(0, 0, 0), K2 = V(0, 0, 0), TP = V(0, 0, 0), PC = V(0, 0, 0);
-  const FL = [[0.085, 0.07, 0.06], [0.1, 0.085, 0.07], [0.11, 0.09, 0.075], [0.1, 0.085, 0.07], [0.07, 0.055, 0.045]];   // the fingers' bones, the thumb last
+  const FL = [[0.11, 0.095, 0.08], [0.13, 0.11, 0.09], [0.14, 0.115, 0.095], [0.13, 0.11, 0.09], [0.08, 0.065, 0.05]];   // the fingers' bones, the thumb last
+  const TL = [[0.035, 0.025, 0.02], [0.03, 0.022, 0.018], [0.028, 0.02, 0.016], [0.025, 0.018, 0.015], [0.04, 0.03, 0.022]];   // the toes', the big toe last
   // The limbs for this frame: steps due, steps under way, then every bone.
   function legs(dt, t) {
     const sp = S.speed, run = sm(5, 10, sp), stride = (0.3 + sp / SC * 0.11) * SC, lead = Math.min(0.5, 0.18 + sp / SC * 0.03);
@@ -294,55 +300,63 @@ export function makeCrawler(R, events = {}) {
         // out of step: whichever's furthest behind, mostly in its pair, now and then out of turn
         const strain = far > stride * 1.9;   // (left so far behind it'd be pulled straight: it goes, in step or not)
         if (far > stride * (l.i === 2 ? 1.25 : 1) && (strain || (l.wait <= 0 && busy.length < most && (pairBusy < 0 || pairBusy === l.pair || run > 0.5 || R() < 0.1)))) {
-          l.from.copy(l.foot); l.to.copy(home).add(tmp.set((R() - 0.5) * 0.15, 0, (R() - 0.5) * 0.15));
-          l.dur = clamp(0.38 - sp / SC * 0.03, 0.06, 0.38) * (0.6 + R() * 0.9); l.t = 0; l.lift = (0.12 + (l.i < 2 ? 0.14 : 0.06)) * SC * (1 - 0.5 * run) * (0.7 + R() * 0.6);
+          // an arm reaches out well ahead of where it'd rest; a knee's shuffled up after the body
+          l.from.copy(l.foot); l.to.copy(home).addScaledVector(fwd, l.arm ? stride * 0.45 * (1 - 0.5 * run) : 0).add(tmp.set((R() - 0.5) * 0.15, 0, (R() - 0.5) * 0.15));
+          l.dur = clamp(0.38 - sp / SC * 0.03, 0.06, 0.38) * (0.6 + R() * 0.9) * (l.arm ? 1.15 : 0.8); l.t = 0;
+          l.lift = (l.arm ? 0.2 : 0.05) * SC * (1 - 0.5 * run) * (0.7 + R() * 0.6);
           busy.push(l);
         } else if (far < 0.05 * SC && sp < 0.1) l.wait = R() * 0.3;
       }
       if (l.t >= 0) {
-        l.to.lerp(home, Math.min(1, dt * 3));   // (the body's still going)
+        if (!l.arm) l.to.lerp(home, Math.min(1, dt * 3));   // (the body's still going; an arm's reach is where it's put)
         l.t += dt / l.dur;
         // up fast and high, then slapped down
         const u = Math.min(1, l.t), e = u * u * (3 - 2 * u), arc = u < 0.4 ? Math.sin(u / 0.4 * Math.PI / 2) : Math.cos((u - 0.4) / 0.6 * Math.PI / 2) ** 0.6;
         l.foot.lerpVectors(l.from, l.to, e); l.foot.y = arc * l.lift;
-        if (l.t >= 1) { l.t = -1; l.foot.y = 0; l.wait = R() < 0.2 ? R() * 0.4 : 0; events.tap?.(l.foot, sp); }
+        if (l.t >= 1) { l.t = -1; l.foot.y = 0; l.wait = R() < 0.2 ? R() * 0.4 : 0; events.tap?.(l.foot, sp); if (l.arm) S.drag = 1; }
       }
     }
-    // the body: risen, or low and pitched forward running; rocking with the hands that are up; a heave when it's still
+    // the body: risen, or low and pitched forward running; rocking with the limbs that are up; heaved forward after each
+    // arm that lands (dragged after it); a heave when it's still
     const up = LIMBS.reduce((a, l) => a + l.foot.y, 0) / SC, rise = S.rise;
-    body.position.y = -0.12 * run + up * 0.22 + Math.sin(t * 1.3) * 0.012 * (1 - run) + S.lurch * 0.05 + rise * 0.62;
-    body.rotation.x = 0.1 * run + (LIMBS[0].foot.y + LIMBS[1].foot.y - LIMBS[2].foot.y - LIMBS[3].foot.y) / SC * 0.35 + S.lurch * 0.1 - rise * 0.38;
+    body.position.y = -0.1 * run + up * 0.22 + Math.sin(t * 1.3) * 0.012 * (1 - run) + S.lurch * 0.05 + rise * 0.42 - S.drag * 0.04 * (1 - run);
+    body.position.z = S.drag * 0.05 * (1 - run);
+    body.rotation.x = 0.1 * run + (LIMBS[0].foot.y + LIMBS[1].foot.y - LIMBS[2].foot.y - LIMBS[3].foot.y) / SC * 0.35 + S.lurch * 0.1 - rise * 0.32 + S.drag * 0.06 * (1 - run);
     body.rotation.z = (LIMBS[1].foot.y + LIMBS[3].foot.y - LIMBS[0].foot.y - LIMBS[2].foot.y) / SC * 0.5 + Math.sin(t * 0.7) * 0.02 + Math.sin(t * 83) * 0.05 * S.shud;
     body.updateMatrix(); root.updateMatrixWorld(true);
     // every bone, in the root's frame (the instanced meshes are children of root)
     let fi = 0, ki = 0;
     for (const l of LIMBS) {
+      const j = l.i & 1, arm = l.arm;
       A.copy(l.a).applyMatrix4(body.matrix);
-      toL(l.foot, W2); W2.y += 0.06;   // the wrist, just off the ground
+      toL(l.foot, W2); W2.y += arm ? 0.05 : 0.04;   // the wrist or the ankle, just off the ground
       ik(A, W2, l.L[0], l.L[1], POLE.copy(l.pole).normalize(), J);
-      put(uppers, l.i, A, J, 0.042); put(lowers, l.i, J, W2, 0.034);
-      putLump(knobs, ki++, J, 0.055, 0.05, 0.062, tmp2.subVectors(J, A));   // the elbow, or the knee
-      putLump(knobs, ki++, W2, 0.026, 0.022, 0.03, null);
-      // the hand: along the forearm's line, flat to the ground; curled under while it's up
+      if (!arm && J.y < 0.05) J.y = 0.05;   // (a knee rests on the ground, not in it)
+      put(uppers[arm ? 0 : 1], j, A, J, arm ? 0.036 : 0.048); put(lowers[arm ? 0 : 1], j, J, W2, arm ? 0.036 : 0.038);
+      putLump(knobs, ki++, J, arm ? 0.034 : 0.05, arm ? 0.03 : 0.045, arm ? 0.04 : 0.05, tmp2.subVectors(J, A));   // the elbow, or the kneecap
+      putLump(knobs, ki++, W2, arm ? 0.022 : 0.028, 0.02, 0.026, null);
+      // a hand: along the forearm's line, flat to the ground, curled under while it's up; a foot: trailing back from the
+      // ankle, its top on the ground, the toes behind it
       hdir.set(W2.x - J.x, 0, W2.z - J.z).normalize(); side.set(hdir.z, 0, -hdir.x);
-      const lift = l.foot.y / SC, curl = Math.min(1, lift * 7), creep = l.t < 0 ? 0.25 * Math.max(0, Math.sin(t * 2.2 + l.ph)) * (1 - S.speed / 4) : 0;
-      PC.copy(W2).addScaledVector(hdir, 0.045); PC.y = W2.y - 0.02;
-      putLump(palms, l.i, PC, 0.042, 0.018, 0.06, hdir);
-      const n = l.fingers, inward = l.a.x > 0 ? 1 : -1;
-      for (let f = 0; f < n; f++) {
-        const thumb = f === n - 1, L = FL[f], sp2 = thumb ? -0.95 : (f - 1.5) * 0.3, a = Math.atan2(hdir.x, hdir.z) + sp2 * (l.i < 2 ? 1 : 0.8) * inward;
+      const lift = l.foot.y / SC, curl = arm ? Math.min(1, lift * 7) : 0.3, creep = arm && l.t < 0 ? 0.25 * Math.max(0, Math.sin(t * 2.2 + l.ph)) * (1 - S.speed / 4) : 0;
+      PC.copy(W2).addScaledVector(hdir, arm ? 0.05 : 0.07); PC.y = W2.y - (arm ? 0.02 : 0.015);
+      putLump(palms, l.i, PC, arm ? 0.04 : 0.036, 0.016, arm ? 0.06 : 0.085, hdir);
+      const inward = l.a.x > 0 ? 1 : -1, lens = arm ? FL : TL, arch = arm ? 1 : 0.25;
+      for (let f = 0; f < 5; f++) {
+        const thumb = f === 4, L = lens[f], sp2 = arm ? (thumb ? -0.95 : (f - 1.5) * 0.32) : (thumb ? -0.3 : (f - 1.5) * 0.12), a = Math.atan2(hdir.x, hdir.z) + sp2 * inward;
         const dir = tmp2.set(Math.sin(a), 0, Math.cos(a));
         // a finger arched like a spider's leg: up from the hand to its first knuckle, down to the tip on the ground
         const cu = Math.min(1, curl + (f === 1 ? creep : f === 3 ? creep * 0.6 : 0));
-        K0.copy(PC).addScaledVector(dir, thumb ? 0.025 : 0.05); K0.y = PC.y + 0.005;
-        K1.copy(K0).addScaledVector(dir, L[0] * (1 - 0.3 * cu)); K1.y = K0.y + 0.04 + 0.02 * cu;
-        K2.copy(K1).addScaledVector(dir, L[1] * (1 - 0.8 * cu)); K2.y = Math.max(0.012, K1.y - 0.035 - 0.05 * cu);
-        TP.copy(K2).addScaledVector(dir, L[2] * (1 - 1.6 * cu)); TP.y = Math.max(0.004, K2.y - 0.045 - 0.02 * cu);
-        put(phals, fi++, K0, K1, 0.012); put(phals, fi++, K1, K2, 0.01); put(phals, fi++, K2, TP, 0.008);
+        K0.copy(PC).addScaledVector(dir, arm ? (thumb ? 0.025 : 0.05) : 0.075); K0.y = PC.y + 0.005;
+        K1.copy(K0).addScaledVector(dir, L[0] * (1 - 0.3 * cu)); K1.y = K0.y + (0.04 + 0.02 * cu) * arch;
+        K2.copy(K1).addScaledVector(dir, L[1] * (1 - 0.8 * cu)); K2.y = Math.max(0.012, K1.y - (0.035 + 0.05 * cu) * arch);
+        TP.copy(K2).addScaledVector(dir, L[2] * (1 - 1.6 * cu)); TP.y = Math.max(0.004, K2.y - (0.045 + 0.02 * cu) * arch);
+        const th = arm ? 1 : 1.3;
+        put(phals, fi++, K0, K1, 0.012 * th); put(phals, fi++, K1, K2, 0.01 * th); put(phals, fi++, K2, TP, 0.008 * th);
         putLump(knobs, ki++, K1, 0.014, 0.013, 0.015, null); putLump(knobs, ki++, K2, 0.011, 0.01, 0.012, null);
       }
     }
-    for (const m of [uppers, lowers, phals, knobs, palms]) m.instanceMatrix.needsUpdate = true;
+    for (const m of [...uppers, ...lowers, phals, knobs, palms]) m.instanceMatrix.needsUpdate = true;
   }
 
   // The head: small jerks, snapping from one angle to the next; looking at `at` (world), and when it looks at you, tilting
@@ -353,7 +367,7 @@ export function makeCrawler(R, events = {}) {
     const amp = S.state === 'posed' ? 0.3 : 1;
     let yaw = (S.tw - 0.5) * 0.5 * amp, pitch = 0.25 + (S.tw - 0.5) * 0.2 * amp - S.rise * 0.2;
     if (at) {
-      toL(at, P); const ay = Math.atan2(P.x, P.z - 0.6), ap = -Math.atan2(P.y - 0.45 - S.rise * 0.6, Math.hypot(P.x, P.z));
+      toL(at, P); const ay = Math.atan2(P.x, P.z - 0.6), ap = -Math.atan2(P.y - 0.3 - S.rise * 0.42, Math.hypot(P.x, P.z));
       yaw = lerp(yaw, clamp(ay, -1.3, 1.3), k); pitch = lerp(pitch, clamp(ap, -0.7, 0.7), k);
     }
     // tilting at you: over, in a few jerks, and held
@@ -479,7 +493,9 @@ export function makeCrawler(R, events = {}) {
       S.speed = damp(S.speed, S.want, S.want > S.speed ? 2.2 : 4, dt);
       if (S.speed > 0.5 && R() < dt * 0.6) S.lurch = 1;
       S.lurch = Math.max(0, S.lurch - dt * 3);
-      const v = S.speed * (1 - S.lurch * 0.5);
+      // crawling, it goes in heaves: dragged on after each arm, then slowing till the next
+      S.drag = Math.max(0, S.drag - dt * 3.5);
+      const v = S.speed * (1 - S.lurch * 0.5) * lerp(0.45 + 1.1 * S.drag, 1, sm(5, 10, S.speed));
       S.x += Math.sin(S.yaw) * v * dt; S.z += Math.cos(S.yaw) * v * dt;
       const vis = S.state !== 'hidden';
       root.visible = vis;
