@@ -59,7 +59,8 @@ export function maskAO(ao) {
 // stencil mark and depth-1 write for maskAO.
 const CAP_VS = `uniform mat4 unproj; varying vec3 vDir;
   void main() { vec4 p = unproj * vec4(position.xy, 1.0, 1.0); vDir = p.xyz / p.w - cameraPosition; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
-const capFS = (mode) => `uniform mat4 projectionMatrix; uniform sampler2D tView; uniform vec2 res; uniform float k; uniform mat4 toDoor; uniform vec3 size; varying vec3 vDir;
+const capFS = (mode, tone) => `uniform mat4 projectionMatrix; uniform sampler2D tView; uniform vec2 res; uniform float k; uniform mat4 toDoor; uniform vec3 size; varying vec3 vDir;
+  ${tone}
   void main() {
     vec3 dir = normalize(vDir), o = (toDoor * vec4(cameraPosition, 1.0)).xyz, d = mat3(toDoor) * dir;
     if (d.z <= 1e-5) discard;
@@ -68,19 +69,22 @@ const capFS = (mode) => `uniform mat4 projectionMatrix; uniform sampler2D tView;
     if (t <= 0.0 || abs(p.x) > size.x / 2.0 || p.y < 0.0 || p.y > size.y || (size.z > 0.5 && p.y > sp && length(vec2(p.x, p.y - sp)) > size.x / 2.0)) discard;
     vec4 c = projectionMatrix * viewMatrix * vec4(cameraPosition + dir * t, 1.0);
     ${mode === 2 ? 'gl_FragDepth = 1.0; gl_FragColor = vec4(0.5, 0.5, 1.0, 1.0);'
-    : 'gl_FragDepth = clamp(c.z / c.w * 0.5 + 0.5, 0.0, 1.0); gl_FragColor = vec4(texture2D(tView, gl_FragCoord.xy / res).rgb * k, 1.0);'}
+    : 'gl_FragDepth = clamp(c.z / c.w * 0.5 + 0.5, 0.0, 1.0); gl_FragColor = vec4(tone(gl_FragCoord.xy / res) * k, 1.0);'}
   }`;
+const PLAIN = 'vec3 tone(vec2 uv) { return texture2D(tView, uv).rgb; }';
 
-/** @param {any} ctx @param {{ w: number, h: number, arch?: boolean, flat?: boolean }} size the opening, metres (arch: round-headed, its crown at h;
- * flat: a pane 2 mm this side of the opening, never deepened (close up, the cap alone), so nothing of it lies along a reveal) */
-export function makePortal(ctx, { w, h, arch = false, flat = false }) {
+/** @param {any} ctx @param {{ w: number, h: number, arch?: boolean, flat?: boolean, tone?: { glsl: string, uniforms: object } }} size the opening,
+ * metres (arch: round-headed, its crown at h; flat: a pane 2 mm this side of the opening, never deepened (close up, the cap
+ * alone), so nothing of it lies along a reveal; tone: `vec3 tone(vec2 uv)` instead of the plain picture, restyling what it
+ * shows (grid-door.js: B3 drawn flat, seen from the grid), and its uniforms) */
+export function makePortal(ctx, { w, h, arch = false, flat = false, tone = null }) {
   const { renderer, camera } = ctx;
   const rt = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType });
   rt.scissorTest = true;
   const mat = new THREE.ShaderMaterial({
-    uniforms: { tView: { value: rt.texture }, res: { value: new THREE.Vector2(4, 4) }, k: { value: 1 } },
+    uniforms: { tView: { value: rt.texture }, res: { value: new THREE.Vector2(4, 4) }, k: { value: 1 }, ...tone?.uniforms },
     vertexShader: 'void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-    fragmentShader: 'uniform sampler2D tView; uniform vec2 res; uniform float k; void main() { gl_FragColor = vec4(texture2D(tView, gl_FragCoord.xy / res).rgb * k, 1.0); }',
+    fragmentShader: `uniform sampler2D tView; uniform vec2 res; uniform float k; ${tone?.glsl || PLAIN} void main() { gl_FragColor = vec4(tone(gl_FragCoord.xy / res) * k, 1.0); }`,
     side: THREE.DoubleSide,
   });
   const mesh = new THREE.Mesh((flat ? new THREE.PlaneGeometry(w, h) : new THREE.BoxGeometry(w, h, 1)).translate(0, h / 2, -0.5), mat);
@@ -89,7 +93,7 @@ export function makePortal(ctx, { w, h, arch = false, flat = false }) {
   // Close up, the box's face across the opening can be nearer than the near plane, clipped away, what's behind it showing
   // through for a frame or two before you cross: the cap covers it then, exactly.
   const capU = { ...mat.uniforms, toDoor: { value: new THREE.Matrix4() }, unproj: { value: new THREE.Matrix4() }, size: { value: new THREE.Vector3(w, h, arch ? 1 : 0) } };
-  const capM = (mode, o = {}) => new THREE.ShaderMaterial({ uniforms: capU, vertexShader: CAP_VS, fragmentShader: capFS(mode), side: THREE.DoubleSide, ...o });
+  const capM = (mode, o = {}) => new THREE.ShaderMaterial({ uniforms: capU, vertexShader: CAP_VS, fragmentShader: capFS(mode, tone?.glsl || PLAIN), side: THREE.DoubleSide, ...o });
   const cap = own(7200 + portals++, () => new THREE.Mesh(new THREE.PlaneGeometry(2, 2), capM(0)));
   cap.frustumCulled = false; cap.visible = false; cap.layers.set(1); cap.raycast = () => {};
   cap.userData.ao = own(7300 + portals, () => [capM(1, { colorWrite: false, depthWrite: false, stencilWrite: true, stencilRef: 1, stencilFunc: THREE.AlwaysStencilFunc, stencilZPass: THREE.ReplaceStencilOp }),

@@ -249,7 +249,7 @@ function scanScene([which, cachedFp]) {
 // The places to look from: [scene name, how to get there (in the page)]. A floor's own scene, or the office's with that
 // floor in it (the roof, 46, 45: 44 is the same build, moved), each scanned for what's new there. The lazily built ones
 // are built through their debug hooks: the den under my office, the world's edge out past the city (from the helicopter),
-// Relativity (through its door from B3), what's behind the sky, and the painting on B3 and the Plain behind it.
+// Relativity (through its door from B3), what's behind the sky, the painting on B3 and the Plain behind it, and the grid (and B3 round its doorway).
 const PLACES = [
   ['office', null],
   ['den', () => window.__office.secret.den(8.35, -12.5, 0, 0)],
@@ -260,6 +260,8 @@ const PLACES = [
   ['backstage', () => { const b = window.__office.heli.edge.back(); b.go(0, 13, 0, 0); }],
   ['plain painting', () => window.__office.plain.painting(0, 2, 0, 0)],
   ['plain', () => window.__office.plain.go(0, -3, 0, 0)],
+  ['grid', () => window.__office.grid.go(0, -3, 0, 0)],
+  ['grid door', () => window.__office.grid.door(0, 2.5, 0, 0)],
 ];
 
 // Intended overlaps, or ones another session is fixing: [scene, why, { box: [x0, x1, y0, y1, z0, z1] (where), upTo: n (at most
