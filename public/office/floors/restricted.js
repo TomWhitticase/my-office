@@ -11,6 +11,7 @@ import { makeSound } from './restricted-sound.js';
 import { installStory } from './restricted-story.js';
 import { installCreature } from './restricted-creature.js';
 import { wornPaths, wear } from './restricted-paths.js';
+import { makeWarps } from './restricted-warps.js';
 
 const N = -3, CODE = '1408';   // asked for every time: never remembered
 // The grid: cells of C metres, CH x CH to a chunk; walls on the cells' edges. Cell (i, j) is x GX + i C .. + C,
@@ -480,10 +481,12 @@ function build(ctx) {
     c.putImageData(d, 0, 0); return cv.canvas;
   });
   let mapN = 0;
+  const warps = makeWarps(ctx, restr);   // the hidden ways out: a faint warp in the static at each (restricted-warps.js)
   restr.map = () => {
     const c = mapCtx, W = 440, MH = 330, K = 4;
     c.clearRect(0, 0, W, MH);
     c.imageSmoothingEnabled = false; c.globalAlpha = 0.4; c.drawImage(noise[(mapN = (mapN + 1) % 3)], 0, 0, W, MH); c.globalAlpha = 1; c.imageSmoothingEnabled = true;
+    warps(c, noise[mapN], (x, z) => [W / 2 + (x - camera.position.x) * K, MH / 2 + 10 + (z + restr.z0 - camera.position.z) * K]);
     c.fillStyle = 'rgba(0,0,0,.35)'; c.fillRect(0, (mapN * 97) % MH, W, 14);
     // The lift, from where you are: on the map within 50 m or so, else an arrow at the edge pointing to it.
     const dx = LIFT.x + 1 - camera.position.x, dz = restr.z0 - camera.position.z;
