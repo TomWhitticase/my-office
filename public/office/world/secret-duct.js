@@ -32,6 +32,9 @@ export const VENT = { z0: Z0, z1: Z0 + C, y0: 0.08, y1: 0.08 + C };   // in the 
 // Duct space to the backstage's plan: a quarter turn, 3.8 m up. The join lands at (30, 6.3) there; the end, PLAN.VENT.
 const TM = new THREE.Matrix4().set(0, 0, -1, 26.6, 0, 1, 0, 3.8, 1, 0, 0, -10.5, 0, 0, 0, 1), TMi = TM.clone().invert();
 const MOUTH = X0 + 28 * C, OUT = MOUTH + 0.2;   // the far end: the wall's back face, its corridor face
+// How bright the duct looks, whichever scene draws it (each half's materials are over that scene's exposure: the den's or
+// the backstage's), so it's the same seen through the den's grille, from the corridor, inside, and across the join.
+const LOOK = 0.42;
 
 // ----- the cells: i along x, j along z; lv the floor over the low level; ramps along +z; the drop a cell two high -----
 function layout() {
@@ -63,7 +66,7 @@ export function installDuct(ctx, api) {
   const isPeek = (c) => c.i === PEEK.i && c.j === PEEK.j;
   const grilleOf = (c, s) => GRILLES.find((g) => g.i === c.i && g.j === c.j && g.s === s);
   // The duct's own light: a little everywhere, warm at the den's end, cool at the corridor's, each grille's, the plant room's.
-  const LIGHTS = [[X0 - 0.2, FL + 0.3, Z0 + 0.3, [0.75, 0.42, 0.22], 3.0], [OUT + 0.1, FL + 0.3, Z0 + 4.5 * C, [0.6, 0.68, 0.8], 3.0],
+  const LIGHTS = [[X0 - 0.2, FL + 0.3, Z0 + 0.3, [0.75, 0.42, 0.22], 1.8], [OUT + 0.1, FL + 0.3, Z0 + 4.5 * C, [0.6, 0.68, 0.8], 1.8],
     [X0 + 21 * C, FL + 0.3, Z0 - 9.5 * C, [1.0, 0.5, 0.2], 1.6],
     ...GRILLES.map((g) => [X0 + C * (g.i + 0.5) + (g.s === 'x+' ? 0.3 : g.s === 'x-' ? -0.3 : 0), FL + G.get(g.i, g.j).lv + (g.s === 'y-' ? -0.05 : 0.35), Z0 + C * (g.j + 0.5), g.c, 1.7])];
   const lightAt = (x, y, z) => {
@@ -89,8 +92,22 @@ export function installDuct(ctx, api) {
   const beamT = (() => { const t = makeCanvas(4, 64), c = t.ctx, g = c.createLinearGradient(0, 0, 0, 64); g.addColorStop(0, '#000'); g.addColorStop(1, '#fff'); c.fillStyle = g; c.fillRect(0, 0, 4, 64); t.tex.needsUpdate = true; return t.tex; })();
   const beamM = new THREE.MeshBasicMaterial({ map: beamT, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false });
 
+  // No ambient occlusion over the duct, in either scene: its light's baked, and the screen-space pass (heavy in a 0.6 m box)
+  // would differ between what you see of it from outside, through the join and from inside. Its meshes are left out of
+  // each AO pass's depth and normals (the office's, the backstage's), wrapped as it's first drawn.
+  const unshaded = new Set();
+  const noAO = (m) => { unshaded.add(m); return m; };
+  function skipAO(ao) {
+    if (!ao || ao.__duct) return;
+    ao.__duct = true;
+    const over = ao._overrideVisibility.bind(ao), restore = ao._restoreVisibility.bind(ao), hid = [];
+    ao._overrideVisibility = () => { over(); for (const m of unshaded) if (m.visible) { m.visible = false; hid.push(m); } };
+    ao._restoreVisibility = () => { for (const m of hid) m.visible = true; hid.length = 0; restore(); };
+  }
+
   // ----- building one half (the office's cells, or the far ones): faces facing in, the grilles, the beams -----
-  function buildHalf(far) {
+  function buildHalf(far, exp) {
+    const k = LOOK / exp, mat = (m) => { const c = m.clone(); c.color.multiplyScalar(k); return c; };
     const pos = [], uv = [], col = [], fits = [], beams = [], glows = [];
     const quad = (pts, n, u = [[0, 0], [1, 0], [1, 1], [0, 1]], into = { pos, uv, col }, tint = null) => {
       const [a, b, c] = pts, e1 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], e2 = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
@@ -168,8 +185,8 @@ export function installDuct(ctx, api) {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
     geo.computeBoundingSphere();
-    g.add(new THREE.Mesh(geo, sheetM));
-    if (fits.length) g.add(new THREE.Mesh(mergeGeometries(fits), fitM));
+    g.add(noAO(new THREE.Mesh(geo, mat(sheetM))));
+    if (fits.length) g.add(noAO(new THREE.Mesh(mergeGeometries(fits), mat(fitM))));
     if (beams.length) {   // the slats of light: additive, bright at the grille, fading out
       const b = { pos: [], uv: [], col: [] };
       for (const [p0, p1, p2, p3, c, kind, w] of beams) {
@@ -179,11 +196,11 @@ export function installDuct(ctx, api) {
       }
       const bg = new THREE.BufferGeometry();
       bg.setAttribute('position', new THREE.Float32BufferAttribute(b.pos, 3)); bg.setAttribute('uv', new THREE.Float32BufferAttribute(b.uv, 2)); bg.setAttribute('color', new THREE.Float32BufferAttribute(b.col, 3));
-      const bm = new THREE.Mesh(bg, beamM.clone()); bm.material.side = THREE.DoubleSide; bm.layers.set(1); g.add(bm);
+      const bm = new THREE.Mesh(bg, mat(beamM)); bm.material.side = THREE.DoubleSide; bm.layers.set(1); g.add(bm);
     }
     for (const [w, h, x, y, z, ax, c] of glows) {   // what's beyond each grille: a lit room you can't quite see
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(...c).multiplyScalar(1.3), side: THREE.DoubleSide, fog: false }));
-      m.position.set(x, y, z); if (ax === 'x') m.rotation.y = Math.PI / 2; if (ax === 'y') m.rotation.x = Math.PI / 2; g.add(m);
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(...c).multiplyScalar(1.3 * k), side: THREE.DoubleSide, fog: false }));
+      noAO(m); m.position.set(x, y, z); if (ax === 'x') m.rotation.y = Math.PI / 2; if (ax === 'y') m.rotation.x = Math.PI / 2; g.add(m);
     }
     return g;
   }
@@ -195,7 +212,7 @@ export function installDuct(ctx, api) {
   function buildOffice(den) {
     if (officeG) return;
     own(() => {
-      officeG = buildHalf(false); officeG.visible = false; ctx.world.add(officeG);
+      officeG = buildHalf(false, api.DEN_EXP); skipAO(ctx.composer.passes.find((p) => p._overrideVisibility)); officeG.visible = false; ctx.world.add(officeG);
       const { part, merge, vc } = den, Y0 = DY, wall = X0 - 0.004, L = [];
       for (const [w, h, z, y] of [[0.05, C + 0.16, VENT.z0 - 0.04, VENT.y0 + C / 2], [0.05, C + 0.16, VENT.z1 + 0.04, VENT.y0 + C / 2], [C + 0.12, 0.06, vz, VENT.y1 + 0.04]])
         L.push(part(new THREE.BoxGeometry(0.035, h, w), '#3a2414', wall - 0.012, Y0 + y, z));
@@ -237,7 +254,7 @@ export function installDuct(ctx, api) {
   const GR = { state: 'on', t: 0, knocks: 0, knockAt: -9, pivot: null, hit: null, downHit: null };
   ctx.dressBackstage = (bsApi) => own(() => {
     const { bs, root } = bsApi;
-    const farG = buildHalf(true); farG.matrixAutoUpdate = false; farG.matrix.copy(TM); root.add(farG);
+    const farG = buildHalf(true, bs.look.exposure); farG.matrixAutoUpdate = false; farG.matrix.copy(TM); root.add(farG);
     farG.add(plantRoom());
     // the grille: plain painted steel, louvred, on the corridor's face of the wall (the plan's own space, as the corridor's)
     const P = { x: 33.6, z: 19.1 }, w = 0.7, h = 0.74, paint = new THREE.MeshStandardMaterial({ color: '#8b9095', roughness: 0.55, metalness: 0.35 });
@@ -429,6 +446,7 @@ export function installDuct(ctx, api) {
   // ----- each frame -----
   const ductLv = { breath: 0, hum: 0, draught: 0, voices: 0 };
   ctx.onFrame((dt) => {
+    if (B) skipAO(B.bs.gtao);   // (the backstage's passes are made as it's first drawn)
     // the den's vent swinging, its opening a way in while it's open
     if (V.hinge) {
       V.k = damp(V.k, V.open ? 1 : 0, 4, dt);
@@ -446,6 +464,7 @@ export function installDuct(ctx, api) {
     }
     if (S.at !== 'duct') {
       if (ductLv.breath) { for (const k in ductLv) ductLv[k] = 0; api.snd().ductLoops(null); }
+      post(0);
       return;
     }
     if (fan && D.side === 'b') { fan.rotation.y += dt * 5; fan.userData.led.visible = (performance.now() % 1400) < 700; }
@@ -455,9 +474,17 @@ export function installDuct(ctx, api) {
     Object.assign(ductLv, { breath: 0.09, hum: 0.025 + 0.22 * Math.max(0, 1 - dPlant / 9), draught: 0.12 * Math.max(0, 1 - dDen / 4) * (V.open ? 1 : 0.2) + 0.12 * Math.max(0, 1 - dOut / 4) * (GR.state === 'off' ? 1 : 0.3),
       voices: 0.07 * Math.max(0, 1 - dVoice / 7) });
     api.snd().ductLoops(ductLv);
-    // the den's end eases you from the den's look to the duct's (and the backstage's exposure), over its first metre
+    // the den's end eases the office's bloom and grade to the backstage's over the duct's first metre, so they're its at the join
     S.ek = D.side === 'b' ? 1 : clamp((D.x - X0) / 1.2, 0, 1) * (D.tw && D.tw.then === 'den' ? 1 - D.tw.t : 1);
+    post(D.side === 'b' ? 0 : ease(S.ek));
   }, 85);
+  let bloom0 = null, postK = 0;
+  function post(k) {   // (only while it's ours to set: back to the office's own as you leave)
+    if (k === postK) return;
+    postK = k; bloom0 ??= ctx.bloom.strength;
+    const L = B?.bs.look || { bloom: 1, grade: 1 };
+    ctx.bloom.strength = bloom0 * lerp(1, L.bloom, k); ctx.grade.uniforms.amount.value = lerp(1, L.grade, k);
+  }
   // Walking into the den's open vent, or the corridor's open duct, facing it: in you go.
   ctx.onFrame(() => {
     const p = ctx.player, k = ctx.keys;
@@ -479,7 +506,7 @@ export function installDuct(ctx, api) {
     TH.multiplyMatrices(B.root.matrixWorld, TM).multiply(HO); THb.copy(TH).multiply(flip);
     // (the backstage's shadow maps are drawn with its first look: what's lit by them can't be drawn before they are)
     if (nearO) { portB.hide(); portO.draw({ here: HO, there: TH, scene: B.bs.scene, k: B.bs.look.exposure / renderer.toneMappingExposure, prepare: () => { if (!shadowed) { shadowed = true; renderer.shadowMap.needsUpdate = true; } return null; } }); }
-    else { portO.hide(); portB.draw({ here: THb, there: HOb, scene: ctx.scene, k: 1 / B.bs.look.exposure, prepare: () => {   // (and leave a shadow update that's due alone: it's the backstage's own, for its frame)
+    else { portO.hide(); portB.draw({ here: THb, there: HOb, scene: ctx.scene, k: api.DEN_EXP / B.bs.look.exposure, prepare: () => {   // (and leave a shadow update that's due alone: it's the backstage's own, for its frame)
       const was = renderer.shadowMap.needsUpdate, undo = api.hideOverhead(); renderer.shadowMap.needsUpdate = false;
       return () => { undo(); renderer.shadowMap.needsUpdate = was; };
     } }); }
@@ -501,7 +528,7 @@ export function installDuct(ctx, api) {
     below: { colliders: [], ground: () => D.fy },
     // Has something else moved you (the menu, a teleport, another floor)?
     lost: () => !D.tw && (Math.hypot(ctx.player.x - D.set.x, ctx.player.z - D.set.z) > 0.3 || ctx.away !== (D.side === 'b' ? B?.bs : null)),
-    reset() { D.tw = null; D.car = false; camera.rotation.z = 0; S.ek = 0; api.snd().ductLoops(null); portO?.hide(); portB?.hide(); },
+    reset() { D.tw = null; D.car = false; camera.rotation.z = 0; S.ek = 0; post(0); api.snd().ductLoops(null); portO?.hide(); portB?.hide(); },
     save: () => (D.tw ? false : { den: 'duct', x: Math.round(D.x * 100) / 100, z: Math.round(D.z * 100) / 100 }),
     restore(s) {
       vent(true, true); V.k = 1;

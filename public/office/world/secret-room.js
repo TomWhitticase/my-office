@@ -27,6 +27,7 @@ import { makeSound } from './secret-sound.js';
 import { installDuct, VENT } from './secret-duct.js';
 
 export const DY = -3.8, CEIL = -1.2;   // the den's floor (47's, a storey down) and its ceiling (a void and the slab above)
+const DEN_EXP = 1.45;   // the den's exposure, down there and in the duct (seen from either)
 export const HOLE = { x0: 7.925, x1: 8.775, z0: -14.88, z1: -14.1 };   // the shaft, from 48's boards down into the den (in off 47's slab edge and louvres)
 export const DEN = { x0: 5.4, x1: 12.6, z0: -14.87, z1: -8.4 };   // (its north wall just in from 47's louvres, which stand at -14.9)
 export const LADDER = { x: 8.35, z: -14.78, hang: -14.38, rung: 0.28 };   // its rungs' line, where you hang off it, their spacing
@@ -349,7 +350,7 @@ function build(ctx) {
     hemi.intensity *= lerp(1, 0.14, k); hemi.color.lerp(WARM, 0.5 * k); hemi.groundColor.lerp(DUSK, 0.6 * k);
     scene.environmentIntensity = lerp(scene.environmentIntensity, 0.06, k);
     sun.intensity *= 1 - k; ctx.raysStrength *= 1 - k;   // (the rays pass would streak the den's bulbs toward the sun)
-    renderer.toneMappingExposure = lerp(lerp(ctx.officeExposure, 1.45, k), 1.0, S.ek);   // (in the duct, the backstage's: its far half's there)
+    renderer.toneMappingExposure = lerp(ctx.officeExposure, DEN_EXP, k);   // (the duct's the same in either: secret-duct.js)
   }
   // Under the boards nothing of the office, the city or the sky can show but through the shaft's opening at the top: while
   // that's out of view, your view's renders draw only the den and the shaft (the cameras' feeds draw everything).
@@ -429,7 +430,7 @@ function build(ctx) {
   };
 
   // ----- what the den needs from here, and the debug hooks -----
-  const api = { S, toggle, inView, snd: () => snd, DY, CEIL, HOLE, DEN, LADDER, openK: () => slideK(S.T), vent: VENT, ensure,
+  const api = { S, toggle, inView, snd: () => snd, DY, CEIL, HOLE, DEN, LADDER, DEN_EXP, openK: () => slideK(S.T), vent: VENT, ensure,
     hideOverhead() {   // (for a look into the office from behind the sky, through the duct: just the den's end of it)
       if (world.children.length + scene.children.length !== overN) findOverhead();
       const hid = overhead.filter((o) => o.visible); for (const o of hid) o.visible = false;
