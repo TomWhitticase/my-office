@@ -70,6 +70,7 @@ export function install(ctx) {
   grid.leave = () => { hole?.reset(); sound?.stop(); };
   grid.bound = (p) => { const r = Math.hypot(p.x, p.z); if (r > BOUND) { p.x *= BOUND / r; p.z *= BOUND / r; } };
   grid.ground = (x, z) => hole?.ground(x, z) || 0;
+  grid.pick = () => (hole?.held ? { action: 'gridcone' } : null);   // (once it's poked you, whatever you're looking at)
   grid.save = () => (hole?.on ? false : {});   // (never mid-tear: a reload puts you back where it last was calm)
   grid.fx = (dt, t) => {
     grid.tick(dt, t, camera.position, true);
@@ -113,10 +114,13 @@ export function install(ctx) {
   // ----- what you can point at -----
   ctx.action('gridthing', { hover: (h) => h.info });
   ctx.action('gridcone', {
-    hover: () => (hole.st.cone === 'held' ? '<b>A cone</b><div class="k">It poked you. Click to throw it</div>'
+    hover: () => (hole.st.cone === 'held' ? '<b>A cone</b><div class="k">It poked you. Click or <kbd>E</kbd> to throw it</div>'
       : '<b>A cone</b><div class="k">Small, silver, drifting about at head height. Click to throw it</div>'),
     click: () => { hole.throwIt(); return true; },
   });
+  // Held, a click anywhere throws it, the mouse caught or not (player.js only catches it on that click); or E.
+  ctx.renderer.domElement.addEventListener('click', () => { if (ctx.away === grid && ctx.mode === 'free' && hole.held) hole.throwIt(); });
+  ctx.key('KeyE', () => ctx.away === grid && (hole.held || ctx.hover?.action === 'gridcone') && hole.throwIt());
 
   // ----- for the tests and for looking -----
   const ensureCar = () => {   // (your car parked on B3, as if you'd come down in it)
