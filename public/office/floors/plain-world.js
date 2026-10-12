@@ -10,6 +10,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { makeCanvas } from '../util.js';
+import { buildCity } from './plain-city.js';
 
 export const HAZE = new THREE.Color('#b48348');
 const CHUNK = 22, REACH = 4;   // the debris: per cell of CHUNK m, out to REACH cells round you
@@ -104,40 +105,9 @@ export function buildWorld(pl, R) {
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(600, 600).rotateX(-Math.PI / 2), groundM);
   ground.receiveShadow = false; root.add(ground);
 
-  // ----- the city: spires, towers, domes, a wall of them across the horizon; two ranks, the far one paler -----
-  const city = new THREE.Group(); root.add(city);
-  const cityParts = [];
-  const silhouette = (x, z, s, k) => {   // one building: a body, then a spire, a dome or a cluster of pinnacles
-    const w = (10 + R() * 24) * s, d = (10 + R() * 18) * s, h = (20 + R() * 62) * s, dark = new THREE.Color('#3b2414').lerp(HAZE, k), lit = new THREE.Color('#a4502a').lerp(HAZE, k * 0.6);
-    const sink = 2 + R() * 4, body = new THREE.BoxGeometry(w, h + sink, d).translate(x, (h - sink) / 2, z);   // (its foot sunk out of sight, each to its own depth)
-    // lit from below by the fire: its colour warmer and brighter toward its foot
-    const P = body.attributes.position, col = new Float32Array(P.count * 3), c = new THREE.Color();
-    for (let i = 0; i < P.count; i++) { c.copy(lit).lerp(dark, Math.min(1, Math.max(0, P.getY(i)) / (h * 0.6))); col.set([c.r, c.g, c.b], i * 3); }
-    body.setAttribute('color', new THREE.BufferAttribute(col, 3)); body.deleteAttribute('uv');
-    cityParts.push(body.toNonIndexed());
-    const r = R(), top = r < 0.5 ? new THREE.ConeGeometry(w * (0.3 + R() * 0.25), (25 + R() * 70) * s, 4 + Math.floor(R() * 3)) : r < 0.75 ? new THREE.SphereGeometry(w * 0.45, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2) : null;
-    if (top) { top.translate(x, h + (r < 0.5 ? top.parameters.height / 2 : 0), z); cityParts.push(colored(top, dark)); }
-    else for (let k2 = 0; k2 < 4; k2++) { const ph = (15 + R() * 35) * s, p = new THREE.ConeGeometry(2.2 * s, ph, 4).translate(x + (R() - 0.5) * w, h + ph / 2, z + (R() - 0.5) * d); cityParts.push(colored(p, dark)); }
-    return { x, z, w, h };
-  };
-  const towers = [];
-  for (let i = 0; i < 70; i++) towers.push(silhouette((R() - 0.5) * 1100, -430 - R() * 80, 1, 0.58));
-  for (let i = 0; i < 40; i++) silhouette((R() - 0.5) * 1500, -620 - R() * 120, 1.3, 0.78);
-  for (const g of cityParts) g.deleteAttribute('uv');
-  const cityMesh = new THREE.Mesh(mergeGeometries(cityParts.map((g) => (g.index ? g.toNonIndexed() : g))), new THREE.MeshBasicMaterial({ vertexColors: true, fog: false }));
-  city.add(cityMesh);
-  // its windows, burning: points on the near rank's faces toward you, each flickering at its own rate
-  const wins = [], wph = [];
-  for (const t of towers) for (let k = 0; k < 12; k++) { wins.push(t.x + (R() - 0.5) * t.w * 0.85, t.h * (0.05 + R() * R() * 0.8), t.z + 12); wph.push(R() * 100); }
-  const winG = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(wins, 3)).setAttribute('ph', new THREE.Float32BufferAttribute(wph, 1));
-  const winM = new THREE.ShaderMaterial({ uniforms: { time }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false,
-    vertexShader: `uniform float time; attribute float ph; varying float vB;
-      void main() { vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_Position = projectionMatrix * mv;
-        float f = 0.55 + 0.45 * sin(time * (1.5 + fract(ph) * 4.0) + ph) * sin(time * 0.7 + ph * 3.1);
-        vB = f * step(0.25, fract(sin(floor(time * 0.3 + ph) * 12.9898) * 43758.5));
-        gl_PointSize = clamp(700.0 / -mv.z, 1.0, 2.5); }`,
-    fragmentShader: 'varying float vB; void main() { vec2 q = gl_PointCoord - 0.5; float a = smoothstep(0.5, 0.1, length(q)); gl_FragColor = vec4(vec3(1.0, 0.55, 0.18) * vB * a * 1.2, 1.0); }' });
-  const windows = new THREE.Points(winG, winM); windows.frustumCulled = false; city.add(windows);
+  // ----- the city (plain-city.js): burning cathedrals across the horizon -----
+  const { city, towers } = buildCity(R, time, HAZE);
+  root.add(city);
   // the fire along its foot, and the glow off it in the haze
   const glowT = makeCanvas(64, 256), gc = glowT.ctx, gg = gc.createLinearGradient(0, 256, 0, 0);
   gg.addColorStop(0, 'rgba(255,140,50,1)'); gg.addColorStop(0.25, 'rgba(230,100,40,.55)'); gg.addColorStop(1, 'rgba(160,70,30,0)'); gc.fillStyle = gg; gc.fillRect(0, 0, 64, 256); glowT.tex.needsUpdate = true;
@@ -151,17 +121,18 @@ export function buildWorld(pl, R) {
       float nn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(hh(i), hh(i + vec2(1, 0)), f.x), mix(hh(i + vec2(0, 1)), hh(i + vec2(1, 1)), f.x), f.y); }
       void main() { vec2 p = vec2(vU.x * 3.0 + vU.y * 1.2, vU.y * 6.0 - time * 0.05);
         float n = nn(p) * 0.6 + nn(p * 2.3) * 0.4, w = smoothstep(0.5, 0.15, abs(vU.x - 0.5 - vU.y * 0.18)) * smoothstep(0.0, 0.1, vU.y) * smoothstep(1.0, 0.5, vU.y);
-        gl_FragColor = vec4(vec3(0.16, 0.1, 0.06), w * n * 0.55); }` });
-  for (let i = 0; i < 9; i++) { const t = towers[Math.floor(R() * towers.length)], s = new THREE.Mesh(new THREE.PlaneGeometry(160, 520), smokeM); s.position.set(t.x, 230, t.z - 20 - i); city.add(s); }
+        vec3 c = mix(vec3(0.62, 0.24, 0.07), vec3(0.13, 0.085, 0.055), smoothstep(0.0, 0.35, vU.y));   // lit from under by the fire
+        gl_FragColor = vec4(c, w * n * 0.6); }` });
+  towers.forEach((t, i) => { const s = new THREE.Mesh(new THREE.PlaneGeometry(150 + R() * 80, 560), smokeM); s.position.set(t.x + (R() - 0.5) * 60, 250, t.z - 30 - i * 0.7); city.add(s); });
   // embers going up off it
   const em = [], eph = [];
-  for (let i = 0; i < 700; i++) { em.push((R() - 0.5) * 1100, R() * 300, -420 - R() * 60); eph.push(R()); }
+  for (let i = 0; i < 1400; i++) { em.push((R() - 0.5) * 1150, R() * 300, -420 - R() * 70); eph.push(R()); }
   const emG = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(em, 3)).setAttribute('ph', new THREE.Float32BufferAttribute(eph, 1));
   const emM = new THREE.ShaderMaterial({ uniforms: { time }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false,
     vertexShader: `uniform float time; attribute float ph; varying float vA;
       void main() { vec3 p = position; float y = mod(p.y + time * (6.0 + ph * 10.0), 320.0); p.y = y; p.x += sin(time * 0.3 + ph * 30.0) * 12.0 + y * 0.25;
         vec4 mv = modelViewMatrix * vec4(p, 1.0); gl_Position = projectionMatrix * mv; vA = (1.0 - y / 320.0) * (0.5 + 0.5 * sin(time * 3.0 + ph * 60.0));
-        gl_PointSize = clamp(500.0 / -mv.z, 1.0, 2.0); }`,
+        gl_PointSize = clamp(700.0 / -mv.z, 1.0, 2.5); }`,
     fragmentShader: 'varying float vA; void main() { gl_FragColor = vec4(vec3(1.0, 0.45, 0.12) * vA * 1.4, 1.0); }' });
   const embers = new THREE.Points(emG, emM); embers.frustumCulled = false; city.add(embers);
 

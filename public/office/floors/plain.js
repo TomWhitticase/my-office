@@ -14,8 +14,8 @@
 // (or a reload puts you out there), and nothing of it runs unless you're out there or looking in.
 // Debug: ctx.plain (window.__office.plain): .go(x, z, yaw, pitch) stands you out there (the frame's at the origin, its
 // plane z = 0, the way in toward -z; yaw 0 faces the city), .painting(x, z, yaw, pitch) on B3 in front of it (x across,
-// z out from it into the room; yaw 0 faces it), .crawler(d) sets it on you from d m ahead, .stage(x, z, yaw) puts it
-// there looking at you.
+// z out from it into the room; yaw 0 faces it), .crawler(d) sets it on you from d m ahead, .stage(x, z, yaw, rise) puts it
+// there looking at you (rise 1: risen up).
 
 import * as THREE from 'three';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
@@ -321,7 +321,7 @@ function setup(ctx) {
       return true;
     },
     crawler(d = 20) { if (ctx.away !== pl) return false; const f = camera.getWorldDirection(fwd), n = Math.hypot(f.x, f.z) || 1; crawler.charge({ x: ctx.player.x, z: ctx.player.z, fx: f.x / n, fz: f.z / n }, d); return true; },
-    stage(x, z, yaw) { if (!crawler) return false; crawler.stage(x, z, yaw); return true; },
+    stage(x, z, yaw, rise = 0) { if (!crawler) return false; crawler.stage(x, z, yaw, rise); return true; },
     into: () => { frames(); intoPlain(); },
   };
   addFloor(pl);
