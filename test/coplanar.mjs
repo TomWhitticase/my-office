@@ -262,6 +262,7 @@ const PLACES = [
   ['plain', () => window.__office.plain.go(0, -3, 0, 0)],
   ['grid', () => window.__office.grid.go(0, -3, 0, 0)],
   ['grid door', () => window.__office.grid.door(0, 2.5, 0, 0)],
+  ['grid door, the bookcase out', () => { const g = window.__office.grid; g.door(0, 2.5, 0, 0); g.bookcase(true); }],
 ];
 
 // Intended overlaps, or ones another session is fixing: [scene, why, { box: [x0, x1, y0, y1, z0, z1] (where), upTo: n (at most

@@ -9,7 +9,7 @@
 // Debug: window.__office.grid: .go(x, z, yaw, pitch) stands you in here (its own space: the doorway at the origin, the
 // world toward -z, yaw 0 facing it), .door(x, z, yaw, pitch) stands you on B3 at the doorway (x along the wall, z out
 // from it, yaw 0 facing it), .open(v) the wall given that far, .tear(sec, x, z) the black hole now (sec seconds in),
-// .heal() everything back, .build() builds it now.
+// .heal() everything back, .bookcase(open) the bookcase against the wall (false) or pulled out (true, or 0 to 1), .build() builds it now.
 
 import * as THREE from 'three';
 import { clamp, EYE, rng, sstep } from '../util.js';
@@ -24,12 +24,16 @@ const N = -6, BOUND = 70;
 export function install(ctx) {
   const restr = ctx.restr, { camera, mine } = ctx;
   const grid = { n: N, label: 'GRID', title: 'The grid', unlisted: true, carless: true, liftGone: true, home: -3, on: false, composer: null,
-    colliders: [], hits: [], sound: { kind: 'grid', steps: true }, look: { exposure: 1, bloom: 1, grade: 1 }, z0: 0 };
+    colliders: [], hits: [], sound: { kind: 'grid', steps: true }, look: { exposure: 1, bloom: 1, grade: 1 }, z0: 0, caseOut: 0 };
   let W = null, hole = null, door = null, sound = null;
   // Its doorway's cell, and the one behind its wall, are kept clear of B3's wandering things (Hale's, the stone door).
   const spot = findGridDoor(restr);
   restr.reserved ||= new Set();
   restr.reserved.add(`${spot.spot.i},${spot.spot.j}`).add(`${spot.spot.back[0]},${spot.spot.back[1]}`);
+  // Whether the bookcase is pulled out, kept with B3's own state through a reload (systems/resume.js), built or not.
+  const save0 = restr.save, restore0 = restr.restore;
+  restr.save = () => { const s = save0 ? save0() : undefined; return s === false ? s : grid.caseOut ? { ...s, gridCase: 1 } : s; };
+  restr.restore = (s, p) => { grid.caseOut = s?.gridCase ? 1 : 0; door?.bookcase(grid.caseOut); return restore0?.(s, p); };
 
   function build() {
     if (W) return;
@@ -65,6 +69,7 @@ export function install(ctx) {
   grid.enter = (z) => {
     build();
     grid.z0 = z;
+    if (door.st.c < 1) door.bookcase(1);   // (you came in by it: it's out)
     if (!door.st.crossing) Object.assign(ctx.player, { x: 0, z: -1.4, yaw: 0, pitch: 0, eye: EYE, fy: 0, seated: false, seat: null });   // (not through the wall: in front of it)
   };
   grid.leave = () => { hole?.reset(); sound?.stop(); };
@@ -155,6 +160,7 @@ export function install(ctx) {
       return true;
     },
     open(v = 1) { build(); door.open(clamp(v, 0, 1)); restr.sync(); return true; },
+    bookcase(v = 1) { build(); door.bookcase(v === true ? 1 : v === false ? 0 : clamp(+v, 0, 1)); return true; },
     tear: (sec = 0, x, z) => (ctx.away === grid ? hole.tear(sec, x, z) : false),
     heal: () => { hole?.reset(); return true; },
   };
