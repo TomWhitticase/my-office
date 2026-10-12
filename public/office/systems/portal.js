@@ -16,7 +16,9 @@ import { rng } from '../util.js';
 // 1 (the panes are there) sees straight through a pane to what's behind the doorway in its own scene and shades the
 // picture with it (the hall's balustrade ghosted over B3's corridor). maskAO(ao) has a GTAOPass draw every visible pane
 // into its depth after its own, at depth 1 wherever the pane's nearest (marked in the stencil, then written): background,
-// which it leaves unshaded and nothing is occluded by. Panes register with addPane (makePortal's do).
+// which it leaves unshaded and nothing is occluded by. Panes register with addPane (makePortal's do). The mark is drawn
+// 3 cm nearer you than the pane: the pass's depth has what doesn't write depth in the picture (stains and decals on the
+// wall round a doorway, a centimetre proud of it), and on that plane those would punch holes in it.
 const panes = new Set();
 export const addPane = (m) => { panes.add(m); return m; };
 let portals = 0;
@@ -25,7 +27,8 @@ let portals = 0;
 const own = (seed, fn) => { const random = Math.random; Math.random = rng(seed); try { return fn(); } finally { Math.random = random; } };
 const VS = 'void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
 let markM, skyM;
-const aoMats = () => own(7101, () => [markM = new THREE.ShaderMaterial({ vertexShader: VS, fragmentShader: 'void main() { gl_FragColor = vec4(0.0); }', side: THREE.DoubleSide,
+const NEAR_VS = 'void main() { vec4 p = modelViewMatrix * vec4(position, 1.0); p.xyz -= normalize(p.xyz) * 0.03; gl_Position = projectionMatrix * p; }';
+const aoMats = () => own(7101, () => [markM = new THREE.ShaderMaterial({ vertexShader: NEAR_VS, fragmentShader: 'void main() { gl_FragColor = vec4(0.0); }', side: THREE.DoubleSide,
   colorWrite: false, depthWrite: false, stencilWrite: true, stencilRef: 1, stencilFunc: THREE.AlwaysStencilFunc, stencilZPass: THREE.ReplaceStencilOp }),
 skyM = new THREE.ShaderMaterial({ vertexShader: VS, fragmentShader: 'void main() { gl_FragColor = vec4(0.5, 0.5, 1.0, 1.0); gl_FragDepth = 1.0; }',
   side: THREE.DoubleSide, depthFunc: THREE.AlwaysDepth, stencilWrite: true, stencilRef: 1, stencilFunc: THREE.EqualStencilFunc })]);
@@ -36,8 +39,9 @@ export function maskAO(ao) {
   ao._renderOverride = (renderer, m, rt, ...a) => {
     over(renderer, m, rt, ...a);
     if (rt !== ao.normalRenderTarget) return;
-    const cam = ao.camera, mask = cam.layers.mask;
+    const cam = ao.camera, mask = cam.layers.mask, autoClear = renderer.autoClear;
     cam.layers.enable(1);
+    renderer.autoClear = false;   // (onto the pass's own depth and normals: a clear here would wipe them, and the AO with them)
     for (const p of panes) {
       if (!p.visible) continue;
       let top = p; while (top.parent) top = top.parent;
@@ -50,7 +54,7 @@ export function maskAO(ao) {
       p.material = mat; p.matrixWorldAutoUpdate = auto;
       for (const c of kids) c.visible = true;
     }
-    cam.layers.mask = mask;
+    cam.layers.mask = mask; renderer.autoClear = autoClear;
   };
 }
 
@@ -109,16 +113,18 @@ export function makePortal(ctx, { w, h, arch = false, flat = false, tone = null 
   // Where (a point in this scene's space) is, in the doorway's own frame.
   const local = (here, p) => v.copy(p).applyMatrix4(inv.copy(here).invert());
   // The doorway's rectangle on screen, in canvas pixels [x, y, w, h] (y up), or null if it's not on screen. Close up (or a
-  // corner behind you), the whole canvas.
+  // corner behind you), the whole canvas; all four behind you, not on screen (it's somewhere at your back: drawn, it
+  // would cost a whole other scene for nothing, and its pane would take the ambient occlusion off everything in view).
   function onScreen(here, close) {
     if (close) return [0, 0, buf.x, buf.y];
-    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, behind = 0;
     for (const [x, y] of corners) {
       v4.set(x, y, 0, 1).applyMatrix4(here).applyMatrix4(camera.matrixWorldInverse).applyMatrix4(camera.projectionMatrix);
-      if (v4.w < camera.near) return [0, 0, buf.x, buf.y];
+      if (v4.w < camera.near) { behind++; continue; }
       const sx = (v4.x / v4.w * 0.5 + 0.5) * buf.x, sy = (v4.y / v4.w * 0.5 + 0.5) * buf.y;
       x0 = Math.min(x0, sx); x1 = Math.max(x1, sx); y0 = Math.min(y0, sy); y1 = Math.max(y1, sy);
     }
+    if (behind) return behind < corners.length ? [0, 0, buf.x, buf.y] : null;
     x0 = Math.max(0, Math.floor(x0) - 2); y0 = Math.max(0, Math.floor(y0) - 2); x1 = Math.min(buf.x, Math.ceil(x1) + 2); y1 = Math.min(buf.y, Math.ceil(y1) + 2);
     return x1 > x0 && y1 > y0 ? [x0, y0, x1 - x0, y1 - y0] : null;
   }
