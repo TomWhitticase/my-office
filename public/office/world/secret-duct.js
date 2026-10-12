@@ -84,6 +84,7 @@ export function installDuct(ctx, api) {
     c.fillStyle = 'rgba(30,34,38,.55)'; c.fillRect(0, 0, 128, 3); c.fillRect(0, 0, 3, 128);
     c.fillStyle = 'rgba(255,255,255,.18)'; c.fillRect(0, 3, 128, 1); c.fillRect(3, 0, 1, 128);
     c.fillStyle = 'rgba(40,44,48,.7)'; for (let x = 10; x < 128; x += 16) { c.beginPath(); c.arc(x, 8, 1.6, 0, 7); c.fill(); c.beginPath(); c.arc(8, x, 1.6, 0, 7); c.fill(); }
+    t.tex.wrapS = t.tex.wrapT = THREE.RepeatWrapping;   // (a wall's v is its height over the low floor / a cell: past 1 up the upper level and the drop)
     t.tex.needsUpdate = true;
     return t.tex;
   })();
@@ -93,16 +94,39 @@ export function installDuct(ctx, api) {
   const beamM = new THREE.MeshBasicMaterial({ map: beamT, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false });
 
   // No ambient occlusion over the duct, in either scene: its light's baked, and the screen-space pass (heavy in a 0.6 m box)
-  // would differ between what you see of it from outside, through the join and from inside. Its meshes are left out of
-  // each AO pass's depth and normals (the office's, the backstage's), wrapped as it's first drawn.
+  // would differ between what you see of it from outside, through the join and from inside. It stays in each AO pass's
+  // depth (so what's behind its walls, the plant room, the backstage's rooms, shades nothing through them), and then where
+  // it's nearest its pixels are made background, depth 1, which the pass leaves unshaded (as systems/portal.js maskAO does
+  // for a doorway's picture: marked in the stencil, then written). Each pass (the office's, the backstage's) is wrapped as
+  // it's first drawn.
   const unshaded = new Set();
   const noAO = (m) => { unshaded.add(m); return m; };
+  const aoVS = 'void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
+  let aoMark, aoSky;   // (made as they're first needed, on the duct's own random stream: see own)
+  const aoMats = () => own(() => { aoMark = new THREE.ShaderMaterial({ vertexShader: aoVS, fragmentShader: 'void main() { gl_FragColor = vec4(0.0); }', side: THREE.DoubleSide,
+    colorWrite: false, depthWrite: false, depthFunc: THREE.LessEqualDepth, polygonOffset: true, polygonOffsetFactor: -8, polygonOffsetUnits: -64, stencilWrite: true, stencilRef: 1, stencilFunc: THREE.AlwaysStencilFunc, stencilZPass: THREE.ReplaceStencilOp });
+  aoSky = new THREE.ShaderMaterial({ vertexShader: aoVS, fragmentShader: 'void main() { gl_FragColor = vec4(0.5, 0.5, 1.0, 1.0); gl_FragDepth = 1.0; }', side: THREE.DoubleSide,
+    depthFunc: THREE.AlwaysDepth, stencilWrite: true, stencilRef: 1, stencilFunc: THREE.EqualStencilFunc }); });
+  const shown = (m, root) => { for (let o = m; o; o = o.parent) { if (!o.visible) return false; if (o === root) return true; } return false; };
   function skipAO(ao) {
     if (!ao || ao.__duct) return;
     ao.__duct = true;
-    const over = ao._overrideVisibility.bind(ao), restore = ao._restoreVisibility.bind(ao), hid = [];
-    ao._overrideVisibility = () => { over(); for (const m of unshaded) if (m.visible) { m.visible = false; hid.push(m); } };
-    ao._restoreVisibility = () => { for (const m of hid) m.visible = true; hid.length = 0; restore(); };
+    if (!aoMark) aoMats();
+    const over = ao._renderOverride.bind(ao);
+    ao._renderOverride = (r, m, rt, ...a) => {
+      over(r, m, rt, ...a);
+      if (rt !== ao.normalRenderTarget) return;
+      const auto = r.autoClear, cam = ao.camera;
+      r.autoClear = false;   // (into the buffers just drawn: never cleared)
+      for (const mesh of unshaded) {
+        if (!shown(mesh, ao.scene)) continue;
+        const mat = mesh.material, upd = mesh.matrixWorldAutoUpdate;   // (drawn alone: its world matrix as it is, parent and all)
+        mesh.matrixWorldAutoUpdate = false;
+        for (const x of [aoMark, aoSky]) { mesh.material = x; r.render(mesh, cam); }
+        mesh.material = mat; mesh.matrixWorldAutoUpdate = upd;
+      }
+      r.autoClear = auto;
+    };
   }
 
   // ----- building one half (the office's cells, or the far ones): faces facing in, the grilles, the beams -----
@@ -381,13 +405,20 @@ export function installDuct(ctx, api) {
     } else {
       const f = (keys.has('KeyW') || keys.has('ArrowUp') ? 1 : 0) - (keys.has('KeyS') || keys.has('ArrowDown') ? 1 : 0);
       const s = (keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) - (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0);
+      let climb = -Infinity;   // (up the drop: the floor above, which you rise to before you're over it)
       if (f || s) {
         const c = G.at(sd.x, sd.z), ahead = G.at(sd.x - Math.sin(sd.yaw) * 0.3 * f, sd.z - Math.cos(sd.yaw) * 0.3 * f);
-        const up = ahead && c && FL + floorRel(ahead, sd.z) - sd.fy > 0.25 ? 0.35 : 1;   // a step up the drop: slower, by the rungs
+        const step = ahead && c && FL + floorRel(ahead, sd.z) - floorAt(sd.x, sd.z) > 0.25;   // a step up the drop, ahead
+        const up = step && FL + floorRel(ahead, sd.z) - sd.fy > 0.04 ? 0.35 : 1;   // slower, by the rungs, till you're up
+        if (step) climb = FL + floorRel(ahead, sd.z);
         const sp = (shift ? 1.9 : 1.15) * up * dt, n = Math.hypot(f, s * 0.6);
         const dx = ((-Math.sin(sd.yaw) * f + Math.cos(sd.yaw) * s * 0.6) / n) * sp, dz = ((-Math.cos(sd.yaw) * f - Math.sin(sd.yaw) * s * 0.6) / n) * sp;
         const x0 = sd.x, z0 = sd.z;
         if (ok(sd.x + dx, sd.z + dz)) { sd.x += dx; sd.z += dz; } else if (ok(sd.x + dx, sd.z)) sd.x += dx; else if (ok(sd.x, sd.z + dz)) sd.z += dz;
+        // not over the step until you're up level with it (else your eye's under the upper floor, outside the duct)
+        // (nor nearer its riser than your near plane can bear: held 15 cm back from it)
+        const m = Math.hypot(sd.x - x0, sd.z - z0) || 1, lx = sd.x + (sd.x - x0) / m * 0.15, lz = sd.z + (sd.z - z0) / m * 0.15, hi = floorAt(lx, lz);
+        if (G.at(lx, lz) && G.at(lx, lz) !== c && hi - floorAt(x0, z0) > 0.25 && hi - sd.fy > 0.04) { sd.x = x0; sd.z = z0; }
         // the ends: the den's vent (pushed open from inside if it's shut), the corridor's grille (knocked out)
         if (Math.abs(sd.z - vz) < C / 2 && sd.x < X0 + 0.12 && dx < 0) { if (!V.open) { vent(true); sd.x = X0 + 0.12; } else if (sd.x < X0 + 0.02) leave('den'); }
         if (Math.abs(sd.z - (Z0 + 4.5 * C)) < C / 2 && sd.x > MOUTH - 0.05 && dx > 0) {
@@ -401,7 +432,7 @@ export function installDuct(ctx, api) {
         if (sd.side === 'o' && sd.x > X0 + 4 * C && sd.z > ZC - C / 2) needCar();
         else if (sd.side === 'o' && sd.car && sd.z < ZC - 2 * C) dropCar();
       }
-      sd.fy = damp(sd.fy, floorAt(sd.x, sd.z), 7, dt);
+      sd.fy = damp(sd.fy, Math.max(floorAt(sd.x, sd.z), climb), 7, dt);
       sd.eyeH = damp(sd.eyeH, CRAWL, 6, dt);
     }
     // the crawl: a hand and a knee each half stride, a sway from side to side, a dip at each
