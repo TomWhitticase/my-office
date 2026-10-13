@@ -9,7 +9,7 @@
 // Debug: window.__office.grid: .go(x, z, yaw, pitch) stands you in here (its own space: the doorway at the origin, the
 // world toward -z, yaw 0 facing it), .door(x, z, yaw, pitch) stands you on B3 at the doorway (x along the wall, z out
 // from it, yaw 0 facing it), .open(v) the wall given that far, .tear(sec, x, z) the black hole now (sec seconds in),
-// .heal() everything back, .bookcase(open) the bookcase against the wall (false) or pulled out (true, or 0 to 1), .build() builds it now.
+// .heal() everything back, .ending(sec) the hole taking you, sec seconds on (grid-ending.js), .bookcase(open) the bookcase against the wall (false) or pulled out (true, or 0 to 1), .build() builds it now.
 
 import * as THREE from 'three';
 import { clamp, EYE, rng, sstep } from '../util.js';
@@ -17,6 +17,7 @@ import { buildWorld, CELL } from './grid-world.js';
 import { makeHole } from './grid-hole.js';
 import { installDoor, findGridDoor } from './grid-door.js';
 import { makeSound } from './grid-sound.js';
+import { makeEnding } from './grid-ending.js';
 
 const N = -6, BOUND = 70;
 
@@ -25,7 +26,7 @@ export function install(ctx) {
   const restr = ctx.restr, { camera, mine } = ctx;
   const grid = { n: N, label: 'GRID', title: 'The grid', unlisted: true, carless: true, liftGone: true, home: -3, on: false, composer: null,
     colliders: [], hits: [], sound: { kind: 'grid', steps: true }, look: { exposure: 1, bloom: 1, grade: 1 }, z0: 0, caseOut: 0 };
-  let W = null, hole = null, door = null, sound = null;
+  let W = null, hole = null, door = null, sound = null, ending = null;
   // Its doorway's cell, and the one behind its wall, are kept clear of B3's wandering things (Hale's, the stone door).
   const spot = findGridDoor(restr);
   restr.reserved ||= new Set();
@@ -44,7 +45,8 @@ export function install(ctx) {
       W = buildWorld(ctx);
       Object.assign(grid, { scene: W.scene, hemi: W.hemi, look: W.look });
       sound = makeSound(ctx);
-      hole = makeHole(ctx, W, sound);
+      hole = makeHole(ctx, W, sound, () => ending.start());
+      ending = makeEnding(ctx, grid, W, hole, sound);
       grid.hits = [...W.hits, hole.cone];
       door = installDoor(ctx, grid, W, sound, () => warm());
     } finally { Math.random = random; }
@@ -107,7 +109,7 @@ export function install(ctx) {
   grid.fx = (dt, t) => {
     grid.tick(dt, t, camera.position, true);
     // what you can walk into: the temple, the pond, the signpost, the things where they are now, the throat
-    const cols = [...W.statics];
+    const cols = W.statics.filter((b) => !b.thing.moved && !b.thing.taken);
     for (const th of W.things) {
       if (!th.half || th.taken || !th.o.visible || th.o.position.y - (hole.on ? hole.ground(th.o.position.x, th.o.position.z) : 0) > 1.2) continue;
       cols.push({ minX: th.o.position.x - th.half[0], maxX: th.o.position.x + th.half[0], minZ: th.o.position.z - th.half[1], maxZ: th.o.position.z + th.half[1] });
@@ -190,5 +192,7 @@ export function install(ctx) {
     bookcase(v = 1) { build(); door.bookcase(v === true ? 1 : v === false ? 0 : clamp(+v, 0, 1)); return true; },
     tear: (sec = 0, x, z) => (ctx.away === grid ? hole.tear(sec, x, z) : false),
     heal: () => { hole?.reset(); return true; },
+    ending: (sec = 0) => { if (!ctx.grid.go(0.5, -6, 0, -0.1)) return false; return ending.stage(sec); },
+    get end() { return ending; },
   };
 }

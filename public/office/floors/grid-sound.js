@@ -3,14 +3,15 @@
 // 1 kHz), and now and then a held bell tone (FM, 650-1000 Hz) somewhere off in the dark, through a long synthetic
 // reverb. Your steps are hollow and digital: a short pitched-down knock, crushed to a few bits. The cone's poke, its
 // throw and its landing; the tear's swelling roar and the zip of each thing it swallows; the heal's rising chime. And,
-// near the doorway, each side heard through it: the pad on B3, B3's strip-light buzz in here. All synthesised here,
+// near the doorway, each side heard through it: the pad on B3, B3's strip-light buzz in here. And its ending
+// (grid-ending.js): the warp's rising roar, the burst, the wind of the fall, the landing. All synthesised here,
 // through the office's own audio (sounds.js `audio`), so its volume and M apply. Positions are in the grid's own space.
 
 const TAU = Math.PI * 2;
 
 export function makeSound(ctx) {
   const { camera } = ctx;
-  let A = null, B = null, out = null, verb = null, loops = [], stepAcc = 0, lastP = null, chimeAt = 0, roar = null, bleedL = null, buzzL = null, scrapeL = null;
+  let A = null, B = null, out = null, verb = null, loops = [], stepAcc = 0, lastP = null, chimeAt = 0, roar = null, bleedL = null, buzzL = null, scrapeL = null, warpL = null, windL = null;
   const rnd = (a, b) => a + Math.random() * (b - a), nz = () => Math.random() * 2 - 1;
   const pick = (a) => a[Math.floor(Math.random() * a.length)];
 
@@ -85,13 +86,23 @@ export function makeSound(ctx) {
           return (body(nz()) * 2.2 * judder + grit(nz()) * 0.5 * (0.3 + j) + low(nz()) * 1.5) * (0.7 + 0.3 * j); }, 0.9); })(),
       thud: (() => { const lp = biq('lp', 90, 0.8), knock = biq('bp', 500, 2);
         return make(0.6, (t) => lp(nz()) * 6 * Math.exp(-t / 0.08) + Math.sin(TAU * 62 * t) * Math.exp(-t / 0.12) + knock(nz()) * Math.exp(-t / 0.02) * 0.3); })(),
+      // the warp: a cluster of detuned saws over a roar, played faster and faster; the burst; the wind falling; the landing
+      warp: (() => { const lp = biq('lp', 2400, 0.7), w = biq('bp', 700, 0.6); const fs = [55, 82.4, 110, 164.8, 233.1, 311.1].map((f) => cyc(f, 4));
+        return make(4, (t) => lp(fs.reduce((s, f, i) => s + saw(f * t * (1 + i * 0.003)) / (i + 1.5), 0)) * 0.8 + w(nz()) * 0.9, 0.9); })(),
+      boom: (() => { const lp = biq('lp', 140, 0.7), hi = biq('hp', 2500, 0.7); let ph = 0;
+        return make(4.5, (t) => { ph += (30 + 70 * Math.exp(-t * 2.5)) / A.ctx.sampleRate;
+          return Math.sin(TAU * ph) * Math.exp(-t * 0.9) * 1.2 + lp(nz()) * 5 * Math.exp(-t * 1.1) + hi(nz()) * Math.exp(-t * 14) * 1.2 + nz() * Math.exp(-t * 3) * 0.3; }); })(),
+      wind: (() => { const f = [biq('bp', 380, 0.5), biq('bp', 420, 0.5)], g = [biq('hp', 1800, 0.6), biq('hp', 1700, 0.6)], lo3 = [biq('lp', 70, 0.7), biq('lp', 70, 0.7)];
+        return make(6, (t, c) => (f[c](nz()) * (0.7 + 0.3 * Math.sin(TAU * t / 3 + c)) + g[c](nz()) * 0.35 + lo3[c](nz()) * 2.5), 0.9, 2); })(),
+      land: (() => { const lp = biq('lp', 110, 0.8), k = biq('bp', 320, 1.2);
+        return make(1.6, (t) => lp(nz()) * 9 * Math.exp(-t / 0.12) + Math.sin(TAU * 48 * t) * Math.exp(-t / 0.25) * 1.4 + k(nz()) * Math.exp(-t / 0.03) * 1.5); })(),
       buzz: make(2, (t) => Math.sin(TAU * 120 * t) * 0.6 + Math.sin(TAU * 240 * t) * 0.25 + Math.sign(Math.sin(TAU * 120 * t)) * 0.08),
     };
   }
   function ready() {
     const a = ctx.sfx.audio;
     if (!a || a.ctx.state !== 'running') return false;
-    if (A?.ctx !== a.ctx) { A = a; B = null; loops = []; out = verb = roar = bleedL = buzzL = scrapeL = null; }
+    if (A?.ctx !== a.ctx) { A = a; B = null; loops = []; out = verb = roar = bleedL = buzzL = scrapeL = warpL = windL = null; }
     if (!B) B = build();
     if (!out) {
       out = A.ctx.createGain(); out.connect(A.master);
@@ -164,6 +175,19 @@ export function makeSound(ctx) {
     // Heard through the doorway: this side on B3 (v: 0 to 1), and B3's strip lights in here.
     bleed(v) { if (ready() && (bleedL || v >= 0.002)) bleedL = level(bleedL, [[B.pad, 0.035], [B.rumble, 0.04]], v); },
     buzz(v) { if (ready() && (buzzL || v >= 0.002)) buzzL = level(buzzL, [[B.buzz, 0.012]], v); },
+    // the ending: the warp's roar at v, played at rate; the wind at v (0 to 1); the burst; the landing
+    warp(v, rate = 1) {
+      if (!ready() || (!warpL && v < 0.002)) return;
+      warpL = level(warpL, [[B.warp, 0.12]], v);
+      if (warpL) for (const src of warpL.srcs) src.playbackRate.setTargetAtTime(rate, A.ctx.currentTime, 0.1);
+    },
+    wind(v) {
+      if (!ready() || (!windL && v < 0.002)) return;
+      windL = level(windL, [[B.wind, 0.16]], v);
+      if (windL) for (const src of windL.srcs) src.playbackRate.setTargetAtTime(0.6 + 0.8 * v, A.ctx.currentTime, 0.2);
+    },
+    boom() { if (ready()) shot(B.boom, null, 0.3, { send: 0 }); },
+    land() { if (ready()) shot(B.land, null, 0.3, { send: 0 }); },
     scrape(v) { if (ready() && (scrapeL || v >= 0.002)) scrapeL = level(scrapeL, [[B.scrape, 0.09]], v); },
     thud(v) { if (ready()) shot(B.thud, null, 0.14 * v, { send: 0 }); },
     get playing() { return loops.length > 0; },

@@ -428,6 +428,11 @@ export const POSES = [
     await o.eval(() => window.__office.grid.go(1.5, -4, 0.05, -0.3)); await o.step(130);
     await o.eval(() => window.__office.grid.tear(7, 1.0, -13)); await o.step(2);
   }],
+  // Its ending (floors/grid-ending.js): taken, mid-warp (still in the grid, the tunnel nearly whole); falling, a few
+  // seconds out of the burst, a kilometre over the tower; landed on the roof, standing.
+  ['grid-warp', async (o) => { await arrive(o); await ride(o, -3); await o.eval(() => window.__office.grid.go(0.5, -6, 0, -0.1)); await o.step(2); await o.eval(() => window.__office.grid.ending(3.4)); await o.step(2); }],
+  ['grid-fall', async (o) => { await arrive(o); await ride(o, -3); await o.eval(() => window.__office.grid.ending(13)); await o.step(2); }],
+  ['grid-landed', async (o) => { await arrive(o); await ride(o, -3); await o.eval(() => window.__office.grid.ending(40)); await o.step(20); }],
   ['task-board', async (o) => {   // over to the task board in my office, in use: the fixture board, the layer over it
     await arrive(o);
     await stand(o, 16.7, -11.5, { x: 16.7, y: 1.9, z: -14.9 });

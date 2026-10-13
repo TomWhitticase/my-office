@@ -65,33 +65,44 @@ export function buildWorld(ctx) {
   sky.frustumCulled = false; sky.renderOrder = -10; S.add(sky);
 
   // ----- the floor: green lines on near-black; with the hole (grid-hole.js) a funnel and a swirl -----
-  // hC: the hole's middle; hP: its depth, throat, reach and swirl; hOn: whether there's one. The plain floor is two
+  // hC: the hole's middle; hP: its depth, throat, reach and swirl; hQ: the broad dish round it (its depth), the ripples
+  // running in to it (height, phase, wavenumber); hOn: whether there's one. The floor stays flat round the doorway (at the
+  // origin), so going through it nothing jumps (grid-hole.js has the same shape, for walking on). The plain floor is two
   // triangles under you (moved a whole 6 m at a time); the funnel a fine disc round the hole, the floor cut away under it.
-  const HU = { hC: { value: new THREE.Vector2() }, hP: { value: new THREE.Vector4(0, 1, 1, 0) }, hOn: { value: 0 } };
+  const HU = { hC: { value: new THREE.Vector2() }, hP: { value: new THREE.Vector4(0, 1, 1, 0) }, hQ: { value: new THREE.Vector4() }, hOn: { value: 0 } };
   const floorMat = (disc) => {
     const m = new THREE.MeshStandardMaterial({ color: '#181818', roughness: 0.85, metalness: 0 });
     m.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, HU);
-      const head = `uniform vec2 hC; uniform vec4 hP; uniform float hOn; varying vec2 vG; varying float vDepth;
+      const head = `uniform vec2 hC; uniform vec4 hP, hQ; uniform float hOn; varying vec2 vG; varying float vDepth;
         float holeG(float r) { return hP.y * hP.y / (r * r + hP.y * hP.y); }
-        float holeY(float r) { float g0 = holeG(hP.z); return r >= hP.z ? 0.0 : -hP.x * (holeG(r) - g0) / (1.0 - g0); }
-        float holeS(float r) { float g0 = holeG(hP.z), q = r * r + hP.y * hP.y; return r >= hP.z ? 0.0 : hP.x * 2.0 * r * hP.y * hP.y / (q * q) / (1.0 - g0); }`;
+        float holeF(float r) { float g0 = holeG(hP.z); return r >= hP.z ? 0.0 : -hP.x * (holeG(r) - g0) / (1.0 - g0); }   // the funnel
+        float holeH(vec2 w) {   // all of it: the funnel, the dish, the ripples
+          float r = length(w - hC); if (r >= hP.z) return 0.0;
+          float u = r / hP.z, y = holeF(r) - hQ.x * (1.0 - u) * (1.0 - u) + hQ.y * sin(hQ.w * r + hQ.z) * 4.0 * u * (1.0 - u);
+          return y * smoothstep(4.0, 10.0, length(w));
+        }`;
       sh.vertexShader = sh.vertexShader.replace('#include <common>', `#include <common>\n${head}`)
         .replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
           vec3 gp = position; ${disc ? 'gp.xz *= hP.z;' : ''}
           vec4 gw0 = modelMatrix * vec4(gp, 1.0); vG = gw0.xz; vDepth = 0.0;
-          ${disc ? `vec2 dv = gw0.xz - hC; float hr = length(dv); vDepth = holeY(hr); float hs = holeS(hr);
-          objectNormal = normalize(vec3(-hs * dv.x / max(hr, 1e-4), 1.0, -hs * dv.y / max(hr, 1e-4)));` : ''}`)
-        .replace('#include <begin_vertex>', `#include <begin_vertex>\n${disc ? 'transformed.xz *= hP.z; transformed.y += vDepth;' : ''}`);
+          float hy = 0.0;
+          ${disc ? `vec2 w = gw0.xz; hy = holeH(w); vDepth = holeF(length(w - hC)) * smoothstep(4.0, 10.0, length(w));
+          vec2 e = vec2(0.04, 0.0);
+          objectNormal = normalize(vec3(-(holeH(w + e) - holeH(w - e)) / 0.08, 1.0, -(holeH(w + e.yx) - holeH(w - e.yx)) / 0.08));` : ''}`)
+        .replace('#include <begin_vertex>', `#include <begin_vertex>\n${disc ? 'transformed.xz *= hP.z; transformed.y += hy;' : ''}`);
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>\n${head}`)
         .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
           {
             vec2 hp = vG - hC; float hr = length(hp);
             ${disc ? '' : 'if (hOn > 0.5 && hr < hP.z) discard;'}
             vec2 q = vG;
-            if (hOn > 0.5) {   // the lines wound round the throat, more the nearer it
-              float th = hP.w * 1.4 / (hr + 0.35) * smoothstep(hP.z, hP.z * 0.15, hr), cs = cos(th), sn = sin(th);
+            float pulse = 0.0;
+            if (hOn > 0.5) {   // the lines wound round the throat, more the nearer it, and far out; bright rings running in
+              float u = min(hr / hP.z, 1.0);
+              float th = hP.w * (1.4 / (hr + 0.35) + 0.7 * (1.0 - u) * (1.0 - u)) * smoothstep(hP.z, hP.z * 0.15, hr), cs = cos(th), sn = sin(th);
               q = hC + vec2(cs * hp.x - sn * hp.y, sn * hp.x + cs * hp.y);
+              pulse = smoothstep(0.6, 1.0, sin(hQ.w * hr + hQ.z)) * 4.0 * u * (1.0 - u) * clamp(hQ.y * 3.0, 0.0, 1.0);
             }
             vec2 g = q / ${CELL.toFixed(2)}, fw = max(fwidth(g), vec2(1e-4)), d = abs(fract(g + 0.5) - 0.5);
             vec2 core = 1.0 - smoothstep(vec2(${HW.toFixed(3)}) - fw, vec2(${HW.toFixed(3)}) + fw, d);
@@ -101,7 +112,7 @@ export function buildWorld(ctx) {
             float dk = exp(vDepth * 0.42);   // down the throat, to black
             // painted on and lit, so things' shadows fall across the lines too; a little glow of their own besides
             diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.0, 0.5, 0.0), clamp(line, 0.0, 1.0)) * dk;
-            totalEmissiveRadiance += vec3(0.0, 0.2, 0.0) * line * dk;
+            totalEmissiveRadiance += vec3(0.0, 0.2, 0.0) * line * dk * (1.0 + 2.5 * pulse);
           }`);
     };
     m.customProgramCacheKey = () => (disc ? 'grid-disc' : 'grid-floor');
@@ -112,7 +123,7 @@ export function buildWorld(ctx) {
   floor.receiveShadow = true; root.add(floor);
   // the funnel: rings closer together toward the middle, a unit disc (scaled to the hole's reach in the shader)
   const disc = (() => {
-    const NR = 64, NS = 160, pos = [], idx = [];
+    const NR = 112, NS = 256, pos = [], idx = [];
     for (let k = 0; k <= NR; k++) {
       const r = Math.pow(k / NR, 1.8);
       for (let s = 0; s < NS; s++) { const a = s / NS * Math.PI * 2; pos.push(Math.cos(a) * r, 0, Math.sin(a) * r); }
@@ -159,7 +170,7 @@ export function buildWorld(ctx) {
   });
 
   const things = [];   // [{ o, half: [hx, hz] (a collider) | null, float, spin, bob, home }] — what the hole can take
-  const statics = [];  // colliders that never move (the temple, the pond, the signpost)
+  const statics = [];  // colliders that don't move (the temple, the pond, the signpost), till the hole takes them
   const hits = [];
   // Put a mesh down: on the floor (y its rest height) or floating; keep it as a thing the hole can take.
   function put(o, x, y, z, { ry = 0, half = null, float = false, spin = 0, bob = 0, info = null, cast = true } = {}) {
@@ -170,6 +181,13 @@ export function buildWorld(ctx) {
     things.push(t);
     if (info) { o.traverse((m) => { if (m.isMesh) Object.assign(m.userData, { action: 'gridthing', reach: 4, info }); }); hits.push(o); }
     return t;
+  }
+  // The temple, the pond and the signpost: fixed, until the hole takes them too (heavy: slower, and last). Their box,
+  // with the thing it belongs to (grid.js leaves it out once that's moved).
+  function big(o, box) {
+    const t = { o, half: null, float: false, spin: 0, bob: 0, ph: 0, heavy: true, home: { p: o.position.clone(), q: o.quaternion.clone(), s: o.scale.clone() } };
+    things.push(t);
+    return Object.assign(box, { thing: t });
   }
   const mesh = (g, m) => new THREE.Mesh(g, m);
   const cube = (s, m) => mesh(new THREE.BoxGeometry(s, s, s), m);
@@ -250,7 +268,7 @@ export function buildWorld(ctx) {
     g.position.set(-1.6, 0, -30.0); g.rotation.y = 0.35;
     g.traverse((m) => { if (m.isMesh) { m.castShadow = m.material !== clear && !m.material.transparent; m.receiveShadow = true; Object.assign(m.userData, { action: 'gridthing', reach: 4, info: '<b>A signpost</b><div class="k">X one way, Z the other, Y straight up. Pick one.</div>' }); } });
     root.add(g); hits.push(g);
-    statics.push({ minX: -1.8, maxX: -1.4, minZ: -30.2, maxZ: -29.8 });
+    statics.push(big(g, { minX: -1.8, maxX: -1.4, minZ: -30.2, maxZ: -29.8 }));
   }
 
   // ----- the temple: steps, six columns, the cella, entablature and pediment, in weathered stone -----
@@ -274,7 +292,7 @@ export function buildWorld(ctx) {
     g2.position.set(-14, 0, -38);
     g2.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; Object.assign(m.userData, { action: 'gridthing', reach: 6, info: '<b>A temple</b><div class="k">Columns, steps, a door into the dark. Built for a camera to swing past.</div>' }); } });
     root.add(g2); hits.push(g2);
-    statics.push({ minX: -14 - 4.8, maxX: -14 + 4.8, minZ: -38 - 3.5, maxZ: -38 + 3.5 });
+    statics.push(big(g2, { minX: -14 - 4.8, maxX: -14 + 4.8, minZ: -38 - 3.5, maxZ: -38 + 3.5 }));
   }
 
   // ----- the fish pond: a dark rim, rippling blue water, goldfish -----
@@ -309,7 +327,7 @@ export function buildWorld(ctx) {
     g.position.set(9.4, 0, -24.2);
     g.traverse((m) => { if (m.isMesh) { m.castShadow = m !== water; m.receiveShadow = true; Object.assign(m.userData, { action: 'gridthing', reach: 4, info: '<b>A fish pond</b><div class="k">Goldfish, going round. The water’s too blue.</div>' }); } });
     root.add(g); hits.push(g);
-    statics.push({ minX: 9.4 - W / 2, maxX: 9.4 + W / 2, minZ: -24.2 - D / 2, maxZ: -24.2 + D / 2 });
+    statics.push(big(g, { minX: 9.4 - W / 2, maxX: 9.4 + W / 2, minZ: -24.2 - D / 2, maxZ: -24.2 + D / 2 }));
   }
 
   // ----- maths and code in the air: pale, a little see-through, condensed, with a dark extruded edge -----
