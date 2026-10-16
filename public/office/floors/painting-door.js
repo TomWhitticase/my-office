@@ -80,7 +80,8 @@ export function makePaintingDoor(ctx, fl, o) {
   // B3's: the painting seen from the room (b3), come out of (b3Out). Out there: the frame at the origin, the way in -z
   // (plIn), and back out toward B3, +z (plBack).
   const F = { b3: new THREE.Matrix4(), b3Out: new THREE.Matrix4(), plIn: new THREE.Matrix4().makeRotationY(Math.PI).setPosition(0, SILL, 0), plBack: new THREE.Matrix4().setPosition(0, SILL, 0) };
-  const frames = () => { g.updateMatrixWorld(true); F.b3Out.copy(g.matrixWorld).multiply(new THREE.Matrix4().makeTranslation(0, 0, PO)); F.b3.copy(F.b3Out).multiply(flip); };
+  const toPO = new THREE.Matrix4().makeTranslation(0, 0, PO);
+  const frames = () => { g.updateWorldMatrix(true, true); F.b3Out.copy(g.matrixWorld).multiply(toPO); F.b3.copy(F.b3Out).multiply(flip); };
 
   // ----- built the first time it's wanted -----
   function build() {
@@ -114,6 +115,7 @@ export function makePaintingDoor(ctx, fl, o) {
         hits: () => [hit],
         cut(list) {
           if (!st.front) return;
+          frames();   // (B3 may have just been laid out from another car: its root moved since the last frame)
           const gap = box(F.b3Out, -W / 2, W / 2, -0.25, 0.02);
           const alongX = Math.abs(Math.cos(at.YAW)) > 0.5, [lo, hi, a, b2] = alongX ? ['minX', 'maxX', 'minZ', 'maxZ'] : ['minZ', 'maxZ', 'minX', 'maxX'];
           for (let k = list.length - 1; k >= 0; k--) {

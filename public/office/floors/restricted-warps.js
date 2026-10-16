@@ -2,12 +2,13 @@
 // each one is, a few metres across, its rows smeared sideways and rippling. Barely there; you'd see it if you looked.
 // Where they are comes from B3's fixed layout, the same as the doors themselves find it, so a doorway shows in rooms
 // not built yet: the fire door behind the sky (world-edge-backstage.js findExit), the painting onto the Plain
-// (plain-painting.js), the bookcase wall into the grid (grid-door.js); the stone door into Relativity only once it's
+// (plain-painting.js), the bookcase wall into the grid (grid-door.js), the painting onto the acrobats' coast (acro-painting.js); the stone door into Relativity only once it's
 // standing somewhere (relativity-door.js, `st.at`), since it turns up after a while.
 
 import { findExit } from './world-edge-backstage.js';
 import { findPainting } from './plain-painting.js';
 import { findGridDoor } from './grid-door.js';
+import { findAcro } from './acro-painting.js';
 
 const R = 13, A = 3;   // map px: the warp's radius (about 3 m), and its widest smear
 
@@ -15,7 +16,7 @@ export function makeWarps(ctx, restr) {
   let fixed = null, n = 0;
   // c: the map's context; noise: this frame's static (drawn over the whole map); at(x, z): B3's own space to map px
   return (c, noise, at) => {
-    fixed ||= [findExit(restr), findPainting(restr), findGridDoor(restr)].map((d) => [d.XD ?? d.X, d.ZF ?? d.Z]);
+    fixed ||= [findExit(restr), findPainting(restr), findGridDoor(restr), findAcro(restr)].map((d) => [d.XD ?? d.X, d.ZF ?? d.Z]);
     const stone = ctx.rel?.door?.st.at, spots = stone ? [...fixed, [stone.x, stone.z]] : fixed;
     const { width: W, height: H } = c.canvas, kx = noise.width / W, ky = noise.height / H;
     n++;

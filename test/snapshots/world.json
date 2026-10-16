@@ -6173,6 +6173,29 @@
     "pick",
     "ground"
    ]
+  },
+  {
+   "n": -8,
+   "label": "THE COAST",
+   "title": "The coast",
+   "scene": true,
+   "y": null,
+   "carless": true,
+   "fly": false,
+   "sound": {
+    "kind": "acro",
+    "steps": true
+   },
+   "colliders": 0,
+   "hits": 0,
+   "hooks": [
+    "enter",
+    "leave",
+    "bound",
+    "map",
+    "fx",
+    "ground"
+   ]
   }
  ],
  "tvs": [
@@ -6379,6 +6402,15 @@
    "sorted": "5b24a7a2"
   },
   "the plain": {
+   "objects": 1,
+   "types": {
+    "Scene": 1
+   },
+   "actions": {},
+   "ordered": "841c0771",
+   "sorted": "841c0771"
+  },
+  "the coast": {
    "objects": 1,
    "types": {
     "Scene": 1
