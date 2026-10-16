@@ -47,6 +47,7 @@ import { install as installServerHall } from './floors/server-hall.js';
 import { install as installRestricted } from './floors/restricted.js';
 import { install as installRelativity } from './floors/relativity.js';
 import { install as installPlain } from './floors/plain.js';
+import { install as installAcro } from './floors/acro.js';
 import { install as installGrid } from './floors/grid.js';
 import { install as installEmptyFloors } from './floors/empty-floors.js';
 import { install as installWellness } from './floors/wellness.js';
@@ -198,6 +199,7 @@ export function mountOffice(container) {
   installRestricted(ctx);   // B3, behind a code; before the cameras (two of its are dead)
   installRelativity(ctx);   // behind a stone door on B3 (wraps its enter, leave and frame)
   installPlain(ctx);   // behind a painting on B3 (nothing built till you're near it)
+  installAcro(ctx);    // behind another, far out in B3's west (the same)
   installGrid(ctx);   // behind a bookcase on B3 (nothing built till you're near it)
   installEmptyFloors(ctx);   // 45 and 44, vacant: the office's shell with nothing in it
   installWellness(ctx);   // 46: the gym, the pool and the spa
@@ -296,7 +298,7 @@ export function mountOffice(container) {
       r = renderer.domElement.getBoundingClientRect(); return { x: r.left + (p.x + 1) / 2 * r.width, y: r.top + (1 - p.y) / 2 * r.height }; },
     tvs: () => tvs.map((t) => ({ id: t.id, live: t.live, frame: !!t.frame, url: t.page?.url, title: t.page?.title, dist: t.dist })), seats, sitIn, openLaptop,
       laptop, kitchen, player, keys, camera, people, blinds, door, doors, collide, colliders, desks, idleSpots, lifts, sfx, mine, arch, roof, srv, FLOORS,
-      openJohn, johnChat, rosie, openRosie, setFloor, get away() { return ctx.away; }, callLift, heli: ctx.heli, menu: ctx.menu, secret: ctx.secret, plain: ctx.plain, grid: ctx.grid, cctv: ctx.cctv, darts: ctx.darts, weather: ctx.weather,
+      openJohn, johnChat, rosie, openRosie, setFloor, get away() { return ctx.away; }, callLift, heli: ctx.heli, menu: ctx.menu, secret: ctx.secret, plain: ctx.plain, acro: ctx.acro, grid: ctx.grid, cctv: ctx.cctv, darts: ctx.darts, weather: ctx.weather,
     goFloor: (n) => {   // debug: straight into your car at floor n, doors opening (headless tests can't sit through a ride)
       const L = mine.L || lifts.find(spare); if (!L) return false;
       Object.assign(mine, { L, call: false, goal: null }); L.player = true;

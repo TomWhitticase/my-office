@@ -249,7 +249,8 @@ function scanScene([which, cachedFp]) {
 // The places to look from: [scene name, how to get there (in the page)]. A floor's own scene, or the office's with that
 // floor in it (the roof, 46, 45: 44 is the same build, moved), each scanned for what's new there. The lazily built ones
 // are built through their debug hooks: the den under my office, the world's edge out past the city (from the helicopter),
-// Relativity (through its door from B3), what's behind the sky, the painting on B3 and the Plain behind it, and the grid (and B3 round its doorway).
+// Relativity (through its door from B3), what's behind the sky, the painting on B3 and the Plain behind it, the other
+// painting and the acrobats' coast behind it, and the grid (and B3 round its doorway). COPLANAR_ONLY=name,name: only those.
 const PLACES = [
   ['office', null],
   ['den', () => window.__office.secret.den(8.35, -12.5, 0, 0)],
@@ -260,6 +261,8 @@ const PLACES = [
   ['backstage', () => { const b = window.__office.heli.edge.back(); b.go(0, 13, 0, 0); }],
   ['plain painting', () => window.__office.plain.painting(0, 2, 0, 0)],
   ['plain', () => window.__office.plain.go(0, -3, 0, 0)],
+  ['acro painting', () => window.__office.acro.painting(0, 2, 0, 0)],
+  ['acro', () => { const a = window.__office.acro; a.go(0, -3, 0, 0); a.train(30); }],
   ['grid', () => window.__office.grid.go(0, -3, 0, 0)],
   ['grid door', () => window.__office.grid.door(0, 2.5, 0, 0)],
   ['grid door, the bookcase out', () => { const g = window.__office.grid; g.door(0, 2.5, 0, 0); g.bookcase(true); }],
@@ -298,7 +301,9 @@ export async function runCoplanar(browser, base, log = console.log, { cached = t
   if (cache.code !== code) cache = { code };
   const all = [], t0 = Date.now();
   try {
+    const only = process.env.COPLANAR_ONLY?.split(',');
     for (const [name, go, arg] of PLACES) {
+      if (only && !only.includes(name)) continue;
       if (go) { await o.eval(go, arg); await o.step(4); }
       const ts = Date.now(), r = await o.eval(scanScene, [name === 'office' ? 'office' : name, cache[name]?.fp]);
       if (r.cached) r.hits = cache[name].hits;
