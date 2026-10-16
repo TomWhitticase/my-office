@@ -13,48 +13,23 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { findExit } from './world-edge-backstage.js';
+import { findWall } from './painting-door.js';
 
 // The canvas you see (the opening): w x h, its bottom (the sill) SILL up, its plane PO in front of the wall.
 export const PAINT = { w: 1.05, h: 1.25, SILL: 0.95, PO: 0.03 };
 
 let at = null;
-export function findPainting(restr) {
-  if (at) return at;
-  const G = restr.grid, key = (i, j) => `${i},${j}`, ex = findExit(restr).spot, home = restr.paths.home;
-  const ways = (i, j) => [[i - 1, j, G.edgeType('v', i, j), 'w'], [i + 1, j, G.edgeType('v', i + 1, j), 'e'], [i, j - 1, G.edgeType('h', i, j), 's'], [i, j + 1, G.edgeType('h', i, j + 1), 'n']];
-  const STEP = { w: [-1, 0], e: [1, 0], s: [0, -1], n: [0, 1] }, OPP = { w: 'e', e: 'w', s: 'n', n: 's' };
-  const quiet = (i, j) => G.cellOk(i, j) && G.h3(i, j, 10) >= 0.03 && !(j === 0 && i >= -3 && i <= -1);   // nothing else in it
-  const dark = (i, j) => G.h3(Math.floor(i / 4), Math.floor(j / 4), 77) < 0.1;   // (restricted.js darkPatch)
-  // how many cells straight across the room from the wall on side w of (i, j)
-  const sight = (i, j, w) => {
-    let n = 0;
-    for (let ci = i, cj = j; n < 12; n++) { if (ways(ci, cj).find((x) => x[3] === OPP[w])[2] === G.SOLID) break; ci += STEP[OPP[w]][0]; cj += STEP[OPP[w]][1]; }
-    return n;
-  };
-  const dist = new Map([[key(-1, 0), 0]]), q = [[-1, 0]];
-  let spot = null;
-  for (let h = 0; h < q.length && !spot; h++) {
-    const [i, j] = q[h], d = dist.get(key(i, j));
-    if (d >= 18 && d <= 28 && quiet(i, j) && dark(i, j) && Math.hypot(i - home.i, j - home.j) >= 9 && Math.hypot(i - ex.i, j - ex.j) >= 25) {
-      for (const [ni, nj, t, w] of ways(i, j)) if (t === G.SOLID && quiet(ni, nj) && sight(i, j, w) >= 10) { spot = { i, j, side: w, back: [ni, nj], d }; break; }
-    }
-    for (const [ni, nj, t] of ways(i, j)) if (t !== G.SOLID && G.cellOk(ni, nj) && !dist.has(key(ni, nj))) { dist.set(key(ni, nj), d + 1); q.push([ni, nj]); }
-  }
-  spot ||= { i: -6, j: 13, side: 'w', back: [-7, 13], d: 20 };   // (never: the layout has one)
-  const cx = G.X(spot.i) + G.C / 2, cz = G.Z(spot.j) + G.C / 2, H2 = G.C / 2 - G.T / 2;
-  // the wall's face at the middle of that side (B3's own space, the car at z = 0), and which way is out of it into the room
-  const [X, Z, YAW] = { w: [cx - H2, cz, Math.PI / 2], e: [cx + H2, cz, -Math.PI / 2], s: [cx, cz - H2, 0], n: [cx, cz + H2, Math.PI] }[spot.side];
-  return (at = { spot, X, Z, YAW });
-}
+export const findPainting = (restr) => (at ||= findWall(restr, { dmin: 18, dmax: 28, dark: true, sight: 10,
+  away: [[restr.paths.home.i, restr.paths.home.j, 9], [findExit(restr).spot.i, findExit(restr).spot.j, 25]], fallback: { i: -6, j: 13, side: 'w', back: [-7, 13] } }));
 
 // ----- the frame -----
 const tex = (w, h, draw) => {
   const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
 };
-let mats = null;
+const made = new WeakMap();   // (one set per frame's R: both of a painting's frames share it, another painting has its own)
 function frameMats(R) {
-  if (mats) return mats;
+  if (made.has(R)) return made.get(R);
   // tarnished gilt: bright where it's proud, brown-black in the hollows and grime; worn through to the red bole in places
   const gilt = tex(256, 256, (c, w, h) => {
     c.fillStyle = '#9c7a35'; c.fillRect(0, 0, w, h);
@@ -72,15 +47,17 @@ function frameMats(R) {
     for (let y = 0; y < h; y += 2) { c.fillStyle = 'rgba(150,126,90,.18)'; c.fillRect(0, y, w, 1); }
     for (let k = 0; k < 9; k++) { c.fillStyle = `rgba(50,36,20,${R() * 0.25})`; c.beginPath(); c.arc(R() * w, R() * h, 6 + R() * 26, 0, 7); c.fill(); }
   });
-  return (mats = {
+  const mats = {
     gilt: new THREE.MeshStandardMaterial({ map: gilt, color: '#f0cf80', metalness: 0.35, roughness: 0.45 }),
     dark: new THREE.MeshStandardMaterial({ map: gilt, color: '#6e5228', metalness: 0.25, roughness: 0.6 }),
     wood: new THREE.MeshStandardMaterial({ map: wood, roughness: 0.9 }),
     linen: new THREE.MeshStandardMaterial({ map: linen, roughness: 1 }),
-  });
+  };
+  made.set(R, mats);
+  return mats;
 }
 // A rectangular ring w0 x h0 outside, w1 x h1 inside (round its middle at y = c), from z0 to z1, its edges rounded by b.
-function ring(w0, h0, w1, h1, c, z0, z1, b) {
+export function ring(w0, h0, w1, h1, c, z0, z1, b) {
   const s = new THREE.Shape(), o = [w0 / 2 - b, h0 / 2 - b], i = [w1 / 2 + b, h1 / 2 + b];
   s.moveTo(-o[0], -o[1]); s.lineTo(o[0], -o[1]); s.lineTo(o[0], o[1]); s.lineTo(-o[0], o[1]); s.closePath();
   const hole = new THREE.Path(); hole.moveTo(-i[0], -i[1]); hole.lineTo(-i[0], i[1]); hole.lineTo(i[0], i[1]); hole.lineTo(i[0], -i[1]); hole.closePath();
@@ -90,9 +67,10 @@ function ring(w0, h0, w1, h1, c, z0, z1, b) {
   const uv = g.attributes.uv; for (let k = 0; k < uv.count; k++) uv.setXY(k, uv.getX(k) * 2.2, uv.getY(k) * 2.2);
   return g.translate(0, c, z0 + b);
 }
-/** The frame: a group, its opening's sill's middle at the origin, the picture's plane at z = PO, facing +z. */
-export function makeFrame(R, { back = false } = {}) {
-  const { w: W, h: H, PO } = PAINT, m = frameMats(R), g = new THREE.Group(), cy = H / 2;
+/** The frame: a group, its opening's sill's middle at the origin, the picture's plane at z = PO, facing +z. size: the
+ * canvas (PAINT's shape); mats: { gilt, dark, wood, linen } instead of the old gilt. */
+export function makeFrame(R, { back = false, size = PAINT, mats = null } = {}) {
+  const { w: W, h: H, PO } = size, m = mats || frameMats(R), g = new THREE.Group(), cy = H / 2;
   // back to front: a wide flat moulding off the wall, a fat rounded torus of gilt, a dark hollow, the sight edge
   g.add(new THREE.Mesh(ring(W + 0.27, H + 0.27, W + 0.04, H + 0.04, cy, 0.003, 0.034, 0.004), m.dark));
   g.add(new THREE.Mesh(ring(W + 0.25, H + 0.25, W + 0.15, H + 0.15, cy, 0.03, 0.072, 0.014), m.gilt));
@@ -118,12 +96,13 @@ const NOISE = `
     return mix(mix(ph(i), ph(i + vec2(1, 0)), f.x), mix(ph(i + vec2(0, 1)), ph(i + vec2(1, 1)), f.x), f.y); }
   float pf(vec2 p) { return pn(p) * 0.55 + pn(p * 2.1 + 3.7) * 0.3 + pn(p * 4.3 + 7.1) * 0.15; }`;
 
-/** The pane of a portal (a flat one) made paint while you're off it: `paint` (0 to 1) how much. */
-export function paintPane(p) {
-  const { w: W, h: H } = PAINT, m = p.mesh.material;
-  Object.assign(m.uniforms, { paint: { value: 1 }, size: { value: new THREE.Vector2(W, H) } });
+/** The pane of a portal (a flat one) made paint while you're off it: `paint` (0 to 1) how much. size: the canvas;
+ * varnish: the old varnish's tint (its shadows sunk the same). */
+export function paintPane(p, { size = PAINT, varnish = [1.05, 0.82, 0.52] } = {}) {
+  const { w: W, h: H } = size, m = p.mesh.material;
+  Object.assign(m.uniforms, { paint: { value: 1 }, size: { value: new THREE.Vector2(W, H) }, varnish: { value: new THREE.Vector3(...varnish) } });
   m.vertexShader = 'varying vec2 vC; void main() { vC = position.xy; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
-  m.fragmentShader = `uniform sampler2D tView; uniform vec2 res; uniform float k; uniform float paint; uniform vec2 size; varying vec2 vC;
+  m.fragmentShader = `uniform sampler2D tView; uniform vec2 res; uniform float k; uniform float paint; uniform vec2 size; uniform vec3 varnish; varying vec2 vC;
     ${NOISE}
     void main() {
       vec2 uv = vec2(vC.x / size.x + 0.5, vC.y / size.y), sc = gl_FragCoord.xy / res;
@@ -135,7 +114,7 @@ export function paintPane(p) {
       c /= 5.0;
       // old varnish: warmer, darker, the shadows sunk; the canvas weave and fine cracks; its edges darkest
       float l = dot(c, vec3(0.3, 0.55, 0.15));
-      vec3 v = mix(c, vec3(l) * vec3(1.05, 0.82, 0.52), 0.35) * 0.8;
+      vec3 v = mix(c, vec3(l) * varnish, 0.35) * 0.8;
       v = max(v - 0.012, 0.0) * 1.04;
       float weave = sin(uv.x * size.x * 900.0) * sin(uv.y * size.y * 900.0);
       float crack = smoothstep(0.035, 0.0, abs(pn(uv * 26.0) - 0.5)) * smoothstep(0.3, 0.7, pn(uv * 5.0));
