@@ -494,7 +494,7 @@ export function* buildWorld(fl, R) {
   yield;
   // the easel sign by the ice: a board on three legs, hand-lettered
   const easel = (() => {
-    const E = L.easel, g = new THREE.Group(); g.position.set(E.x, heightAt(E.x, E.z), E.z); g.rotation.y = Math.atan2(-E.x, -E.z) + Math.PI; root.add(g);
+    const E = L.easel, g = new THREE.Group(); g.position.set(E.x, heightAt(E.x, E.z), E.z); g.rotation.y = Math.atan2(-E.x, -E.z); root.add(g);   // (its face toward the frame you arrive by)
     const P = parts();
     P.add(limb(new THREE.Vector3(-0.55, 0, 0.2), new THREE.Vector3(-0.42, 1.95, -0.02), 0.035, 0.03, 5), '#5a4030');
     P.add(limb(new THREE.Vector3(0.55, 0, 0.2), new THREE.Vector3(0.42, 1.95, -0.02), 0.035, 0.03, 5), '#5a4030');
