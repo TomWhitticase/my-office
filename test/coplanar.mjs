@@ -250,7 +250,8 @@ function scanScene([which, cachedFp]) {
 // floor in it (the roof, 46, 45: 44 is the same build, moved), each scanned for what's new there. The lazily built ones
 // are built through their debug hooks: the den under my office, the world's edge out past the city (from the helicopter),
 // Relativity (through its door from B3), what's behind the sky, the painting on B3 and the Plain behind it, the other
-// painting and the acrobats' coast behind it, and the grid (and B3 round its doorway). COPLANAR_ONLY=name,name: only those.
+// painting and the acrobats' coast behind it, the grid (and B3 round its doorway),
+// and the winter village and its painting. COPLANAR_ONLY=name,name: only those.
 const PLACES = [
   ['office', null],
   ['den', () => window.__office.secret.den(8.35, -12.5, 0, 0)],
@@ -266,6 +267,8 @@ const PLACES = [
   ['grid', () => window.__office.grid.go(0, -3, 0, 0)],
   ['grid door', () => window.__office.grid.door(0, 2.5, 0, 0)],
   ['grid door, the bookcase out', () => { const g = window.__office.grid; g.door(0, 2.5, 0, 0); g.bookcase(true); }],
+  ['kettle painting', () => window.__office.kettle.painting(0, 2, 0, 0)],
+  ['kettle', () => { const k = window.__office.kettle; k.go(0, -3, 0, 0); k.door(true); }],
 ];
 
 // Intended overlaps, or ones another session is fixing: [scene, why, { box: [x0, x1, y0, y1, z0, z1] (where), upTo: n (at most

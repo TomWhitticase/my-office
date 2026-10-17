@@ -6175,6 +6175,30 @@
    ]
   },
   {
+   "n": -7,
+   "label": "THE VILLAGE",
+   "title": "The village on the ice",
+   "scene": true,
+   "y": null,
+   "carless": true,
+   "fly": false,
+   "sound": {
+    "kind": "kettle",
+    "steps": true
+   },
+   "colliders": 0,
+   "hits": 0,
+   "hooks": [
+    "enter",
+    "leave",
+    "bound",
+    "map",
+    "fx",
+    "pick",
+    "ground"
+   ]
+  },
+  {
    "n": -8,
    "label": "THE COAST",
    "title": "The coast",
@@ -6402,6 +6426,15 @@
    "sorted": "5b24a7a2"
   },
   "the plain": {
+   "objects": 1,
+   "types": {
+    "Scene": 1
+   },
+   "actions": {},
+   "ordered": "841c0771",
+   "sorted": "841c0771"
+  },
+  "the village": {
    "objects": 1,
    "types": {
     "Scene": 1
