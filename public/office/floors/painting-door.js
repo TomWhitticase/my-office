@@ -303,7 +303,15 @@ export function makePaintingDoor(ctx, fl, o) {
   }, 196);
   // Its post-processing made and drawn a couple of times before you first walk in: the first frames out of a new
   // composer are wrong, and its shaders compile then, not as you cross. (Drawn to the canvas, under the frame that's drawn over it.)
-  function prime() { ctx.renderFloor(fl); paintAt(0, 0); ctx.renderFloor(fl); ctx.renderFloor(fl); }
+  // Drawn from where you'll be on the far side (your camera carried through the frame, put back after), so what it compiles
+  // is what you'll first see there, not whatever of it is in view from B3's coordinates.
+  const keep = { p: new THREE.Vector3(), q: new THREE.Quaternion() };
+  function prime() {
+    keep.p.copy(camera.position); keep.q.copy(camera.quaternion);
+    camera.updateMatrixWorld(); carry(F.b3, F.plIn); camera.position.copy(pos); camera.quaternion.copy(q.setFromRotationMatrix(m4).multiply(keep.q)); camera.updateMatrixWorld();
+    try { ctx.renderFloor(fl); paintAt(0, 0); ctx.renderFloor(fl); ctx.renderFloor(fl); }
+    finally { camera.position.copy(keep.p); camera.quaternion.copy(keep.q); camera.updateMatrixWorld(); }
+  }
   // the look over everything out there: on, sized, how much
   function paintAt(amount, t) {
     if (!pass) return;

@@ -267,7 +267,7 @@ const PLACES = [
   ['lisa painting', () => window.__office.lisa.painting(0, 2, 0, 0)],
   ['lisa', async () => {   // (the land comes from a worker: waited for)
     const L = window.__office.lisa; L.go(0, -0.9, 0, 0);
-    while (!L.ready) await new Promise((r) => { const c = new MessageChannel(); c.port1.onmessage = r; c.port2.postMessage(0); });
+    while (!L.painted) await new Promise((r) => { const c = new MessageChannel(); c.port1.onmessage = r; c.port2.postMessage(0); });
     L.sit(1.3, -2.6);
   }],
   ['grid', () => window.__office.grid.go(0, -3, 0, 0)],

@@ -37,6 +37,7 @@ import { buildWorld, WL } from './lisa-world.js';
 import { groundAt, terrain, along, RIVER, BRIDGE, LOGGIA, STAIR } from './lisa-land.js';
 import { makeLisa } from './lisa-figure.js';
 import { makeSound } from './lisa-sound.js';
+import { makeWarm } from '../systems/warm.js';
 
 const N = -9;
 const EYE_Y = CANVAS.h * (1 - 0.2297);   // the portrait's eyes, up from its sill
@@ -89,27 +90,34 @@ function setup(ctx) {
 
   // ----- the door -----
   const door = makePaintingDoor(ctx, fl, {
-    at, size: CANVAS, key: 'lisa', near: 32, seed: 1505, hud: 'of-lisa',
+    at, size: CANVAS, key: 'lisa', near: 40, far: 70, seed: 1505, hud: 'of-lisa',   // (a piece a frame from 70 m, warmed from 40)
     frame: (R2, o) => makeLisaFrame(R2, { back: !!o.back, picture: o.back ? null : pic }),
     paint: (p) => paintPane(p, { size: CANVAS, varnish: [1.02, 0.95, 0.66] }),
     pass: () => (passM = new THREE.ShaderMaterial(lisaPassShader())),
     window: (d) => d < 3.6,   // (further off, the picture covers it all: nothing of the world's drawn)
-    build(R2) {
+    *build(R2) {   // (a piece a frame: painting-door.js)
       ask();
       world = buildWorld(fl, R2, paint.face || blankTex(), paint.land);
+      yield;
       sound = makeSound(ctx);
       her = makeLisa(RH, paint.face || blankTex(), {
         tap: (p, sp, arm) => { if (ctx.away === fl && p.distanceTo(camera.position) < 30 && (arm || Math.random() < 0.5)) sound.nail(p, sp); },
       });
       fl.scene.add(her.root, her.skirt);
       her.S.visible = false;
+      yield;
       return {
         sound,
         // out there, as seen from B3 through the portrait: the world round where you'd be, calm, her chair empty
-        seen(mp, dt, t) { if (H.phase !== 'calm' && ctx.away !== fl) reset(); world.view(mp, t); clock += dt; her.update(dt, clock, groundAt); },
+        seen(mp, dt, t, d) {
+          if (H.phase !== 'calm' && ctx.away !== fl) reset();
+          world.view(mp, t);
+          clock += dt; her.update(dt, clock, groundAt);
+        },
         fx: (dt, t) => frame(dt, t),
         arrive() { door.pose(0, -0.9, 0, 0); },   // (debug, a reload: a step past the frame, the chair ahead)
         cols: world.cols,
+        ready: () => landDone,   // (the window's shut, and the paint doesn't run, till the land's come and been got ready)
       };
     },
     hover: {
@@ -475,7 +483,7 @@ function setup(ctx) {
     else if (B.wasAway && on) { B.wasAway = false; B.wrongT = t + 90; }   // (just walked back out)
     if (!on) return;
     const d = door.st.near;
-    pic.uniforms.melt.value = sstep(3.4, 1.55, d);
+    pic.uniforms.melt.value = landDone ? sstep(3.4, 1.55, d) : 0;
     // where you are, from the portrait: its eyes after you, a little too far, a beat late
     v3.copy(camera.position).applyMatrix4(inv.copy(door.F.b3Out).invert());
     const ax = Math.atan2(v3.x, Math.max(0.2, v3.z)), ay = Math.atan2(v3.y - EYE_Y, Math.max(0.2, v3.z));
@@ -518,6 +526,17 @@ function setup(ctx) {
     c.font = '600 20px system-ui'; c.fillStyle = 'rgba(255,255,255,.85)'; c.fillText('—', 16, 30);
   };
 
+  // ----- the land: it comes from the worker after the rest's built (and warmed: painting-door.js), so it's got ready
+  // itself (systems/warm.js), and nothing's drawn through the portrait till it is -----
+  let landWarm = null, landDone = false;
+  ctx.onFrame(() => {
+    if (landDone || !world || !paint.land) return;
+    landWarm ||= makeWarm(ctx.renderer, [fl.scene]);
+    if (landWarm()) landDone = true;
+  }, 198);
+  let growK = 0;
+  ctx.onFrame(() => { if (fl.built && sound && (ctx.away === restr || ctx.away === fl) && ++growK % 4 === 0) sound.grow(); }, 198);   // (its sounds, made one a few frames)
+
   // ----- the world's extras, once it's built: the stones she lifts, what she can't be seen through -----
   const extras = () => {
     if (tk || !world) return;
@@ -530,7 +549,7 @@ function setup(ctx) {
   const pose = (x, z, yaw, pitch) => { door.pose(x, z, yaw, pitch); ctx.player.fy = groundAt(x, z); };
   ctx.lisa = {
     fl, H, st: door.st, F: door.F, at, door,
-    get built() { return fl.built; }, get ready() { return fl.built && !!paint.land && !!paint.portrait; }, get her() { return her; }, get world() { return world; },
+    get built() { return fl.built; }, get ready() { return fl.built && !!paint.portrait && landDone; }, get painted() { return fl.built && !!paint.portrait && !!paint.land; }, get her() { return her; }, get world() { return world; },
     go(x = 0.9, z = -0.9, yaw = 0, pitch = 0) { if (!door.go(x, z, yaw, pitch)) return false; ctx.player.fy = groundAt(x, z); return true; },
     painting: (x = 0, z = 3, yaw = 0, pitch = 0) => door.painting(x, z, yaw, pitch),
     into: door.into, pose,
