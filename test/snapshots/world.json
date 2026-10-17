@@ -6220,6 +6220,29 @@
     "fx",
     "ground"
    ]
+  },
+  {
+   "n": -9,
+   "label": "THE PORTRAIT",
+   "title": "The portrait",
+   "scene": true,
+   "y": null,
+   "carless": true,
+   "fly": false,
+   "sound": {
+    "kind": "lisa",
+    "steps": true
+   },
+   "colliders": 0,
+   "hits": 0,
+   "hooks": [
+    "enter",
+    "leave",
+    "bound",
+    "map",
+    "fx",
+    "ground"
+   ]
   }
  ],
  "tvs": [
@@ -6444,6 +6467,15 @@
    "sorted": "841c0771"
   },
   "the coast": {
+   "objects": 1,
+   "types": {
+    "Scene": 1
+   },
+   "actions": {},
+   "ordered": "841c0771",
+   "sorted": "841c0771"
+  },
+  "the portrait": {
    "objects": 1,
    "types": {
     "Scene": 1
