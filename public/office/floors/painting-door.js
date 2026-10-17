@@ -72,6 +72,7 @@ export function makePaintingDoor(ctx, fl, o) {
   // (Hale's things and the stone door are never put on this wall, or on its back: restricted-story.js, relativity-door.js)
   restr.reserved ||= new Set();
   restr.reserved.add(`${at.spot.i},${at.spot.j}`).add(`${at.spot.back[0]},${at.spot.back[1]}`);
+  restr.hidden.add(o.key, () => at);   // a worn trail to it, and a warp on the map (restricted-paths.js)
   const st = { crossing: false, front: true, plFront: undefined, near: Infinity, t: 0, b3Bleed: 0 };
   let w = null, g = null, pg = null, inP = null, outP = null, pass = null, inPaint = null, outPaint = null, hit = null;
   const base = { b3: { exposure: restr.look.exposure, bloom: restr.look.bloom, grade: restr.look.grade }, pl: null };

@@ -31,6 +31,7 @@ export function install(ctx) {
   const spot = findGridDoor(restr);
   restr.reserved ||= new Set();
   restr.reserved.add(`${spot.spot.i},${spot.spot.j}`).add(`${spot.spot.back[0]},${spot.spot.back[1]}`);
+  restr.hidden.add('grid', () => spot);   // a worn trail to it, and a warp on the map (restricted-paths.js)
   // Whether the bookcase is pulled out, kept with B3's own state through a reload (systems/resume.js), built or not.
   const save0 = restr.save, restore0 = restr.restore;
   restr.save = () => { const s = save0 ? save0() : undefined; return s === false ? s : grid.caseOut ? { ...s, gridCase: 1 } : s; };

@@ -1,14 +1,20 @@
-// Worn paths in B3's carpet (floors/restricted.js): from the lift to each of the secret doors, the stone door into
-// Relativity (at its home, relativity-door.js) and the fire door behind the sky (world-edge-backstage.js findExit). Very
-// faint: a soft strip of flatter, paler, greyer pile half a metre or so wide that wanders a little and frays, a touch
-// stronger through doorways and where the way turns. Someone who knows to look can follow it.
-// Worked out once from B3's fixed layout (the walk findExit makes from the lift) and baked into a mask over the floor's
-// own space (RES metres a texel), which the carpet's material reads (wear()): no extra draw calls.
+// Worn paths in B3's carpet (floors/restricted.js): from the lift to every hidden way out. Very faint: a soft strip of
+// flatter, paler, greyer pile half a metre or so wide that wanders a little and frays, a touch stronger through doorways
+// and where the way turns. Someone who knows to look can follow it.
+// The ways out are a registry, restr.hidden (the minimap's warps read it too, restricted-warps.js): a door adds itself
+// with restr.hidden.add(name, find, { shown }), find() giving { X, Z, YAW }, the doorway's middle on its wall's face in
+// B3's own space (the car at z = 0) and YAW the way out of it into the room (+z turned by YAW), worked out from B3's
+// fixed layout. Each gets a trail, the walk from the lift (findExit's) to it; trails share their way as far as they go
+// together, and there the wear is a little stronger, not stacked. Baked once, the first time B3's seen (again only if a
+// door's added after), into one mask over the floor's own space that the carpet's material reads (wear()): no extra
+// draw calls.
 
 import * as THREE from 'three';
 import { findExit } from './world-edge-backstage.js';
 
-const RES = 0.2, WORN = 0.32;   // texels, metres; how much paler the worn pile is at its most
+const RES = 0.2, WORN = 0.32, MAXTX = 2.5e6;   // texels, metres (coarser if the trails spread so far the mask would pass MAXTX
+// texels); how much paler the worn pile is at its most
+const SHARE = 0.25, SHARED = 1.3;   // where trails run together: each other one adds this much of its wear, to at most this times one's
 const WAYS = [['w', -1, 0], ['e', 1, 0], ['s', 0, -1], ['n', 0, 1]];
 
 export function wornPaths(restr, start) {
@@ -76,43 +82,74 @@ export function wornPaths(restr, start) {
     }
     return q;
   }
-  const exitIn = [Math.sin(ex.YAW), Math.cos(ex.YAW)];
-  const hf = [[X(home.i), Z(home.j) + C / 2, 1, 0], [X(home.i + 1), Z(home.j) + C / 2, -1, 0], [X(home.i) + C / 2, Z(home.j), 0, 1], [X(home.i) + C / 2, Z(home.j + 1), 0, -1]][home.k];
-  const routes = [route(ex.spot.i, ex.spot.j, [ex.XD, ex.ZF], exitIn), route(home.i, home.j, [hf[0], hf[1]], [hf[2], hf[3]])];
+  // the stone door's home as a doorway (its wall's face, the way into the room)
+  const hf = [[X(home.i), Z(home.j) + C / 2, Math.PI / 2], [X(home.i + 1), Z(home.j) + C / 2, -Math.PI / 2], [X(home.i) + C / 2, Z(home.j), 0], [X(home.i) + C / 2, Z(home.j + 1), Math.PI]][home.k];
+  home.door = { X: hf[0], Z: hf[1], YAW: hf[2] };
 
-  // ----- the mask: soft discs stamped every few centimetres along each route, the strongest kept where they overlap -----
-  let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
-  for (const r of routes) for (const { p } of r) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); z0 = Math.min(z0, p[1]); z1 = Math.max(z1, p[1]); }
-  x0 -= 2; z0 -= 2; x1 += 2; z1 += 2;
-  const W = Math.ceil((x1 - x0) / RES), H = Math.ceil((z1 - z0) / RES), data = new Uint8Array(W * H);
-  const lo = (u, s) => Math.sin(u * 0.9 + s) * 0.6 + Math.sin(u * 2.3 + s * 2.1) * 0.4;   // slow, smooth, -1..1
-  routes.forEach((r, ri) => {
-    let u = 0;
-    for (let n = 0; n < r.length - 1; n++) {
-      const A = r[n], B = r[n + 1], len = Math.hypot(B.p[0] - A.p[0], B.p[1] - A.p[1]), steps = Math.max(1, Math.ceil(len / 0.05));
-      const nx = -(B.p[1] - A.p[1]) / (len || 1), nz = (B.p[0] - A.p[0]) / (len || 1);
-      for (let k = 0; k < steps; k++, u += len / steps) {
-        const f = k / steps, wob = lo(u * 0.5, ri * 7) * 0.14;   // wanders a little side to side
-        const px = A.p[0] + (B.p[0] - A.p[0]) * f + nx * wob, pz = A.p[1] + (B.p[1] - A.p[1]) * f + nz * wob;
-        const s = (A.s + (B.s - A.s) * f) * (0.8 + 0.2 * lo(u * 1.7, ri * 3 + 1)), rad = 0.42 + 0.07 * lo(u * 1.1, ri * 5 + 2);
-        const gx = (px - x0) / RES, gz = (pz - z0) / RES, R = Math.ceil(rad / RES) + 1;
-        for (let a = Math.floor(gx - R); a <= gx + R; a++) for (let b = Math.floor(gz - R); b <= gz + R; b++) {
-          if (a < 0 || b < 0 || a >= W || b >= H) continue;
-          const d = Math.hypot((a + 0.5 - gx) * RES, (b + 0.5 - gz) * RES), e = d >= rad ? 0 : 1 - (d / rad) ** 2;
-          const v = Math.round(Math.min(255, e * s * 110));
-          if (v > data[b * W + a]) data[b * W + a] = v;
+  // ----- the registry, and the mask, baked from it when first wanted -----
+  const hidden = restr.hidden = [];
+  let dirty = true, baked = null;
+  hidden.add = (name, find, { shown } = {}) => { hidden.push({ name, find, shown }); dirty = true; };
+  const routes = {};
+  function bake() {
+    dirty = false;
+    for (const k of Object.keys(routes)) delete routes[k];
+    for (const h of hidden) {
+      const d = h.find(), inw = [Math.sin(d.YAW), Math.cos(d.YAW)];
+      const i = Math.floor((d.X + inw[0] * 0.5 - X(0)) / C), j = Math.floor((d.Z + inw[1] * 0.5 - Z(0)) / C);   // the room it opens into
+      if (back.has(key(i, j))) routes[h.name] = route(i, j, [d.X, d.Z], inw);
+    }
+    return (baked = mask(Object.values(routes)));
+  }
+
+  // ----- the mask: soft discs stamped every few centimetres along each route, the strongest kept where a route overlaps
+  // itself; where routes overlap, the strongest and a little of the rest. The wobble and the patchiness go by the distance
+  // walked from the lift, the same for every route, so routes that share a way lie on each other there exactly. -----
+  function mask(routes) {
+    if (!routes.length) return { tex: new THREE.DataTexture(new Uint8Array(1), 1, 1, THREE.RedFormat, THREE.UnsignedByteType), box: { x0: 0, z0: 0, w: 1, h: 1 } };
+    let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+    for (const r of routes) for (const { p } of r) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); z0 = Math.min(z0, p[1]); z1 = Math.max(z1, p[1]); }
+    x0 -= 2; z0 -= 2; x1 += 2; z1 += 2;
+    const res = Math.max(RES, Math.sqrt(((x1 - x0) * (z1 - z0)) / MAXTX));
+    const W = Math.ceil((x1 - x0) / res), H = Math.ceil((z1 - z0) / res), data = new Uint8Array(W * H), sum = new Uint16Array(W * H), one = new Uint8Array(W * H);
+    const lo = (u, s) => Math.sin(u * 0.9 + s) * 0.6 + Math.sin(u * 2.3 + s * 2.1) * 0.4;   // slow, smooth, -1..1
+    for (const r of routes) {
+      let u = 0;
+      one.fill(0);
+      for (let n = 0; n < r.length - 1; n++) {
+        const A = r[n], B = r[n + 1], len = Math.hypot(B.p[0] - A.p[0], B.p[1] - A.p[1]), steps = Math.max(1, Math.ceil(len / 0.05));
+        const nx = -(B.p[1] - A.p[1]) / (len || 1), nz = (B.p[0] - A.p[0]) / (len || 1);
+        for (let k = 0; k < steps; k++, u += len / steps) {
+          const f = k / steps, wob = lo(u * 0.5, 0) * 0.14;   // wanders a little side to side
+          const px = A.p[0] + (B.p[0] - A.p[0]) * f + nx * wob, pz = A.p[1] + (B.p[1] - A.p[1]) * f + nz * wob;
+          const s = (A.s + (B.s - A.s) * f) * (0.8 + 0.2 * lo(u * 1.7, 1)), rad = 0.42 + 0.07 * lo(u * 1.1, 2);
+          const gx = (px - x0) / res, gz = (pz - z0) / res, R = Math.ceil(rad / res) + 1;
+          for (let a = Math.floor(gx - R); a <= gx + R; a++) for (let b = Math.floor(gz - R); b <= gz + R; b++) {
+            if (a < 0 || b < 0 || a >= W || b >= H) continue;
+            const d = Math.hypot((a + 0.5 - gx) * res, (b + 0.5 - gz) * res), e = d >= rad ? 0 : 1 - (d / rad) ** 2;
+            const v = Math.round(Math.min(255, e * s * 110));
+            if (v > one[b * W + a]) one[b * W + a] = v;
+          }
         }
       }
-    }
-  });
+      for (let k = 0; k < one.length; k++) if (one[k]) { sum[k] += one[k]; if (one[k] > data[k]) data[k] = one[k]; }
+  }
+  for (let k = 0; k < data.length; k++) if (sum[k] > data[k]) data[k] = Math.min(255, data[k] * SHARED, data[k] + (sum[k] - data[k]) * SHARE);
   const tex = new THREE.DataTexture(data, W, H, THREE.RedFormat, THREE.UnsignedByteType);
   tex.magFilter = tex.minFilter = THREE.LinearFilter; tex.needsUpdate = true;
-  return { tex, box: { x0, z0, w: W * RES, h: H * RES }, home, routes };
+  return { tex, box: { x0, z0, w: W * res, h: H * res } };
+  }
+  // the mask, baked now if it's not yet (or a door's been added since)
+  const get = () => (dirty || !baked ? bake() : baked);
+  return { home, routes, get };
 }
 
-// Into the carpet's material: `box.y` follows the car (B3's rooms are laid out from it); set it with at(z0).
-export function wear(m, { tex, box }) {
-  const U = { wornT: { value: tex }, wornB: { value: new THREE.Vector4(box.x0, box.z0, 1 / box.w, 1 / box.h) } };
+// Into the carpet's material: `box.y` follows the car (B3's rooms are laid out from it); set it with at(z0), which bakes
+// the mask the first time.
+export function wear(m, paths) {
+  const none = new THREE.DataTexture(new Uint8Array(1), 1, 1, THREE.RedFormat, THREE.UnsignedByteType); none.needsUpdate = true;
+  const U = { wornT: { value: none }, wornB: { value: new THREE.Vector4(0, 0, 1, 1) } };
+  let mine = null;
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, U);
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 vWorn;')
@@ -139,5 +176,12 @@ export function wear(m, { tex, box }) {
       }`);
   };
   m.customProgramCacheKey = () => 'worn';
-  return { U, at: (z0) => { U.wornB.value.y = box.z0 + z0; } };
+  return {
+    U,
+    at(z0) {
+      const b = paths.get();
+      if (b !== mine) { mine = b; U.wornT.value = b.tex; U.wornB.value.set(b.box.x0, 0, 1 / b.box.w, 1 / b.box.h); }
+      U.wornB.value.y = b.box.z0 + z0;
+    },
+  };
 }
