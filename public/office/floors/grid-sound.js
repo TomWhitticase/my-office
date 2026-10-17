@@ -22,13 +22,15 @@ export function makeSound(ctx) {
     let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
     return (x) => { const y = k0 * x + k1 * x1 + k2 * x2 - a1 * y1 - a2 * y2; x2 = x1; x1 = x; y2 = y1; y1 = y; return y; };
   }
-  function make(sec, fn, peak = 0.9, ch = 1) {
+  // (a generator: it yields every few thousand samples, so it can be made a slice at a time: bake, below)
+  function* make(sec, fn, peak = 0.9, ch = 1) {
     const SR = A.ctx.sampleRate, n = Math.ceil(sec * SR), b = A.ctx.createBuffer(ch, n, SR);
     for (let c = 0; c < ch; c++) {
       const d = b.getChannelData(c);
       let m = 0;
-      for (let k = 0; k < n; k++) { d[k] = fn(k / SR, c); m = Math.max(m, Math.abs(d[k])); }
+      for (let k = 0; k < n; k++) { d[k] = fn(k / SR, c); m = Math.max(m, Math.abs(d[k])); if ((k & 4095) === 4095) yield; }
       for (let k = 0; k < n; k++) d[k] *= (m ? peak / m : 0) * Math.min(1, (n - k) / (SR * 0.005), k / (SR * 0.002));
+      yield;
     }
     return b;
   }
@@ -52,7 +54,9 @@ export function makeSound(ctx) {
       return held;
     });
   }
-  function build() {
+  // Each buffer's recipe: a function giving its maker (make's generator). The hall first (the room's reverb is silent till
+  // it's made), then the score's loops, then the rest.
+  function recipes() {
     const lo = biq('lp', 90, 0.8), lo2 = biq('lp', 220, 0.6), air = biq('bp', 1800, 0.7), wind = biq('bp', 420, 0.9);
     // the pad: a suspended chord (D, A, E over a low D), each voice two saws a few cents apart, softened
     const PAD = 12, voices = [[73.4, 0.5], [293.7, 0.32], [440, 0.26], [587.3, 0.2], [659.3, 0.16], [987.8, 0.06]].map(([f, a]) => [cyc(f, PAD), cyc(f * 1.004, PAD), a]);
@@ -60,44 +64,77 @@ export function makeSound(ctx) {
     const pf = [biq('lp', 1600, 0.7), biq('lp', 1600, 0.7)];
     return {
       // the room: a decaying cloud of noise, darker as it dies, a little different left and right
-      hall: (() => { const f = [biq('lp', 6000, 0.5), biq('lp', 6000, 0.5)];
-        return make(4.5, (t, c) => f[c](nz()) * Math.exp(-t / 1.2) * (1 - 0.4 * Math.min(1, t / 2.5)) * (c ? 1 : 0.95), 0.6, 2); })(),
-      rumble: make(8, (t) => lo(nz()) * 3 * (0.75 + 0.25 * Math.sin(TAU * t / 8)) + lo2(nz()) * 0.6),
-      pad: make(PAD, (t, c) => {
+      hall: () => { const f = [biq('lp', 6000, 0.5), biq('lp', 6000, 0.5)];
+        return make(4.5, (t, c) => f[c](nz()) * Math.exp(-t / 1.2) * (1 - 0.4 * Math.min(1, t / 2.5)) * (c ? 1 : 0.95), 0.6, 2); },
+      rumble: () => make(8, (t) => lo(nz()) * 3 * (0.75 + 0.25 * Math.sin(TAU * t / 8)) + lo2(nz()) * 0.6),
+      pad: () => make(PAD, (t, c) => {
         let s = 0;
         for (const [f1, f2, a] of voices) s += a * (saw(f1 * t + c * 0.25) + saw(f2 * t)) * 0.5;
         return pf[c](s) * (0.7 + 0.3 * Math.sin(TAU * t / PAD));
       }, 0.8, 2),
-      hiss: make(6, (t) => air(nz()) * 0.3 * (0.6 + 0.4 * Math.sin(TAU * t / 6))),
-      bells: [659.3, 740, 784, 880, 987.8].map((f) => bell(f)),
-      step: Array.from({ length: 6 }, step),
-      poke: (() => { let ph = 0; return make(0.35, (t) => { ph += (900 * Math.pow(0.4, t / 0.12)) / A.ctx.sampleRate; return Math.sin(TAU * ph) * Math.exp(-t / 0.1) + nz() * Math.exp(-t / 0.004) * 0.5; }); })(),
-      whoosh: (() => { const bp = biq('bp', 900, 0.8); return make(0.8, (t) => bp(nz()) * Math.sin(Math.PI * t / 0.8) ** 2); })(),
-      tink: (() => { const r = biq('bp', 3200, 12); return make(1.6, (t) => r(nz()) * Math.exp(-t / 0.4) * 2 + Math.sin(TAU * 2350 * t) * Math.exp(-t / 0.5) * 0.4 + lo(nz()) * Math.exp(-t / 0.06) * 3); })(),
+      hiss: () => make(6, (t) => air(nz()) * 0.3 * (0.6 + 0.4 * Math.sin(TAU * t / 6))),
+      ...Object.fromEntries([659.3, 740, 784, 880, 987.8].map((f, i) => [`bell${i}`, () => bell(f)])),
+      ...Object.fromEntries(Array.from({ length: 6 }, (_, i) => [`step${i}`, step])),
+      poke: () => { let ph = 0; return make(0.35, (t) => { ph += (900 * Math.pow(0.4, t / 0.12)) / A.ctx.sampleRate; return Math.sin(TAU * ph) * Math.exp(-t / 0.1) + nz() * Math.exp(-t / 0.004) * 0.5; }); },
+      whoosh: () => { const bp = biq('bp', 900, 0.8); return make(0.8, (t) => bp(nz()) * Math.sin(Math.PI * t / 0.8) ** 2); },
+      tink: () => { const r = biq('bp', 3200, 12); return make(1.6, (t) => r(nz()) * Math.exp(-t / 0.4) * 2 + Math.sin(TAU * 2350 * t) * Math.exp(-t / 0.5) * 0.4 + lo(nz()) * Math.exp(-t / 0.06) * 3); },
       // the tear: wind through a band that swings about, and the sub under it (looped, its gain the hole's strength)
-      roar: make(6, (t) => wind(nz()) * (0.6 + 0.4 * Math.sin(TAU * t / 3)) + lo(nz()) * 2.5, 0.9),
-      zip: (() => { let ph = 0; return make(0.7, (t) => { ph += (1400 * Math.pow(0.08, t / 0.7)) / A.ctx.sampleRate; return (saw(ph) * 0.6 + nz() * 0.15) * Math.exp(-t / 0.3); }); })(),
-      heal: make(3.5, (t) => [0, 0.18, 0.36, 0.54].reduce((s, d, i) => s + (t > d ? Math.sin(TAU * [587.3, 740, 880, 1174.7][i] * (t - d)) * Math.exp(-(t - d) * 1.4) : 0), 0)
+      roar: () => make(6, (t) => wind(nz()) * (0.6 + 0.4 * Math.sin(TAU * t / 3)) + lo(nz()) * 2.5, 0.9),
+      zip: () => { let ph = 0; return make(0.7, (t) => { ph += (1400 * Math.pow(0.08, t / 0.7)) / A.ctx.sampleRate; return (saw(ph) * 0.6 + nz() * 0.15) * Math.exp(-t / 0.3); }); },
+      heal: () => make(3.5, (t) => [0, 0.18, 0.36, 0.54].reduce((s, d, i) => s + (t > d ? Math.sin(TAU * [587.3, 740, 880, 1174.7][i] * (t - d)) * Math.exp(-(t - d) * 1.4) : 0), 0)
         * Math.min(1, t / 0.01) + air(nz()) * Math.sin(Math.PI * Math.min(1, t / 3.5)) * 0.2),
       // the bookcase on B3, dragged: a heavy wooden scrape, juddering as it sticks and slips; and its thud as it stops
-      scrape: (() => { const body = biq('bp', 180, 1.4), grit = biq('bp', 1400, 0.9), low = biq('lp', 120, 0.7); let j = 0;
+      scrape: () => { const body = biq('bp', 180, 1.4), grit = biq('bp', 1400, 0.9), low = biq('lp', 120, 0.7); let j = 0;
         return make(3, (t) => { if (Math.random() < 0.0012) j = rnd(0.5, 1); j *= 0.9993;
           const judder = 0.55 + 0.45 * Math.abs(Math.sin(TAU * cyc(13, 3) * t));
-          return (body(nz()) * 2.2 * judder + grit(nz()) * 0.5 * (0.3 + j) + low(nz()) * 1.5) * (0.7 + 0.3 * j); }, 0.9); })(),
-      thud: (() => { const lp = biq('lp', 90, 0.8), knock = biq('bp', 500, 2);
-        return make(0.6, (t) => lp(nz()) * 6 * Math.exp(-t / 0.08) + Math.sin(TAU * 62 * t) * Math.exp(-t / 0.12) + knock(nz()) * Math.exp(-t / 0.02) * 0.3); })(),
+          return (body(nz()) * 2.2 * judder + grit(nz()) * 0.5 * (0.3 + j) + low(nz()) * 1.5) * (0.7 + 0.3 * j); }, 0.9); },
+      thud: () => { const lp = biq('lp', 90, 0.8), knock = biq('bp', 500, 2);
+        return make(0.6, (t) => lp(nz()) * 6 * Math.exp(-t / 0.08) + Math.sin(TAU * 62 * t) * Math.exp(-t / 0.12) + knock(nz()) * Math.exp(-t / 0.02) * 0.3); },
       // the warp: a cluster of detuned saws over a roar, played faster and faster; the burst; the wind falling; the landing
-      warp: (() => { const lp = biq('lp', 2400, 0.7), w = biq('bp', 700, 0.6); const fs = [55, 82.4, 110, 164.8, 233.1, 311.1].map((f) => cyc(f, 4));
-        return make(4, (t) => lp(fs.reduce((s, f, i) => s + saw(f * t * (1 + i * 0.003)) / (i + 1.5), 0)) * 0.8 + w(nz()) * 0.9, 0.9); })(),
-      boom: (() => { const lp = biq('lp', 140, 0.7), hi = biq('hp', 2500, 0.7); let ph = 0;
+      warp: () => { const lp = biq('lp', 2400, 0.7), w = biq('bp', 700, 0.6); const fs = [55, 82.4, 110, 164.8, 233.1, 311.1].map((f) => cyc(f, 4));
+        return make(4, (t) => lp(fs.reduce((s, f, i) => s + saw(f * t * (1 + i * 0.003)) / (i + 1.5), 0)) * 0.8 + w(nz()) * 0.9, 0.9); },
+      boom: () => { const lp = biq('lp', 140, 0.7), hi = biq('hp', 2500, 0.7); let ph = 0;
         return make(4.5, (t) => { ph += (30 + 70 * Math.exp(-t * 2.5)) / A.ctx.sampleRate;
-          return Math.sin(TAU * ph) * Math.exp(-t * 0.9) * 1.2 + lp(nz()) * 5 * Math.exp(-t * 1.1) + hi(nz()) * Math.exp(-t * 14) * 1.2 + nz() * Math.exp(-t * 3) * 0.3; }); })(),
-      wind: (() => { const f = [biq('bp', 380, 0.5), biq('bp', 420, 0.5)], g = [biq('hp', 1800, 0.6), biq('hp', 1700, 0.6)], lo3 = [biq('lp', 70, 0.7), biq('lp', 70, 0.7)];
-        return make(6, (t, c) => (f[c](nz()) * (0.7 + 0.3 * Math.sin(TAU * t / 3 + c)) + g[c](nz()) * 0.35 + lo3[c](nz()) * 2.5), 0.9, 2); })(),
-      land: (() => { const lp = biq('lp', 110, 0.8), k = biq('bp', 320, 1.2);
-        return make(1.6, (t) => lp(nz()) * 9 * Math.exp(-t / 0.12) + Math.sin(TAU * 48 * t) * Math.exp(-t / 0.25) * 1.4 + k(nz()) * Math.exp(-t / 0.03) * 1.5); })(),
-      buzz: make(2, (t) => Math.sin(TAU * 120 * t) * 0.6 + Math.sin(TAU * 240 * t) * 0.25 + Math.sign(Math.sin(TAU * 120 * t)) * 0.08),
+          return Math.sin(TAU * ph) * Math.exp(-t * 0.9) * 1.2 + lp(nz()) * 5 * Math.exp(-t * 1.1) + hi(nz()) * Math.exp(-t * 14) * 1.2 + nz() * Math.exp(-t * 3) * 0.3; }); },
+      wind: () => { const f = [biq('bp', 380, 0.5), biq('bp', 420, 0.5)], g = [biq('hp', 1800, 0.6), biq('hp', 1700, 0.6)], lo3 = [biq('lp', 70, 0.7), biq('lp', 70, 0.7)];
+        return make(6, (t, c) => (f[c](nz()) * (0.7 + 0.3 * Math.sin(TAU * t / 3 + c)) + g[c](nz()) * 0.35 + lo3[c](nz()) * 2.5), 0.9, 2); },
+      land: () => { const lp = biq('lp', 110, 0.8), k = biq('bp', 320, 1.2);
+        return make(1.6, (t) => lp(nz()) * 9 * Math.exp(-t / 0.12) + Math.sin(TAU * 48 * t) * Math.exp(-t / 0.25) * 1.4 + k(nz()) * Math.exp(-t / 0.03) * 1.5); },
+      buzz: () => make(2, (t) => Math.sin(TAU * 120 * t) * 0.6 + Math.sin(TAU * 240 * t) * 0.25 + Math.sign(Math.sin(TAU * 120 * t)) * 0.08),
     };
+  }
+  // The buffers made a slice at a time, a few milliseconds a frame (from when anything here first asks for the audio: the
+  // grid's built as you come near the doorway on B3, so they're done long before they're wanted); one wanted before
+  // it's done is finished there and then.
+  let todo = null, made = {}, cur = null, curK = null, bakedAt = -1;
+  function finish(k) {
+    if (k in made) return made[k];
+    const g = curK === k ? cur : todo[k]();
+    let r;
+    while (!(r = g.next()).done);
+    if (curK === k) cur = curK = null;
+    return got(k, r.value);
+  }
+  function got(k, b) {
+    made[k] = b;
+    if (k === 'hall' && verb) verb.buffer = b;
+    return b;
+  }
+  function bake(ms) {
+    const t0 = performance.now();
+    while (performance.now() - t0 < ms) {
+      if (!cur) { curK = Object.keys(todo).find((k) => !(k in made)); if (!curK) return; cur = todo[curK](); }
+      const r = cur.next();
+      if (r.done) { got(curK, r.value); cur = curK = null; }
+    }
+  }
+  function build() {
+    todo = recipes(); made = {}; cur = curK = null;
+    const b = {};
+    for (const k of Object.keys(todo)) if (!/^(bell|step)\d/.test(k)) Object.defineProperty(b, k, { get: () => finish(k) });
+    Object.defineProperty(b, 'bells', { get: () => [0, 1, 2, 3, 4].map((i) => finish(`bell${i}`)) });
+    Object.defineProperty(b, 'step', { get: () => [0, 1, 2, 3, 4, 5].map((i) => finish(`step${i}`)) });
+    return b;
   }
   function ready() {
     const a = ctx.sfx.audio;
@@ -106,9 +143,11 @@ export function makeSound(ctx) {
     if (!B) B = build();
     if (!out) {
       out = A.ctx.createGain(); out.connect(A.master);
-      verb = A.ctx.createConvolver(); verb.buffer = B.hall;
+      verb = A.ctx.createConvolver(); if (made.hall) verb.buffer = made.hall;
       const wet = A.ctx.createGain(); wet.gain.value = 0.6; verb.connect(wet).connect(out);
     }
+    const now = performance.now();
+    if (now - bakedAt > 8) { bakedAt = now; bake(3); }
     return true;
   }
   // A one-shot at p (the grid's space), dry plus a send to the room; p null: in your head.

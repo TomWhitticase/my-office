@@ -184,5 +184,15 @@ export function makePortal(ctx, { w, h, arch = false, flat = false, tone = null 
       return true;
     },
     hide() { mesh.visible = false; },
+    /** Its programs (the pane, the cap close up, and what maskAO draws them with), one of each on a scene of their own,
+     * to get ready before it's first looked through (systems/warm.js). */
+    warmScene() {
+      if (!markM) aoMats();
+      return own(7500, () => {
+        const g = new THREE.Scene();
+        for (const m of [mat, cap.material, ...cap.userData.ao, markM, skyM]) g.add(new THREE.Mesh(mesh.geometry, m));
+        return g;
+      });
+    },
   };
 }

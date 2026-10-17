@@ -9,7 +9,8 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
-export function buildCity(R, time, haze) {
+// Built a piece at a time (yields between pieces: plain-world.js steps through it), returns { city, towers }.
+export function* buildCity(R, time, haze) {
   const city = new THREE.Group(), parts = [];
   // a piece: its geometry, which building (for the windows' pattern), whether it has windows
   const add = (g, bid, win) => {
@@ -95,10 +96,12 @@ export function buildCity(R, time, haze) {
   }
   // the near rank: cathedrals across it, houses round them; the far rank, bigger, further into the haze
   const towers = [];
-  for (let i = 0; i < 9; i++) { const x = -520 + i * 130 + (R() - 0.5) * 60, z = -455 - R() * 40; cathedral(x, z, 1.5); towers.push({ x, z }); }
+  for (let i = 0; i < 9; i++) { const x = -520 + i * 130 + (R() - 0.5) * 60, z = -455 - R() * 40; cathedral(x, z, 1.5); towers.push({ x, z }); if (i % 3 === 2) yield; }
   for (let i = 0; i < 110; i++) house((R() - 0.5) * 1150, -425 - R() * 75, 1.3);
-  for (let i = 0; i < 7; i++) { const x = -700 + i * 230 + (R() - 0.5) * 80, z = -650 - R() * 80; cathedral(x, z, 2); towers.push({ x, z }); }
+  yield;
+  for (let i = 0; i < 7; i++) { const x = -700 + i * 230 + (R() - 0.5) * 80, z = -650 - R() * 80; cathedral(x, z, 2); towers.push({ x, z }); if (i % 3 === 2) yield; }
   for (let i = 0; i < 60; i++) house((R() - 0.5) * 1600, -600 - R() * 120, 1.8);
+  yield;
 
   const M = new THREE.ShaderMaterial({
     uniforms: { time, haze: { value: haze } },

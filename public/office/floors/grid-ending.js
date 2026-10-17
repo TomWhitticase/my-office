@@ -12,7 +12,7 @@
 
 import * as THREE from 'three';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-import { angDiff, clamp, EYE, ROOM, sstep } from '../util.js';
+import { angDiff, clamp, EYE, rng, ROOM, sstep } from '../util.js';
 
 // ----- the warp: the view tunnelling, stretching and rippling into streaks of colour and light; the flash -----
 // amt: how far into the tunnel (from the middle out); scene: how much of what's in view is smeared round it; flash: the
@@ -56,8 +56,8 @@ export function warpMaterial() {
 
 // Switched on, the warp's the last pass of a composer, drawing to the screen, and the colour grade before it draws into a
 // render target instead: two programs nothing else uses; and the GPU's own work for a program it's first asked to draw
-// takes a second or two, during which a frame that needs it waits. So both are drawn once, a pixel of each, unseen, as the
-// grid's built (long before any ending: that work happens in the background meanwhile).
+// takes a second or two, during which a frame that needs it waits. So both are got ready (with the burst's) long before
+// any ending, in the background (makeEnding's warm), and drawn once, a pixel of each, unseen.
 function prewarm(ctx) {
   const r = ctx.renderer, rt = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType }), rt2 = rt.clone(), was = r.getRenderTarget();
   // (as passes, so drawn just as a composer draws them: their full-screen triangle, into what they'd draw into)
@@ -115,36 +115,75 @@ export function makeEnding(ctx, grid, W, hole, sound) {
   // High up, what's inside the office storey (the desks, the rooms, everything in them: nearly all of the office scene's
   // draws) can't be seen through the roof: it's left out till you're 80 m off it (not the shell, the roof or the city).
   // Nor is the sun's shadow map drawn again till then (its box is round the tower: from up there its shadows are specks,
-  // and in twenty seconds the sun hasn't moved). Which those things are is worked out a slice a frame as you're dragged in.
+  // and in twenty seconds the sun hasn't moved). Which those things are is worked out a couple of milliseconds a frame
+  // from when the hole opens (a box round a big mesh the first time can take tens of them). Never anything with a light
+  // in it: the number of lights is in every lit material's program, so hiding one recompiles the whole office, twice.
   let inside = [], scan = { i: 0, found: [], done: false };
   const box = new THREE.Box3();
-  function scanInside(n) {
-    const kids = ctx.world.children, top = roofF().y - 0.3, m = 0.4;
-    for (const end = Math.min(kids.length, scan.i + n); scan.i < end; scan.i++) {
+  function scanInside(ms) {
+    const kids = ctx.world.children, top = roofF().y - 0.3, m = 0.4, t0 = performance.now();
+    for (; scan.i < kids.length && performance.now() - t0 < ms; scan.i++) {
       const c = kids[scan.i];
       if (c === roofF().g || c.isLight) continue;
+      let lit = false;
+      c.traverse((o) => { lit ||= o.isLight; });
+      if (lit) continue;
       box.setFromObject(c);
       if (!box.isEmpty() && box.min.y > -0.3 && box.max.y < top && box.min.x > ROOM.minX + m && box.max.x < ROOM.maxX - m && box.min.z > ROOM.minZ + m && box.max.z < ROOM.maxZ - m) scan.found.push(c);
     }
     scan.done = scan.i >= kids.length;
   }
+  // (Nor its ambient occlusion: from up there there's nothing for it to shade, and at full size it's a good part of a frame.)
+  const ao = () => ctx.composer?.passes.find((x) => x.gtaoMaterial);
+  let aoOff = false;
   function hideInside() {
-    if (!scan.done) scanInside(1e9);
+    if (!scan.done) scanInside(Infinity);
     inside = scan.found.filter((c) => c.visible);
     for (const c of inside) c.visible = false;
     if (ctx.sun) ctx.sun.shadow.autoUpdate = false;
+    const a = ao();
+    if (a?.enabled) { a.enabled = false; aoOff = true; }
   }
   function showInside() {
     for (const c of inside) c.visible = true;
     inside = [];
     if (ctx.sun && !ctx.sun.shadow.autoUpdate) { ctx.sun.shadow.autoUpdate = true; ctx.sun.shadow.needsUpdate = true; }
+    if (aoOff) { aoOff = false; const a = ao(); if (a) a.enabled = ctx.quality; }
+  }
+  // The office, got ready for you coming out over it (the roof's things perhaps never drawn yet, and none of it drawn for
+  // as long as you've been down here: the first frame of it would wait on the GPU): the roof's programs compiled in the
+  // background as the hole opens; and as you're taken, the office drawn once, unseen, into a few pixels from up where
+  // you'll come out, as it'll be then (the roof shown, the storey's insides not).
+  let roofReady = false;
+  function compileRoof() {
+    roofReady = true;
+    const r = ctx.renderer, R = roofF(), random = Math.random;
+    Math.random = rng(1997);   // (three's uuids: a stream of their own)
+    const rt = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType });
+    Math.random = random;
+    const was = r.getRenderTarget(), undo = R.cctv?.stage?.();
+    r.setRenderTarget(rt);
+    r.compileAsync(R.g, camera, ctx.scene).catch(() => {}).finally(() => rt.dispose());
+    r.setRenderTarget(was);
+    undo?.();
+  }
+  function drawOffice() {
+    const r = ctx.renderer, R = roofF(), random = Math.random;
+    Math.random = rng(1998);
+    const rt = new THREE.WebGLRenderTarget(16, 10, { type: THREE.HalfFloatType }), cam = new THREE.PerspectiveCamera(camera.fov, camera.aspect, camera.near, camera.far);
+    Math.random = random;
+    cam.layers.mask = camera.layers.mask;
+    cam.position.set(0, R.y + HIGH + EYE, -2); cam.rotation.set(-1.0, 0, 0); cam.updateMatrixWorld();
+    const was = r.getRenderTarget(), undo = R.cctv?.stage?.();
+    r.setRenderTarget(rt); r.render(ctx.scene, cam); r.setRenderTarget(was);
+    undo?.(); rt.dispose();
   }
   // Taken (grid-hole.js, when it's had everything): not while you're at the doorway, on your way out.
   function start() {
     const P = p();
     if (E.phase || ctx.away !== grid || Math.hypot(P.x, P.z) < 3) return false;
-    Object.assign(E, { phase: 'drag', k: 0, warpK: 0, burstK: -1, drop: 0 });
-    scan = { i: 0, found: [], done: false };
+    Object.assign(E, { phase: 'drag', k: 0, warpK: 0, burstK: -1, drop: 0, drawn: false });
+    hideInside();
     grid.walk = walk; grid.unstick = abort;
     return true;
   }
@@ -180,7 +219,6 @@ export function makeEnding(ctx, grid, W, hole, sound) {
     Object.assign(P, { x: spot[0], z: spot[1], pitch: -1.0, eye: EYE, fy: 0, seated: false, seat: null });
     E.h = HIGH; E.vy = 0; E.vx = E.vz = 0;
     burst.position.set(P.x, R.y + HIGH + EYE, P.z); ctx.scene.add(burst); burstFx(0); burst.visible = false;
-    hideInside();
     place();
   }
   function touchDown() {
@@ -198,7 +236,13 @@ export function makeEnding(ctx, grid, W, hole, sound) {
   }
 
   function update(dt, t) {
-    if (!E.phase) return;
+    if (!E.phase) {
+      if (hole.on && ctx.away === grid && !roofReady) compileRoof();
+      if (hole.on && !scan.done && ctx.away === grid) scanInside(2);
+      else if (!hole.on && scan.i) scan = { i: 0, found: [], done: false };   // (looked at afresh each time: things come and go)
+      return;
+    }
+    if (!scan.done) scanInside(2);
     const P = p();
     // taken somewhere else (the menu): let go
     const onGrid = E.phase === 'drag' || (E.phase === 'warp' && E.warpK < WARP);
@@ -206,7 +250,7 @@ export function makeEnding(ctx, grid, W, hole, sound) {
     E.k += dt;
     WU.t.value = t; WU.aspect.value = camera.aspect;
     if (onGrid) {
-      if (!scan.done) scanInside(160);
+      if (!E.drawn) { E.drawn = true; drawOffice(); }
       // dragged in: faster and faster, round and down the funnel, turned to face it, the view tipping down into it
       const at = hole.st.at, dx = P.x - at.x, dz = P.z - at.z, r = Math.hypot(dx, dz), r0 = hole.P.r0;
       const v = Math.min(14, 0.8 + 1.5 * E.k * E.k), a = Math.atan2(dz, dx) + Math.min(1.5, 0.45 * v / Math.max(r, 0.5)) * dt, r2 = Math.max(0, r - v * dt);
@@ -281,13 +325,39 @@ export function makeEnding(ctx, grid, W, hole, sound) {
     for (let s = 0; s < sec && E.phase; s += 0.05) update(0.05, s);
     return E.phase;
   }
-  // (and the burst's: drawn once, off screen, into what the office's composer draws into)
-  {
-    const r = ctx.renderer, rt = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType }), was = r.getRenderTarget(), sc = new THREE.Scene(), cam = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
-    cam.layers.enableAll(); cam.position.set(0, 0, 30); sc.add(burst); burstFx(0.5);
-    r.setRenderTarget(rt); r.render(sc, cam); r.setRenderTarget(was);
-    burst.removeFromParent(); rt.dispose();
+  // Got ready before it's needed (floors/grid.js calls this once the world's ready, long before any ending): the burst's
+  // programs, the warp's (for the screen) and the grade's (into a target) compiled in the background; then, a frame each,
+  // their first use, and each drawn once, unseen (the burst into what the office's composer draws into, the passes as
+  // prewarm draws them). Gives back a tick for each frame on B3 or in here, true once it's done.
+  function warm() {
+    const r = ctx.renderer, random = Math.random;
+    Math.random = rng(1996);   // (three's uuids: from a stream of its own, so nothing after this shifts)
+    const rt = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType }), sc = new THREE.Scene(), scr = new THREE.Scene(), cam = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
+    const quad = new THREE.PlaneGeometry(2, 2);
+    if (ctx.grade) sc.add(new THREE.Mesh(quad, ctx.grade.material));
+    scr.add(new THREE.Mesh(quad, warpM));
+    Math.random = random;
+    cam.layers.enableAll(); cam.position.set(0, 0, 30);
+    const lone = !burst.parent;   // (not mid-ending: it's in the office's scene then)
+    if (lone) { sc.add(burst); burstFx(0.5); }
+    const was = r.getRenderTarget(), mats = [warpM, ball.material, sparks.material, ...(ctx.grade ? [ctx.grade.material] : [])];
+    r.setRenderTarget(rt); const a = r.compileAsync(sc, cam);
+    r.setRenderTarget(null); const b = r.compileAsync(scr, cam);
+    r.setRenderTarget(was);
+    if (lone) burst.removeFromParent();
+    let state = 0;   // 0 compiling, 1 compiled, 2 first used, 3 done
+    Promise.all([a, b]).catch(() => {}).then(() => { state = 1; });
+    return () => {
+      if (state === 1) { for (const m of mats) r.properties.get(m).currentProgram?.getUniforms(); state = 2; }
+      else if (state === 2) {
+        const prev = r.getRenderTarget();
+        if (!burst.parent) { sc.add(burst); burstFx(0.5); r.setRenderTarget(rt); r.render(sc, cam); r.setRenderTarget(prev); burst.removeFromParent(); }
+        prewarm(ctx);
+        rt.dispose(); quad.dispose();
+        state = 3;
+      }
+      return state === 3;
+    };
   }
-  prewarm(ctx);
-  return { start, abort, stage, get phase() { return E.phase; }, E };
+  return { start, abort, stage, warm, get phase() { return E.phase; }, E };
 }

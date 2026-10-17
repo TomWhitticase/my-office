@@ -129,7 +129,8 @@ function lump(seed) {
   g.computeVertexNormals(); return g;
 }
 
-export function makeCrawler(R, events = {}) {
+// Built a piece at a time (yields between pieces: plain.js steps through it with the rest of the Plain), returns it.
+export function* makeCrawler(R, events = {}) {
   const root = new THREE.Group(), body = new THREE.Group(), headG = new THREE.Group();
   root.add(body); body.add(headG); root.scale.setScalar(SC);
   const [sk, skB] = skinTex(R), [hd, hdB] = hideTex(R), [bd, bdB] = bandTex(R);
@@ -139,6 +140,7 @@ export function makeCrawler(R, events = {}) {
     emissive: new THREE.Color('#3c2a1e'), emissiveIntensity: 0.3 });
   const hideM = new THREE.MeshPhysicalMaterial({ map: hd, bumpMap: hdB, bumpScale: 4, roughness: 0.55, sheen: 0.7, sheenColor: new THREE.Color('#8a6a52'), sheenRoughness: 0.45 });
 
+  yield;
   // ----- the back: one shape, the hump high behind, narrowing and dropping to the shoulders, a ridge of spine, folds -----
   const backG = new THREE.SphereGeometry(1, 64, 44), bp = backG.attributes.position;
   for (let i = 0; i < bp.count; i++) {
@@ -166,6 +168,7 @@ export function makeCrawler(R, events = {}) {
   const shoulders = new THREE.Mesh(lump(3), hideM); shoulders.scale.set(0.3, 0.17, 0.2); shoulders.position.set(0, 0.58, 0.22);
   body.add(back, neck, shoulders);
 
+  yield;
   // ----- the head: an egg wound in bandage; each turn a layer over the last (a sawtooth in its radius); the stain -----
   headG.position.set(0, 0.3, 0.64); headG.scale.setScalar(0.85);
   // the stain: at the front, low, soaking out ragged (on the unit head)
@@ -230,6 +233,7 @@ export function makeCrawler(R, events = {}) {
   const blob = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 3.2).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: shade.tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4 }));
   blob.position.y = 0.014; root.add(blob);
 
+  yield;
   // ----- the limbs: anchors on the body, lengths, where each hand or foot rests, which way its elbow or knee bends -----
   // The arms reach forward and down, the elbows bent back and out; the legs fold under, the knees forward and down onto
   // the ground, the feet trailing behind them. Not quite a pair: the left arm reaches further.

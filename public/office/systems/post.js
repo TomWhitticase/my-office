@@ -87,6 +87,7 @@ export function installRender(ctx) {
   holeProxy.matrixAutoUpdate = false;
   holeScene.add(holeProxy);
   const depthOnlyM = new THREE.MeshBasicMaterial({ colorWrite: false });
+  const frustum = new THREE.Frustum(), viewProj = new THREE.Matrix4();
   function renderFrame() {
     camera.getWorldDirection(camFwd);
     sunScreen.copy(sunDir).multiplyScalar(500).add(camera.position).project(camera);
@@ -101,7 +102,10 @@ export function installRender(ctx) {
     const gl = renderer.getContext();
     gl.colorMask(false, false, false, true); gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT); gl.colorMask(true, true, true, true);
     renderer.state.buffers.color.reset();   // three caches the mask and clear colour; make it resend both
-    // Re-punch the dashboard hole: depth of opaque geometry, then the hole writes alpha 0 where it's visible.
+    // Re-punch the dashboard hole: depth of opaque geometry, then the hole writes alpha 0 where it's visible. Only when
+    // it's in view: anywhere else it can't punch a pixel, and the depth is a second draw of the whole scene.
+    frustum.setFromProjectionMatrix(viewProj.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+    if (!frustum.intersectsObject(hole)) return;
     renderer.autoClear = false;
     renderer.clearDepth();
     camera.layers.disable(1);

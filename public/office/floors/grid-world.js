@@ -19,8 +19,10 @@ import { makeCanvas, rng } from '../util.js';
 export const CELL = 0.6, HW = 0.02;   // a cell, metres; a line's half-width, in cells (4% of the cell)
 const TEXT_FONT = '"Avenir Next Condensed", "Helvetica Neue", Arial, sans-serif';
 
-/** @param {any} ctx */
-export function buildWorld(ctx) {
+/** Built a piece at a time (floors/grid.js steps through it, a step a frame, or all at once): yields between pieces, and
+ * returns the world.
+ * @param {any} ctx */
+export function* buildWorld(ctx) {
   const R = rng(1995);
   const S = new THREE.Scene(), root = new THREE.Group();
   const haze = new THREE.Color('#03130e');
@@ -139,6 +141,7 @@ export function buildWorld(ctx) {
     return m;
   })();
 
+  yield;
   // ----- materials: glossy plastic, foil, marble, stone -----
   const ph = (color, shininess = 90, specular = '#ffffff', o = {}) => new THREE.MeshPhongMaterial({ color, shininess, specular, ...o });
   const tex = (w, h, draw) => { const cv = makeCanvas(w, h); draw(cv.ctx, w, h); cv.tex.colorSpace = THREE.SRGBColorSpace; cv.tex.anisotropy = 4; cv.tex.needsUpdate = true; return cv.tex; };
@@ -157,6 +160,7 @@ export function buildWorld(ctx) {
     for (let i = 0; i < 14; i++) { c.strokeStyle = `rgba(55,50,44,${0.2 + R() * 0.3})`; c.lineWidth = 1; c.beginPath(); let x = R() * w, y = R() * h; c.moveTo(x, y); for (let k = 0; k < 6; k++) { x += (R() - 0.5) * 40; y += (R() - 0.3) * 30; c.lineTo(x, y); } c.stroke(); }
   });
   stone.wrapS = stone.wrapT = THREE.RepeatWrapping;
+  yield;
   const earth = tex(512, 256, (c, w, h) => {   // an earth-like planet: blue seas, green and brown land, ice at the poles, cloud
     c.fillStyle = '#1d4c78'; c.fillRect(0, 0, w, h);
     const blob = (x, y, r, col) => { const g = c.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, col); g.addColorStop(0.6, col); g.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = g; for (const dx of [-w, 0, w]) c.fillRect(x + dx - r, y - r, r * 2, r * 2); };
@@ -195,6 +199,7 @@ export function buildWorld(ctx) {
   const cyl = (r, h, m) => mesh(new THREE.CylinderGeometry(r, r, h, 40), m);
   const cone = (r, h, m, seg = 40) => mesh(new THREE.ConeGeometry(r, h, seg), m);
 
+  yield;
   // ----- the near ground: what you see first -----
   put(ball(0.32, ph('#4f2c0c', 70, '#f0c080')), -2.2, 0.32, -5.2, { half: [0.3, 0.3] });                 // bronze
   put(cube(0.6, ph('#b29600', 35, '#666')), -1.0, 0.3, -7.6, { ry: 0.3, half: [0.4, 0.4] });               // yellow
@@ -243,6 +248,7 @@ export function buildWorld(ctx) {
   put(ball(0.18, ph('#c8a0d8', 90)), -1.8, 2.6, -12.5, { float: true, bob: 0.25 });
   put(ball(1.1, ph('#ffffff', 25, '#556', { map: earth })), 5.6, 2.2, -12.4, { float: true, spin: 0.06, bob: 0.1 });
 
+  yield;
   // ----- the signpost: a brass pole, clear plaques with orange letters -----
   {
     const g = new THREE.Group(), brass = ph('#a07a22', 80, '#fff0c0');
@@ -295,6 +301,7 @@ export function buildWorld(ctx) {
     statics.push(big(g2, { minX: -14 - 4.8, maxX: -14 + 4.8, minZ: -38 - 3.5, maxZ: -38 + 3.5 }));
   }
 
+  yield;
   // ----- the fish pond: a dark rim, rippling blue water, goldfish -----
   const fish = [];
   const PW = { t: { value: 0 } };
@@ -360,7 +367,7 @@ export function buildWorld(ctx) {
     ['107', 1.1, '#7d8fa8', 0.5, -9.2, 3.2, -25.0, 0.42],
     ['ρ_{0} > 3H_{0}^{2}/8πG', 1.0, '#90a2ba', 0.5, 11.4, 3.0, -15.2, -0.5],
   ];
-  for (const [s, h, col, op, x, y, z, ry] of words) put(textMesh(s, h, col, op), x, y, z, { ry, float: true, bob: 0.08, cast: false });
+  for (const [s, h, col, op, x, y, z, ry] of words) { yield; put(textMesh(s, h, col, op), x, y, z, { ry, float: true, bob: 0.08, cast: false }); }
 
   // ----- each frame: the sky over you, the floor under you, things turning and bobbing, the fish -----
   const homeY = (t) => t.home.p.y;

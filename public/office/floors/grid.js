@@ -18,6 +18,7 @@ import { makeHole } from './grid-hole.js';
 import { installDoor, findGridDoor } from './grid-door.js';
 import { makeSound } from './grid-sound.js';
 import { makeEnding } from './grid-ending.js';
+import { makeWarm } from '../systems/warm.js';
 
 const N = -6, BOUND = 70;
 
@@ -37,46 +38,49 @@ export function install(ctx) {
   restr.save = () => { const s = save0 ? save0() : undefined; return s === false ? s : grid.caseOut ? { ...s, gridCase: 1 } : s; };
   restr.restore = (s, p) => { grid.caseOut = s?.gridCase ? 1 : 0; door?.bookcase(grid.caseOut); return restore0?.(s, p); };
 
-  function build() {
-    if (W) return;
-    // three takes a uuid from Math.random for every object: build under our own seed, so nothing after this shifts
-    const random = Math.random;
-    Math.random = rng(1995);
-    try {
-      W = buildWorld(ctx);
-      Object.assign(grid, { scene: W.scene, hemi: W.hemi, look: W.look });
-      sound = makeSound(ctx);
-      hole = makeHole(ctx, W, sound, () => ending.start());
-      ending = makeEnding(ctx, grid, W, hole, sound);
-      grid.hits = [...W.hits, hole.cone];
-      door = installDoor(ctx, grid, W, sound, () => warm());
-    } finally { Math.random = random; }
-    if (grid.caseOut) warm();
+  // Built a step a frame as you come near the doorway on B3 (the world a piece at a time, then its sound, the hole and the
+  // ending, then the doorway: none more than a few tens of milliseconds), or the rest of it at once when it's wanted now.
+  // (three takes a uuid from Math.random for every object: built under its own seed, the same stream across the steps, so
+  // nothing after this shifts.)
+  let built = false, steps = null;
+  const seeded = rng(1995);
+  function* building() {
+    const it = buildWorld(ctx);
+    let r;
+    while (!(r = it.next()).done) yield;
+    W = r.value;
+    Object.assign(grid, { scene: W.scene, hemi: W.hemi, look: W.look });
+    yield;
+    sound = makeSound(ctx);
+    hole = makeHole(ctx, W, sound, () => ending.start());
+    ending = makeEnding(ctx, grid, W, hole, sound);
+    grid.hits = [...W.hits, hole.cone];
+    yield;
+    door = installDoor(ctx, grid, W, sound, () => warm());
   }
-  // Everything's shaders compiled and textures up before it's first seen (the hole's funnel too), in the background, so
-  // nothing hitches the first time you turn round in here: as the bookcase starts to come out (it takes longer than this
-  // does), or as you come in some other way. (Into a render target, as the floor's composer and the doorway draw it: the
-  // programs differ from the screen's.)
-  let warmed = false;
+  function step(all = false) {
+    if (built) return;
+    steps ||= building();
+    const random = Math.random;
+    Math.random = seeded;
+    try {
+      let r;
+      do r = steps.next(); while (all && !r.done);
+      built = !!r.done;
+    } finally { Math.random = random; }
+    if (built && grid.caseOut) warm();
+  }
+  const build = () => step(true);
+  // Everything got ready to be seen in the background (systems/warm.js: the world, the hole's funnel, the doorway's panes)
+  // before it's first seen, so nothing hitches as the wall gives, as you step through, or the first time you turn round in
+  // here: from when the bookcase starts to come out (it takes longer than this does), or as you come in some other way.
+  // Then the floor's composer is made and drawn once, under a frame on B3, so its passes' programs are ready too; then the
+  // ending's (grid-ending.js).
+  let warmed = 0, warmTick = null;   // 0 not yet, 1 getting ready, 2 the ending getting ready (grid-ending.js), 3 done
   function warm() {
-    if (warmed || !W) return;
-    warmed = true;
-    const r = ctx.renderer, hidden = [], rt = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType }), was = r.getRenderTarget();
-    W.scene.traverse((o) => {
-      if (!o.visible) { hidden.push(o); o.visible = true; }
-      for (const m of [o.material || []].flat()) for (const k of ['map', 'emissiveMap']) if (m[k]) r.initTexture(m[k]);
-    });
-    r.setRenderTarget(rt);
-    const mats = new Set(), env = W.scene.environment;
-    W.scene.traverse((o) => { for (const m of [o.material || []].flat()) mats.add(m); });
-    W.scene.environment = null;   // (TEST)
-    r.compileAsync(W.scene, camera, W.scene).catch(() => {}).finally(() => {   // (and each program's first use: its link checked)
-      rt.dispose();
-      for (const m of mats) r.properties.get(m).currentProgram?.getUniforms();
-    });
-    W.scene.environment = env;
-    r.setRenderTarget(was);
-    for (const o of hidden) o.visible = false;
+    if (warmed || !built) return;
+    warmed = 1;
+    warmTick = makeWarm(ctx.renderer, [W.scene, door.inP.warmScene(), door.outP.warmScene()]);
   }
   grid.prepare = () => { build(); return true; };   // (a reload in here: systems/resume.js)
 
@@ -138,9 +142,15 @@ export function install(ctx) {
   // ----- built as you first come near the doorway on B3; the doorway's frame (and the hole) each frame; the score
   // stopped if you're taken out of here any way but a door (the menu's way back to your desk) -----
   ctx.onFrame((dt, t) => {
-    if (!W) {
-      if (ctx.away !== restr) return;
-      if (Math.hypot(ctx.player.x - spot.X, ctx.player.z - spot.Z - restr.z0) < 45) build(); else return;
+    if (!built) {
+      if (ctx.away === restr && (steps || Math.hypot(ctx.player.x - spot.X, ctx.player.z - spot.Z - restr.z0) < 45)) step();
+      return;
+    }
+    if (ctx.away === restr || ctx.away === grid) {
+      if (warmed === 1 && warmTick()) {
+        warmed = 2; warmTick = ending.warm();
+        if (ctx.away !== grid) { ctx.renderFloor(grid); ctx.renderFloor(grid); }   // (to the canvas, drawn over this frame)
+      } else if (warmed === 2 && warmTick()) { warmed = 3; warmTick = null; }
     }
     if (ctx.away === restr || ctx.away === grid) door.frame(dt, t);
     else if (sound.playing || hole.on) { sound.stop(); hole.reset(); sound.buzz(0); sound.bleed(0); }

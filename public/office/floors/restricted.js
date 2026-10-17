@@ -13,6 +13,7 @@ import { installCreature } from './restricted-creature.js';
 import { wornPaths, wear } from './restricted-paths.js';
 import { makeWarps } from './restricted-warps.js';
 import { findExit } from './world-edge-backstage.js';
+import { makeWarm } from '../systems/warm.js';
 
 const N = -3, CODE = '1408';   // asked for every time: never remembered
 // The grid: cells of C metres, CH x CH to a chunk; walls on the cells' edges. Cell (i, j) is x GX + i C .. + C,
@@ -547,6 +548,25 @@ function build(ctx) {
   const creature = restr.creature = installCreature(ctx, restr, sound);
   const keypad = makeKeypad();
   ctx.onFrame(() => { if (keypad.el.classList.contains('on') && ctx.mode !== 'keypad') keypad.close(); }, 175);   // the view left under it
+  // On the way down (your car sent here: a long ride, its doors shut), the rooms round the lift laid out and got ready to be
+  // seen in the background (systems/warm.js), and the floor's post-processing made and drawn once (under the frame
+  // that's drawn over it): the doors then don't open on a frame that waits on them. Only before your first time down.
+  let warmB3 = null, warmedB3 = false;
+  ctx.onFrame((dt, t) => {
+    if (ctx.away === restr) { warmedB3 = true; warmB3 = null; }
+    if (warmedB3) return;
+    const L = ctx.mine.L;
+    if (!warmB3) {
+      if (!L || L.goal !== -3 || ctx.away) return;
+      restr.view(LIFT.x - 3, 0, t, L.z, true);
+      warmB3 = makeWarm(ctx.renderer, [restr.scene]);
+    } else if (warmB3()) {
+      warmB3 = null; warmedB3 = true;
+      const exp = ctx.renderer.toneMappingExposure;
+      ctx.renderFloor(restr);
+      ctx.renderer.toneMappingExposure = exp;
+    }
+  }, 198);
   function makeKeypad() {
     const el = document.createElement('div');
     el.className = 'of-keypad';

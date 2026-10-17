@@ -46,19 +46,21 @@ function setup(ctx) {
   style.textContent += `.of-plain .of-clock { font-size: 0 !important; } .of-plain .of-clock::after { content: '—'; font-size: 12px; }
     .of-plain .of-count { font-size: 0; } .of-plain .of-count::after { content: '·'; font-size: 12px; }`;
   const door = makePaintingDoor(ctx, pl, {
-    at: findPainting(ctx.restr), size: PAINT, key: 'plain', near: 32, seed: 1891, hud: 'of-plain',
+    at: findPainting(ctx.restr), size: PAINT, key: 'plain', near: 32, far: 60, seed: 1891, hud: 'of-plain',
     frame: (R2, o) => makeFrame(R2, o), paint: (p) => paintPane(p), pass: paintPassShader,
-    build(R2) {   // (R2: rng(1892), the frames' after it)
-      world = buildWorld(pl, R2);
+    *build(R2) {   // (R2: rng(1892), the frames' after it; a piece a frame: painting-door.js)
+      world = yield* buildWorld(pl, R2);
+      yield;
       sound = makeSound(ctx);
       const near = (p) => ctx.away === pl && p.distanceTo(camera.position) < 40;
-      crawler = makeCrawler(rng(1893), {
+      crawler = yield* makeCrawler(rng(1893), {
         tap: (p, s) => { if (near(p)) sound.tap(p, s); },
         shriek: (p) => { if (ctx.away === pl) sound.shriek(p); },
         charge: (p) => { if (ctx.away === pl) sound.charge(p); },
         notice: (p) => { if (door.st.near < 5) sound.creak(p); },
       });
       pl.scene.add(crawler.root);
+      yield;
       return {
         sound,
         // out there, as seen from B3: the world round where you'd be, and the thing in the painting
