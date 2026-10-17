@@ -12,6 +12,7 @@ import { installStory } from './restricted-story.js';
 import { installCreature } from './restricted-creature.js';
 import { wornPaths, wear } from './restricted-paths.js';
 import { makeWarps } from './restricted-warps.js';
+import { findExit } from './world-edge-backstage.js';
 
 const N = -3, CODE = '1408';   // asked for every time: never remembered
 // The grid: cells of C metres, CH x CH to a chunk; walls on the cells' edges. Cell (i, j) is x GX + i C .. + C,
@@ -535,8 +536,11 @@ function build(ctx) {
   restr.grid = { C, CH, H, T, X: (i) => GX + i * C, Z: (j) => GZ + j * C, edgeType, SOLID, cellOk, h3 };
   restr.sync = syncChunks;
   // The worn ways in the carpet, from the lift to the doors nobody mentions (restricted-paths.js); paths.home is where the
-  // stone door into Relativity stands (relativity-door.js).
+  // stone door into Relativity stands (relativity-door.js). restr.hidden: every hidden way out, each with a trail and a
+  // warp on the map (restricted-warps.js); the doors behind the paintings and the bookcase add theirs as they install.
   const paths = restr.paths = wornPaths(restr, [LIFT.x - 0.4, 0]), worn = restr.worn = wear(floor.material, paths);
+  restr.hidden.add('stone', () => paths.home.door, { shown: () => !!ctx.rel?.door?.st.at });   // (it turns up after a while)
+  restr.hidden.add('exit', () => { const e = findExit(restr); return { X: e.XD, Z: e.ZF, YAW: e.YAW }; });
   // A reload down here (systems/resume.js): the same rooms round where you were (they're fixed by place, not by visit), and no keypad.
   restr.restore = (s, p) => { stream(p.x, p.z - restr.z0, true); syncChunks(); };
   const story = restr.story = installStory(ctx, restr, sound);
