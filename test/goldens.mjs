@@ -439,6 +439,36 @@ export const POSES = [
   ['kettle-loft', async (o) => { await arrive(o); await o.eval(() => window.__office.kettle.loft()); await o.step(20); }],
   ['kettle-sunflower', async (o) => { await arrive(o); await o.eval(() => { const k = window.__office.kettle; k.go(0, -2.4, 0, 0); const f = k.folk.F[0].g.position, x = f.x - 8, z = f.z - 5;
     k.go(x, z, Math.atan2(-(f.x - x), -(f.z - z)), 0.3); }); await o.step(30); }],
+  // The portrait on B3 that's a way into her world (floors/lisa.js; painted in a worker, waited for): from across its
+  // room; close, the paint coming away; just through it, both ways; on the loggia, her chair; the landscape from below;
+  // her in her chair, then turned; on all fours; her face in yours; the stones in the air; on the ceiling; the frame from
+  // out there, drifted.
+  ...Object.entries({
+    'lisa-painting': (L) => L.painting(0, 7, 0, 0),
+    'lisa-painting-close': (L) => L.painting(0.05, 1.3, 0, 0.12),
+    'lisa-crossing': (L) => L.painting(0.05, 0.06, 0, 0),
+    'lisa-crossing-out': (L) => { L.painting(0, 3, 0, 0); L.go(0.05, -0.06, Math.PI, 0); },
+    lisa: (L) => L.go(0, -0.9, 0, -0.02),
+    'lisa-valley': (L) => L.go(30, -60, -2.3, 0.08),
+    'lisa-sit': (L) => { L.go(0, -0.9, 0, 0); L.sit(0, -3.4); L.go(0, -1.6, 0, -0.18); },
+    'lisa-reveal': (L) => { L.go(0, -0.9, 0, 0); L.sit(0, -3.4); L.go(0, -1.9, 0, -0.24); L.horror(0.6, 0, 0); L.face({ turn: 1.1, split: 1, crack: 1, black: 1, tilt: 0.7 }); },
+    'lisa-crawl': (L) => { L.go(-1, -0.6, 0.2, -0.3); L.horror(1, 0.4, 0.8); L.crawl(-0.2, -3.2, false); },
+    'lisa-spider': (L) => { L.go(-1, -0.6, 0.2, -0.3); L.horror(1, 0.4, 0.8); L.crawl(-0.2, -3.2, true); },
+    'lisa-scare': (L) => { L.go(0, -2, 0, 0); L.horror(1, 0.4, 0.8); L.scare(); },
+    'lisa-tk': (L) => { L.go(-30, -50, 0, -0.03); L.horror(1, 0.6, 1); L.tk(12); },
+    'lisa-ceiling': (L) => { L.go(0, -1.2, 0, 0); L.horror(1, 0.3, 0.6); L.climb('ceiling', 4); L.go(0, -1.0, Math.PI, 0.95); },
+    'lisa-drift': (L) => { L.go(2, -3, 1.86, 0); L.horror(1, 0.45, 1); L.drift(-3, -1.5); },
+  }).map(([name, pose]) => [name, async (o) => {
+    await arrive(o);
+    await o.eval(() => { const L = window.__office.lisa; L.painting(0, 7, 0, 0); });
+    // (B3's minimap static cycles through three frames: the wait made a multiple of three, so it's the same each run)
+    let k = 0;
+    for (; k < 400 && !(await o.eval(() => window.__office.lisa.ready)); k++) await o.step(1);
+    if (k % 3) await o.step(3 - (k % 3));
+    await o.eval(() => { window.__office.lisa.settle(); window.__seed(1509); });   // (the same from here, however long the paint took)
+    await o.eval(`(${pose})(window.__office.lisa)`);
+    await o.step(name === 'lisa-scare' ? 4 : name === 'lisa-tk' ? 30 : name === 'lisa-ceiling' ? 20 : 30);
+  }]),
   // The grid (floors/grid.js), behind a bookcase on B3: the bookcase from across the room, against the wall; beside it,
   // close up; pulled out, the wall it hid; the wall giving, half gone, the grid through it; a step from going through it;
   // in the grid, the sky up; a step from going back out, B3 through the doorway; the black hole, seven seconds in.

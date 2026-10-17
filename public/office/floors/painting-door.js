@@ -58,7 +58,7 @@ export function findWall(restr, { dmin, dmax, dark = false, sight: want = 10, aw
  *   build: (R: () => number) => any,
  *   frame: (R: () => number, o: { back?: boolean }) => THREE.Object3D, paint: (portal: any) => { value: number },
  *   pass?: () => any, hover: { painting: (near: number) => string, frame: (front: boolean) => string },
- *   hud?: string, leave?: () => void,
+ *   hud?: string, leave?: () => void, window?: (d: number) => boolean,
  * }} o
  *   build(R): the world, made once (Math.random its own stream meanwhile; a generator: a slice a frame from `far` m off,
  *   yielding between slices); what it gives back: `sound` (bleed(v), stop()), `ready()` false while its shaders compile,
@@ -67,6 +67,9 @@ export function findWall(restr, { dmin, dmax, dark = false, sight: want = 10, aw
  *   may change; call door.refresh() after).
  *   frame(R, { back }): the frame, sill's middle at the origin, the picture's plane z = PO, facing +z; back: seen from
  *   behind too. paint(portal): its pane made paint, returning the uniform (0 to 1) of how much.
+ *   window(d): whether the world's to be drawn through it from B3 at d m (false while a picture of its own covers it:
+ *   the world isn't drawn for nothing); always, without it.
+ * The frame out there can be moved (place(x, z): the frame's sill's middle, still facing the same way).
  */
 export function makePaintingDoor(ctx, fl, o) {
   const { camera, renderer, hitBox } = ctx, restr = ctx.restr, at = o.at, { w: W, h: H, SILL, PO } = o.size, NEAR = o.near ?? 32;
@@ -84,6 +87,7 @@ export function makePaintingDoor(ctx, fl, o) {
   const F = { b3: new THREE.Matrix4(), b3Out: new THREE.Matrix4(), plIn: new THREE.Matrix4().makeRotationY(Math.PI).setPosition(0, SILL, 0), plBack: new THREE.Matrix4().setPosition(0, SILL, 0) };
   const toPO = new THREE.Matrix4().makeTranslation(0, 0, PO);
   const frames = () => { g.updateWorldMatrix(true, true); F.b3Out.copy(g.matrixWorld).multiply(toPO); F.b3.copy(F.b3Out).multiply(flip); };
+  const at0 = { x: 0, z: 0 };   // where the frame out there is (place)
 
   // ----- built the first time it's wanted -----
   // The floor's own world: made at once, or (a generator) a slice a frame as you come within `far` of the painting, the
@@ -113,7 +117,7 @@ export function makePaintingDoor(ctx, fl, o) {
       hit = hitBox(g, W + 0.3, H + 0.3, 0.12, 0, H / 2, PO + 0.04, { action: `${o.key}-painting`, reach: 4 });
       // and out there, hanging in the air: its face toward the way back (-z), the canvas's back behind it
       pg = o.frame(R, { back: true });
-      pg.position.set(0, SILL, PO); pg.rotation.y = Math.PI;
+      pg.position.set(at0.x, SILL, at0.z + PO); pg.rotation.y = Math.PI;
       fl.scene.add(pg);
       const back = hitBox(pg, W + 0.3, H + 0.3, 0.14, 0, H / 2, PO, { action: `${o.key}-frame`, reach: 4 });
       fl.hits.push(back);
@@ -197,8 +201,17 @@ export function makePaintingDoor(ctx, fl, o) {
     return null;
   };
   // the frame out there: you can't walk into its sides, nor through it from behind (from in front, it's the way back)
-  const sides = [{ minX: -W / 2 - 0.15, maxX: -W / 2, minZ: -0.06, maxZ: 0.06 }, { minX: W / 2, maxX: W / 2 + 0.15, minZ: -0.06, maxZ: 0.06 }];
-  const whole = [{ minX: -W / 2 - 0.15, maxX: W / 2 + 0.15, minZ: -0.02, maxZ: 0.06 }];
+  const SIDES = [{ minX: -W / 2 - 0.15, maxX: -W / 2, minZ: -0.06, maxZ: 0.06 }, { minX: W / 2, maxX: W / 2 + 0.15, minZ: -0.06, maxZ: 0.06 }];
+  const WHOLE = [{ minX: -W / 2 - 0.15, maxX: W / 2 + 0.15, minZ: -0.02, maxZ: 0.06 }];
+  const sides = SIDES.map((b) => ({ ...b })), whole = WHOLE.map((b) => ({ ...b }));
+  // the frame out there, moved: its doorways, the frame, its colliders
+  function place(x, z) {
+    at0.x = x; at0.z = z;
+    F.plIn.makeRotationY(Math.PI).setPosition(x, SILL, z); F.plBack.makeTranslation(x, SILL, z);
+    pg?.position.set(x, SILL, z + PO);
+    for (const [a, b] of [[SIDES, sides], [WHOLE, whole]]) a.forEach((q, i) => Object.assign(b[i], { minX: q.minX + x, maxX: q.maxX + x, minZ: q.minZ + z, maxZ: q.maxZ + z }));
+    if (st.plFront !== undefined) refresh();
+  }
   const refresh = () => { const c = st.plFront === false ? whole : sides; fl.colliders = w?.cols ? c.concat(w.cols) : c; };
   fl.prepare = async () => { build(); return true; };
   fl.enter = () => {
@@ -213,7 +226,7 @@ export function makePaintingDoor(ctx, fl, o) {
     if (pass) paintAt(pass.uniforms.amount.value, t);
     w.fx?.(dt, t);
     // behind the frame it's solid across; in front, only its sides
-    const front = camera.position.z < 0;
+    const front = camera.position.z < at0.z;
     if (front !== st.plFront) { st.plFront = front; refresh(); }
   };
 
@@ -255,13 +268,13 @@ export function makePaintingDoor(ctx, fl, o) {
         if (d < 6 && !primed) { primed = true; prime(); }
         u = sstep(5, 0, d); hear = 0.6 * sstep(8, 0, d);
         blend(u);   // (before it's drawn: k is the two exposures as they'll be drawn)
-        drawn = inP.draw({ here: F.b3, there: F.plIn, scene: fl.scene, k: fl.look.exposure / restr.look.exposure, open: !away(F.b3, d) && w.ready?.() !== false, prepare: () => lit(fl) });
+        drawn = inP.draw({ here: F.b3, there: F.plIn, scene: fl.scene, k: fl.look.exposure / restr.look.exposure, open: !away(F.b3, d) && w.ready?.() !== false && (o.window?.(d) ?? true), prepare: () => lit(fl) });
         if (inP.crossed(F.b3, last, camera.position) > 0) into();
       } else { inP.hide(); drawn = false; blend(0); }
     } else {
       const d = dist(F.plBack), zc = ctx.mine.L?.z ?? restr.z0;
       st.near = d;
-      if (pass) pass.uniforms.amount.value = sstep(1.0, 4.0, Math.min(d, Math.hypot(camera.position.x, camera.position.y - SILL - H / 2, camera.position.z)));
+      if (pass) pass.uniforms.amount.value = sstep(1.0, 4.0, Math.min(d, Math.hypot(camera.position.x - at0.x, camera.position.y - SILL - H / 2, camera.position.z - at0.z)));
       if (d < 120) {
         outPaint.value = sstep(1.2, 4, d);
         u = sstep(5, 0, d); hear = 0.6 * sstep(8, 0, d);
@@ -292,7 +305,7 @@ export function makePaintingDoor(ctx, fl, o) {
   }
 
   ctx.action(`${o.key}-painting`, { hover: () => o.hover.painting(st.near) });
-  ctx.action(`${o.key}-frame`, { hover: () => o.hover.frame(camera.position.z < 0) });
+  ctx.action(`${o.key}-frame`, { hover: () => o.hover.frame(camera.position.z < at0.z) });
 
   // ----- getting you there, for the tests and for looking -----
   function car() {   // your car, waiting on B3 (setFloor wants one)
@@ -303,7 +316,7 @@ export function makePaintingDoor(ctx, fl, o) {
     return true;
   }
   return {
-    st, F, at, build, pose, refresh, box,
+    st, F, at, build, pose, refresh, box, place, out: at0,
     get world() { return w; },
     /** out there: x, z from the frame (its plane z = 0, the way in toward -z), yaw 0 facing away from it */
     go(x, z, yaw = 0, pitch = 0) {
@@ -325,7 +338,7 @@ export function makePaintingDoor(ctx, fl, o) {
     /** a reload's pose out there, never in the frame */
     restore(p) {
       pose(p.x, p.z, p.yaw, p.pitch);
-      if (Math.abs(p.z) < 0.4 && Math.abs(p.x) < W / 2 + 0.5) pose(p.x, -0.8, p.yaw, p.pitch);
+      if (Math.abs(p.z - at0.z) < 0.4 && Math.abs(p.x - at0.x) < W / 2 + 0.5) pose(p.x, at0.z - 0.8, p.yaw, p.pitch);
       return true;
     },
   };
