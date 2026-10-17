@@ -54,13 +54,14 @@ export function findWall(restr, { dmin, dmax, dark = false, sight: want = 10, aw
  * @param {any} fl the floor (its scene, look, colliders; `on`, `built` are kept here)
  * @param {{
  *   at: { spot: any, X: number, Z: number, YAW: number }, size: { w: number, h: number, SILL: number, PO: number },
- *   key: string, near?: number, seed: number,
- *   build: (R: () => number) => { sound?: any, seen?: Function, fx?: Function, arrive?: Function, cols?: any[] },
+ *   key: string, near?: number, far?: number, seed: number,
+ *   build: (R: () => number) => any,
  *   frame: (R: () => number, o: { back?: boolean }) => THREE.Object3D, paint: (portal: any) => { value: number },
  *   pass?: () => any, hover: { painting: (near: number) => string, frame: (front: boolean) => string },
  *   hud?: string, leave?: () => void,
  * }} o
- *   build(R): the world, made once (Math.random its own stream meanwhile); what it gives back: `sound` (bleed(v), stop()),
+ *   build(R): the world, made once (Math.random its own stream meanwhile; a generator: a slice a frame from `far` m off,
+ *   yielding between slices); what it gives back: `sound` (bleed(v), stop()), `ready()` false while its shaders compile,
  *   `seen(p, dt, t, d, drawn)` the world as seen from B3 through the painting (p: where you'd be out there), `fx(dt, t)`
  *   each frame out there, `arrive()` stands you somewhere on arriving not through it, `cols` its colliders (a list it
  *   may change; call door.refresh() after).
@@ -85,14 +86,25 @@ export function makePaintingDoor(ctx, fl, o) {
   const frames = () => { g.updateWorldMatrix(true, true); F.b3Out.copy(g.matrixWorld).multiply(toPO); F.b3.copy(F.b3Out).multiply(flip); };
 
   // ----- built the first time it's wanted -----
+  // The floor's own world: made at once, or (a generator) a slice a frame as you come within `far` of the painting, the
+  // rest at once if it's wanted sooner. Either way under the floor's own streams.
+  let mr = null, R = null, gen = null, made = null;
+  function slice(all) {
+    const random = Math.random;
+    Math.random = mr ||= rng(o.seed); R ||= rng(o.seed + 1);
+    try {
+      if (!gen) { const r = o.build(R); if (typeof r?.next !== 'function') { made = r; return; } gen = r; }
+      for (let s = gen.next(); ; s = gen.next()) { if (s.done) { made = s.value; return; } if (!all) return; }
+    } finally { Math.random = random; }
+  }
   function build() {
     if (fl.built) return;
     fl.built = true;
+    if (!made) slice(true);
     const random = Math.random;
-    Math.random = rng(o.seed);
+    Math.random = mr;
     try {
-      const R = rng(o.seed + 1);
-      w = o.build(R);
+      w = made;
       base.pl = { exposure: fl.look.exposure, bloom: fl.look.bloom, grade: fl.look.grade };
       // the painting on B3, on its wall
       g = o.frame(R, {});
@@ -147,7 +159,8 @@ export function makePaintingDoor(ctx, fl, o) {
   // Watching for you coming near it on B3.
   ctx.onFrame(() => {
     if (fl.built || ctx.away !== restr) return;
-    if (Math.hypot(ctx.player.x - at.X, ctx.player.z - restr.z0 - at.Z) < NEAR) build();
+    const d = Math.hypot(ctx.player.x - at.X, ctx.player.z - restr.z0 - at.Z);
+    if (d < NEAR) build(); else if (o.far && d < o.far && !made) slice(false);
   }, 189);
 
   // ----- crossing -----
@@ -242,7 +255,7 @@ export function makePaintingDoor(ctx, fl, o) {
         if (d < 6 && !primed) { primed = true; prime(); }
         u = sstep(5, 0, d); hear = 0.6 * sstep(8, 0, d);
         blend(u);   // (before it's drawn: k is the two exposures as they'll be drawn)
-        drawn = inP.draw({ here: F.b3, there: F.plIn, scene: fl.scene, k: fl.look.exposure / restr.look.exposure, open: !away(F.b3, d), prepare: () => lit(fl) });
+        drawn = inP.draw({ here: F.b3, there: F.plIn, scene: fl.scene, k: fl.look.exposure / restr.look.exposure, open: !away(F.b3, d) && w.ready?.() !== false, prepare: () => lit(fl) });
         if (inP.crossed(F.b3, last, camera.position) > 0) into();
       } else { inP.hide(); drawn = false; blend(0); }
     } else {

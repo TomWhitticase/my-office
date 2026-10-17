@@ -132,6 +132,13 @@ const RESUME = {
     () => { const w = window.__office; return w.away?.n === -8 && w.acro.W.deck && Math.hypot(w.player.x + 25.29, w.player.z + 53.33) < 0.05 && w.mode === 'free'; }],
   'the acro painting on B3': [{ f: -3, car: 0, cz: -0.5, x: -80.2, z: -10.6, eye: 1.65, yaw: 0, pitch: 0 },
     () => { const w = window.__office; return w.away?.n === -3 && w.acro.built && Math.hypot(w.player.x + 80.2, w.player.z + 10.6) < 0.05 && w.mode === 'free'; }],
+  // in the winter village (floors/kettle.js), up in the kettle's loft, and in front of its painting on B3
+  village: [{ f: -7, car: 0, cz: -0.5, x: 6, z: -12, eye: 1.65, yaw: 0.3, pitch: 0, s: { inside: false, loft: false, open: 0 } },
+    () => { const w = window.__office; return w.away?.n === -7 && Math.hypot(w.player.x - 6, w.player.z + 12) < 0.05 && w.mode === 'free'; }],
+  'the kettle\'s loft': [{ f: -7, car: 0, cz: -0.5, x: -0.2, z: -33.4, eye: 1.65, yaw: 1, pitch: 0, s: { inside: true, loft: true, open: 1 } },
+    () => { const w = window.__office, S = w.kettle.S; return w.away?.n === -7 && S.inside && S.loft && Math.abs(w.player.fy - 6) < 0.3 && w.mode === 'free'; }],
+  'the village painting on B3': [{ f: -3, car: 0, cz: -0.5, x: -15.7, z: -67.2, eye: 1.65, yaw: 1.571, pitch: 0 },
+    () => { const w = window.__office; return w.away?.n === -3 && w.kettle.built && Math.hypot(w.player.x + 15.7, w.player.z + 67.2) < 0.05 && w.mode === 'free'; }],
   helicopter: [{ f: 50, car: 0, cz: -0.5, x: 19, z: -0.5, eye: 1.65, yaw: 0, pitch: 0, s: { x: 120, y: 90, z: -60, yaw: 0.7, landed: false, aboard: true, out: false, free: false } },
     () => { const w = window.__office, S = w.heli.S; return w.away?.n === 50 && w.mode === 'heli' && S.aboard && !S.landed && S.rpm === 1 && Math.hypot(S.pos.x - 120, S.pos.y - 90, S.pos.z + 60) < 1; }],
 };

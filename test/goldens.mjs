@@ -426,6 +426,19 @@ export const POSES = [
   ['acro-deck', async (o) => { await arrive(o); await o.eval(() => window.__office.acro.su(48, 2, Math.atan2(0.622, 0.783) + 0.25, -0.12, true)); await o.step(30); }],
   ['acro-train', async (o) => { await arrive(o); await o.eval(() => { const a = window.__office.acro; a.su(36, 6.5, Math.atan2(0.622, 0.783) - 1.0, 0.0); a.train(26); }); await o.step(30); }],
   ['acro-flip', async (o) => { await arrive(o); await o.eval(() => { const a = window.__office.acro; a.go(1.2, -3.6, 0.05, 0.38); a.flip(0); }); await o.step(15); }],
+  // The painting on B3 that's a way into the winter village (floors/kettle.js): from across its room; close, the paint
+  // going clear; on its threshold both ways; out there: the kettle-house and the wall, out on the ice among the skaters,
+  // inside the kettle by the stove, up in the loft at its round window, and a walking sunflower.
+  ['kettle-painting', async (o) => { await arrive(o); await o.eval(() => window.__office.kettle.painting(0, 7, 0, 0)); await o.step(30); }],
+  ['kettle-painting-close', async (o) => { await arrive(o); await o.eval(() => window.__office.kettle.painting(0.1, 1.3, 0.04, -0.03)); await o.step(30); }],
+  ['kettle-crossing', async (o) => { await arrive(o); await o.eval(() => window.__office.kettle.painting(0.05, 0.06, 0, 0)); await o.step(20); }],
+  ['kettle', async (o) => { await arrive(o); await o.eval(() => window.__office.kettle.go(0, -2.4, 0, 0.03)); await o.step(30); }],
+  ['kettle-crossing-out', async (o) => { await arrive(o); await o.eval(() => { const k = window.__office.kettle; k.painting(0, 3, 0, 0); k.go(0.05, -0.06, Math.PI, 0); }); await o.step(20); }],
+  ['kettle-lake', async (o) => { await arrive(o); await o.eval(() => window.__office.kettle.go(20, -16, -0.9, 0.02)); await o.step(30); }],
+  ['kettle-inside', async (o) => { await arrive(o); await o.eval(() => { const k = window.__office.kettle; k.door(true); k.inside(-0.6, 2.4, -0.5, -0.15); }); await o.step(20); }],
+  ['kettle-loft', async (o) => { await arrive(o); await o.eval(() => window.__office.kettle.loft()); await o.step(20); }],
+  ['kettle-sunflower', async (o) => { await arrive(o); await o.eval(() => { const k = window.__office.kettle; k.go(0, -2.4, 0, 0); const f = k.folk.F[0].g.position, x = f.x - 8, z = f.z - 5;
+    k.go(x, z, Math.atan2(-(f.x - x), -(f.z - z)), 0.3); }); await o.step(30); }],
   // The grid (floors/grid.js), behind a bookcase on B3: the bookcase from across the room, against the wall; beside it,
   // close up; pulled out, the wall it hid; the wall giving, half gone, the grid through it; a step from going through it;
   // in the grid, the sky up; a step from going back out, B3 through the doorway; the black hole, seven seconds in.
