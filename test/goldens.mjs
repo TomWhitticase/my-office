@@ -422,9 +422,9 @@ export const POSES = [
   ['acro-crossing', async (o) => { await arrive(o); await o.eval(() => window.__office.acro.painting(0.05, 0.06, 0, 0)); await o.step(20); }],
   ['acro', async (o) => { await arrive(o); await o.eval(() => window.__office.acro.go(0, -2.4, 0.05, 0.03)); await o.step(30); }],
   ['acro-crossing-out', async (o) => { await arrive(o); await o.eval(() => { const a = window.__office.acro; a.painting(0, 3, 0, 0); a.go(0.05, -0.06, Math.PI, 0); }); await o.step(20); }],
-  ['acro-line', async (o) => { await arrive(o); await o.eval(() => window.__office.acro.su(-4, -5, Math.atan2(0.622, 0.783) - 0.3, 0.25)); await o.step(30); }],
-  ['acro-deck', async (o) => { await arrive(o); await o.eval(() => window.__office.acro.su(48, 2, Math.atan2(0.622, 0.783) + 0.25, -0.12, true)); await o.step(30); }],
-  ['acro-train', async (o) => { await arrive(o); await o.eval(() => { const a = window.__office.acro; a.su(36, 6.5, Math.atan2(0.622, 0.783) - 1.0, 0.0); a.train(26); }); await o.step(30); }],
+  ['acro-line', async (o) => { await arrive(o); await o.eval(() => window.__office.acro.along(-4, -5, -0.2, 0.25)); await o.step(30); }],
+  ['acro-deck', async (o) => { await arrive(o); await o.eval(() => window.__office.acro.along(60, 2, 0.15, -0.1, true)); await o.step(30); }],
+  ['acro-train', async (o) => { await arrive(o); await o.eval(() => { const a = window.__office.acro; a.along(79, 6.2, Math.PI + 0.35, 0.02); a.train(43.6); }); await o.step(30); }],
   ['acro-flip', async (o) => { await arrive(o); await o.eval(() => { const a = window.__office.acro; a.go(1.2, -3.6, 0.05, 0.38); a.flip(0); }); await o.step(15); }],
   // The painting on B3 that's a way into the winter village (floors/kettle.js): from across its room; close, the paint
   // going clear; on its threshold both ways; out there: the kettle-house and the wall, out on the ice among the skaters,

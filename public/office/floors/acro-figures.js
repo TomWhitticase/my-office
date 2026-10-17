@@ -29,11 +29,11 @@ function lathe(prof, a, b, seg, flat = 1, twist = 0) {
   return g.translate(a.x, a.y, a.z);
 }
 // A capsule from a to b, radius r0 at a and r1 at b, its ends rounded (round a and b).
-function capsule(a, b, r0, r1, seg, rows = 3) {
+function capsule(a, b, r0, r1, seg, rows = 3, phi = 0) {
   const len = a.distanceTo(b), prof = [];
   for (let k = 0; k <= rows; k++) { const t = (k / rows) * Math.PI / 2; prof.push(new THREE.Vector2(Math.max(r0 * Math.sin(t), 1e-4), -r0 * Math.cos(t))); }
   for (let k = rows; k >= 0; k--) { const t = (k / rows) * Math.PI / 2; prof.push(new THREE.Vector2(Math.max(r1 * Math.sin(t), 1e-4), len + r1 * Math.cos(t))); }
-  const g = new THREE.LatheGeometry(prof, seg);
+  const g = new THREE.LatheGeometry(prof, seg, phi);
   g.deleteAttribute('uv');
   g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(UP, V().subVectors(b, a).normalize()));
   return g.translate(a.x, a.y, a.z);
@@ -97,6 +97,8 @@ function pose(kind) {
 export function makeBody(kind, sex = 'm', q = 'hi', dress = null) {
   const J = pose(kind), hi = q === 'hi', S = hi ? 12 : 5, L = hi ? 9 : 4, parts = [], f = sex === 'f';
   const add = (g, col, breath, spine) => parts.push(tint(g, col, breath, spine));
+  // (the women's facets turned half a segment from the men's: where one stands on the other's hands, never on one plane)
+  const cap = (a, b, r0, r1, seg, rows) => capsule(a, b, r0, r1, seg, rows, f ? Math.PI / seg : 0);
   const top = dress?.top || (f ? C.leo : C.shirt), legC = dress?.legs || (f ? C.skin : C.red), armC = f ? C.skin : C.shirt;
   // the torso: hips to the base of the neck, flattened front to back; the chest rises and falls
   const tl = J.neck.distanceTo(J.pelvis) + 0.1;
@@ -105,7 +107,7 @@ export function makeBody(kind, sex = 'm', q = 'hi', dress = null) {
     : [[0.02, 0], [0.12, 0.04], [0.16, 0.13], [0.152, 0.2], [0.138, 0.3], [0.155, 0.4], [0.17, 0.48], [0.18, 0.55], [0.16, 0.61], [0.08, 0.65], [0.05, 0.67]];
   const pr = prof.map(([r, y]) => [r, y * tl / 0.67]);
   const t0 = J.pelvis.clone().add(V(0, -0.1, 0)), t1 = J.neck.clone().add(V(0, 0.02, 0));
-  const torso = lathe(pr, t0, t1, hi ? 14 : 6, 0.62);
+  const torso = lathe(pr, t0, t1, hi ? 14 : 6, 0.62, f ? Math.PI / (hi ? 14 : 6) : 0);
   const tAxis = V().subVectors(t1, t0).normalize();
   const spineOf = (x, y, z) => { const p = V(x, y, z).sub(t0), k = Math.max(0, Math.min(tl, p.dot(tAxis))); return [t0.x + tAxis.x * k, t0.y + tAxis.y * k, t0.z + tAxis.z * k]; };
   const breathOf = (y) => Math.max(0, Math.min(1, (y - (J.pelvis.y + 0.25)) / 0.25)) * Math.max(0, Math.min(1, (J.neck.y - 0.02 - y) / 0.1));
@@ -119,28 +121,28 @@ export function makeBody(kind, sex = 'm', q = 'hi', dress = null) {
   // the neck and the head; hair over the crown, a bun for the women; a nose
   const limbSpine = (a, b) => (x, y, z) => { const d = V().subVectors(b, a), l2 = d.lengthSq(), p = V(x, y, z).sub(a), k = Math.max(0, Math.min(1, p.dot(d) / l2)); return [a.x + d.x * k, a.y + d.y * k, a.z + d.z * k]; };
   const hc = J.head, nb = J.neck;
-  add(capsule(nb, hc.clone().add(V(0, -0.05, 0)), 0.048, 0.044, hi ? 8 : 4), C.skin, 0, limbSpine(nb, hc));
+  add(cap(nb, hc.clone().add(V(0, -0.05, 0)), 0.048, 0.044, hi ? 8 : 4), C.skin, 0, limbSpine(nb, hc));
   add(ellipsoid(hc, 0.088, 0.112, 0.1, hi ? 16 : 6, hi ? 12 : 5), C.skin, 0, () => [hc.x, hc.y, hc.z]);
   add(ellipsoid(hc.clone().add(V(0, 0.022, -0.012)), 0.095, 0.112, 0.104, hi ? 16 : 6, hi ? 8 : 3, 0, Math.PI * 2, 0, Math.PI * 0.52), f ? C.hairF : C.hair, 0, () => [hc.x, hc.y, hc.z]);
   if (f) add(ellipsoid(hc.clone().add(V(0, 0.06, -0.1)), 0.05, 0.048, 0.048, hi ? 8 : 4, hi ? 6 : 3), C.hairF, 0, () => [hc.x, hc.y, hc.z]);
   if (hi) {
-    add(capsule(hc.clone().add(V(0, 0.0, 0.09)), hc.clone().add(V(0, -0.035, 0.112)), 0.012, 0.016, 5, 2), C.skin, 0, () => [hc.x, hc.y, hc.z]);
+    add(cap(hc.clone().add(V(0, 0.0, 0.09)), hc.clone().add(V(0, -0.035, 0.112)), 0.012, 0.016, 5, 2), C.skin, 0, () => [hc.x, hc.y, hc.z]);
     for (const s of [-1, 1]) add(ellipsoid(hc.clone().add(V(s * 0.087, -0.005, -0.005)), 0.014, 0.026, 0.02, 5, 4), C.skin, 0, () => [hc.x, hc.y, hc.z]);
   }
   // legs: thigh, shin, the shoe; the men's trousers loose, gathered over the shoe
   for (const s of ['L', 'R']) {
     const h = J['hip' + s], k = J['knee' + s], a = J['ankle' + s], t = J['toe' + s];
-    add(capsule(h, k, f ? 0.078 : 0.088, f ? 0.054 : 0.07, S, hi ? 3 : 1), legC, 0, limbSpine(h, k));
-    add(capsule(k, a, f ? 0.052 : 0.068, f ? 0.036 : 0.06, S, hi ? 3 : 1), legC, 0, limbSpine(k, a));
-    add(capsule(a.clone().add(V(0, -0.03, -0.05)), t, 0.045, 0.04, hi ? 8 : 4, hi ? 2 : 1), f ? C.skin : C.shoe, 0, limbSpine(a, t));
+    add(cap(h, k, f ? 0.078 : 0.088, f ? 0.054 : 0.07, S, hi ? 3 : 1), legC, 0, limbSpine(h, k));
+    add(cap(k, a, f ? 0.052 : 0.068, f ? 0.036 : 0.06, S, hi ? 3 : 1), legC, 0, limbSpine(k, a));
+    add(cap(a.clone().add(V(0, -0.03, -0.05)), t, 0.045, 0.04, hi ? 8 : 4, hi ? 2 : 1), f ? C.skin : C.shoe, 0, limbSpine(a, t));
   }
   // arms (not for the seated: theirs are 'arm')
   if (kind !== 'seat') for (const s of ['L', 'R']) {
     const sh = J['shoulder' + s], el = J['elbow' + s], wr2 = J['wrist' + s], fi = J['finger' + s];
-    add(capsule(sh, el, f ? 0.05 : 0.064, f ? 0.04 : 0.056, S, hi ? 3 : 1), armC, 0, limbSpine(sh, el));
-    add(capsule(el, wr2, f ? 0.04 : 0.056, f ? 0.03 : 0.052, S, hi ? 3 : 1), armC, 0, limbSpine(el, wr2));
+    add(cap(sh, el, f ? 0.05 : 0.064, f ? 0.04 : 0.056, S, hi ? 3 : 1), armC, 0, limbSpine(sh, el));
+    add(cap(el, wr2, f ? 0.04 : 0.056, f ? 0.03 : 0.052, S, hi ? 3 : 1), armC, 0, limbSpine(el, wr2));
     if (!f && hi) add(lathe([[0.052, 0], [0.056, 0.02], [0.05, 0.04]], wr2.clone().lerp(el, 0.12), wr2.clone().lerp(el, 0.02), S), C.shirt, 0, limbSpine(el, wr2));   // the cuff
-    add(capsule(wr2, fi, 0.034, 0.026, hi ? 8 : 4, hi ? 2 : 1), C.skin, 0, limbSpine(wr2, fi));
+    add(cap(wr2, fi, 0.034, 0.026, hi ? 8 : 4, hi ? 2 : 1), C.skin, 0, limbSpine(wr2, fi));
   } else {   // the seated: their shoulders, the arms' tops
     for (const s of ['L', 'R']) add(ellipsoid(J['shoulder' + s], 0.06, 0.06, 0.06, S, 5), dress?.top || C.coat, 0, () => [0, J['shoulder' + s].y, 0]);
   }

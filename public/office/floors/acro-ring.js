@@ -9,7 +9,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { makeBody, makeArm } from './acro-figures.js';
-import { CEN, D, N, RING, RIM, RIM_H, FLOOR_Y, SEATS, STAIR, STEPS, RUN, stepY, PLATEAU, Y_DECK, OPEN, DECK_W, TRACK_U, toWorld, toSU, terrain } from './acro-plan.js';
+import { CEN, D, N, SEA, frameAt, RING, RIM, RIM_H, FLOOR_Y, SEATS, STAIR, LANDING, STEPS, RUN, Y_DECK, OPEN, DECK_W, toWorld, toSU } from './acro-plan.js';
 
 const yawOf = (dx, dz) => Math.atan2(dx, dz);
 // a (s, u, up) frame in the world: shape x → +s, shape y → +u, extruded down (a right-handed frame)
@@ -184,62 +184,74 @@ export function buildRing(fl, R, time) {
     for (const m of armI) m.instanceMatrix.needsUpdate = true;
   }
 
-  // ----- the stair: a block for each step up the ridge's crest, a rope on posts each side -----
-  const stairParts = [], ropes = [];
-  for (let i = 1; i <= STEPS; i++) {
-    const uB = STAIR.u1 - (i - 1) * RUN, uA = i === STEPS ? STAIR.u0 - 0.4 : uB - RUN, y = stepY((uA + uB) / 2);
-    const sh = new THREE.Shape(); sh.moveTo(STAIR.s0, uA); sh.lineTo(STAIR.s1, uA); sh.lineTo(STAIR.s1, uB); sh.lineTo(STAIR.s0, uB); sh.closePath();
-    const g = new THREE.ExtrudeGeometry(sh, { depth: 0.9, bevelEnabled: false }); g.applyMatrix4(SUD); g.translate(CEN.x, y, CEN.z);
-    stairParts.push(colored(g, i % 2 ? '#8f878a' : '#998f91'));
-  }
-  for (const sx of [STAIR.s0 - 0.12, STAIR.s1 + 0.12]) {
-    let prev = null;
-    for (let u = STAIR.u1 + 0.3; u >= STAIR.u0 - 0.3; u -= 2.6) {
-      const w = toWorld(sx, u), y = Math.max(stepY(u), terrain(w.x, w.z));
-      ropes.push(colored(new THREE.CylinderGeometry(0.035, 0.045, 1.0, 6).translate(w.x, y + 0.5, w.z), '#4b3d34'));
-      if (prev) {
-        const a = new THREE.Vector3(prev.x, prev.y + 0.92, prev.z), b = new THREE.Vector3(w.x, y + 0.92, w.z), mid = a.clone().lerp(b, 0.5); mid.y -= 0.12;
-        ropes.push(colored(new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(a, mid, b), 6, 0.018, 5), '#a08a62'));
-      }
-      prev = { x: w.x, y, z: w.z };
+  // ----- the stair: a stepped slab of stone on piers, rising toward the viaduct, a parapet each side; the landing -----
+  // (built in a (q, up, s) frame, q from the stair's foot toward the deck: x → -N, y → up, z → D; right-handed)
+  // (the line's own frame where the stair is: it's out on the bend)
+  const SM = (LANDING.s0 + LANDING.s1) / 2, FM = frameAt(SM);
+  const QYS = new THREE.Matrix4().makeBasis(new THREE.Vector3(-FM.nx, 0, -FM.nz), new THREE.Vector3(0, 1, 0), new THREE.Vector3(FM.dx, 0, FM.dz));
+  { const o = toWorld(SM, STAIR.u1); QYS.setPosition(o.x - FM.dx * SM, 0, o.z - FM.dz * SM); }
+  const across = (shape, s0, s1) => new THREE.ExtrudeGeometry(shape, { depth: s1 - s0, bevelEnabled: false, curveSegments: 1 }).translate(0, 0, s0).applyMatrix4(QYS);
+  const stairParts = [], foot = SEA - 1.5, H2 = (Y_DECK - 0.02) / STEPS, Q = STAIR.u1 - STAIR.u0, THK = 0.9;
+  {
+    const sh = new THREE.Shape(); sh.moveTo(-0.3, -THK); sh.lineTo(-0.3, 0);
+    for (let i = 1; i <= STEPS; i++) { const q = (i - 1) * RUN; sh.lineTo(q, (i - 1) * H2); sh.lineTo(q, i * H2); }
+    sh.lineTo(Q + 0.02, STEPS * H2); sh.lineTo(Q + 0.02, STEPS * H2 - THK); sh.closePath();
+    stairParts.push(colored(across(sh, STAIR.s0, STAIR.s1), '#958d90'));
+    // its parapets: a coping wall each side, a metre over the nosings
+    for (const [s0, s1] of [[STAIR.s0 - 0.24, STAIR.s0], [STAIR.s1, STAIR.s1 + 0.24]]) {
+      const p = new THREE.Shape(); p.moveTo(-0.3, -THK); p.lineTo(Q, STEPS * H2 - THK); p.lineTo(Q, STEPS * H2 + 0.98); p.lineTo(-0.3, 0.98); p.closePath();
+      stairParts.push(colored(across(p, s0, s1), '#8a8387'));
     }
+    // its piers, down to the rock
+    for (let q = 3.2; q < Q - 1; q += 3.6) {
+      const y = q / Q * (Y_DECK - 0.02) - THK, pr = new THREE.Shape(); pr.moveTo(q - 0.32, -2.5); pr.lineTo(q + 0.32, -2.5); pr.lineTo(q + 0.32, y + 0.05); pr.lineTo(q - 0.32, y + 0.05); pr.closePath();
+      stairParts.push(colored(across(pr, STAIR.s0 - 0.1, STAIR.s1 + 0.1), '#7f7a80'));
+    }
+    // the landing: a tower of stone up from the sea, its top level with the deck, a parapet round its open sides
+    const LQ = (u) => STAIR.u1 - u;   // (u to q)
+    const L = new THREE.Shape(); L.moveTo(LQ(LANDING.u1), foot); L.lineTo(LQ(LANDING.u0 + 0.004), foot); L.lineTo(LQ(LANDING.u0 + 0.004), Y_DECK - 0.02); L.lineTo(LQ(LANDING.u1), Y_DECK - 0.02); L.closePath();
+    stairParts.push(colored(across(L, LANDING.s0, LANDING.s1), '#958d90'));
+    const lp = (s0, s1, u0, u1) => { const r = new THREE.Shape(); r.moveTo(LQ(u1), Y_DECK - 0.02); r.lineTo(LQ(u0), Y_DECK - 0.02); r.lineTo(LQ(u0), Y_DECK + 0.95); r.lineTo(LQ(u1), Y_DECK + 0.95); r.closePath(); stairParts.push(colored(across(r, s0, s1), '#8a8387')); };
+    lp(LANDING.s0 + 0.01, LANDING.s0 + 0.25, LANDING.u0 + 0.3, LANDING.u1 - 0.01);   // the landward end
+    lp(LANDING.s1 - 0.25, LANDING.s1 - 0.01, LANDING.u0 + 0.3, LANDING.u1 - 0.01);   // the seaward end
+    lp(LANDING.s0 + 0.25, STAIR.s0 - 0.24, LANDING.u1 - 0.25, LANDING.u1 - 0.01);    // the far side, either side of the stair's top
+    lp(STAIR.s1 + 0.24, LANDING.s1 - 0.25, LANDING.u1 - 0.25, LANDING.u1 - 0.01);
   }
   root.add(new THREE.Mesh(mergeGeometries(stairParts), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 })));
-  root.add(new THREE.Mesh(mergeGeometries(ropes), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 })));
 
-  // ----- the halt on the headland: the bell, the signal, a lamp, a bench -----
+  // ----- the halt on the landing: the bell, the signal, a lamp, a bench -----
   const halt = new THREE.Group(); root.add(halt);
   const hp = (s, u, y = Y_DECK - 0.02) => { const w = toWorld(s, u); return new THREE.Vector3(w.x, y, w.z); };
   const brass = new THREE.MeshStandardMaterial({ color: '#c79a48', roughness: 0.3, metalness: 0.85 });
   const iron = new THREE.MeshStandardMaterial({ color: '#2f2f36', roughness: 0.55, metalness: 0.6 });
   const wood = new THREE.MeshStandardMaterial({ color: '#5a4436', roughness: 0.9 });
   // the bell: a bracket on a post, the bell hanging from it, its rope
-  const bellAt = hp(OPEN[0] + 1.2, DECK_W + 2.2);
+  const bellAt = hp(LANDING.s0 + 0.9, LANDING.u1 - 0.7);
   const post = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 2.6, 10), iron); post.position.copy(bellAt).setY(bellAt.y + 1.3); halt.add(post);
-  const arm = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.7), iron); arm.position.copy(bellAt).setY(bellAt.y + 2.5); arm.rotation.y = yawOf(-N.x, -N.z); arm.translateZ(0.3); halt.add(arm);
+  const arm = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.7), iron); arm.position.copy(bellAt).setY(bellAt.y + 2.5); arm.rotation.y = yawOf(-FM.nx, -FM.nz); arm.translateZ(0.3); halt.add(arm);
   const bellG = new THREE.LatheGeometry([[0.001, 0.28], [0.08, 0.27], [0.12, 0.2], [0.13, 0.08], [0.17, 0.0], [0.175, -0.02], [0.16, -0.02]].map(([r, y]) => new THREE.Vector2(r, y)), 20);
-  const bell = new THREE.Mesh(bellG, brass); bell.position.copy(arm.position).setY(bellAt.y + 2.18); bell.position.add(new THREE.Vector3(-N.x, 0, -N.z).multiplyScalar(0.3)); halt.add(bell);
+  const bell = new THREE.Mesh(bellG, brass); bell.position.copy(arm.position).setY(bellAt.y + 2.18); bell.position.add(new THREE.Vector3(-FM.nx, 0, -FM.nz).multiplyScalar(0.3)); halt.add(bell);
   const clapper = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6), iron); clapper.position.set(0, 0.04, 0); bell.add(clapper);
   const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 1.2, 5), new THREE.MeshStandardMaterial({ color: '#b39b70', roughness: 1 })); rope.position.set(0, -0.6, 0); bell.add(rope);
   const bellHit = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.8, 0.6), new THREE.MeshBasicMaterial()); bellHit.visible = false; bellHit.position.set(0, -0.6, 0); bell.add(bellHit);
   Object.assign(bellHit.userData, { action: 'acro-bell', reach: 4 });
   // the signal: a mast, its arm level (stop) or dropped (the train's coming)
-  const sigAt = hp(OPEN[0] - 0.8, DECK_W + 0.9);
+  const sigAt = hp(LANDING.s1 - 0.6, LANDING.u1 - 0.6);
   const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 4.2, 8), iron); mast.position.copy(sigAt).setY(sigAt.y + 2.1); halt.add(mast);
-  const sigArm = new THREE.Group(); sigArm.position.copy(sigAt).setY(sigAt.y + 3.8); sigArm.rotation.y = yawOf(D.x, D.z) + Math.PI / 2; halt.add(sigArm);
+  const sigArm = new THREE.Group(); sigArm.position.copy(sigAt).setY(sigAt.y + 3.8); sigArm.rotation.y = yawOf(FM.dx, FM.dz) + Math.PI / 2; halt.add(sigArm);
   const blade = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.16, 0.03), new THREE.MeshStandardMaterial({ color: '#b2392f', roughness: 0.6 })); blade.position.set(0.5, 0, 0); sigArm.add(blade);
   const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.165, 0.035), new THREE.MeshStandardMaterial({ color: '#eee6d3', roughness: 0.6 })); stripe.position.set(0.72, 0, 0); sigArm.add(stripe);
   const sigLamp = new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 8), new THREE.MeshStandardMaterial({ color: '#331', emissive: '#ff3a24', emissiveIntensity: 2 })); sigLamp.position.set(-0.08, -0.05, 0.04); sigArm.add(sigLamp);
   // a lamp post with a lantern, lit; and a bench
-  const lampAt = hp(OPEN[1] - 0.6, DECK_W + 2.4);
+  const lampAt = hp(LANDING.s0 + 0.6, LANDING.u0 + 1.2);
   const lp2 = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.08, 3.0, 8), iron); lp2.position.copy(lampAt).setY(lampAt.y + 1.5); halt.add(lp2);
   const lantern = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.11, 0.36, 6), new THREE.MeshStandardMaterial({ color: '#fff0c8', emissive: '#ffcf7a', emissiveIntensity: 2.6 })); lantern.position.copy(lampAt).setY(lampAt.y + 3.12); halt.add(lantern);
   const cap = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.18, 6), iron); cap.position.copy(lampAt).setY(lampAt.y + 3.39); halt.add(cap);
   const haltL = new THREE.PointLight('#ffcf8a', 8, 14, 1.6); haltL.position.copy(lantern.position); S.add(haltL);
-  const benchAt = hp((OPEN[0] + OPEN[1]) / 2 + 1, DECK_W + 3.4);
-  const bench = new THREE.Group(); bench.position.copy(benchAt); bench.rotation.y = yawOf(-N.x, -N.z); halt.add(bench);
+  const benchAt = hp(STAIR.s1 + 1.3, LANDING.u1 - 0.65);
+  const bench = new THREE.Group(); bench.position.copy(benchAt); bench.rotation.y = yawOf(-FM.nx, -FM.nz); halt.add(bench);
   for (const [w, h, d, x, y, z, m] of [[1.6, 0.06, 0.4, 0, 0.44, 0, wood], [1.6, 0.36, 0.05, 0, 0.72, -0.2, wood], [0.06, 0.44, 0.4, -0.7, 0.22, 0, iron], [0.06, 0.44, 0.4, 0.7, 0.22, 0, iron]]) { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); bench.add(b); }
-  const benchSeat = { x: benchAt.x + (-N.x) * 0.1, z: benchAt.z + (-N.z) * 0.1, y: benchAt.y, yaw: yawOf(-N.x, -N.z), bench: true };
+  const benchSeat = { x: benchAt.x - FM.nx * 0.1, z: benchAt.z - FM.nz * 0.1, y: benchAt.y, yaw: yawOf(-FM.nx, -FM.nz), bench: true };
 
   // seats you can sit in: the nearest free one to where you're pointing
   const seatHit = new THREE.Mesh(mergeGeometries(tierParts.map((g) => g.clone())), new THREE.MeshBasicMaterial()); seatHit.visible = false;

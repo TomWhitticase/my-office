@@ -128,8 +128,8 @@ const RESUME = {
   // out on the acrobats' coast (floors/acro.js), up on its viaduct, and in front of its painting on B3
   acro: [{ f: -8, car: 0, cz: -0.5, x: -3, z: -6, eye: 1.65, yaw: 0.4, pitch: 0, s: { deck: false } },
     () => { const w = window.__office; return w.away?.n === -8 && Math.hypot(w.player.x + 3, w.player.z + 6) < 0.05 && w.mode === 'free'; }],
-  'acro, on the viaduct': [{ f: -8, car: 0, cz: -0.5, x: -25.29, z: -53.33, eye: 1.65, yaw: 0.67, pitch: 0, s: { deck: true } },
-    () => { const w = window.__office; return w.away?.n === -8 && w.acro.W.deck && Math.hypot(w.player.x + 25.29, w.player.z + 53.33) < 0.05 && w.mode === 'free'; }],
+  'acro, on the viaduct': [{ f: -8, car: 0, cz: -0.5, x: -26.756, z: -52.373, eye: 1.65, yaw: 0.67, pitch: 0, s: { deck: true } },
+    () => { const w = window.__office; return w.away?.n === -8 && w.acro.W.deck && Math.hypot(w.player.x + 26.756, w.player.z + 52.373) < 0.05 && w.mode === 'free'; }],
   'the acro painting on B3': [{ f: -3, car: 0, cz: -0.5, x: -80.2, z: -10.6, eye: 1.65, yaw: 0, pitch: 0 },
     () => { const w = window.__office; return w.away?.n === -3 && w.acro.built && Math.hypot(w.player.x + 80.2, w.player.z + 10.6) < 0.05 && w.mode === 'free'; }],
   // in the winter village (floors/kettle.js), up in the kettle's loft, and in front of its painting on B3
