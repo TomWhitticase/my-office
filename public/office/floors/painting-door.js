@@ -14,6 +14,7 @@ import * as THREE from 'three';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { EYE, lerp, rng, sstep } from '../util.js';
 import { makePortal } from '../systems/portal.js';
+import { makeWarm } from '../systems/warm.js';
 
 /**
  * A wall for a painting, found from B3's fixed layout. dmin..dmax: cells' walk from the lift; dark: only in one of B3's
@@ -148,8 +149,14 @@ export function makePaintingDoor(ctx, fl, o) {
       // B3 heard through it: whichever's louder, this or the stone door's (relativity-door.js sets it every frame)
       const bleed0 = restr.audio.bleed;
       restr.audio.bleed = (v) => bleed0(Math.max(v, st.b3Bleed || 0));
+      warm();
     } finally { Math.random = random; }
   }
+  // Got ready to be seen in the background as soon as it's built, a long way off (systems/warm.js: its world, its panes):
+  // nothing's drawn through it till that's done (unless you're already close, or put in front of it), then its
+  // post-processing is made and drawn (prime): the first look at it then waits on nothing.
+  let warmTick = null, jumped = false;   // (put in front of it: painting())
+  const warm = () => { warmTick = makeWarm(renderer, [fl.scene, inP.warmScene(), outP.warmScene()]); };
   // a box in a frame's own x (across) and z (out of it), in the world
   const bv = new THREE.Vector3();
   function box(m, x0, x1, z0, z1) {
@@ -265,10 +272,11 @@ export function makePaintingDoor(ctx, fl, o) {
         carry(F.b3, F.plIn); mp.copy(pos);
         w.seen?.(mp, dt, t, d, drawn);
         inPaint.value = sstep(1.2, 4, d);
-        if (d < 6 && !primed) { primed = true; prime(); }
+        if (warmTick && warmTick()) { warmTick = null; if (!primed) { primed = true; prime(); } }
+        if ((d < 6 || jumped) && !primed) { primed = true; prime(); }   // (close already, or put here: now, compiled or not)
         u = sstep(5, 0, d); hear = 0.6 * sstep(8, 0, d);
         blend(u);   // (before it's drawn: k is the two exposures as they'll be drawn)
-        drawn = inP.draw({ here: F.b3, there: F.plIn, scene: fl.scene, k: fl.look.exposure / restr.look.exposure, open: !away(F.b3, d) && w.ready?.() !== false && (o.window?.(d) ?? true), prepare: () => lit(fl) });
+        drawn = inP.draw({ here: F.b3, there: F.plIn, scene: fl.scene, k: fl.look.exposure / restr.look.exposure, open: primed && !away(F.b3, d) && w.ready?.() !== false && (o.window?.(d) ?? true), prepare: () => lit(fl) });
         if (inP.crossed(F.b3, last, camera.position) > 0) into();
       } else { inP.hide(); drawn = false; blend(0); }
     } else {
@@ -331,7 +339,7 @@ export function makePaintingDoor(ctx, fl, o) {
       if (ctx.away !== restr) { frames(); const p = box(F.b3Out, x, x, z, z); restr.arriveAt = { x: p.minX, z: p.minZ - restr.z0 }; ctx.setFloor(restr); restr.out = 1; }
       restr.out = 1; frames();   // (out of the car's light: as if you'd walked here)
       const p = box(F.b3Out, x, x, z, z), zx = F.b3Out.elements[8], zz = F.b3Out.elements[10];
-      pose(p.minX, p.minZ, Math.atan2(zx, zz) + yaw, pitch); lastAway = null;
+      pose(p.minX, p.minZ, Math.atan2(zx, zz) + yaw, pitch); lastAway = null; jumped = true;
       return true;
     },
     into: () => { frames(); into(); },

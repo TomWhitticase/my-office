@@ -37,7 +37,9 @@ function limb(a, b, r0, r1, seg = 6) {
 }
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
-export function buildWorld(pl, R) {
+// Built a piece at a time (floors/painting-door.js steps through it, a step a frame, or all at once): yields between pieces,
+// and returns the world.
+export function* buildWorld(pl, R) {
   const S = pl.scene, root = new THREE.Group();
   S.add(root);
   S.background = HAZE.clone(); S.fog = new THREE.FogExp2(HAZE.clone(), 0.0145);
@@ -105,8 +107,9 @@ export function buildWorld(pl, R) {
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(600, 600).rotateX(-Math.PI / 2), groundM);
   ground.receiveShadow = false; root.add(ground);
 
+  yield;
   // ----- the city (plain-city.js): burning cathedrals across the horizon -----
-  const { city, towers } = buildCity(R, time, HAZE);
+  const { city, towers } = yield* buildCity(R, time, HAZE);
   root.add(city);
   // the fire along its foot, and the glow off it in the haze
   const glowT = makeCanvas(64, 256), gc = glowT.ctx, gg = gc.createLinearGradient(0, 256, 0, 0);
@@ -136,6 +139,7 @@ export function buildWorld(pl, R) {
     fragmentShader: 'varying float vA; void main() { gl_FragColor = vec4(vec3(1.0, 0.45, 0.12) * vA * 1.4, 1.0); }' });
   const embers = new THREE.Points(emG, emM); embers.frustumCulled = false; city.add(embers);
 
+  yield;
   // ----- in the air round you: ash drifting down, now and then an ember -----
   const ash = [], aph = [];
   for (let i = 0; i < 520; i++) { ash.push(R() * 36, R() * 14, R() * 36); aph.push(R()); }
@@ -167,6 +171,7 @@ export function buildWorld(pl, R) {
   const veils = [];
   for (let i = 0; i < 7; i++) { const v = new THREE.Mesh(new THREE.PlaneGeometry(70, 9).translate(0, 4.5, 0), veilM); v.frustumCulled = false; v.userData.a = i / 7 * Math.PI * 2 + R() * 0.6; v.userData.d = 22 + R() * 40; veils.push(v); root.add(v); }
 
+  yield;
   // ----- the things out here -----
   const mStd = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 });
   const shadowT = makeCanvas(64, 64), sc2 = shadowT.ctx, sg = sc2.createRadialGradient(32, 32, 2, 32, 32, 31);
@@ -272,6 +277,7 @@ export function buildWorld(pl, R) {
     }
   }
 
+  yield;
   // ----- debris: in cells round you, hashed, instanced (a draw call a kind) -----
   const kinds = [];
   function kind(geo, color, cap, rough = 0.9) {
