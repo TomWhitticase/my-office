@@ -8,8 +8,8 @@
 // towers of acrobats in a line from the ring out to sea, where, the further they are from you, the more they're the
 // viaduct's carved stone piers and arches (acro-viaduct.js: one morph, per fragment, by distance); the train that comes
 // in along the deck and goes back out (acro-train.js); granite, pines, the calm sea, the moon in it, gulls (acro-land.js);
-// a stair up the ridge to the halt on the headland and the deck, where you can walk out along the viaduct beside the
-// track. The sound: the sea, gulls, a band somewhere, the crowd, the train (acro-sound.js). Its own soft painted look.
+// a stone stair from the rocks on the far side up to the halt on a landing beside the deck, where you can walk out along
+// the viaduct beside the track as it bends away over the sea. The sound: the sea, gulls, a band somewhere, the crowd, the train (acro-sound.js). Its own soft painted look.
 // What you can do: click a tower and it performs (the top acrobat flips; one without, a wave of balance up it); C to clap
 // (V to cheer) and the ring's towers bow, the audience joining in; sit in the audience or on the halt's bench; ring the
 // bell at the halt and the train comes.
@@ -17,21 +17,22 @@
 // (or a reload puts you out there), and nothing of it runs unless you're out there or looking in.
 // Debug: ctx.acro (window.__office.acro): .go(x, z, yaw, pitch) stands you out there (the frame at the origin, its plane
 // z = 0, the way in toward -z; yaw 0 faces the ring); .painting(x, z, yaw, pitch) on B3 in front of it; .su(s, u, yaw,
-// pitch, deck) stands you on the line's own coordinates (deck: up on the viaduct); .flip(i), .bow(), .clap(), .bell(),
+// pitch, deck) stands you on the line's own coordinates (deck: up on the viaduct), .along(s, u, turn, pitch, deck) the same
+// facing out along the line (turn: from that, toward its far side); .flip(i), .bow(), .clap(), .bell(),
 // .sit(i) (a seat in the audience), .train(s, state) puts the train somewhere, .comp() redraws the painting's picture.
 
 import * as THREE from 'three';
 import { EYE, rng, sstep } from '../util.js';
 import { makePaintingDoor } from './painting-door.js';
 import { findAcro, frame, paintPane, passShader, SIZE } from './acro-painting.js';
-import { CEN, D, N, SEA, RING, RIM, FLOOR_Y, Y_DECK, DECK0, DECK_W, WALK, OPEN, PLATEAU, STAIR, toWorld, toSU, ground as groundAt, terrain, stairAt, tierAt } from './acro-plan.js';
+import { CEN, D, N, COMP, frameAt, SEA, RING, RIM, FLOOR_Y, Y_DECK, DECK0, DECK_W, WALK, OPEN, STAIR, LANDING, toWorld, toSU, ground as groundAt, terrain, stairAt, tierAt } from './acro-plan.js';
 import { buildLand, SKY } from './acro-land.js';
 import { buildViaduct } from './acro-viaduct.js';
 import { buildRing, GAP } from './acro-ring.js';
 import { buildTrain } from './acro-train.js';
 import { makeSound } from './acro-sound.js';
 
-const N_FLOOR = -8, S_WALK = 280;   // how far out along the deck you can walk before the haze has you
+const N_FLOOR = -8, S_WALK = 280, PAINTED_TRAIN = 120, PREP = 90, NEAR = 60;   // metres from the painting on B3: started, finished   // how far out along the deck you can walk before the haze has you
 
 /** @param {import('../ctx.js').OfficeCtx} ctx */
 export function install(ctx) {
@@ -51,24 +52,42 @@ function setup(ctx) {
   const W = { deck: false };   // where you are: up on the viaduct or not
   style.textContent += `.of-acro .of-clock { font-size: 0 !important; } .of-acro .of-clock::after { content: 'dusk'; font-size: 12px; }`;
 
+  // The world's made a piece a frame as you come toward the painting on B3 (each under its own random stream), so no
+  // one frame takes long; the door's build (at NEAR) finishes whatever's left. Then its shaders are compiled in the
+  // background, before the painting first shows it (at 40 m), and nothing's drawn from it into the picture till they are.
+  const own = (seed, fn) => () => { const random = Math.random; Math.random = rng(seed); try { fn(); } finally { Math.random = random; } };
+  const prep = [
+    own(2296, () => { land = buildLand(fl, rng(2292), time); }),
+    own(2297, () => { via = buildViaduct(fl, rng(2293), time); }),
+    own(2298, () => { ring = buildRing(fl, rng(2294), time); }),
+    own(2299, () => { train = buildTrain(fl, rng(2295), time, (ev, a) => sound?.train(ev, a, train)); }),
+  ];
+  let warm = 0;   // 0: not yet, 1: compiling, 2: ready
+  ctx.onFrame(() => {
+    const restr = ctx.restr;
+    if (ctx.away !== restr) return;
+    if (!fl.built && prep.length && Math.hypot(ctx.player.x - door.at.X, ctx.player.z - restr.z0 - door.at.Z) < PREP) prep.shift()();
+    if (fl.built && !warm) {
+      warm = 1;
+      renderer.compileAsync(fl.scene, comp.cam, fl.scene).catch(() => {}).finally(() => { warm = 2; });
+    }
+  }, 188);
   const door = makePaintingDoor(ctx, fl, {
-    at: findAcro(ctx.restr), size: SIZE, key: 'acro', near: 32, seed: 2291, hud: 'of-acro',
+    at: findAcro(ctx.restr), size: SIZE, key: 'acro', near: NEAR, seed: 2291, hud: 'of-acro',
     frame, pass: passShader,
-    paint: (() => { let n = 0; return (p) => paintPane(p, n++ === 0 ? comp.rt.texture : null); })(),
-    build(R) {
-      land = buildLand(fl, R, time);
-      via = buildViaduct(fl, rng(2293), time);
-      ring = buildRing(fl, rng(2294), time);
-      train = buildTrain(fl, rng(2295), time, (ev, a) => sound?.train(ev, a, train));
+    // (B3's pane shows the composed picture, once there is one: till then, the window itself)
+    paint: (() => { let n = 0; return (p) => { const u = paintPane(p, n++ === 0 ? comp.rt.texture : null); if (n === 1) { comp.on = p.mesh.material.uniforms.hasComp; comp.on.value = 0; } return u; }; })(),
+    build() {
+      while (prep.length) prep.shift()();   // (whatever's not been made yet, a piece a frame, as you came near: below)
       sound = makeSound(ctx, { train: () => train, ring: () => ring });
-      fl.look = { exposure: 1.0, hemi: 1.25, sky: new THREE.Color('#a9bde2'), ground: new THREE.Color('#5d5866'), env: 0.0, bloom: 0.8, grade: 1.0,
+      fl.look = { exposure: 1.12, hemi: 1.35, sky: new THREE.Color('#b4c6e8'), ground: new THREE.Color('#6a6472'), env: 0.0, bloom: 0.75, grade: 1.0,
         lights: [...land.lights, [ring.ringL, 22], [ring.haltL, 8]], aoSkip1: true };
       fl.hits.push(...via.hits, ...ring.hits);
       comp = makeComp();
       return {
         sound, cols: [...via.cols, ...ring.cols],
         // out here, as seen from B3: the world round where you'd be
-        seen(mp, dt, t, d) { tick(mp, dt, t); if (d < 40) comp.draw(t, d); },
+        seen(mp, dt, t, d) { tick(mp, dt, t); if (d < 40 && warm === 2) comp.draw(t, d); },
         fx(dt, t) { tick(camera.position, dt, t); sound.fx(dt, t, W); },
         arrive() { door.pose(0, -2.4, 0, 0); W.deck = false; },   // (debug, a reload: in front of the frame, the ring ahead)
       };
@@ -84,9 +103,9 @@ function setup(ctx) {
   // ----- the composed picture, for the painting seen from across the room: the world from a fixed camera in the ring -----
   function makeComp() {
     const rt = new THREE.WebGLRenderTarget(704, 592, { type: THREE.HalfFloatType });
-    const cam = new THREE.PerspectiveCamera(58, SIZE.w / SIZE.h, 0.1, 3000);
-    const c = toWorld(-2.6, -7.4), lookAt = toWorld(9, 1.5);
-    cam.position.set(c.x, 1.1, c.z); cam.lookAt(lookAt.x, 9.2, lookAt.z); cam.updateMatrixWorld();
+    const cam = new THREE.PerspectiveCamera(COMP.fov, SIZE.w / SIZE.h, 0.1, 3000);
+    const c = toWorld(COMP.s, COMP.u), f = toWorld(COMP.s + Math.cos(COMP.a), COMP.u + Math.sin(COMP.a));
+    cam.position.set(c.x, COMP.y, c.z); cam.lookAt(f.x, COMP.y + Math.tan(COMP.pitch), f.z); cam.updateMatrixWorld();
     let last = -1;
     return {
       rt, cam,
@@ -95,10 +114,13 @@ function setup(ctx) {
         if (last >= 0 && t - last < (d < 8 ? 0.12 : 1.0)) return;
         last = t;
         tick(cam.position, 0, t, true);
-        const L = fl.look, prev = renderer.getRenderTarget();
+        const L = fl.look, prev = renderer.getRenderTarget(), ts = train.S.s;
+        train.place(PAINTED_TRAIN);   // (in the picture the train's always out on the viaduct)
         fl.hemi.intensity = L.hemi; fl.hemi.color.copy(L.sky); fl.hemi.groundColor.copy(L.ground);
         for (const [l, k] of L.lights) l.intensity = k;
         renderer.setRenderTarget(rt); renderer.clear(); renderer.render(fl.scene, cam); renderer.setRenderTarget(prev);
+        train.place(ts);
+        if (this.on) this.on.value = 1;
       },
     };
   }
@@ -113,10 +135,11 @@ function setup(ctx) {
 
   // ----- standing and walking: the ground, the deck, the stair and the seats; where you can't go -----
   const inRing = (x, z) => Math.hypot(x - CEN.x, z - CEN.z);
-  const landing = (s, u) => s > OPEN[0] && s < OPEN[1] && u >= DECK_W - 0.05 && u <= PLATEAU.u0 + 0.8;
+  // the gap in the deck's far parapet, between its walk and the landing
+  const gap = (s, u) => s > OPEN[0] + 0.3 && s < OPEN[1] - 0.3 && u >= WALK[0] && u <= LANDING.u0 + 0.4;
   fl.ground = (x, z) => {
     const { s, u } = toSU(x, z);
-    if (W.deck || landing(s, u)) { if (s >= DECK0 && (Math.abs(u) <= DECK_W || landing(s, u))) return Y_DECK - 0.02; }
+    if ((W.deck || gap(s, u)) && s >= DECK0 && (Math.abs(u) <= DECK_W || gap(s, u))) return Y_DECK - 0.02;
     if (inRing(x, z) < RING) return FLOOR_Y;
     return groundAt(x, z, false);
   };
@@ -124,14 +147,14 @@ function setup(ctx) {
   // can you stand at (x, z)? (deck: up on the viaduct)
   function standable(x, z, deck) {
     const { s, u } = toSU(x, z);
-    if (deck) return (s >= DECK0 + 0.5 && s <= S_WALK && u >= WALK[0] && u <= WALK[1]) || landing(s, u);
-    if (landing(s, u)) return true;
+    if (deck) return (s >= DECK0 + 0.5 && s <= S_WALK && u >= WALK[0] && u <= WALK[1]) || gap(s, u);
+    if (gap(s, u)) return true;
+    if (s >= LANDING.s0 && s <= LANDING.s1 && u >= LANDING.u0 && u <= LANDING.u1) return s > LANDING.s0 + 0.5 && s < LANDING.s1 - 0.5 && (u < LANDING.u1 - 0.5 || (s > STAIR.s0 + 0.2 && s < STAIR.s1 - 0.2));
     const r = inRing(x, z);
     if (r < RING - 0.3) return true;
     if (r < RING + RIM + 0.3) { const a = Math.atan2(x - CEN.x, z - CEN.z), da = Math.abs(Math.atan2(Math.sin(a - GAP.a), Math.cos(a - GAP.a))); return da < GAP.half - 0.035; }
-    if (stairAt(s, u) != null) return u > STAIR.u0 + 0.2 && u < STAIR.u1 - 0.2;
+    if (s > STAIR.s0 - 0.4 && s < STAIR.s1 + 0.4 && u > LANDING.u1 && u < STAIR.u1 + 0.3) return s > STAIR.s0 + 0.2 && s < STAIR.s1 - 0.2;
     if (tierAt(s, u) != null) return true;
-    if (s > DECK0 && Math.abs(u) < DECK_W + 0.3 && terrain(x, z) < Y_DECK - 3) { /* under the deck: the rocks there */ }
     const h = terrain(x, z);
     if (h < SEA + 0.35) return false;
     return slope(x, z) < 0.9;
@@ -220,7 +243,9 @@ function setup(ctx) {
     g.putImageData(img, 0, 0);
     const P = (x, z) => [350 + x * MK, 350 + z * MK];
     g.strokeStyle = 'rgba(232,200,100,.9)'; g.lineWidth = 2; g.beginPath(); g.arc(...P(CEN.x, CEN.z), RING * MK, 0, 7); g.stroke();
-    g.strokeStyle = 'rgba(200,200,215,.8)'; g.lineWidth = DECK_W * 2 * MK; g.beginPath(); g.moveTo(...P(toWorld(DECK0, 0).x, toWorld(DECK0, 0).z)); g.lineTo(...P(toWorld(400, 0).x, toWorld(400, 0).z)); g.stroke();
+    g.strokeStyle = 'rgba(200,200,215,.8)'; g.lineWidth = DECK_W * 2 * MK; g.beginPath();
+    for (let s = DECK0; s <= 420; s += 6) { const w = toWorld(s, 0); if (s === DECK0) g.moveTo(...P(w.x, w.z)); else g.lineTo(...P(w.x, w.z)); }
+    g.stroke();
     g.fillStyle = 'rgba(240,210,120,.95)'; for (let k = 0; k < 20; k++) { const w = toWorld(-3 + k * 9, 0); g.beginPath(); g.arc(...P(w.x, w.z), 2.2, 0, 7); g.fill(); }
     g.fillStyle = 'rgba(214,190,150,.95)'; g.fillRect(...P(-0.65, -0.05), 1.3 * MK, 3);
     return c;
@@ -243,11 +268,13 @@ function setup(ctx) {
     if (!door.go(0, -2.4, 0, 0)) return false;
     const w = toWorld(s, u); stand(w.x, w.z, yaw, pitch, deck); return true;
   };
+  // the same, facing along the line out to sea (turn 0), or turned from it
+  const along = (s, u, turn = 0, pitch = 0, deck = false) => { const f = frameAt(s), c = Math.cos(turn), sn = Math.sin(turn); return su(s, u, Math.atan2(-(f.dx * c + f.nx * sn), -(f.dz * c + f.nz * sn)), pitch, deck); };
   ctx.acro = {
     fl, st: door.st, F: door.F, at: door.at, W, get built() { return fl.built; }, build: door.build,
     get world() { return { land, via, ring, train, sound, comp }; },
     go: (x = 0, z = -2.4, yaw = 0, pitch = 0) => { if (!door.go(x, z, yaw, pitch)) return false; stand(x, z, yaw, pitch); return true; },
-    painting: door.painting, into: door.into, su,
+    painting: door.painting, into: door.into, su, along,
     flip(i = 0) { const T = via?.towers[i]; return !!T && via.flip(T, time.value); },
     bow() { via?.bow(time.value); ring?.clap(time.value); return !!via; },
     clap: () => cheer('clap'),
@@ -255,6 +282,8 @@ function setup(ctx) {
     sit(i = 0) { const st = ring?.seats.filter((x) => !x.taken)[i]; if (!st) return false; su(0, 0); const w = st; stand(w.x, w.z, st.yaw + Math.PI, -0.05); Object.assign(ctx.player, { seated: true, seat: { x: st.x, z: st.z, rotY: st.yaw, eye: 1.18, floor: true }, eye: 1.18 }); return true; },
     train(s, state = 'stop') { if (!train) return false; train.stage(s, state); return true; },
     comp(t = time.value) { comp?.draw(t + 10, 1); },
+    /** stand where the painting's picture is seen from (its camera's pose, your eye there) */
+    compPose() { if (!door.go(0, -2.4, 0, 0)) return false; const w = toWorld(COMP.s, COMP.u), yaw = Math.atan2(-(D.x * Math.cos(COMP.a) + N.x * Math.sin(COMP.a)), -(D.z * Math.cos(COMP.a) + N.z * Math.sin(COMP.a))); stand(w.x, w.z, yaw, COMP.pitch); ctx.player.eye = COMP.y; return true; },
   };
   addFloor(fl);
 }

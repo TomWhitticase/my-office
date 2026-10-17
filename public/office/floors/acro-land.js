@@ -5,9 +5,9 @@
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { CEN, D, N, SEA, toWorld, toSU, terrain, fbm, vn, inland, RING, STAIR, PLATEAU, SEATS, Y_DECK, DECK0 } from './acro-plan.js';
+import { CEN, D, N, SEA, toWorld, toSU, terrain, fbm, vn, RING, STAIR, LANDING, SEATS } from './acro-plan.js';
 
-export const SKY = { zen: new THREE.Color('#2c4677'), mid: new THREE.Color('#6a84b4'), hor: new THREE.Color('#c3cde2'), glow: new THREE.Color('#ecc7b8'), fog: new THREE.Color('#9fb0cf') };
+export const SKY = { zen: new THREE.Color('#38578c'), mid: new THREE.Color('#7f99c6'), hor: new THREE.Color('#d3d6e6'), glow: new THREE.Color('#f1cfc0'), fog: new THREE.Color('#aebcd8') };
 // the moon: up over the sea, left of the line out; the glow on the horizon to the right
 export const MOON = new THREE.Vector3(D.x * 0.86 - N.x * 0.5, 0.5, D.z * 0.86 - N.z * 0.5).normalize();
 export const GLOW = new THREE.Vector3(-D.x * 0.2 + N.x * 0.98, 0.0, -D.z * 0.2 + N.z * 0.98).normalize();
@@ -58,7 +58,7 @@ export function buildLand(fl, R, time) {
   const S = fl.scene, root = new THREE.Group();
   S.add(root);
   S.background = SKY.fog.clone();
-  S.fog = new THREE.FogExp2(SKY.fog.clone(), 0.0034);
+  S.fog = new THREE.FogExp2(SKY.fog.clone(), 0.0042);
   const U = { zen: { value: SKY.zen }, mid: { value: SKY.mid }, hor: { value: SKY.hor }, glow: { value: SKY.glow }, moonD: { value: MOON }, glowD: { value: GLOW }, time };
   const onCam = (m) => { m.frustumCulled = false; m.onBeforeRender = (r, s, cam) => { const e = cam.matrixWorld.elements; m.position.set(e[12], e[13], e[14]); m.updateMatrixWorld(); }; return m; };
 
@@ -78,12 +78,14 @@ export function buildLand(fl, R, time) {
     for (let x = fine1 + step, k = step; x < hi; k *= far, x += k) v.push(x);
     return v;
   };
+  // (in the straight line's frame: the bent one folds over itself far out on the near side)
+  const flat = (s, u) => ({ x: CEN.x + D.x * s + N.x * u, z: CEN.z + D.z * s + N.z * u });
   const SS = axis(-520, 140, -40, 62, 0.75, 1.07), UU = axis(-520, 520, -45, 40, 0.75, 1.07);
   const nS = SS.length, nU = UU.length, pos = new Float32Array(nS * nU * 3), col = new Float32Array(nS * nU * 3);
   const granite = new THREE.Color('#a8a19e'), pink = new THREE.Color('#b3a099'), grey = new THREE.Color('#8a8a94'), lichen = new THREE.Color('#9a9c80'), wet = new THREE.Color('#55586a'), moss = new THREE.Color('#5f6a55'), cc = new THREE.Color();
   const H = new Float32Array(nS * nU);
   for (let a = 0; a < nS; a++) for (let b = 0; b < nU; b++) {
-    const k = a * nU + b, w = toWorld(SS[a], UU[b]), h = terrain(w.x, w.z);
+    const k = a * nU + b, w = flat(SS[a], UU[b]), h = terrain(w.x, w.z);
     H[k] = h; pos[k * 3] = w.x; pos[k * 3 + 1] = h; pos[k * 3 + 2] = w.z;
   }
   for (let a = 0; a < nS; a++) for (let b = 0; b < nU; b++) {
@@ -130,7 +132,7 @@ export function buildLand(fl, R, time) {
   root.add(land);
 
   // ----- the sea: the sky in it, the moon's path, swell; foam where it meets the rocks (from a map of the rock's height) -----
-  const MS = 512, M0 = toWorld(10, 0), MW = 260, foam = new Uint8Array(MS * MS * 4);
+  const MS = 256, M0 = toWorld(10, 0), MW = 260, foam = new Uint8Array(MS * MS * 4);
   for (let j = 0; j < MS; j++) for (let i = 0; i < MS; i++) {
     const x = M0.x + (i / (MS - 1) - 0.5) * MW, z = M0.z + (j / (MS - 1) - 0.5) * MW, h = terrain(x, z), k = (j * MS + i) * 4;
     foam[k] = Math.max(0, Math.min(255, (h - SEA + 3) / 6 * 255)); foam[k + 1] = 0; foam[k + 2] = 0; foam[k + 3] = 255;
@@ -198,17 +200,15 @@ export function buildLand(fl, R, time) {
     const { s, u } = toSU(x, z), h = terrain(x, z);
     if (h < SEA + 1.2 || Math.hypot(x - CEN.x, z - CEN.z) < RING + 9 || Math.hypot(x, z) < 6) return null;
     if (Math.abs(u) < 6 && s > -14) return null;   // the line of towers
-    if (u > STAIR.u0 - 2.5 && u < STAIR.u1 + 2.5 && s > STAIR.s0 - 3 && s < STAIR.s1 + 2) return null;
-    if (s > PLATEAU.s0 - 1 && s < 44 && u > PLATEAU.u0 - 1 && u < 9) return null;   // (the halt's on the headland's near part)
+    if ((s > STAIR.s0 - 2.5 && s < STAIR.s1 + 2.5 && u > LANDING.u1 - 1 && u < STAIR.u1 + 3) || (s > LANDING.s0 - 2 && s < LANDING.s1 + 2 && u < LANDING.u1 + 2)) return null;   // the stair
     const r = Math.hypot(s, u), a = Math.atan2(u, s);
     if (a > SEATS.a0 - 0.25 && a < SEATS.a1 + 0.2 && r < SEATS.r0 + SEATS.rows * SEATS.step + 4) return null;
     const e = 0.6, sl = Math.hypot(terrain(x + e, z) - terrain(x - e, z), terrain(x, z + e) - terrain(x, z - e)) / (2 * e);
     return sl < 0.85 ? h : null;
   };
   for (let k = 0; k < 3000 && spots.length < 600; k++) {
-    const hd = k < 400, s = hd ? PLATEAU.s0 - 2 + R() * 32 : -150 + R() * 210, u = hd ? 5 + R() * 34 : -170 + R() * 260, w = toWorld(s, u);
-    const { s: s2, u: u2 } = toSU(w.x, w.z);
-    if (fbm(w.x * 0.03 + 11, w.z * 0.03) < (s2 > PLATEAU.s0 && u2 > 6 && s2 < PLATEAU.s1 + 6 ? 0.2 : 0.42)) continue;   // in groves (thick on the headland)
+    const s = -150 + R() * 210, u = -170 + R() * 260, w = toWorld(s, u);
+    if (fbm(w.x * 0.03 + 11, w.z * 0.03) < 0.4) continue;   // in groves
     const h = ok(w.x, w.z); if (h == null) continue;
     spots.push([w.x, h - 0.15, w.z, 0.7 + R() * 0.8, R() * 6.28]);
   }
@@ -254,15 +254,15 @@ export function buildLand(fl, R, time) {
   root.add(gulls);
 
   // ----- the light: the sky from above, the warm low light off the horizon on the right, a cool moon fill -----
-  const hemi = new THREE.HemisphereLight('#a9bde2', '#5d5866', 1.25);
-  const key = new THREE.DirectionalLight('#ffd9c4', 1.25); key.position.copy(GLOW).multiplyScalar(80).setY(22);
+  const hemi = new THREE.HemisphereLight('#b4c6e8', '#6a6472', 1.35);
+  const key = new THREE.DirectionalLight('#ffdcc8', 1.5); key.position.copy(GLOW).multiplyScalar(80).setY(22);
   const moonL = new THREE.DirectionalLight('#b8c8ff', 0.35); moonL.position.copy(MOON).multiplyScalar(80);
   S.add(hemi, key, moonL);
   fl.hemi = hemi;
 
   return {
     root, land, sea, gulls,
-    lights: [[key, 1.25], [moonL, 0.35]],
+    lights: [[key, 1.5], [moonL, 0.35]],
     update(t) {
       for (let i = 0; i < gs.length; i++) {
         const g = gs[i], a = g.a + t * g.w, x = g.c.x + Math.cos(a) * g.r, z = g.c.z + Math.sin(a) * g.r, y = g.y + Math.sin(t * 0.3 + i) * 2;

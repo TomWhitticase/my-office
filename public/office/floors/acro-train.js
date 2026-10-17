@@ -7,7 +7,7 @@
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { D, N, TRACK_U, Y_DECK, DECK0, DECK_END, toWorld } from './acro-plan.js';
+import { TRACK_U, Y_DECK, DECK0, DECK_END, toWorld, frameAt } from './acro-plan.js';
 
 const STOP = DECK0 + 1.6, FAR = Math.min(DECK_END - 70, 470), CRUISE = 13;
 const colored = (g, c) => { g = g.index ? g.toNonIndexed() : g; if (g.attributes.uv) g.deleteAttribute('uv'); const cl = new THREE.Color(c), a = new Float32Array(g.attributes.position.count * 3); for (let k = 0; k < a.length; k += 3) { a[k] = cl.r; a[k + 1] = cl.g; a[k + 2] = cl.b; } return g.setAttribute('color', new THREE.BufferAttribute(a, 3)); };
@@ -15,8 +15,11 @@ const colored = (g, c) => { g = g.index ? g.toNonIndexed() : g; if (g.attributes
 export function buildTrain(fl, R, time, on = () => {}) {
   const root = new THREE.Group(); fl.scene.add(root);
   // Built along +x (the way it faces: toward the ring, -s), its front at x = 0, the rails' top at y = 0, centred on z.
-  const P = [], G = [];   // painted parts, glowing parts
-  const add = (g, c, x, y, z) => P.push(colored(g.translate(x, y, z), c));
+  // each car's own parts, painted and glowing: [x0, x1] its front and back along x
+  const cars = []; let car = null;
+  const newCar = (x0, x1) => { car = { x0, x1, P: [], G: [] }; cars.push(car); };
+  const add = (g, c, x, y, z) => car.P.push(colored(g.translate(x, y, z), c));
+  newCar(0.3, -11.5);
   const cylX = (r, l, seg = 16) => new THREE.CylinderGeometry(r, r, l, seg).rotateZ(Math.PI / 2);
   const body = '#2e3a40', black = '#1d1f22', brass = '#b8924a', red = '#7a2f2a', coach = '#4a5d6a', roof = '#34383e';
   // the engine: buffer beam, smokebox, boiler, dome, chimney, cab, wheels, the running plate
@@ -38,8 +41,8 @@ export function buildTrain(fl, R, time, on = () => {}) {
   }
   for (const z of [-0.88, 0.88]) add(new THREE.BoxGeometry(3.8, 0.1, 0.06), '#8f8f96', -3.3, 0.62, z);   // the coupling rods
   add(new THREE.BoxGeometry(0.5, 0.5, 0.5), black, -0.4, 1.55, 0);
-  G.push(colored(new THREE.CylinderGeometry(0.17, 0.17, 0.08, 14).rotateZ(Math.PI / 2).translate(-0.12, 1.55, 0), '#fff2cc'));   // the headlamp
-  G.push(colored(new THREE.BoxGeometry(0.64, 0.54, 0.02).translate(-6.0, 2.8, 1.29), '#ffcf7a'), colored(new THREE.BoxGeometry(0.64, 0.54, 0.02).translate(-6.0, 2.8, -1.29), '#ffcf7a'));
+  car.G.push(colored(new THREE.CylinderGeometry(0.17, 0.17, 0.08, 14).rotateZ(Math.PI / 2).translate(-0.12, 1.55, 0), '#fff2cc'));   // the headlamp
+  car.G.push(colored(new THREE.BoxGeometry(0.64, 0.54, 0.02).translate(-6.0, 2.8, 1.29), '#ffcf7a'), colored(new THREE.BoxGeometry(0.64, 0.54, 0.02).translate(-6.0, 2.8, -1.29), '#ffcf7a'));
   // the tender
   add(new THREE.BoxGeometry(3.6, 1.7, 2.4), body, -9.6, 1.95, 0);
   add(new THREE.BoxGeometry(3.4, 0.3, 2.2), '#141414', -9.6, 2.85, 0);
@@ -49,29 +52,32 @@ export function buildTrain(fl, R, time, on = () => {}) {
   const CL = 9.6;
   for (let c = 0; c < 4; c++) {
     const x0 = -12.0 - c * (CL + 0.7), xc = x0 - CL / 2;
+    newCar(x0 + 0.35, x0 - CL - 0.35);
     add(new THREE.BoxGeometry(CL, 2.1, 2.6), coach, xc, 2.15, 0);
     add(new THREE.BoxGeometry(CL + 0.04, 0.18, 2.62), '#2d3940', xc, 1.12, 0);
     add(new THREE.CylinderGeometry(1.42, 1.42, CL + 0.1, 20, 1, false, -0.85, 1.7).rotateZ(Math.PI / 2).rotateX(-Math.PI / 2), roof, xc, 2.1, 0);
     for (const x of [x0 - 1.3, x0 - CL + 1.3]) for (const z of [-0.78, 0.78]) add(new THREE.CylinderGeometry(0.42, 0.42, 0.12, 14).rotateX(Math.PI / 2), black, x, 0.45, z);
-    for (let w = 0; w < 7; w++) for (const z of [-1.31, 1.31]) G.push(colored(new THREE.BoxGeometry(0.85, 0.62, 0.02).translate(x0 - 0.8 - w * 1.3, 2.45, z), '#ffd38a'));
+    for (let w = 0; w < 7; w++) for (const z of [-1.31, 1.31]) car.G.push(colored(new THREE.BoxGeometry(0.85, 0.62, 0.02).translate(x0 - 0.8 - w * 1.3, 2.45, z), '#ffd38a'));
     if (c < 3) add(new THREE.BoxGeometry(0.7, 1.7, 1.6), '#23282c', x0 - CL - 0.35, 2.0, 0);   // the gangway
   }
   // (the roof's cylinder was laid along y and rolled to x: a shell, its open side down)
   const paintM = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.35 });
   const glowM = new THREE.MeshStandardMaterial({ vertexColors: true, emissive: '#ffc77a', emissiveIntensity: 1.7, roughness: 0.5 });
   const train = new THREE.Group();
-  train.add(new THREE.Mesh(mergeGeometries(P), paintM), new THREE.Mesh(mergeGeometries(G), glowM));
+  for (const c of cars) {   // each car centred on its own middle, placed on the track there
+    const xc = (c.x0 + c.x1) / 2, g = new THREE.Group();
+    g.add(new THREE.Mesh(mergeGeometries(c.P.map((q) => q.translate(-xc, 0, 0))), paintM));
+    if (c.G.length) g.add(new THREE.Mesh(mergeGeometries(c.G.map((q) => q.translate(-xc, 0, 0))), glowM));
+    g.matrixAutoUpdate = false; c.g = g; c.xc = xc; train.add(g);
+  }
   // its headlamp's beam: a soft additive glow
   const glowC = document.createElement('canvas'); glowC.width = glowC.height = 64;
   { const c = glowC.getContext('2d'), g = c.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,240,200,1)'); g.addColorStop(0.3, 'rgba(255,220,160,.35)'); g.addColorStop(1, 'rgba(255,200,140,0)'); c.fillStyle = g; c.fillRect(0, 0, 64, 64); }
   const glowT = new THREE.CanvasTexture(glowC);
   const lamp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowT, color: '#ffe2b0', transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
-  lamp.scale.setScalar(2.2); lamp.position.set(0.1, 1.55, 0); train.add(lamp);
+  lamp.scale.setScalar(2.2); lamp.position.set(0.1 - cars[0].xc, 1.55, 0); cars[0].g.add(lamp);
   root.add(train);
-  const LEN = 12.0 + 4 * (CL + 0.7);
-  // it faces -s (toward the ring): local x → -D, y up, z → -N (right-handed: (-D) × up = -N; it's symmetric across z)
-  const basis = new THREE.Matrix4().makeBasis(new THREE.Vector3(-D.x, 0, -D.z), new THREE.Vector3(0, 1, 0), new THREE.Vector3(-N.x, 0, -N.z));
-  train.matrixAutoUpdate = false;
+  const LEN = -cars[cars.length - 1].x1;
 
   // ----- smoke and steam: a pool of soft points -----
   const NP = 320, sp = new Float32Array(NP * 3), sv = new Float32Array(NP * 3), sa = new Float32Array(NP), ss = new Float32Array(NP), sk = new Float32Array(NP);
@@ -102,12 +108,18 @@ export function buildTrain(fl, R, time, on = () => {}) {
   // ----- the timetable -----
   const S = { s: FAR + 200, v: 0, state: 'away', t: 0, wait: 25, called: false, chuff: 0, dir: -1 };
   const pos = new THREE.Vector3(), w2 = new THREE.Vector3(), chim = new THREE.Vector3(), m4 = new THREE.Matrix4();
-  const WIND = new THREE.Vector3(N.x * 0.5 + D.x * 0.6, 0, N.z * 0.5 + D.z * 0.6);
-  function place() {
-    const w = toWorld(S.s, TRACK_U);
-    m4.copy(basis).setPosition(w.x, Y_DECK + 0.2, w.z);
-    train.matrix.copy(m4); train.matrixWorldNeedsUpdate = true;
-    train.visible = S.s < DECK_END + 30;
+  const WIND = new THREE.Vector3(0.35, 0, -0.75);   // (off the sea, toward the far side)
+  // each car on the track where its middle is: it faces -s (toward the ring): local x → back along the line, y up,
+  // z → the near side (right-handed; it's symmetric across z)
+  const F = {}, X = new THREE.Vector3(), Y = new THREE.Vector3(0, 1, 0), Z = new THREE.Vector3();
+  function place(s = S.s) {
+    train.visible = s < DECK_END + 30;
+    for (const c of cars) {
+      const sc = s - c.xc, w = toWorld(sc, TRACK_U);
+      frameAt(sc, F);
+      X.set(-F.dx, 0, -F.dz); Z.set(-F.nx, 0, -F.nz);
+      c.g.matrix.makeBasis(X, Y, Z).setPosition(w.x, Y_DECK + 0.2, w.z); c.g.matrixWorldNeedsUpdate = true;
+    }
   }
   function update(dt, t) {
     dt = Math.min(dt, 0.1);
@@ -137,7 +149,7 @@ export function buildTrain(fl, R, time, on = () => {}) {
     if (was !== S.state) S.since = t;
     place();
     // the chuffs: four a turn of the wheels, a puff each from the chimney; harder starting, softer at speed
-    chim.set(-0.95, 3.6, 0).applyMatrix4(train.matrix);
+    chim.set(-0.95 - cars[0].xc, 3.6, 0).applyMatrix4(cars[0].g.matrix);
     if (S.v > 0.1) {
       S.chuff += S.v * dt / (Math.PI * 1.24) * 4;
       if (S.chuff >= 1) {
@@ -148,7 +160,7 @@ export function buildTrain(fl, R, time, on = () => {}) {
       }
     } else if (S.state === 'stop') {   // standing: a lazy column from the chimney, steam about the wheels at first
       if (Math.random() < dt * 3) puff(chim.x, chim.y, chim.z, 0, 0.8, 0, 1.0, 6);
-      if (S.t < 3 && Math.random() < dt * 30) { w2.set(-1.5 - Math.random() * 4, 0.5, (Math.random() < 0.5 ? -1 : 1) * 1.3).applyMatrix4(train.matrix); puff(w2.x, w2.y, w2.z, (Math.random() - 0.5) * 1.5, 0.4, (Math.random() - 0.5) * 1.5, 1.0, 2.5); }
+      if (S.t < 3 && Math.random() < dt * 30) { w2.set(-1.5 - Math.random() * 4 - cars[0].xc, 0.5, (Math.random() < 0.5 ? -1 : 1) * 1.3).applyMatrix4(cars[0].g.matrix); puff(w2.x, w2.y, w2.z, (Math.random() - 0.5) * 1.5, 0.4, (Math.random() - 0.5) * 1.5, 1.0, 2.5); }
     }
     // the smoke: rising, slowing, spreading, drifting with the wind and left behind as the train goes
     for (let i = 0; i < NP; i++) {
@@ -164,11 +176,11 @@ export function buildTrain(fl, R, time, on = () => {}) {
   }
   place();
   return {
-    root, train, S, update, LEN,
+    root, train, S, update, LEN, place,
     call() { if (S.state === 'away') { S.called = true; return true; } return false; },
     /** (tests) stand it somewhere: s of its front, its state */
     stage(s, state = 'stop') { S.s = s; S.state = state; S.t = 0; S.v = state === 'stop' ? 0 : CRUISE; place(); },
     res(h) { smokeM.uniforms.px.value = h * 0.9; },
-    pos: () => pos.set(0, 2, 0).applyMatrix4(train.matrix),
+    pos: () => pos.set(0, 2, 0).applyMatrix4(cars[0].g.matrix),
   };
 }
