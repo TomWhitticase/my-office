@@ -250,7 +250,7 @@ function scanScene([which, cachedFp]) {
 // floor in it (the roof, 46, 45: 44 is the same build, moved), each scanned for what's new there. The lazily built ones
 // are built through their debug hooks: the den under my office, the world's edge out past the city (from the helicopter),
 // Relativity (through its door from B3), what's behind the sky, the painting on B3 and the Plain behind it, the other
-// painting and the acrobats' coast behind it, the grid (and B3 round its doorway),
+// painting and the acrobats' coast behind it, the grid (and B3 round its doorway), the grey meadow's painting and the meadow,
 // the winter village and its painting, and the portrait and her world behind it (her in her chair). COPLANAR_ONLY=name,name: only those.
 const PLACES = [
   ['office', null],
@@ -270,6 +270,8 @@ const PLACES = [
     while (!L.painted) await new Promise((r) => { const c = new MessageChannel(); c.port1.onmessage = r; c.port2.postMessage(0); });
     L.sit(1.3, -2.6);
   }],
+  ['cart painting', () => window.__office.cart.painting(0, 2, 0, 0)],
+  ['cart', () => window.__office.cart.go(0, -3, 0, 0)],
   ['grid', () => window.__office.grid.go(0, -3, 0, 0)],
   ['grid door', () => window.__office.grid.door(0, 2.5, 0, 0)],
   ['grid door, the bookcase out', () => { const g = window.__office.grid; g.door(0, 2.5, 0, 0); g.bookcase(true); }],

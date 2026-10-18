@@ -144,6 +144,11 @@ const RESUME = {
     () => { const w = window.__office; return w.away?.n === -9 && w.lisa.built && Math.hypot(w.player.x + 2, w.player.z + 3) < 0.05 && w.mode === 'free'; }],
   'the portrait on B3': [{ f: -3, car: 0, cz: -0.5, x: 12.6, z: 123.3, eye: 1.65, yaw: 3.1416, pitch: 0 },
     () => { const w = window.__office; return w.away?.n === -3 && w.lisa.built && Math.hypot(w.player.x - 12.6, w.player.z - 123.3) < 0.05 && w.mode === 'free'; }],
+  // out in the grey meadow (floors/cart.js), the girl down the path; and in front of its painting on B3
+  cart: [{ f: -10, car: 0, cz: -0.5, x: -6, z: -20, eye: 1.65, yaw: 0.4, pitch: 0, s: { s: 60 } },
+    () => { const w = window.__office; return w.away?.n === -10 && w.cart.ready && Math.hypot(w.player.x + 6, w.player.z + 20) < 0.05 && w.cart.G.mode === 'path' && Math.abs(w.cart.G.s - 60) < 3 && w.mode === 'free'; }],
+  'the cart painting on B3': [{ f: -3, car: 0, cz: -0.5, x: 93.5, z: 51.2, eye: 1.65, yaw: -1.571, pitch: 0 },
+    () => { const w = window.__office; return w.away?.n === -3 && w.cart.built && Math.hypot(w.player.x - 93.5, w.player.z - 51.2) < 0.05 && w.mode === 'free'; }],
   helicopter: [{ f: 50, car: 0, cz: -0.5, x: 19, z: -0.5, eye: 1.65, yaw: 0, pitch: 0, s: { x: 120, y: 90, z: -60, yaw: 0.7, landed: false, aboard: true, out: false, free: false } },
     () => { const w = window.__office, S = w.heli.S; return w.away?.n === 50 && w.mode === 'heli' && S.aboard && !S.landed && S.rpm === 1 && Math.hypot(S.pos.x - 120, S.pos.y - 90, S.pos.z + 60) < 1; }],
 };

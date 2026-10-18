@@ -6243,6 +6243,29 @@
     "fx",
     "ground"
    ]
+  },
+  {
+   "n": -10,
+   "label": "THE MEADOW",
+   "title": "The meadow",
+   "scene": true,
+   "y": null,
+   "carless": true,
+   "fly": false,
+   "sound": {
+    "kind": "cart",
+    "steps": true
+   },
+   "colliders": 0,
+   "hits": 0,
+   "hooks": [
+    "enter",
+    "leave",
+    "bound",
+    "map",
+    "fx",
+    "ground"
+   ]
   }
  ],
  "tvs": [
@@ -6476,6 +6499,15 @@
    "sorted": "841c0771"
   },
   "the portrait": {
+   "objects": 1,
+   "types": {
+    "Scene": 1
+   },
+   "actions": {},
+   "ordered": "841c0771",
+   "sorted": "841c0771"
+  },
+  "the meadow": {
    "objects": 1,
    "types": {
     "Scene": 1

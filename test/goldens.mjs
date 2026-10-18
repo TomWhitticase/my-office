@@ -469,6 +469,20 @@ export const POSES = [
     await o.eval(`(${pose})(window.__office.lisa)`);
     await o.step(name === 'lisa-scare' ? 4 : name === 'lisa-tk' ? 30 : name === 'lisa-ceiling' ? 20 : 30);
   }]),
+  // The painting on B3 that's a way into the grey meadow (floors/cart.js): from across its room; close, the paint giving
+  // way to the window; a few centimetres from it, walking in; out there, the girl and the cart ahead as in the picture;
+  // a few centimetres from the frame on the way back; the face close to; the old carts in the grove; in the toy-maker's
+  // shed, the music box playing; the swing; you with the string, the cart behind you.
+  ['cart-painting', async (o) => { await arrive(o); await o.eval(() => window.__office.cart.painting(0, 7, 0, 0)); await o.step(30); }],
+  ['cart-painting-close', async (o) => { await arrive(o); await o.eval(() => window.__office.cart.painting(0.1, 1.4, 0.04, -0.03)); await o.step(30); }],
+  ['cart-crossing', async (o) => { await arrive(o); await o.eval(() => window.__office.cart.painting(0.05, 0.06, 0, 0)); await o.step(20); }],
+  ['cart', async (o) => { await arrive(o); await o.eval(() => window.__office.cart.go(0, -2.4, 0.03, 0.02)); await o.step(30); }],
+  ['cart-crossing-out', async (o) => { await arrive(o); await o.eval(() => { const c = window.__office.cart; c.painting(0, 3, 0, 0); c.go(0.05, -0.06, Math.PI, 0); }); await o.step(20); }],
+  ['cart-face', async (o) => { await arrive(o); await o.eval(() => window.__office.cart.face(2.4, 0.1, 0.1)); await o.step(30); }],
+  ['cart-grove', async (o) => { await arrive(o); await o.eval(() => window.__office.cart.by('grove', 0, null, -0.04)); await o.step(30); }],
+  ['cart-shed', async (o) => { await arrive(o); await o.eval(() => { const c = window.__office.cart; c.by('box', 0, null, -0.45); c.wind(); }); await o.step(30); }],
+  ['cart-swing', async (o) => { await arrive(o); await o.eval(() => window.__office.cart.by('swing', 0, null, 0.08)); await o.step(30); }],
+  ['cart-string', async (o) => { await arrive(o); await o.eval(() => { const c = window.__office.cart; c.go(-0.4, -5.4, 0, 0); c.hold(true); }); await o.step(1); await o.eval(() => window.__office.keys.add('KeyW')); await o.step(40); await o.eval(() => { const w = window.__office, p = w.player, C = w.cart.C; w.keys.delete('KeyW'); p.yaw = Math.atan2(p.x - C.rx, p.z - C.rz) + 0.15; p.pitch = -0.12; }); await o.step(10); }],
   // The grid (floors/grid.js), behind a bookcase on B3: the bookcase from across the room, against the wall; beside it,
   // close up; pulled out, the wall it hid; the wall giving, half gone, the grid through it; a step from going through it;
   // in the grid, the sky up; a step from going back out, B3 through the doorway; the black hole, seven seconds in.
