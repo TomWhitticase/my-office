@@ -17,6 +17,21 @@ export function makeWarm(renderer, scenes) {
   const random = Math.random;
   Math.random = rng(8800);
   const rt = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType }), cam = new THREE.PerspectiveCamera(70, 1, 0.1, 500);
+  // Ambient occlusion (GTAOPass) draws the scene again with one normal material of its own, a program for each kind of
+  // mesh (plain, instanced, morphed), which compile() never sees (an override): one of each kind with that material,
+  // hidden in each scene meanwhile (lit and fogged as the rest), so those are got ready too (as floors/cart.js did).
+  const nm = new THREE.MeshNormalMaterial({ blending: THREE.NoBlending }), aoKinds = scenes.map((sc) => {
+    const kinds = new Map(), g = new THREE.Group();
+    sc.traverse((x) => { if (x.isMesh && !x.isSkinnedMesh && x.material?.allowOverride !== false) kinds.set(`${!!x.isInstancedMesh}${x.geometry.morphAttributes.position?.length ?? 0}`, x); });
+    for (const x of kinds.values()) {
+      const m = x.isInstancedMesh ? new THREE.InstancedMesh(x.geometry, nm, x.count) : new THREE.Mesh(x.geometry, nm);
+      if (x.isInstancedMesh) m.instanceMatrix = x.instanceMatrix;
+      if (x.morphTargetInfluences) m.morphTargetInfluences = x.morphTargetInfluences.slice();
+      g.add(m);
+    }
+    g.visible = false; sc.add(g);
+    return g;
+  });
   Math.random = random;
   cam.layers.enableAll();
   // fn with everything in sc shown and unculled, then back as it was
@@ -49,6 +64,7 @@ export function makeWarm(renderer, scenes) {
     for (const sc of scenes) shown(sc, () => { renderer.shadowMap.needsUpdate = true; renderer.render(sc, cam); });
     renderer.setRenderTarget(prev);
     rt.dispose();
+    for (const g of aoKinds) g.removeFromParent();
     state = 'done';
     return true;
   };
