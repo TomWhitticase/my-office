@@ -1,8 +1,8 @@
 // Getting a scene ready to be seen before it is, without a hitch on the way: what a floor behind a doorway (grid.js, the
 // painting doors) runs while you're still walking up to it. Its programs are compiled in the background (compileAsync,
 // with everything in it shown, as it's drawn into its floor's composer: a half-float target); then a few milliseconds a
-// frame, each program's first use (its uniforms looked up, its link checked: calls that wait on the GPU process, tens of
-// milliseconds each when it's busy); then the next frame draws everything once, unseen, into a few pixels, none of it
+// frame, each program's first use once it's compiled (its uniforms looked up, its link checked: calls that wait on the
+// GPU process, tens of milliseconds each if it's not); then the next frame draws everything once, unseen, into a few pixels, none of it
 // culled, shadows and all (the GPU's own work the first time it draws with a program, a second or more on ANGLE/Metal,
 // done then and not on the frame it's first seen). Nothing here draws to the screen.
 
@@ -55,7 +55,10 @@ export function makeWarm(renderer, scenes) {
         progs = [...s];
       }
       const t0 = performance.now();
-      while (progs.length && performance.now() - t0 < 3) progs.pop().getUniforms();
+      while (progs.length && performance.now() - t0 < 3) {
+        if (!progs[progs.length - 1].isReady()) return false;   // (the GPU process still compiling it: a first use would wait)
+        progs.pop().getUniforms();
+      }
       if (!progs.length) state = 'drawing';
       return false;
     }
@@ -67,5 +70,43 @@ export function makeWarm(renderer, scenes) {
     for (const g of aoKinds) g.removeFromParent();
     state = 'done';
     return true;
+  };
+}
+
+/** The same for a scene that's partly drawn already (the office, for coming out over its roof: grid-ending.js): every
+ * material in `scene`, hidden or not, compiled a batch of objects a frame (lit as the scene is lit), then each program's
+ * first use a few milliseconds a frame. No unseen draw (the caller draws what it needs). @param {any} renderer
+ * @param {any} scene @param {any} camera @returns {() => boolean} once a frame: true once it's all done */
+export function makeCompile(renderer, scene, camera, batch = 120) {
+  const objs = [];
+  scene.traverse((o) => { if ((o.isMesh || o.isPoints || o.isLine || o.isSprite) && o.material) objs.push(o); });
+  const mats = new Set(), random = Math.random;
+  Math.random = rng(8801);   // (its target's uuid: a stream of its own)
+  const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType });   // (drawn into a target, as by the composer)
+  Math.random = random;
+  let i = 0, progs = null;
+  // (three's compile walks `scene` for materials and for lights: a stand-in that walks only this batch for the first
+  // and nothing for the second; the lights come from the real scene, the target)
+  const part = (list) => ({ traverse: (fn) => list.forEach(fn), traverseVisible: () => {} });
+  return function tick() {
+    if (i < objs.length) {
+      const prev = renderer.getRenderTarget();
+      renderer.setRenderTarget(rt);
+      for (const m of renderer.compile(part(objs.slice(i, i += batch)), camera, scene)) mats.add(m);
+      renderer.setRenderTarget(prev);
+      if (i >= objs.length) rt.dispose();
+      return false;
+    }
+    if (!progs) {
+      const s = new Set();
+      for (const m of mats) { const p = renderer.properties.get(m).currentProgram; if (p) s.add(p); }
+      progs = [...s];
+    }
+    const t0 = performance.now();
+    while (progs.length && performance.now() - t0 < 3) {
+      if (!progs[progs.length - 1].isReady()) return false;   // (still compiling: next frame)
+      progs.pop().getUniforms();
+    }
+    return !progs.length;
   };
 }

@@ -12,6 +12,7 @@
 
 import * as THREE from 'three';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { makeCompile } from '../systems/warm.js';
 import { angDiff, clamp, EYE, rng, sstep } from '../util.js';
 
 // ----- the warp: the view tunnelling, stretching and rippling into streaks of colour and light; the flash -----
@@ -133,21 +134,15 @@ export function makeEnding(ctx, grid, W, hole, sound) {
     if (aoOff) { aoOff = false; const a = ao(); if (a) a.enabled = ctx.quality; }
   }
   // The office, got ready for you coming out over it (the roof's things perhaps never drawn yet, and none of it drawn for
-  // as long as you've been down here: the first frame of it would wait on the GPU): the roof's programs compiled in the
-  // background as the hole opens; and as you're taken, the office drawn once, unseen, into a few pixels from up where
-  // you'll come out, as it'll be then (the roof shown, the storey's insides not).
-  let roofReady = false;
+  // as long as you've been down here: the first frame of it would wait on the GPU): every program in the office's scene
+  // (the bar, the helicopter, the deck: things never drawn from 48) compiled a batch a frame as the hole grows, and each
+  // one's first use done (systems/warm.js makeCompile); and as you're taken, the office drawn once, unseen, into a few
+  // pixels from up where you'll come out, shadows and all, as it'll be then (the roof shown, the storey's insides not).
+  let roofTick = null, roofReady = false;
   function compileRoof() {
-    roofReady = true;
-    const r = ctx.renderer, R = roofF(), random = Math.random;
-    Math.random = rng(1997);   // (three's uuids: a stream of their own)
-    const rt = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType });
-    Math.random = random;
-    const was = r.getRenderTarget(), undo = R.cctv?.stage?.();
-    r.setRenderTarget(rt);
-    r.compileAsync(R.g, camera, ctx.scene).catch(() => {}).finally(() => rt.dispose());
-    r.setRenderTarget(was);
-    undo?.();
+    roofTick ||= makeCompile(ctx.renderer, ctx.scene, camera);
+    const R = roofF(), undo = R.cctv?.stage?.();   // (the deck shown, as it'll be: its things' lights and shadows as up there)
+    try { roofReady = roofTick(); } finally { undo?.(); }
   }
   function drawOffice() {
     const r = ctx.renderer, R = roofF(), random = Math.random;
@@ -158,7 +153,7 @@ export function makeEnding(ctx, grid, W, hole, sound) {
     cam.position.set(0, R.y + HIGH + EYE, -2); cam.rotation.set(-1.0, 0, 0); cam.updateMatrixWorld();
     const was = r.getRenderTarget(), undo = R.cctv?.stage?.();
     R.insides.hide();
-    r.setRenderTarget(rt); r.render(ctx.scene, cam); r.setRenderTarget(was);
+    r.setRenderTarget(rt); r.shadowMap.needsUpdate = true; r.render(ctx.scene, cam); r.setRenderTarget(was);
     R.insides.show(); undo?.(); rt.dispose();
   }
   // Taken (grid-hole.js, when it's had everything): not while you're at the doorway, on your way out.
@@ -221,6 +216,7 @@ export function makeEnding(ctx, grid, W, hole, sound) {
   function update(dt, t) {
     if (!E.phase) {
       if (hole.on && ctx.away === grid && !roofReady) compileRoof();
+      else if (!hole.on && roofTick && !roofReady) roofTick = null;   // (healed half done: afresh next time)
       if (hole.on && ctx.away === grid && !roofF().insides.done) roofF().insides.tick(2);
       return;
     }

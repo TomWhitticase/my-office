@@ -552,14 +552,16 @@ function build(ctx) {
   // from when the keypad first opens (typing the code and the long ride give it seconds), and the floor's
   // post-processing made and drawn once before you're down here (under the frame that's drawn over it): the ride and the
   // doors opening then don't wait on them.
-  let warmB3 = null, warmedB3 = false;
+  let warmB3 = null, warmedB3 = false, laid = -1, still = 0;   // (the rooms laid out a room a frame first, till none's added)
   ctx.onFrame((dt, t) => {
     if (warmedB3) return;
     const L = ctx.mine.L;
     if (!warmB3) {
-      if (!L || ctx.away || !keypad.el.classList.contains('on')) return;
-      restr.view(LIFT.x - 3, 0, t, L.z, true);
-      warmB3 = makeWarm(ctx.renderer, [restr.scene]);
+      if (laid < 0 && (!L || ctx.away || !keypad.el.classList.contains('on'))) return;
+      if (ctx.away === restr) { warmedB3 = true; return; }   // (down there already: too late)
+      restr.view(LIFT.x - 3, 0, t, L?.z ?? restr.z0, false);
+      still = restr.chunks.size === laid ? still + 1 : 0; laid = restr.chunks.size;
+      if (still > 2) warmB3 = makeWarm(ctx.renderer, [restr.scene]);
     } else if (warmB3()) {
       warmB3 = null; warmedB3 = true;
       if (ctx.away === restr) return;
