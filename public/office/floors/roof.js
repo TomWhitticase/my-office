@@ -308,19 +308,55 @@ export function install(ctx) {
     for (const st of seats.slice(s0)) st.floor = ROOF;
     roof.hits = [roof.callHit, roof.panel.mesh];
     roof.map = drawRoofMap;
+    // Up here, what's inside the office storey under you (the desks, the rooms, everything in them: two thirds of the
+    // office scene's draws, and of its shadow map's, every frame) can't be seen through the slab or past the facade: it's
+    // left out while you're up here over the deck. Which those things are is worked out a couple of milliseconds a frame (a box round a big
+    // mesh the first time can take tens of them), from when you first come up or before (floors/grid-ending.js); never
+    // anything with a light in it (the number of lights is in every lit material's program: hiding one would recompile
+    // the whole office, twice).
+    const insides = (() => {
+      const box3 = new THREE.Box3(), top = ROOF_Y - 0.3, m = 0.4;
+      let scan = { i: 0, found: [] }, hidden = [], want = false;
+      function tick(ms = 2) {
+        const kids = world.children, t0 = performance.now();
+        for (; scan.i < kids.length && performance.now() - t0 < ms; scan.i++) {
+          const c = kids[scan.i];
+          if (c === G || c.isLight) continue;
+          let lit = false;
+          c.traverse((o) => { lit ||= o.isLight; });
+          if (lit) continue;
+          box3.setFromObject(c);
+          if (box3.isEmpty() || box3.min.y < -0.3 || box3.max.y > top || box3.min.x < ROOM.minX + m || box3.max.x > ROOM.maxX - m || box3.min.z < ROOM.minZ + m || box3.max.z > ROOM.maxZ - m) continue;
+          scan.found.push(c);
+          if (want && c.visible) { c.visible = false; hidden.push(c); }
+        }
+        return scan.i >= kids.length;
+      }
+      // up here, over the deck (not out in the helicopter, where the windows show them): left out
+      const over = () => camera.position.y > ROOF_Y && Math.abs(camera.position.x) < EDGE.x + 0.5 && Math.abs(camera.position.z) < EDGE.z + 0.5;
+      return {
+        tick, over, get done() { return scan.i >= world.children.length; }, get on() { return want; },
+        hide() { want = true; for (const c of scan.found) if (c.visible) { c.visible = false; hidden.push(c); } },
+        show() { want = false; for (const c of hidden) c.visible = true; hidden = []; },
+        forget() { scan = { i: 0, found: [] }; },   // (looked at afresh next time: things come and go)
+      };
+    })();
+    roof.insides = insides;
     roof.enter = (z) => {
       const c = roof.cars.find((k) => k.z === z) || roof.cars[0];
       Object.assign(roof, { leaves: c.leaves, ind: c.ind });
       roof.panel.moveTo(z);
       G.visible = true;
     };
-    roof.leave = () => { G.visible = false; };
+    roof.leave = () => { G.visible = false; insides.show(); insides.forget(); };
     roof.bound = (p) => { p.x = clamp(p.x, -EDGE.x + 0.5, EDGE.x - 0.5); p.z = clamp(p.z, -EDGE.z + 0.5, EDGE.z - 0.5); };
     const turn = (dt, t) => {   // the condenser fans and the windsock
       for (const [i, f] of roof.fans.entries()) f.rotation.y += dt * (7 + i);
       roof.sock.rotation.set(Math.sin(t * 1.3) * 0.05, 2.4 + Math.sin(t * 0.31) * 0.35 + Math.sin(t * 0.83) * 0.1, -0.25 + Math.sin(t * 0.5) * 0.12);
     };
     roof.fx = (dt, t) => {
+      if (!insides.done) insides.tick();
+      if (insides.over() !== insides.on) insides[insides.on ? 'show' : 'hide']();
       turn(dt, t);
       roof.cars.forEach((c, i) => { Object.assign(c.ind, { floor: lifts[i].floor, dir: lifts[i].dir }); paintIndicator(c.ind); });   // the other car's lantern
     };

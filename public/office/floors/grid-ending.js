@@ -12,7 +12,7 @@
 
 import * as THREE from 'three';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-import { angDiff, clamp, EYE, rng, ROOM, sstep } from '../util.js';
+import { angDiff, clamp, EYE, rng, sstep } from '../util.js';
 
 // ----- the warp: the view tunnelling, stretching and rippling into streaks of colour and light; the flash -----
 // amt: how far into the tunnel (from the middle out); scene: how much of what's in view is smeared round it; flash: the
@@ -112,41 +112,23 @@ export function makeEnding(ctx, grid, W, hole, sound) {
   const E = { phase: null, k: 0, warpK: 0, burstK: -1, drop: 0, h: HIGH, vy: 0, vx: 0, vz: 0, land: { x: 0, z: 0 }, roof: null };
   const p = () => ctx.player;
   const walk = () => {};
-  // High up, what's inside the office storey (the desks, the rooms, everything in them: nearly all of the office scene's
-  // draws) can't be seen through the roof: it's left out till you're 80 m off it (not the shell, the roof or the city).
-  // Nor is the sun's shadow map drawn again till then (its box is round the tower: from up there its shadows are specks,
-  // and in twenty seconds the sun hasn't moved). Which those things are is worked out a couple of milliseconds a frame
-  // from when the hole opens (a box round a big mesh the first time can take tens of them). Never anything with a light
-  // in it: the number of lights is in every lit material's program, so hiding one recompiles the whole office, twice.
-  let inside = [], scan = { i: 0, found: [], done: false };
-  const box = new THREE.Box3();
-  function scanInside(ms) {
-    const kids = ctx.world.children, top = roofF().y - 0.3, m = 0.4, t0 = performance.now();
-    for (; scan.i < kids.length && performance.now() - t0 < ms; scan.i++) {
-      const c = kids[scan.i];
-      if (c === roofF().g || c.isLight) continue;
-      let lit = false;
-      c.traverse((o) => { lit ||= o.isLight; });
-      if (lit) continue;
-      box.setFromObject(c);
-      if (!box.isEmpty() && box.min.y > -0.3 && box.max.y < top && box.min.x > ROOM.minX + m && box.max.x < ROOM.maxX - m && box.min.z > ROOM.minZ + m && box.max.z < ROOM.maxZ - m) scan.found.push(c);
-    }
-    scan.done = scan.i >= kids.length;
-  }
-  // (Nor its ambient occlusion: from up there there's nothing for it to shade, and at full size it's a good part of a frame.)
+  // High up, the sun's shadow map isn't drawn again till you're 80 m off the roof (its box is round the tower: from up
+  // there its shadows are specks, and in twenty seconds the sun hasn't moved); nor the ambient occlusion (nothing for it
+  // to shade from there, and at full size it's a good part of a frame). What's inside the office storey is left out by
+  // the roof itself while you're up there (roof.js insides): worked out from when the hole opens, here.
   const ao = () => ctx.composer?.passes.find((x) => x.gtaoMaterial);
-  let aoOff = false;
+  let high = false, aoOff = false;
   function hideInside() {
-    if (!scan.done) scanInside(Infinity);
-    inside = scan.found.filter((c) => c.visible);
-    for (const c of inside) c.visible = false;
+    const I = roofF().insides;
+    while (!I.tick(Infinity));
+    high = true;
     if (ctx.sun) ctx.sun.shadow.autoUpdate = false;
     const a = ao();
     if (a?.enabled) { a.enabled = false; aoOff = true; }
   }
   function showInside() {
-    for (const c of inside) c.visible = true;
-    inside = [];
+    if (!high) return;
+    high = false;
     if (ctx.sun && !ctx.sun.shadow.autoUpdate) { ctx.sun.shadow.autoUpdate = true; ctx.sun.shadow.needsUpdate = true; }
     if (aoOff) { aoOff = false; const a = ao(); if (a) a.enabled = ctx.quality; }
   }
@@ -175,8 +157,9 @@ export function makeEnding(ctx, grid, W, hole, sound) {
     cam.layers.mask = camera.layers.mask;
     cam.position.set(0, R.y + HIGH + EYE, -2); cam.rotation.set(-1.0, 0, 0); cam.updateMatrixWorld();
     const was = r.getRenderTarget(), undo = R.cctv?.stage?.();
+    R.insides.hide();
     r.setRenderTarget(rt); r.render(ctx.scene, cam); r.setRenderTarget(was);
-    undo?.(); rt.dispose();
+    R.insides.show(); undo?.(); rt.dispose();
   }
   // Taken (grid-hole.js, when it's had everything): not while you're at the doorway, on your way out.
   function start() {
@@ -238,11 +221,10 @@ export function makeEnding(ctx, grid, W, hole, sound) {
   function update(dt, t) {
     if (!E.phase) {
       if (hole.on && ctx.away === grid && !roofReady) compileRoof();
-      if (hole.on && !scan.done && ctx.away === grid) scanInside(2);
-      else if (!hole.on && scan.i) scan = { i: 0, found: [], done: false };   // (looked at afresh each time: things come and go)
+      if (hole.on && ctx.away === grid && !roofF().insides.done) roofF().insides.tick(2);
       return;
     }
-    if (!scan.done) scanInside(2);
+    if (!roofF().insides.done) roofF().insides.tick(2);
     const P = p();
     // taken somewhere else (the menu): let go
     const onGrid = E.phase === 'drag' || (E.phase === 'warp' && E.warpK < WARP);
