@@ -55,10 +55,11 @@ export function installStory(ctx, restr, sound) {
     cv.tex.needsUpdate = true;
     return cv;
   }
-  const PAPERS = {};
-  const papers = () => {
-    if (PAPERS.order) return PAPERS;
-    PAPERS.order = paper(512, 724, 11, (c, w, h, R) => {
+  // Hale's papers: each drawn the first time it's wanted (one at a time, as each thing of his is put down; drawing them
+  // all at once cost the frame that put the first down 60 ms), then kept.
+  const PAPERS = {}, make = {}, drawn = {};
+  {
+    make.order = () => paper(512, 724, 11, (c, w, h, R) => {
       c.fillStyle = '#d97757'; c.fillRect(36, 40, 8, 54);
       c.fillStyle = '#26282b'; c.font = `700 30px ${FONT}`; c.fillText('WORK ORDER', 58, 72);
       c.font = `400 17px ${FONT}`; c.fillText(dash.officeName() + ' · Facilities', 58, 96);
@@ -70,7 +71,7 @@ export function installStory(ctx, restr, sound) {
       });
       scrawl(c, ['going down now.', 'back in 20. — R'], 60, 600, 34, 46, R, '#1d2c6e');
     });
-    PAPERS.tally = paper(512, 724, 12, (c, w, h, R) => {
+    make.tally = () => paper(512, 724, 12, (c, w, h, R) => {
       c.strokeStyle = '#2a2418'; c.lineWidth = 4; c.lineCap = 'round';
       for (let g = 0; g < 7; g++) {   // 33: six fives and three
         const gx = 50 + (g % 4) * 108, gy = 70 + Math.floor(g / 4) * 110, n = g === 6 ? 3 : 5;
@@ -80,20 +81,20 @@ export function installStory(ctx, restr, sound) {
       scrawl(c, ['the lights don’t go off', 'so I count sleeps', '', 'the lift came once.', 'I wasn’t there.', '', 'it’s chimed twice since.', '!not from the lift.'],
         44, 330, 30, 44, R);
     });
-    PAPERS.last = paper(512, 724, 13, (c, w, h, R) => {
+    make.last = () => paper(512, 724, 13, (c, w, h, R) => {
       scrawl(c, [`${owner()} —`, '', 'I left the code where', 'you’d find it. I’m sorry.', 'somebody had to come down', 'for the lift to come down.', '',
         'go back while it still', 'answers. don’t wait', 'for me.', '', '— R'], 40, 70, 31, 50, R, '#1d2c6e');
     });
-    PAPERS.frantic = [['SAME ROOM.', '!SAME ROOM'], ['a STONE door', 'it doesn’t', 'belong. stairs', '!every way up'], ['the EXIT signs', 'point at', 'each other'],
+    make.frantic = () => [['SAME ROOM.', '!SAME ROOM'], ['a STONE door', 'it doesn’t', 'belong. stairs', '!every way up'], ['the EXIT signs', 'point at', 'each other'],
       ['don’t follow', '!the chime'], ['follow the HUM', 'the hum is', 'the real lift'], ['it’s in the', '!CEILING', 'don’t look away']].map((lines, k) =>
       paper(256, 256, 20 + k, (c, w, h, R) => scrawl(c, lines, 18, 70, 30, 48, R, k === 3 ? '#7a1a12' : '#2a2418'), k % 2 ? '#f3dd6c' : '#efe8d2'));
-    PAPERS.scrawl = paper(1024, 256, 30, (c, w, h, R) => { c.clearRect(0, 0, w, h); scrawl(c, ['!IT LEARNED THE CHIME'], 30, 160, 80, 0, R, 'rgba(70,40,18,.82)'); }, 'rgba(0,0,0,0)');
-    PAPERS.name = paper(1024, 400, 31, (c, w, h, R) => {
+    make.scrawl = () => paper(1024, 256, 30, (c, w, h, R) => { c.clearRect(0, 0, w, h); scrawl(c, ['!IT LEARNED THE CHIME'], 30, 160, 80, 0, R, 'rgba(70,40,18,.82)'); }, 'rgba(0,0,0,0)');
+    make.name = () => paper(1024, 400, 31, (c, w, h, R) => {
       c.clearRect(0, 0, w, h);
       scrawl(c, [`!${owner().toUpperCase()}`], 40, 190, 120, 0, R, 'rgba(60,34,14,.85)');
       scrawl(c, ['WAS HERE'], 120, 320, 70, 0, R, 'rgba(60,34,14,.75)');
     }, 'rgba(0,0,0,0)');
-    PAPERS.badge = paper(320, 512, 32, (c, w) => {
+    make.badge = () => paper(320, 512, 32, (c, w) => {
       c.fillStyle = '#f4f1ea'; c.fillRect(0, 0, w, 512);
       c.fillStyle = '#26282b'; c.fillRect(0, 0, w, 110); c.fillStyle = '#d97757'; c.fillRect(24, 26, 7, 58);
       c.fillStyle = '#f2efe8'; c.font = `600 22px ${FONT}`; c.fillText(dash.officeName(), 44, 52); c.font = `400 16px ${FONT}`; c.fillText('STAFF · ALL FLOORS', 44, 80);
@@ -104,8 +105,9 @@ export function installStory(ctx, restr, sound) {
       c.font = `500 18px ${FONT}`; c.fillStyle = '#555'; c.fillText('FACILITIES', w / 2, 405); c.font = `400 14px ${MONO}`; c.fillText('ID 0418', w / 2, 440);
       c.textAlign = 'left';
     });
-    return PAPERS;
-  };
+  }
+  for (const k of Object.keys(make)) Object.defineProperty(PAPERS, k, { get: () => (drawn[k] ||= make[k]()) });
+  const papers = () => PAPERS;
 
   // ----- the things -----
   const part = (g, w, h, d, x, y, z, color, o = {}) => {
@@ -229,7 +231,7 @@ export function installStory(ctx, restr, sound) {
   }
   function remove(it) {
     restr.root.remove(it.g);
-    const keep = new Set(Object.values(PAPERS).flat().map((p) => p.tex));   // the papers are drawn once; the hit box's material is shared
+    const keep = new Set(Object.values(drawn).flat().map((p) => p.tex));   // the papers are drawn once; the hit box's material is shared
     it.g.traverse((o) => { if (o.userData.action) return; o.geometry?.dispose(); if (o.material?.map && !keep.has(o.material.map)) o.material.map.dispose(); o.material?.dispose(); });
     st.items.splice(st.items.indexOf(it), 1);
   }

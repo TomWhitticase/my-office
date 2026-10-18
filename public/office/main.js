@@ -97,6 +97,10 @@ export function mountOffice(container) {
   renderer.toneMappingExposure = 1.05;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
+  // A program's first use, three checks it for errors: three calls that each wait on the GPU process (tens of ms when it's
+  // busy compiling others, every first use a stall). Only where they'd be read: automated runs (the smoke test fails on a
+  // shader error), unless asked not to (localStorage.officeShaderCheck 'off'), or anywhere asked to ('on').
+  renderer.debug.checkShaderErrors = localStorage.officeShaderCheck === 'on' || (!!navigator.webdriver && localStorage.officeShaderCheck !== 'off');
   renderer.domElement.className = 'of-gl';
   const cssRenderer = new CSS3DRenderer();
   cssRenderer.domElement.className = 'of-css';
