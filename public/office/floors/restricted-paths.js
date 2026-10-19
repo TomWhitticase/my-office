@@ -11,9 +11,17 @@
 
 import * as THREE from 'three';
 import { findExit } from './world-edge-backstage.js';
+import { rng } from '../util.js';
 
 const RES = 0.2, WORN = 0.32, MAXTX = 2.5e6;   // texels, metres (coarser if the trails spread so far the mask would pass MAXTX
 // texels); how much paler the worn pile is at its most
+// A mask texture. Made when B3's first seen, mid-session: three draws its uuid from Math.random, so it's drawn from a
+// seed of its own here, or everything random after it (Relativity's hatching, the goldens' poses) would shift.
+function maskTex(data, w, h) {
+  const random = Math.random;
+  Math.random = rng(4407);
+  try { const t = new THREE.DataTexture(data, w, h, THREE.RedFormat, THREE.UnsignedByteType); t.needsUpdate = true; return t; } finally { Math.random = random; }
+}
 const SHARE = 0.25, SHARED = 1.3;   // where trails run together: each other one adds this much of its wear, to at most this times one's
 const WAYS = [['w', -1, 0], ['e', 1, 0], ['s', 0, -1], ['n', 0, 1]];
 
@@ -106,7 +114,7 @@ export function wornPaths(restr, start) {
   // itself; where routes overlap, the strongest and a little of the rest. The wobble and the patchiness go by the distance
   // walked from the lift, the same for every route, so routes that share a way lie on each other there exactly. -----
   function mask(routes) {
-    if (!routes.length) return { tex: new THREE.DataTexture(new Uint8Array(1), 1, 1, THREE.RedFormat, THREE.UnsignedByteType), box: { x0: 0, z0: 0, w: 1, h: 1 } };
+    if (!routes.length) return { tex: maskTex(new Uint8Array(1), 1, 1), box: { x0: 0, z0: 0, w: 1, h: 1 } };
     let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
     for (const r of routes) for (const { p } of r) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); z0 = Math.min(z0, p[1]); z1 = Math.max(z1, p[1]); }
     x0 -= 2; z0 -= 2; x1 += 2; z1 += 2;
@@ -135,8 +143,8 @@ export function wornPaths(restr, start) {
       for (let k = 0; k < one.length; k++) if (one[k]) { sum[k] += one[k]; if (one[k] > data[k]) data[k] = one[k]; }
   }
   for (let k = 0; k < data.length; k++) if (sum[k] > data[k]) data[k] = Math.min(255, data[k] * SHARED, data[k] + (sum[k] - data[k]) * SHARE);
-  const tex = new THREE.DataTexture(data, W, H, THREE.RedFormat, THREE.UnsignedByteType);
-  tex.magFilter = tex.minFilter = THREE.LinearFilter; tex.needsUpdate = true;
+  const tex = maskTex(data, W, H);
+  tex.magFilter = tex.minFilter = THREE.LinearFilter;
   return { tex, box: { x0, z0, w: W * res, h: H * res } };
   }
   // the mask, baked now if it's not yet (or a door's been added since)
