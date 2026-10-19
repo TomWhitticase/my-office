@@ -64,6 +64,7 @@ import { install as installHover } from './systems/hover.js';
 import { install as installMinimap } from './systems/minimap.js';
 import { install as installMenu } from './systems/menu.js';
 import { install as installPost, installRender } from './systems/post.js';
+import { install as installShadows } from './systems/shadows.js';
 
 // ---------- the office ----------
 /** @param {HTMLElement} container */
@@ -263,6 +264,7 @@ export function mountOffice(container) {
   }
   setOverlays(ctx.overlays, true);
   installRender(ctx);
+  installShadows(ctx);   // the sun's shadow map: what doesn't move kept, not redrawn
   const { renderFrame } = ctx;
   installAvatar(ctx);   // after post's layer sort: its name tag is a sprite, kept off your view's layers
 
